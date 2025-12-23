@@ -5,5 +5,5 @@ TypeScript/JavaScript language server for Claude Code using [typescript-native](
 Please install the preview globally before using:
 
 ```sh
-npm install @typescript/native-preview
+npm install -g @typescript/native-preview
 ```
