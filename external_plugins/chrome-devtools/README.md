@@ -91,5 +91,5 @@ Invoke with: `Use the web-performance agent to analyze this page`
 
 ## Resources
 
-- [Chrome DevTools MCP Repository](https://github.com/google/chrome-devtools-mcp)
+- [Chrome DevTools MCP Repository](https://github.com/ChromeDevTools/chrome-devtools-mcp/)
 - [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/)
