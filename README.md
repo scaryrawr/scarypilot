@@ -49,9 +49,3 @@ Interested in adding plugins to this marketplace? Check out the plugin developme
 
 - [Plugin Architecture Guide](./.github/copilot-instructions.md)
 - [Marketplace Configuration](./.claude-plugin/marketplace.json)
-
-## Resources
-
-- [Claude Code Documentation](https://docs.claude.ai/)
-- [Model Context Protocol](https://modelcontextprotocol.io/)
-- [Plugin Marketplace Spec](https://github.com/anthropics/claude-code-plugin-spec)
