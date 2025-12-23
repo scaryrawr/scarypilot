@@ -50,6 +50,16 @@
       "source": "./external_plugins/devtools",
       "category": "development",
       "strict": false
+    },
+    {
+      "name": "playwright-ext",
+      "description": "Browser automation and end-to-end testing MCP server by Microsoft. Enables Claude to interact with web pages, take screenshots, fill forms, click elements, and perform automated browser testing workflows.",
+      "author": {
+        "name": "Microsoft"
+      },
+      "source": "./external_plugins/playwright-ext",
+      "category": "development",
+      "strict": false
     }
   ]
 }
