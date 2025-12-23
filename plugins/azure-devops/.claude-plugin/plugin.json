@@ -1,0 +1,7 @@
+{
+  "name": "azure",
+  "description": "Azure Plugin for Claude",
+  "author": {
+    "name": "Mike Wallio"
+  }
+}

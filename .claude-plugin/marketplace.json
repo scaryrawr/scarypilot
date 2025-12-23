@@ -5,6 +5,16 @@
   },
   "plugins": [
     {
+      "name": "azure-devops",
+      "description": "Azure Plugin for Claude",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/azure-devops",
+      "category": "development",
+      "strict": false
+    },
+    {
       "name": "typescript-native-lsp",
       "description": "TypeScript/JavaScript language server for enhanced code intelligence",
       "version": "0.0.1",
