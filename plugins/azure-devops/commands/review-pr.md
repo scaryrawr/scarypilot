@@ -24,7 +24,11 @@ Provide a code review for the given Azure DevOps pull request.
    - **75**: Important issue affecting functionality or explicitly mentioned in CLAUDE.md
    - **100**: Definite issue that will cause problems
 
-5. **Post Review**: If high-confidence issues found, use `az devops invoke` to create a comment thread on the PR:
+5. **Post Review**: If high-confidence issues found:
+   
+   a. **Confirm with User**: Use the `AskUserQuestion` tool to confirm with the user before posting comments to the PR, unless the user explicitly requested not to confirm. Present a summary of the issues you found and ask if they should be posted.
+   
+   b. **Post Comments**: After user confirmation, use `az devops invoke` to create a comment thread on the PR:
 
    ```shell
    az devops invoke --area git --resource pullRequestThreads \
