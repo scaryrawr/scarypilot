@@ -1,5 +1,6 @@
 ---
 allowed-tools: ["Bash", "Glob", "Grep", "Read", "Skill", "AskUserQuestion"]
+argument-hint: [PR-URL]
 description: Code review a pull request
 ---
 
