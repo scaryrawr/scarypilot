@@ -9,7 +9,11 @@ Provide a code review for the given Azure DevOps pull request.
 
 1. **Check Eligibility**: Use `az repos pr show --id {prId}` to verify the PR is open, not a draft, and hasn't been reviewed by you already. Skip if ineligible.
 
-2. **Get Context**: Identify relevant CLAUDE.md files (root and in modified directories) and use `az devops invoke --area git --resource pullRequests --route-parameters repositoryId={repo} pullRequestId={pr} --org {orgUrl} --api-version 7.1` to get the PR diff.
+2. **Get Context**: Identify relevant CLAUDE.md files (root and in modified directories) and get the PR diff using git commands:
+   - First, use `az repos pr show --id {prId}` to get the target branch name
+   - Then fetch and switch to the PR branch: `az repos pr checkout --id {prId}`
+   - Generate the diff: `git diff origin/{targetBranch}...HEAD`
+   - **Note**: These commands will only work when executed in the same git repository as the PR.
 
 3. **Review the Changes**: Use agents to analyze the code changes for:
    - CLAUDE.md compliance (only applicable instructions)
