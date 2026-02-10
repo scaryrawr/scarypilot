@@ -1,7 +1,6 @@
 ---
-allowed-tools: ["Bash", "Glob", "Grep", "Read", "Skill", "AskUserQuestion"]
-argument-hint: [PR-URL]
-description: Code review a pull request
+name: review-pr
+description: Code review an Azure DevOps pull request
 ---
 
 Provide a code review for the given Azure DevOps pull request.
