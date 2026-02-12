@@ -1,0 +1,15 @@
+# Setup steps for GitHub Copilot coding agent
+# This repository is primarily Markdown and JSON configuration files
+# with no build or test steps, but some plugins depend on npm packages.
+name: "Copilot Setup Steps"
+on: workflow_dispatch
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
