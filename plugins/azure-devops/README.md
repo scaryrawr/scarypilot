@@ -1,6 +1,6 @@
 # Azure DevOps Plugin
 
-Intelligent Azure DevOps integration for Claude Code. Manages pull requests and work items through the Azure CLI with automatic URL parsing and context-aware actions.
+Intelligent Azure DevOps integration for GitHub Copilot. Manages pull requests and work items through the Azure CLI with automatic URL parsing and context-aware actions.
 
 > **⚠️ Note:** Some commands and features in this plugin are AI-generated/vibe-coded. While functional, they may require adjustments for your specific Azure DevOps setup. Always review generated actions before executing in production environments.
 

@@ -1,6 +1,6 @@
 # Playwright Extension Plugin
 
-Browser automation for Claude Code using Microsoft's Playwright. Enables web scraping, testing, and form automation by connecting to your existing browser with logged-in sessions.
+Browser automation for GitHub Copilot using Microsoft's Playwright. Enables web scraping, testing, and form automation by connecting to your existing browser with logged-in sessions.
 
 ## What This Plugin Does
 

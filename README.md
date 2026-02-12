@@ -1,22 +1,21 @@
-# ScaryRawr Plugins
+# ScaryPilot Plugin Marketplace
 
-A curated collection of plugins for Claude Code, including custom plugins and integrations with external MCP servers. This marketplace enhances Claude's capabilities with specialized tools for development, debugging, automation, and more.
+A curated collection of plugins for GitHub Copilot, including custom plugins and integrations with external MCP servers. This marketplace enhances Copilot's capabilities with specialized tools for development, debugging, automation, and more.
 
 ## Quick Start
 
 ### Add the Marketplace
 
 ```sh
-claude plugin marketplace add scaryrawr/scaryrawr-plugins
+copilot plugin marketplace add scaryrawr/scarypilot
 ```
 
 ### Install a Plugin
 
-Use the `/plugin` command in Claude Code or install from the terminal:
+Use the `/plugin` command in copilot or install from the terminal:
 
 ```sh
-# Example: Install the TypeScript LSP plugin
-claude plugin install typescript-native-lsp
+copilot plugin install azure-devops@scarypilot
 ```
 
 ## Available Plugins
@@ -31,7 +30,7 @@ claude plugin install typescript-native-lsp
 **Install any plugin:**
 
 ```sh
-claude plugin install <plugin-name>
+copilot plugin install <plugin-name>
 ```
 
 ## Plugin Architecture
@@ -48,4 +47,4 @@ This marketplace supports multiple plugin patterns:
 Interested in adding plugins to this marketplace? Check out the plugin development documentation:
 
 - [Plugin Architecture Guide](./.github/copilot-instructions.md)
-- [Marketplace Configuration](./.claude-plugin/marketplace.json)
+- [Marketplace Configuration](./.github/plugin/marketplace.json)

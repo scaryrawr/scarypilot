@@ -1,6 +1,6 @@
 # TypeScript Native LSP Plugin
 
-High-performance TypeScript/JavaScript language server for Claude Code using Microsoft's [typescript-native](https://github.com/microsoft/typescript-go) (`tsgo`).
+High-performance TypeScript/JavaScript language server for GitHub Copilot using Microsoft's [typescript-native](https://github.com/microsoft/typescript-go) (`tsgo`).
 
 ## What This Plugin Does
 

@@ -1,45 +1,24 @@
 {
-  "name": "scaryrawr-plugins",
+  "name": "scarypilot",
   "owner": {
     "name": "Mike Wallio"
   },
   "plugins": [
     {
       "name": "azure-devops",
-      "description": "Azure Plugin for Claude",
+      "description": "Plugin for interacting with Azure DevOps",
       "author": {
         "name": "Mike Wallio"
       },
-      "source": "./plugins/azure-devops",
-      "category": "development",
-      "strict": false
+      "source": "./plugins/azure-devops"
     },
     {
       "name": "typescript-native-lsp",
       "description": "TypeScript/JavaScript language server for enhanced code intelligence",
-      "version": "0.0.1",
       "author": {
         "name": "Mike Wallio"
       },
-      "source": "./plugins/typescript-native-lsp",
-      "category": "development",
-      "strict": false,
-      "lspServers": {
-        "typescript": {
-          "command": "tsgo",
-          "args": ["--lsp", "--stdio"],
-          "extensionToLanguage": {
-            ".ts": "typescript",
-            ".tsx": "typescriptreact",
-            ".js": "javascript",
-            ".jsx": "javascriptreact",
-            ".mts": "typescript",
-            ".cts": "typescript",
-            ".mjs": "javascript",
-            ".cjs": "javascript"
-          }
-        }
-      }
+      "source": "./plugins/typescript-native-lsp"
     },
     {
       "name": "chrome-devtools",
@@ -47,9 +26,7 @@
       "author": {
         "name": "Google"
       },
-      "source": "./external_plugins/chrome-devtools",
-      "category": "development",
-      "strict": false
+      "source": "./external_plugins/chrome-devtools"
     },
     {
       "name": "playwright-ext",
@@ -57,9 +34,7 @@
       "author": {
         "name": "Microsoft"
       },
-      "source": "./external_plugins/playwright-ext",
-      "category": "development",
-      "strict": false
+      "source": "./external_plugins/playwright-ext"
     },
     {
       "name": "tmux",
@@ -67,9 +42,7 @@
       "author": {
         "name": "Armin Ronacher"
       },
-      "source": "./plugins/tmux",
-      "category": "development",
-      "strict": false
+      "source": "./plugins/tmux"
     }
   ]
 }

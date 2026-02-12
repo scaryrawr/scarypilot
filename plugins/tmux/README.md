@@ -4,7 +4,7 @@ Remote control tmux sessions for interactive CLIs (python, gdb, etc.) by sending
 
 ## Attribution
 
-This plugin is based on the tmux skill by [Armin Ronacher (mitsuhiko)](https://github.com/mitsuhiko/agent-stuff/tree/main/skills/tmux), licensed under Apache 2.0. The original work has been adapted for use as a Claude Code plugin. Original implementation is "vibecoded" - created through AI-assisted development.
+This plugin is based on the tmux skill by [Armin Ronacher (mitsuhiko)](https://github.com/mitsuhiko/agent-stuff/tree/main/skills/tmux), licensed under Apache 2.0. The original work has been adapted for use as a Copilot plugin. Original implementation is "vibecoded" - created through AI-assisted development.
 
 ## License
 
