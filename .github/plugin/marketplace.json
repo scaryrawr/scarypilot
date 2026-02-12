@@ -13,12 +13,12 @@
       "source": "./plugins/azure-devops"
     },
     {
-      "name": "typescript-native-lsp",
-      "description": "TypeScript/JavaScript language server for enhanced code intelligence",
+      "name": "copilot",
+      "description": "Skills for working with GitHub Copilot",
       "author": {
         "name": "Mike Wallio"
       },
-      "source": "./plugins/typescript-native-lsp"
+      "source": "./plugins/copilot"
     },
     {
       "name": "chrome-devtools",
