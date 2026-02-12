@@ -17,6 +17,8 @@ Configure instructions for this repository as documented in [Best practices for 
 
 If there are specific instructions for certain paths in the repository, include those as well. For example, if there are different coding styles or architectural patterns in different parts of the repository, provide instructions for each path to help the agent understand how to assist users effectively.
 
+Paths can be used for file extensions, but also to apply instructions to specific packages and folders.
+
 If there are specific instructions for specific styles of tests or extensions for specific testing frameworks. For example, integration tests, e2e tests, or unit tests may have different conventions and best practices. Providing instructions for each type of test can help the agent understand how to assist users effectively.
 
 ## Custom Agents
