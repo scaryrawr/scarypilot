@@ -1,5 +1,5 @@
 ---
-name: create-pr
+name: make-pr
 description: Creates a pull request from current changes. Commits changes logically, finds PR templates, and opens the PR using the Azure CLI.
 ---
 
