@@ -26,6 +26,7 @@ copilot plugin install azure-devops@scarypilot
 | **azure-devops**          | Integration        | Intelligent Azure DevOps integration with URL parsing, PR management, and work item tracking using Azure CLI.                                                              | [📖 Docs](./plugins/azure-devops/README.md)             |
 | **chrome-devtools**       | Browser Automation | Chrome DevTools Protocol integration for automation, debugging, accessibility testing (WCAG), and performance analysis (Core Web Vitals). Includes specialized agents.     | [📖 Docs](./external_plugins/chrome-devtools/README.md) |
 | **playwright-ext**        | Browser Automation | Browser automation using Playwright with extension bridge. Testing, web scraping, form automation with logged-in sessions.                                                 | [📖 Docs](./external_plugins/playwright-ext/README.md)  |
+| **ollama**                | Image Generation   | Generate images from text prompts using Ollama's local image generation models (macOS-only). Supports Z-Image Turbo and FLUX.2 Klein.                                     | [📖 Docs](./plugins/ollama/README.md)                   |
 
 **Install any plugin:**
 

@@ -43,6 +43,14 @@
         "name": "Armin Ronacher"
       },
       "source": "./plugins/tmux"
+    },
+    {
+      "name": "ollama",
+      "description": "Generate images from text prompts using Ollama's local image generation models.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/ollama"
     }
   ]
 }
