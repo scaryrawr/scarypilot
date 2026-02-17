@@ -36,7 +36,8 @@ Enables Claude to control Chrome/Chromium browsers for:
 2. Install the plugin:
 
    ```bash
-   claude plugin install chrome-devtools
+   copilot plugin marketplace add scaryrawr/scarypilot
+    copilot plugin install chrome-devtools@scarypilot
    ```
 
 ## Specialized Agents

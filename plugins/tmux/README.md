@@ -22,8 +22,8 @@ Plugin adaptation: Copyright (c) Mike Wallio
 ## Installation
 
 ```bash
-claude plugin marketplace add scaryrawr/scaryrawr-plugins
-claude plugin install tmux
+copilot plugin marketplace add scaryrawr/scarypilot
+copilot plugin install tmux@scarypilot
 ```
 
 ## What It Does

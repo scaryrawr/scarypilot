@@ -18,7 +18,8 @@ Automate browser interactions using [Playwright](https://playwright.dev/):
 3. Install the plugin:
 
    ```bash
-   claude plugin install playwright-ext
+   copilot plugin marketplace add scaryrawr/scarypilot
+   copilot plugin install playwright-ext@scarypilot
    ```
 
 ## Usage Examples

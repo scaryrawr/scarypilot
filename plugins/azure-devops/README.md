@@ -24,7 +24,8 @@ Intelligent Azure DevOps integration for GitHub Copilot. Manages pull requests a
 2. Install the plugin:
 
    ```bash
-   claude plugin install azure-devops
+   copilot plugin marketplace add scaryrawr/scarypilot
+   copilot plugin install azure-devops@scarypilot
    ```
 
 ## Usage Examples
