@@ -21,6 +21,14 @@
       "source": "./plugins/copilot"
     },
     {
+      "name": "ghostty",
+      "description": "Ghostty automation for windows, tabs, splits, focus, and input on macOS.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/ghostty"
+    },
+    {
       "name": "chrome-devtools",
       "description": "Give your AI coding assistant access to the full power of Chrome DevTools for reliable automation, in-depth debugging, and performance analysis.",
       "author": {
