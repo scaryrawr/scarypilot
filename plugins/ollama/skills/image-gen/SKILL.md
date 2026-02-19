@@ -5,7 +5,7 @@ description: "Generate images from text prompts using Ollama's local image gener
 
 # Ollama Image Generation
 
-Generate images locally using Ollama's experimental text-to-image models. This feature is currently **macOS-only**.
+Generate images locally using Ollama's REST API (`/v1/images/generations`). This feature is currently **macOS-only** and uses Ollama's experimental OpenAI-compatible image generation endpoint.
 
 ## Models
 
@@ -13,20 +13,12 @@ Generate images locally using Ollama's experimental text-to-image models. This f
 
 6B parameter model from Alibaba's Tongyi Lab. Best for photorealistic images and bilingual (English/Chinese) text rendering. Apache 2.0 licensed.
 
-```bash
-ollama run x/z-image-turbo "your prompt here"
-```
-
 ### FLUX.2 Klein
 
 Black Forest Labs' fast image-generation model (4B and 9B sizes). Best for readable text in images, UI mockups, and typography-heavy designs.
 
 - 4B: Apache 2.0 (commercial use OK)
 - 9B: FLUX Non-Commercial License v2.1
-
-```bash
-ollama run x/flux2-klein "your prompt here"
-```
 
 ## Model Selection Guide
 
@@ -42,86 +34,61 @@ Default to `x/z-image-turbo` unless the user has a specific need for text render
 
 ## Generating Images
 
-Run the model with a descriptive prompt:
+Use the helper script to generate images via the Ollama REST API:
 
 ```bash
-ollama run x/z-image-turbo "Young woman in a cozy coffee shop, natural window lighting, wearing a cream knit sweater, holding a ceramic mug, soft bokeh background"
+./scripts/generate-image.sh --prompt "Young woman in a cozy coffee shop, natural window lighting, wearing a cream knit sweater, holding a ceramic mug, soft bokeh background"
 ```
 
-Images are saved to the **current working directory**. Terminals that support image rendering (Ghostty, iTerm2, etc.) can preview images inline.
-
-Always tell the user where the generated image was saved.
-
-## Configuration
-
-Settings are changed using `/set` commands inside an interactive `ollama run` session. Start a session first, configure it, then type your prompt:
+Choose a specific model and image size:
 
 ```bash
-$ ollama run x/z-image-turbo
->>> /set num_steps 20
-Set num_steps to "20"
->>> /set width 1024
-Set width to "1024"
->>> /set height 1024
-Set height to "1024"
->>> A sunset over the ocean with dramatic clouds
+./scripts/generate-image.sh \
+  --model x/flux2-klein \
+  --size 512x512 \
+  --output my-image.png \
+  --prompt "A neon sign reading OPEN 24 HOURS in a rainy alley"
 ```
 
-Settings persist for the duration of the session. You can also generate a quick one-off image without changing settings:
+Images are saved to the **current working directory** by default. Always tell the user where the generated image was saved.
+
+### Script Options
+
+| Option     | Default                            | Description                    |
+| ---------- | ---------------------------------- | ------------------------------ |
+| `--prompt` | *(required)*                       | The text prompt                |
+| `--model`  | `x/z-image-turbo`                 | Ollama model name              |
+| `--size`   | `1024x1024`                       | Image dimensions (`WxH`)       |
+| `--output` | `image_YYYYMMDD_HHMMSS.png`       | Output file path               |
+
+### Direct curl Example
+
+You can also call the API directly:
 
 ```bash
-ollama run x/z-image-turbo "A sunset over the ocean with dramatic clouds"
+curl -s http://localhost:11434/v1/images/generations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "x/z-image-turbo",
+    "prompt": "A sunset over the ocean with dramatic clouds",
+    "size": "1024x1024",
+    "response_format": "b64_json"
+  }' | jq -r '.data[0].b64_json' | base64 -d > output.png
 ```
 
-### Image Size
+## Image Size
 
-Modify width and height. Smaller images generate faster and use less memory.
+Control the output dimensions with the `--size` flag (or `size` field in the JSON body). Format is `WxH`. Smaller images generate faster and use less memory.
 
-```
-/set width 1024
-/set height 1024
-```
-
-### Number of Steps
-
-Controls iteration count. Fewer steps = faster but less detailed. Too many steps can cause artifacts. The default is typically 4, which prioritizes speed but may produce lower fidelity results.
-
-| Steps       | Use Case                                     |
-| ----------- | -------------------------------------------- |
-| 4 (default) | Quick drafts, fast iteration                 |
-| 8–12        | Good balance of quality and speed            |
-| 20–30       | High fidelity, detailed images               |
-| 30+         | Diminishing returns; may introduce artifacts |
-
-Increase steps when the user needs fine details, readable text in images, or higher quality output. Suggest 20+ steps for text-heavy prompts or when using FLUX.2 Klein for UI mockups.
-
-```
-/set num_steps 20
-```
-
-### Random Seed
-
-Set a seed for reproducible results. Different seeds produce different images from the same prompt.
-
-```
-/set seed 42
-```
-
-### Negative Prompts
-
-Guide the model on what to exclude from the image.
-
-```
-/set negative_prompt "blurry, low quality, distorted"
-```
+Common sizes: `512x512`, `768x768`, `1024x1024`
 
 ## Workflow
 
 1. Confirm the user's prompt and any preferences (model, size, style)
-2. Ensure Ollama is running (`ollama list` to verify)
-3. Run the appropriate model with the prompt
+2. Ensure Ollama is running (`curl -s http://localhost:11434/v1/models` to verify)
+3. Run the helper script with the appropriate model and prompt
 4. Report the output file location to the user
-5. If the user wants adjustments, iterate with modified prompts or settings
+5. If the user wants adjustments, iterate with modified prompts or size
 
 ## Prompting Tips
 

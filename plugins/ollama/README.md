@@ -6,9 +6,9 @@ Generate images from text prompts using Ollama's experimental image generation m
 
 ## What This Plugin Does
 
-- Generates images from natural language prompts using local Ollama models
+- Generates images from natural language prompts using Ollama's REST API (`/v1/images/generations`)
 - Supports multiple models: Z-Image Turbo (photorealistic) and FLUX.2 Klein (text rendering)
-- Configures image size, steps, seed, and negative prompts
+- Configures image size via the `size` parameter
 - Saves generated images to the current working directory
 
 ## Prerequisites
@@ -16,6 +16,8 @@ Generate images from text prompts using Ollama's experimental image generation m
 - **macOS** (image generation is not yet supported on Windows or Linux)
 - **[Ollama](https://ollama.com/)** must be installed and running
   - Install: `brew install ollama` or download from [ollama.com](https://ollama.com/)
+- **[jq](https://jqlang.github.io/jq/)** for JSON parsing
+  - Install: `brew install jq`
 
 ## Installation
 
@@ -47,6 +49,7 @@ copilot plugin install ollama@scarypilot
 ## Resources
 
 - [Ollama Image Generation Blog Post](https://ollama.com/blog/image-generation)
+- [Ollama OpenAI Compatibility — Image Generations](https://github.com/ollama/ollama/blob/main/docs/api/openai-compatibility.mdx#v1imagesgenerations-experimental)
 - [Z-Image Turbo Model Page](https://ollama.com/x/z-image-turbo)
 - [FLUX.2 Klein Model Page](https://ollama.com/x/flux2-klein)
 - [Ollama Documentation](https://ollama.com/)
