@@ -57,6 +57,11 @@ if ! [[ "$lines" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
+if ! [[ "$interval" =~ ^[0-9]*\.?[0-9]+$ ]]; then
+  echo "interval must be a positive number (e.g., 0.5, 1)" >&2
+  exit 1
+fi
+
 if ! command -v tmux >/dev/null 2>&1; then
   echo "tmux not found in PATH" >&2
   exit 1
@@ -90,7 +95,13 @@ while true; do
     _cap_fail_count=0
   fi
 
-  if printf '%s\n' "$pane_text" | grep $grep_flag -- "$pattern" >/dev/null 2>&1; then
+  _grep_rc=0
+  printf '%s\n' "$pane_text" | grep $grep_flag -- "$pattern" >/dev/null 2>&1 || _grep_rc=$?
+  if [[ $_grep_rc -eq 2 ]]; then
+    echo "Invalid pattern: $pattern" >&2
+    exit 2
+  fi
+  if [[ $_grep_rc -eq 0 ]]; then
     exit 0
   fi
 

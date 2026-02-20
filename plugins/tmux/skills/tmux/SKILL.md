@@ -8,7 +8,7 @@ metadata:
 
 # tmux Skill
 
-Use tmux as a programmable terminal multiplexer for interactive work. Works on Linux and macOS with stock tmux; avoid custom config by using a private socket.
+Use tmux as a programmable terminal multiplexer for interactive work. Works on Linux and macOS with stock tmux; use a private socket with `-f /dev/null` to keep agent sessions isolated from personal tmux config (see **Configuration isolation** below).
 
 ## Quickstart (isolated socket)
 
@@ -18,7 +18,7 @@ mkdir -p "$SOCKET_DIR"
 chmod 700 "$SOCKET_DIR"
 SOCKET="$SOCKET_DIR/claude.sock"                # keep agent sessions separate from your personal tmux
 SESSION=claude-python                           # slug-like names; avoid spaces
-tmux -S "$SOCKET" new -d -s "$SESSION" -n shell
+tmux -f /dev/null -S "$SOCKET" new -d -s "$SESSION" -n shell
 tmux -S "$SOCKET" send-keys -t "$SESSION":0.0 -- 'PYTHON_BASIC_REPL=1 python3 -q' Enter
 tmux -S "$SOCKET" capture-pane -p -J -t "$SESSION":0.0 -S -200  # watch output
 tmux -S "$SOCKET" kill-session -t "$SESSION"                   # clean up
@@ -28,10 +28,10 @@ After starting a session ALWAYS tell the user how to monitor the session by givi
 
 ```
 To monitor this session yourself:
-  tmux -S "$SOCKET" attach -t claude-lldb
+  tmux -S "$SOCKET" attach -t "$SESSION"
 
 Or to capture the output once:
-  tmux -S "$SOCKET" capture-pane -p -J -t claude-lldb:0.0 -S -200
+  tmux -S "$SOCKET" capture-pane -p -J -t "$SESSION":0.0 -S -200
 ```
 
 This must ALWAYS be printed right after a session was started and once again at the end of the tool loop.  But the earlier you send it, the happier the user will be.
@@ -41,10 +41,16 @@ This must ALWAYS be printed right after a session was started and once again at 
 - Agents MUST place tmux sockets under `CLAUDE_TMUX_SOCKET_DIR` (defaults to `${TMPDIR:-/tmp}/claude-tmux-sockets`). Always resolve with a fallback before use: `SOCKET_DIR="${CLAUDE_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/claude-tmux-sockets}"`. Create the dir first: `mkdir -p "$SOCKET_DIR" && chmod 700 "$SOCKET_DIR"` and use `tmux -S "$SOCKET"` so we can enumerate/clean them.
 - Default socket path to use unless you must isolate further: `SOCKET="$SOCKET_DIR/claude.sock"`.
 
+## Configuration isolation
+
+- `-S` only changes the socket file path; the tmux server still reads `~/.tmux.conf` on startup. User config can rebind the prefix key, fire session hooks, or load plugins that interfere with key sends and window indices.
+- Always pass `-f /dev/null` **before the subcommand** when starting a new server: `tmux -f /dev/null -S "$SOCKET" new ...`
+- Omit `-f /dev/null` only if you explicitly need the user's config to apply.
+
 ## Targeting panes and naming
 
 - Target format: `{session}:{window}.{pane}`, defaults to `:0.0` if omitted. Keep names short (e.g., `claude-py`, `claude-gdb`).
-- Use `-S "$SOCKET"` consistently to stay on the private socket path. If you need user config, drop `-f /dev/null`; otherwise `-f /dev/null` gives a clean config.
+- Use `-S "$SOCKET"` consistently to stay on the private socket path.
 - Inspect: `tmux -S "$SOCKET" list-sessions`, `tmux -S "$SOCKET" list-panes -a`.
 
 ## Finding sessions
@@ -54,7 +60,11 @@ This must ALWAYS be printed right after a session was started and once again at 
 
 ## Sending input safely
 
-- Prefer literal sends to avoid shell splitting: `tmux -S "$SOCKET" send-keys -t target -l -- "$cmd"`
+- Prefer literal sends to avoid shell splitting; since `-l` treats all text as literal (key names like `Enter` become the characters `E`, `n`, `t`, `e`, `r`), always follow with a separate Enter send:
+  ```bash
+  tmux -S "$SOCKET" send-keys -t target -l -- "$cmd"
+  tmux -S "$SOCKET" send-keys -t target Enter
+  ```
 - When composing inline commands, use single quotes or ANSI C quoting to avoid expansion: `tmux ... send-keys -t target -- $'python3 -m http.server 8000'`.
 - To send control keys: `tmux ... send-keys -t target C-c`, `C-d`, `C-z`, `Escape`, etc.
 
