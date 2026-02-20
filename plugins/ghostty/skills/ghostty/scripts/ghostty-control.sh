@@ -60,8 +60,13 @@ case "$engine" in
 esac
 
 cap_output="$("$script_dir/ghostty-capabilities.sh")"
-# shellcheck disable=SC2086
-eval "$cap_output"
+# eval on a controlled source: ghostty-capabilities.sh is part of the same plugin
+# and only emits shell variable assignments. Using a temp file + source avoids raw eval.
+cap_tmp_file="$(mktemp)"
+trap 'rm -f "$cap_tmp_file"' EXIT
+printf '%s\n' "$cap_output" >"$cap_tmp_file"
+# shellcheck disable=SC1090
+. "$cap_tmp_file"
 
 use_shortcuts=0
 case "$action" in

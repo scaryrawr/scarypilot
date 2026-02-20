@@ -159,12 +159,16 @@ shortcuts_list="$(shortcuts list 2>/dev/null || true)"
 if ! printf '%s\n' "$shortcuts_list" | grep -Fx -- "$shortcut_name" >/dev/null 2>&1; then
   echo "Shortcut not found: $shortcut_name" >&2
   echo "Run 'shortcuts list' to inspect available shortcuts." >&2
+  echo "You can override default shortcut names with GHOSTTY_SHORTCUT_* environment variables (e.g. GHOSTTY_SHORTCUT_NEW_TERMINAL, GHOSTTY_SHORTCUT_FOCUS_TERMINAL, GHOSTTY_SHORTCUT_INPUT_TEXT)." >&2
   exit 1
 fi
 
 tmp_input="$(mktemp "${TMPDIR:-/tmp}/ghostty-shortcuts.XXXXXX.json")"
-trap 'rm -f "$tmp_input"' EXIT
+trap 'rm -f "$tmp_input"' EXIT INT TERM
 
+# ${env_vars[@]+"${env_vars[@]}"} safely expands the array only when non-empty,
+# avoiding the unbound variable error from set -u on older bash (e.g. macOS bash 3.2).
+# Each element is passed as a distinct argv to Python, so values with spaces are handled correctly.
 python3 - "$action" "$location" "$command_text" "$working_directory" "$target" "$text" "$submit" ${env_vars[@]+"${env_vars[@]}"} >"$tmp_input" <<'PY'
 import json
 import sys

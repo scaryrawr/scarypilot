@@ -60,6 +60,8 @@ send_input() {
   local value="$1"
   local submit="${2:-1}"
 
+  # Values are passed as process arguments (osascript -), not interpolated into the
+  # AppleScript source (heredoc uses <<'OSA'), so special characters are safe.
   osascript - "$value" "$submit" <<'OSA'
 on run argv
   set inputText to item 1 of argv
@@ -79,6 +81,7 @@ OSA
 open_context() {
   local location="$1"
 
+  # Location is passed as a process argument, not interpolated into AppleScript source.
   osascript - "$location" <<'OSA'
 on run argv
   set locationValue to item 1 of argv

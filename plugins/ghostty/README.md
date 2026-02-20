@@ -4,7 +4,7 @@ Control Ghostty on macOS so agents can open windows, tabs, and splits, then focu
 
 ## What This Plugin Does
 
-- Creates new Ghostty contexts: window, tab, split-right, and split-down
+- Creates new Ghostty contexts: window, tab, split:right, and split:down
 - Supports full split location contract (`split:left|right|up|down`) when App Intents are available via Shortcuts
 - Focuses a target terminal (App Intents path)
 - Sends input to a terminal (App Intents path) or to the active terminal (AppleScript fallback)
