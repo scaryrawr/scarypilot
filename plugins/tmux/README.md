@@ -69,15 +69,16 @@ When the AI creates a tmux session, it will provide you with commands to monitor
 
 ```bash
 # Attach to the session
-tmux -S /tmp/claude-tmux-sockets/claude.sock attach -t claude-python
+SOCKET_DIR="${CLAUDE_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/claude-tmux-sockets}"
+tmux -S "$SOCKET_DIR/claude.sock" attach -t claude-python
 
 # Or just capture the current output
-tmux -S /tmp/claude-tmux-sockets/claude.sock capture-pane -p -J -t claude-python:0.0 -S -200
+tmux -S "$SOCKET_DIR/claude.sock" capture-pane -p -J -t claude-python:0.0 -S -200
 ```
 
 ## Technical Details
 
-- Sessions are created under `${TMPDIR:-/tmp}/claude-tmux-sockets/`
+- Sessions are created under `${CLAUDE_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/claude-tmux-sockets}/`
 - Uses private sockets to isolate from user sessions
 - Default socket: `claude.sock`
 - Session naming convention: `claude-{tool}` (e.g., `claude-python`, `claude-gdb`)

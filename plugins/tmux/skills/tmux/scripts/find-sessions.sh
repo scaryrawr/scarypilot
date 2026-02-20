@@ -24,10 +24,10 @@ socket_dir="${CLAUDE_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/claude-tmux-sockets}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -L|--socket)      socket_name="${2-}"; shift 2 ;;
-    -S|--socket-path) socket_path="${2-}"; shift 2 ;;
+    -L|--socket)      [[ $# -lt 2 ]] && { echo "Option '$1' requires an argument" >&2; usage; exit 1; }; socket_name="$2"; shift 2 ;;
+    -S|--socket-path) [[ $# -lt 2 ]] && { echo "Option '$1' requires an argument" >&2; usage; exit 1; }; socket_path="$2"; shift 2 ;;
     -A|--all)         scan_all=true; shift ;;
-    -q|--query)       query="${2-}"; shift 2 ;;
+    -q|--query)       [[ $# -lt 2 ]] && { echo "Option '$1' requires an argument" >&2; usage; exit 1; }; query="$2"; shift 2 ;;
     -h|--help)        usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage; exit 1 ;;
   esac
@@ -51,14 +51,15 @@ fi
 list_sessions() {
   local label="$1"; shift
   local tmux_cmd=(tmux "$@")
+  local sessions=""
 
-  if ! sessions="$("${tmux_cmd[@]}" list-sessions -F '#{session_name}\t#{session_attached}\t#{session_created_string}' 2>/dev/null)"; then
+  if ! sessions="$("${tmux_cmd[@]}" list-sessions -F $'#{session_name}\t#{session_attached}\t#{t:session_created}' 2>/dev/null)"; then
     echo "No tmux server found on $label" >&2
     return 1
   fi
 
   if [[ -n "$query" ]]; then
-    sessions="$(printf '%s\n' "$sessions" | grep -i -- "$query" || true)"
+    sessions="$(printf '%s\n' "$sessions" | awk -F'\t' -v q="$query" 'BEGIN{ql=tolower(q)} index(tolower($1), ql)' || true)"
   fi
 
   if [[ -z "$sessions" ]]; then
@@ -68,7 +69,7 @@ list_sessions() {
 
   echo "Sessions on $label:"
   printf '%s\n' "$sessions" | while IFS=$'\t' read -r name attached created; do
-    attached_label=$([[ "$attached" == "1" ]] && echo "attached" || echo "detached")
+    attached_label=$([[ "${attached:-0}" -gt 0 ]] && echo "attached" || echo "detached")
     printf '  - %s (%s, started %s)\n' "$name" "$attached_label" "$created"
   done
 }
@@ -84,18 +85,25 @@ if [[ "$scan_all" == true ]]; then
   shopt -u nullglob
 
   if [[ "${#sockets[@]}" -eq 0 ]]; then
-    echo "No sockets found under $socket_dir" >&2
-    exit 1
+    echo "No sockets found under $socket_dir"
+    exit 0
   fi
 
-  exit_code=0
+  _probe_ok=0
   for sock in "${sockets[@]}"; do
     if [[ ! -S "$sock" ]]; then
       continue
     fi
-    list_sessions "socket path '$sock'" -S "$sock" || exit_code=$?
+    if list_sessions "socket path '$sock'" -S "$sock"; then
+      _probe_ok=$((_probe_ok + 1))
+    fi
   done
-  exit "$exit_code"
+
+  if [[ $_probe_ok -eq 0 ]]; then
+    echo "No reachable tmux servers found under $socket_dir" >&2
+    exit 1
+  fi
+  exit 0
 fi
 
 tmux_cmd=(tmux)
