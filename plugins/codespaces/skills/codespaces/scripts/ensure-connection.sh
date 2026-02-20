@@ -14,12 +14,26 @@ fi
 CODESPACE_NAME="$1"
 
 # Validate: GitHub codespace names are lowercase alphanumeric + hyphens only.
-if [[ ! "$CODESPACE_NAME" =~ ^[a-zA-Z0-9-]+$ ]]; then
+if [[ ! "$CODESPACE_NAME" =~ ^[a-z0-9-]+$ ]]; then
   echo "Error: invalid codespace name '$CODESPACE_NAME'" >&2
   exit 1
 fi
 
 SESSION_NAME="cs-${CODESPACE_NAME}"
+
+# Preflight checks
+for cmd in tmux gh; do
+  if ! command -v "$cmd" &>/dev/null; then
+    echo "Error: '$cmd' is not installed or not in PATH." >&2
+    exit 1
+  fi
+done
+
+if ! gh extension list 2>/dev/null | grep -q 'ado-codespaces'; then
+  echo "Error: 'gh ado-codespaces' extension is not installed." >&2
+  echo "Install it with: gh extension install ..." >&2
+  exit 1
+fi
 
 SOCKET_DIR="${CLAUDE_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/claude-tmux-sockets}"
 mkdir -p "$SOCKET_DIR"
@@ -38,6 +52,6 @@ tmux -S "$SOCKET" new-session -d -s "$SESSION_NAME" -n connection \
 
 echo "Started connection session '$SESSION_NAME'." >&2
 echo "Monitor with:" >&2
-echo "  tmux -S $SOCKET attach -t $SESSION_NAME" >&2
+echo "  tmux -S \"$SOCKET\" attach -t $SESSION_NAME" >&2
 echo ""
 echo "$SOCKET"

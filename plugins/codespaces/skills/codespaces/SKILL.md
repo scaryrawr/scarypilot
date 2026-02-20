@@ -29,13 +29,14 @@ Use the helper script to start `gh ado-codespaces` in a background local tmux se
 ./scripts/ensure-connection.sh {codespace-name}
 ```
 
-The script creates a local tmux session named `cs-{codespace-name}` on the agent socket (`${TMPDIR:-/tmp}/claude-tmux-sockets/claude.sock`).
+The script creates a local tmux session named `cs-{codespace-name}` on the agent socket (`${CLAUDE_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/claude-tmux-sockets}/claude.sock`).
 
 After starting a connection, always tell the user how to monitor it:
 
 ```
 To monitor the connection session yourself:
-  tmux -S ${TMPDIR:-/tmp}/claude-tmux-sockets/claude.sock attach -t cs-{codespace-name}
+  SOCKET="${CLAUDE_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/claude-tmux-sockets}/claude.sock"
+  tmux -S "$SOCKET" attach -t cs-{codespace-name}
 ```
 
 ### Subsequent commands
@@ -108,14 +109,14 @@ Note: this interacts with tmux *inside* the codespace, not the local agent tmux 
 Kill a codespace connection (stops port forwarding and services):
 
 ```bash
-SOCKET="${TMPDIR:-/tmp}/claude-tmux-sockets/claude.sock"
+SOCKET="${CLAUDE_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/claude-tmux-sockets}/claude.sock"
 tmux -S "$SOCKET" kill-session -t cs-{codespace-name}
 ```
 
 Kill all codespace connection sessions:
 
 ```bash
-SOCKET="${TMPDIR:-/tmp}/claude-tmux-sockets/claude.sock"
+SOCKET="${CLAUDE_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/claude-tmux-sockets}/claude.sock"
 tmux -S "$SOCKET" list-sessions -F '#{session_name}' \
   | grep '^cs-' \
   | xargs -r -n1 tmux -S "$SOCKET" kill-session -t
