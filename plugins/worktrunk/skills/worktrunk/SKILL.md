@@ -19,7 +19,7 @@ Use this skill when users need to parallelize work into independent chunks using
 Before any `wt switch --create ...` command, run:
 
 ```bash
-skills/worktrunk/scripts/check-disk-fit.sh -p .
+scripts/check-disk-fit.sh -p .
 ```
 
 Rules:
@@ -30,7 +30,7 @@ Rules:
 For estimate-only requests (without creation), run:
 
 ```bash
-skills/worktrunk/scripts/estimate-worktree-footprint.sh -p .
+scripts/estimate-worktree-footprint.sh -p .
 ```
 
 ## Chunking guidance for parallel agents
