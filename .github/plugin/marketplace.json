@@ -45,6 +45,14 @@
       "source": "./plugins/tmux"
     },
     {
+      "name": "codespaces",
+      "description": "Connect to and interact with GitHub Codespaces via gh ado-codespaces and gh cs ssh. Manages persistent connections with port forwarding and Azure auth, runs commands and Copilot CLI remotely, and supports multiple codespaces.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/codespaces"
+    },
+    {
       "name": "ollama",
       "description": "Generate images from text prompts using Ollama's local image generation models.",
       "author": {
