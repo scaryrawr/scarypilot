@@ -49,7 +49,7 @@ This must ALWAYS be printed right after a session was started and once again at 
 
 ## Targeting panes and naming
 
-- Target format: `{session}:{window}.{pane}`, defaults to `:0.0` if omitted. Keep names short (e.g., `claude-py`, `claude-gdb`).
+- Target format: `{session}:{window}.{pane}`; omitting window/pane resolves to the session's **current** window/pane (not necessarily `:0.0`). Explicitly use `"$SESSION":0.0` when you need a specific pane. Keep names short (e.g., `claude-py`, `claude-gdb`).
 - Use `-S "$SOCKET"` consistently to stay on the private socket path.
 - Inspect: `tmux -S "$SOCKET" list-sessions`, `tmux -S "$SOCKET" list-panes -a`.
 
