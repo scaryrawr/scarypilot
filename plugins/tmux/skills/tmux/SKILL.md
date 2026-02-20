@@ -15,6 +15,7 @@ Use tmux as a programmable terminal multiplexer for interactive work. Works on L
 ```bash
 SOCKET_DIR="${CLAUDE_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/claude-tmux-sockets}"  # well-known dir for all agent sockets
 mkdir -p "$SOCKET_DIR"
+chmod 700 "$SOCKET_DIR"
 SOCKET="$SOCKET_DIR/claude.sock"                # keep agent sessions separate from your personal tmux
 SESSION=claude-python                           # slug-like names; avoid spaces
 tmux -S "$SOCKET" new -d -s "$SESSION" -n shell
@@ -37,7 +38,7 @@ This must ALWAYS be printed right after a session was started and once again at 
 
 ## Socket convention
 
-- Agents MUST place tmux sockets under `CLAUDE_TMUX_SOCKET_DIR` (defaults to `${TMPDIR:-/tmp}/claude-tmux-sockets`). Always resolve with a fallback before use: `SOCKET_DIR="${CLAUDE_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/claude-tmux-sockets}"`. Create the dir first: `mkdir -p "$SOCKET_DIR"` and use `tmux -S "$SOCKET"` so we can enumerate/clean them.
+- Agents MUST place tmux sockets under `CLAUDE_TMUX_SOCKET_DIR` (defaults to `${TMPDIR:-/tmp}/claude-tmux-sockets`). Always resolve with a fallback before use: `SOCKET_DIR="${CLAUDE_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/claude-tmux-sockets}"`. Create the dir first: `mkdir -p "$SOCKET_DIR" && chmod 700 "$SOCKET_DIR"` and use `tmux -S "$SOCKET"` so we can enumerate/clean them.
 - Default socket path to use unless you must isolate further: `SOCKET="$SOCKET_DIR/claude.sock"`.
 
 ## Targeting panes and naming
