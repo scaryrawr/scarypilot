@@ -49,11 +49,11 @@ fi
 
 file_size_bytes() {
   local target="$1"
-  if stat -f%z "$target" >/dev/null 2>&1; then
-    stat -f%z "$target"
+  if stat -c%s "$target" >/dev/null 2>&1; then
+    stat -c%s "$target"
     return
   fi
-  stat -c%s "$target"
+  stat -f%z "$target"
 }
 
 WORKTREE_METADATA_BYTES="${WORKTREE_METADATA_BYTES:-52428800}"

@@ -39,7 +39,20 @@ if [[ ! -x "$estimate_script" ]]; then
   exit 1
 fi
 
+estimate_output=""
+set +e
 estimate_output="$("$estimate_script" -p "$repo_path")"
+estimator_exit_code=$?
+set -e
+
+if (( estimator_exit_code != 0 )); then
+  if [[ -n "$estimate_output" ]]; then
+    printf '%s\n' "$estimate_output"
+  fi
+  printf 'estimator_exit_code=%s\n' "$estimator_exit_code"
+  printf 'fits=false\n'
+  exit "$estimator_exit_code"
+fi
 
 value_for_key() {
   local key="$1"
