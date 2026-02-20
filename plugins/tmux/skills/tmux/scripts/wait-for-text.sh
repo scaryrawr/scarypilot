@@ -96,7 +96,7 @@ while true; do
   fi
 
   _grep_rc=0
-  printf '%s\n' "$pane_text" | grep $grep_flag -- "$pattern" >/dev/null 2>&1 || _grep_rc=$?
+  printf '%s\n' "$pane_text" | grep "$grep_flag" -- "$pattern" >/dev/null 2>&1 || _grep_rc=$?
   if [[ $_grep_rc -eq 2 ]]; then
     echo "Invalid pattern: $pattern" >&2
     exit 2
