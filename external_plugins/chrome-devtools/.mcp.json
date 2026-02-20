@@ -3,6 +3,8 @@
     "command": "npx",
     "args": [
       "chrome-devtools-mcp@latest",
+      "--no-usage-statistics",
+      "--no-performance-crux",
       "--browser-url=http://127.0.0.1:9222"
     ]
   }
