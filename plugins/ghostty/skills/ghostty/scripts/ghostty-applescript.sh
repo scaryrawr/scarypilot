@@ -185,6 +185,10 @@ case "$action" in
       fi
       env_key="${env_var%%=*}"
       env_value="${env_var#*=}"
+      if [[ ! "$env_key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+        echo "Invalid --env key (must be a valid identifier): $env_key" >&2
+        exit 1
+      fi
       send_input "export ${env_key}=$(printf '%q' "$env_value")" 1
     done
 
