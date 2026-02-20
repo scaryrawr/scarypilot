@@ -59,7 +59,11 @@ require_ghostty() {
 send_input() {
   local value="$1"
   local submit="${2:-1}"
-
+  # Reject multi-line text early: keystroke types one line at a time.
+  if [[ "$value" == *$'\n'* ]]; then
+    echo "send_input: multi-line text is not supported; send one line at a time" >&2
+    return 1
+  fi
   # Values are passed as process arguments (osascript -), not interpolated into the
   # AppleScript source (heredoc uses <<'APPLESCRIPT'), so special characters are safe.
   osascript - "$value" "$submit" <<'APPLESCRIPT'
@@ -78,10 +82,9 @@ end run
 APPLESCRIPT
 }
 
-open_context() {
+open_context() { # Simulate keypresses to open a new window, tab, or split in Ghostty.
   local location="$1"
-
-  # Location is passed as a process argument, not interpolated into AppleScript source.
+  # location is passed as a process argument, not interpolated into AppleScript source.
   osascript - "$location" <<'APPLESCRIPT'
 on run argv
   set locationValue to item 1 of argv
