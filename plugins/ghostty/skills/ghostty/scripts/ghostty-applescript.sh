@@ -61,8 +61,8 @@ send_input() {
   local submit="${2:-1}"
 
   # Values are passed as process arguments (osascript -), not interpolated into the
-  # AppleScript source (heredoc uses <<'OSA'), so special characters are safe.
-  osascript - "$value" "$submit" <<'OSA'
+  # AppleScript source (heredoc uses <<'APPLESCRIPT'), so special characters are safe.
+  osascript - "$value" "$submit" <<'APPLESCRIPT'
 on run argv
   set inputText to item 1 of argv
   set submitFlag to item 2 of argv
@@ -75,14 +75,14 @@ on run argv
     end if
   end tell
 end run
-OSA
+APPLESCRIPT
 }
 
 open_context() {
   local location="$1"
 
   # Location is passed as a process argument, not interpolated into AppleScript source.
-  osascript - "$location" <<'OSA'
+  osascript - "$location" <<'APPLESCRIPT'
 on run argv
   set locationValue to item 1 of argv
   tell application "Ghostty" to activate
@@ -99,7 +99,7 @@ on run argv
     end if
   end tell
 end run
-OSA
+APPLESCRIPT
 }
 
 if [[ $# -eq 0 ]]; then
