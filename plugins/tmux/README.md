@@ -69,10 +69,10 @@ When the AI creates a tmux session, it will provide you with commands to monitor
 
 ```bash
 # Attach to the session
-tmux -S /tmp/claude-tmux-sockets/claude.sock attach -t claude-python
+tmux -S "${TMPDIR:-/tmp}/claude-tmux-sockets/claude.sock" attach -t claude-python
 
 # Or just capture the current output
-tmux -S /tmp/claude-tmux-sockets/claude.sock capture-pane -p -J -t claude-python:0.0 -S -200
+tmux -S "${TMPDIR:-/tmp}/claude-tmux-sockets/claude.sock" capture-pane -p -J -t claude-python:0.0 -S -200
 ```
 
 ## Technical Details
