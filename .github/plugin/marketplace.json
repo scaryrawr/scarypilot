@@ -59,6 +59,14 @@
         "name": "Mike Wallio"
       },
       "source": "./plugins/ollama"
+    },
+    {
+      "name": "worktrunk",
+      "description": "Disk-aware Worktrunk (wt) workflows for parallel agent worktrees and independently committable chunks.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/worktrunk"
     }
   ]
 }
