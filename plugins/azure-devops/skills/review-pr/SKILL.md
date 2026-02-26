@@ -59,7 +59,7 @@ Provide a code review for the given Azure DevOps pull request.
 - Don't check build signal or run builds/typechecks (handled separately by CI)
 - Cite and link each issue with full context
 - Keep comments brief and professional
-- Use Azure CLI commands from the azure-cli skill
+- Use Azure CLI commands from the ado-cli skill
 
 ## Comment Format
 
