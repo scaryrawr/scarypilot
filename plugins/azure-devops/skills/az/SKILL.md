@@ -1,5 +1,5 @@
 ---
-name: azure-cli
+name: az
 description: When users share links (such as visualstudio.com or dev.azure.com) and/or mention Azure DevOps, use the Azure DevOps CLI to interact with work items, pull requests (PRs), repositories, and more.
 ---
 
