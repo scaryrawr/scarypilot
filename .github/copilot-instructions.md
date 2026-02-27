@@ -6,8 +6,12 @@ This is a GitHub Copilot plugin marketplace repository ("ScaryPilot"). It contai
 
 - `plugins/`: First-party plugins maintained in this repository
   - `azure-devops/`: Azure DevOps CLI integration (skills-based)
-  - `typescript-native-lsp/`: TypeScript/JavaScript language server using `tsgo` (LSP-based)
+  - `codespaces/`: GitHub Codespaces connection and remote command execution (skills-based)
+  - `copilot/`: Copilot repository initialization workflow (skills-based)
+  - `ghostty/`: Ghostty terminal automation on macOS (skills-based)
+  - `ollama/`: Local image generation via Ollama REST API (skills-based)
   - `tmux/`: Remote control tmux sessions for interactive CLIs (skills-based)
+  - `worktrunk/`: Disk-aware parallel worktree management (skills-based)
 - `external_plugins/`: Wrappers around third-party MCP servers
   - `chrome-devtools/`: Chrome DevTools Protocol integration (MCP-based, with agent profiles)
   - `playwright-ext/`: Playwright browser automation (MCP-based)
@@ -15,12 +19,53 @@ This is a GitHub Copilot plugin marketplace repository ("ScaryPilot"). It contai
 
 ## Plugin Architecture
 
-This marketplace supports multiple plugin patterns:
+Choose the pattern that best fits the capability being added:
 
-- **Skills-based plugins** (`plugins/*/skills/*/SKILL.md`): Contextual instructions for specific domains
-- **MCP-based plugins** (`external_plugins/*/.mcp.json`): Integrate external Model Context Protocol servers
-- **Agent-based plugins** (`external_plugins/*/agents/*.md`): Specialized agent behaviors with frontmatter config
-- **LSP-based plugins** (`plugins/*/lsp.json`): Language server integration for code intelligence
+| Pattern | Use when | Location |
+|---------|----------|----------|
+| **Skills** | Providing step-by-step instructions or workflows the agent executes | `plugins/*/skills/*/SKILL.md` |
+| **MCP** | Wrapping an external server that exposes tools/resources | `external_plugins/*/.mcp.json` |
+| **Agents** | Defining a specialized persona with a constrained tool set | `external_plugins/*/agents/*.md` or `plugins/*/agents/*.md` |
+| **LSP** | Integrating a language server for code intelligence | `plugins/*/lsp.json` |
+
+### SKILL.md frontmatter
+
+```yaml
+---
+name: skill-name          # matches the directory name
+description: "One sentence describing when to invoke this skill."
+# Optional for derived/adapted work:
+license: Apache-2.0
+metadata:
+  attribution: "Based on X by Author from URL - Licensed under Y"
+---
+```
+
+### Agent frontmatter
+
+```yaml
+---
+name: agent-name
+description: "One sentence describing the agent's specialty and when to use it."
+model: 'inherit'          # or a specific model ID
+tools: ["Read", "Grep", "Glob", "Bash", "mcp-server/*"]
+---
+```
+
+### marketplace.json entry
+
+```json
+{
+  "name": "plugin-name",
+  "description": "One sentence plugin description.",
+  "author": { "name": "Author Name" },
+  "source": "./plugins/plugin-name"   // or ./external_plugins/plugin-name
+}
+```
+
+### Skills with shell dependencies
+
+Skills that invoke shell tools (tmux, gh, ghostty, etc.) must set up the full environment before testing. Do not assume helpers are globally available — source or load all plugin files before running smoke tests. A test that passes with only a subset of files sourced is not valid.
 
 ## Key Guidelines
 
