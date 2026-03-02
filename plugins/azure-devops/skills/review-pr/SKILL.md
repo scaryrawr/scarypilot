@@ -9,23 +9,23 @@ Provide a code review for the given Azure DevOps pull request.
 
 1. **Check Eligibility**: Use `az repos pr show --id {prId} --org {orgUrl}` to verify the PR is open, not a draft, and hasn't been reviewed by you already. Skip if ineligible.
 
-2. **Get Context**: Identify relevant CLAUDE.md files (root and in modified directories) and get the PR diff using git commands:
+2. **Get Context**: Identify relevant instruction files (`.github/copilot-instructions.md`, `AGENTS.md`, and `CLAUDE.md` at the root and in modified directories) and get the PR diff using git commands:
    - First, use `az repos pr show --id {prId} --org {orgUrl}` to get the target branch name
    - Then fetch and switch to the PR branch: `az repos pr checkout --id {prId}` (note: checkout does NOT require `--org` as it operates on the local git repository)
    - Generate the diff: `git diff origin/{targetBranch}...HEAD`
    - **Note**: These commands will only work when executed in the same git repository as the PR.
 
 3. **Review the Changes**: Use agents to analyze the code changes for:
-   - CLAUDE.md compliance (only applicable instructions)
+   - Compliance with instruction files (GitHub Copilot instructions, AGENTS.md, CLAUDE.md — only applicable instructions)
    - Obvious bugs in the changes themselves
    - Issues revealed by git history/blame
    - Patterns from previous PRs on these files
    - Violations of code comments/guidance
 
 4. **Validate Issues**: For each potential issue, assess confidence (0-100 scale). Filter to only high-confidence issues (80+):
-   - **0-25**: False positive or stylistic preference not in CLAUDE.md
+   - **0-25**: False positive or stylistic preference not in instruction files
    - **50**: Real but minor issue
-   - **75**: Important issue affecting functionality or explicitly mentioned in CLAUDE.md
+   - **75**: Important issue affecting functionality or explicitly mentioned in instruction files
    - **100**: Definite issue that will cause problems
 
 5. **Post Review**: If high-confidence issues found:
@@ -48,10 +48,10 @@ Provide a code review for the given Azure DevOps pull request.
 
 - Pre-existing issues not introduced by this PR
 - Linter/typechecker/compiler issues (handled by CI)
-- Pedantic nitpicks not explicitly in CLAUDE.md
+- Pedantic nitpicks not explicitly in instruction files
 - Intentional functionality changes
 - Issues on unmodified lines
-- General quality issues (test coverage, documentation) unless CLAUDE.md requires them
+- General quality issues (test coverage, documentation) unless instruction files require them
 - Issues with lint ignore comments
 
 ## Notes
@@ -72,7 +72,7 @@ When posting the review using `az devops invoke`, format as follows:
 
 Found {N} issues:
 
-1. <brief description> (CLAUDE.md says "<quote>")
+1. <brief description> (instruction file says "<quote>")
 
    <Azure DevOps link to file with full commit hash + line range>
 
@@ -90,7 +90,7 @@ Found {N} issues:
 ```markdown
 ### Code review
 
-No issues found. Checked for bugs and CLAUDE.md compliance.
+No issues found. Checked for bugs and instruction file compliance.
 
 🤖 Generated with AI
 ```
