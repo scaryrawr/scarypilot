@@ -1,33 +1,43 @@
 ---
 name: init
-description: When helping a user better prepare a folder/repository for coding with copilot.
+description: Quickly bootstrap repo-specific Copilot instructions with high signal and low context bloat.
 ---
 
 # Creating Copilot Instructions
 
-Configure instructions for this repository as documented in [Best practices for Copilot coding agent in your repository](https://gh.io/copilot-coding-agent-tips). If possible use subagents to explore and gather required information.
+Configure instructions as documented in [Best practices for Copilot coding agent in your repository](https://gh.io/copilot-coding-agent-tips). Use subagents to explore first, then write only durable, repo-specific guidance.
+
+Optimize for fast onboarding: help a new agent become productive quickly without adding noisy or redundant instructions.
 
 ## What to include
 
-1. Build, test, and lint commands - If they exist, include how to run a single test, not just the full suite.
-2. High-level architecture - Focus on the big picture across files, packages, and modules in the repository.
-3. Code style guidelines - Patterns and practices to follow based on reading existing code across multiple files in the repository.
+1. Build, test, and lint commands - Include fast local commands and at least one single-test command when available.
+2. High-level architecture - Capture major modules, boundaries, and where key responsibilities live.
+3. Style and patterns - Record conventions that are specific to this repo and repeated across multiple files.
+4. Operating constraints - Include any important safety rules, approval workflows, or environment limits.
+
+Keep this section compact. Prefer short bullets over long prose, and avoid instructions that can be inferred from common language defaults.
 
 ## Path Specific Instructions
 
-If there are specific instructions for certain paths in the repository, include those as well. For example, if there are different coding styles or architectural patterns in different parts of the repository, provide instructions for each path to help the agent understand how to assist users effectively.
+Add path-specific rules only when behavior genuinely differs by folder, package, or file type.
 
-Paths can be used for file extensions, but also to apply instructions to specific packages and folders.
+Paths can target file extensions and concrete directories. Focus on high-impact differences such as:
 
-If there are specific instructions for specific styles of tests or extensions for specific testing frameworks. For example, integration tests, e2e tests, or unit tests may have different conventions and best practices. Providing instructions for each type of test can help the agent understand how to assist users effectively.
+- Different test frameworks or test styles (unit/integration/e2e)
+- Different architectural patterns by package
+- Different review or validation requirements by area
 
 ## Custom Agents
 
-Create custom agents to perform specific tasks based on the repository's needs. Examine dependencies and coding styles to determine which agents would be most helpful and what specializations they should have. Examples include:
+Create custom agents for repeated, specialized tasks where a constrained toolset and focused persona improve outcomes.
 
-- Code Reviewer - When a user asks for a code review, the agent can provide feedback based on the repository's coding style and best practices.
-- Test Specialist - When a user asks for help with testing, the agent can provide guidance on how to write tests that align with the repository's testing framework and conventions.
-- UX Framework Reviewer - When a user asks for help with UX, the agent can provide feedback based on the repository's UX framework and design patterns.
+When defining agents:
+
+- Scope each agent to one clear job (for example: code review, test debugging, migration planning).
+- Keep the tool list minimal and intentional.
+- Add explicit invocation cues in instructions so the main agent knows when to delegate.
+- Do not create agents that duplicate general-purpose behavior.
 
 ## Custom Skills
 
@@ -35,9 +45,24 @@ Create custom agents to perform specific tasks based on the repository's needs. 
 
 ### Skills to include
 
-Create new skills as needed in `.github/skills` in the current repo. Do not create skills that appear to already exist. Some skills are not needed in smaller repositories and depend on the scale of the repository. Examples:
+Create skills in `.github/skills` for repeatable multi-step workflows with clear entry and exit conditions.
 
-- PR Skills based on the contribution guidelines/PR templates/best practices for the repository.
-- Validation skills based on the build/test/lint commands for the repository.
-- Review skills based on the code style guidelines and high-level architecture of the repository.
-- Creation skills based on any guides or best practices for creating new packages, modules, or files in the repository.
+Prioritize skills that reduce time-to-first-success in the repo:
+
+- Repo bootstrap and setup verification
+- Fast validation (format/lint/test pathways)
+- PR hygiene and contribution workflow
+- Common creation workflows (new package/module/component)
+
+Do not create skills that already exist, and avoid niche skills unless they are used frequently.
+
+## Custom Hooks
+
+Consider adding custom hooks as documented in [hooks configuration](https://docs.github.com/en/copilot/reference/hooks-configuration).
+
+Use hooks as lightweight guardrails:
+
+- Post-tool formatting and quick validation checks (keep them fast).
+- Pre-tool approval for expensive or risky commands (for example full builds/tests/lints).
+
+Avoid long-running tasks in hooks; keep hook latency low to prevent workflow friction.
