@@ -45,14 +45,6 @@
       "source": "./external_plugins/playwright-ext"
     },
     {
-      "name": "tmux",
-      "description": "Remote control tmux sessions for interactive CLIs (python, gdb, etc.) by sending keystrokes and scraping pane output.",
-      "author": {
-        "name": "Armin Ronacher"
-      },
-      "source": "./plugins/tmux"
-    },
-    {
       "name": "codespaces",
       "description": "Connect to and interact with GitHub Codespaces via gh ado-codespaces and gh cs ssh. Manages persistent connections with port forwarding and Azure auth, runs commands and Copilot CLI remotely, and supports multiple codespaces.",
       "author": {
