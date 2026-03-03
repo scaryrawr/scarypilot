@@ -9,7 +9,7 @@ Provide a code review for the given Azure DevOps pull request.
 
 1. **Check Eligibility**: Use `az repos pr show --id {prId} --org {orgUrl}` to verify the PR is open, not a draft, and hasn't been reviewed by you already. Skip if ineligible.
 
-2. **Get Context**: Identify relevant instruction files (`.github/copilot-instructions.md`, `AGENTS.md`, and `CLAUDE.md` at the root and in modified directories) and get the PR diff using git commands:
+2. **Get Context**: Identify relevant instruction files: the root-level `.github/copilot-instructions.md` (if present under `.github/`), plus any `AGENTS.md` or `CLAUDE.md` files found in modified directories and their ancestor directories. Then get the PR diff using git commands:
    - First, use `az repos pr show --id {prId} --org {orgUrl}` to get the target branch name
    - Then fetch and switch to the PR branch: `az repos pr checkout --id {prId}` (note: checkout does NOT require `--org` as it operates on the local git repository)
    - Generate the diff: `git diff origin/{targetBranch}...HEAD`
