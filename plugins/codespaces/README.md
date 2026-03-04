@@ -21,10 +21,6 @@ Connect to and interact with GitHub Codespaces via `gh ado-codespaces` and `gh c
 - [tmux](https://github.com/tmux/tmux) installed locally:
   - macOS: `brew install tmux`
   - Linux: `apt-get install tmux`
-- The **tmux** plugin is also recommended for advanced session management:
-  ```bash
-  copilot plugin install tmux@scarypilot
-  ```
 
 ## Installation
 

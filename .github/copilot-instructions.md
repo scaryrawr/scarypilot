@@ -10,7 +10,6 @@ This is a GitHub Copilot plugin marketplace repository ("ScaryPilot"). It contai
   - `copilot/`: Copilot repository initialization workflow (skills-based)
   - `ghostty/`: Ghostty terminal automation on macOS (skills-based)
   - `ollama/`: Local image generation via Ollama REST API (skills-based)
-  - `tmux/`: Remote control tmux sessions for interactive CLIs (skills-based)
   - `worktrunk/`: Disk-aware parallel worktree management (skills-based)
 - `external_plugins/`: Wrappers around third-party MCP servers
   - `chrome-devtools/`: Chrome DevTools Protocol integration (MCP-based, with agent profiles)
@@ -72,6 +71,6 @@ Skills that invoke shell tools (tmux, gh, ghostty, etc.) must set up the full en
 1. **Plugin structure**: Each plugin lives in its own directory under `plugins/` or `external_plugins/` and must include a `README.md`
 2. **Marketplace manifest**: When adding or removing plugins, update `.github/plugin/marketplace.json` to keep the registry in sync
 3. **Markdown-first**: Plugin configuration is primarily done through Markdown files (skills, agents) and JSON (MCP servers, LSP configs)
-4. **Attribution**: External or adapted plugins must include proper attribution and license information (see `plugins/tmux/` for an example)
+4. **Attribution**: External or adapted plugins must include proper attribution and license information in both the README and the SKILL.md frontmatter
 5. **Documentation**: Every plugin README should include: what it does, installation prerequisites, installation steps, usage examples, and resource links
 6. **No build system**: This repository has no build step or test suite — validation is done through manual review

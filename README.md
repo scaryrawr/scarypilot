@@ -28,7 +28,6 @@ copilot plugin install azure-devops@scarypilot
 | **ghostty**         | Terminal           | Ghostty automation for opening windows/tabs/splits and driving terminals with focus/input for multitasking workflows on macOS.                                         | [📖 Docs](./plugins/ghostty/README.md)                  |
 | **ollama**          | Image Generation   | Generate images from text prompts using Ollama's local image generation models (macOS-only). Supports Z-Image Turbo and FLUX.2 Klein.                                 | [📖 Docs](./plugins/ollama/README.md)                   |
 | **playwright-ext**  | Browser Automation | Browser automation using Playwright with extension bridge. Testing, web scraping, form automation with logged-in sessions.                                             | [📖 Docs](./external_plugins/playwright-ext/README.md)  |
-| **tmux**            | Terminal           | Remote control tmux sessions for interactive CLIs (Python REPL, gdb, etc.) by sending keystrokes and scraping pane output. Based on work by Armin Ronacher.           | [📖 Docs](./plugins/tmux/README.md)                     |
 | **worktrunk**       | Workflow           | Disk-aware Worktrunk (`wt`) workflows for creating parallel worktrees and splitting work into independently committable chunks.                                          | [📖 Docs](./plugins/worktrunk/README.md)                |
 
 **Install any plugin:**
