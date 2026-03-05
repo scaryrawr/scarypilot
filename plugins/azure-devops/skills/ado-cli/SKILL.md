@@ -55,6 +55,25 @@ az devops invoke --area {area} --resource {resource} \
   --detect true --in-file /tmp/payload.json
 ```
 
+### Binary uploads (PR image/file attachments)
+
+For Pull Request attachment uploads, don't use `az devops invoke` (it expects UTF-8 text) and don't use `az rest --body @file` for images (it stores base64 text, which renders as broken images).
+
+Use a bearer token + `curl --data-binary` so raw bytes are uploaded:
+
+```shell
+TOKEN=$(az account get-access-token \
+  --resource 499b84ac-1321-427f-aa17-267ca6975798 \
+  --query accessToken -o tsv)
+
+ATTACHMENT_URL=$(curl -sS -X POST \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary "@/absolute/path/to/image.png" \
+  "https://dev.azure.com/{organization}/{project}/_apis/git/repositories/{repositoryId}/pullRequests/{pullRequestId}/attachments/{fileName}?api-version=7.1" \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["url"])')
+```
+
 ## Output Formatting
 
 - Use `--output table` for human-readable summaries

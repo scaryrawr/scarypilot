@@ -151,14 +151,28 @@ Use the commit messages and diff to write accurate, helpful descriptions.
 
 When images help illustrate a change (e.g., before/after screenshots, architecture diagrams), upload them as PR attachments after creation and update the description to reference them.
 
-```bash
-# 1. Upload the image as a PR attachment (--body @path reads the file directly)
-az rest --method post \
-  --url "https://dev.azure.com/{organization}/{project}/_apis/git/repositories/{repositoryId}/pullRequests/{pullRequestId}/attachments/{fileName}?api-version=7.1" \
-  --headers "Content-Type=application/octet-stream" \
-  --body @path/to/image.png
+Use the Pull Request Attachments REST API (`POST .../pullRequests/{pullRequestId}/attachments/{fileName}?api-version=7.1`). This API requires the repository **ID** (not name). For binary images, use `curl --data-binary` with an Azure DevOps bearer token so the uploaded content stays valid PNG/JPEG bytes.
 
-# 2. The response includes a "url" field — use it in the PR description
+```bash
+# 1. Resolve the repository ID from the PR
+REPOSITORY_ID=$(az repos pr show \
+  --id {pullRequestId} \
+  --org "https://dev.azure.com/{organization}" \
+  --query "repository.id" -o tsv)
+
+# 2. Get a DevOps token and upload raw image bytes
+TOKEN=$(az account get-access-token \
+  --resource 499b84ac-1321-427f-aa17-267ca6975798 \
+  --query accessToken -o tsv)
+
+ATTACHMENT_URL=$(curl -sS -X POST \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary "@/absolute/path/to/image.png" \
+  "https://dev.azure.com/{organization}/{project}/_apis/git/repositories/${REPOSITORY_ID}/pullRequests/{pullRequestId}/attachments/{fileName}?api-version=7.1" \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["url"])')
+
+# 3. Use the returned URL in the PR description
 az repos pr update \
   --id {pullRequestId} \
   --detect true \
@@ -166,7 +180,7 @@ az repos pr update \
 
 Updated dialog styling.
 
-![Before and after](ATTACHMENT_URL_FROM_RESPONSE)"
+![Before and after](${ATTACHMENT_URL})"
 ```
 
 Control image size with Azure DevOps's `=WIDTHxHEIGHT` Markdown extension (note the space before `=`):
