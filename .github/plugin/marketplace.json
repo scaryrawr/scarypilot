@@ -67,6 +67,14 @@
         "name": "Mike Wallio"
       },
       "source": "./plugins/worktrunk"
+    },
+    {
+      "name": "microsoft-docs",
+      "description": "Search and retrieve Microsoft Learn documentation, tutorials, and API references directly from Copilot.",
+      "author": {
+        "name": "Microsoft"
+      },
+      "source": "./external_plugins/microsoft-docs"
     }
   ]
 }
