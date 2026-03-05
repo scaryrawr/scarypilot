@@ -22,7 +22,14 @@ Hard stop conditions:
 ## Preflight
 
 ```bash
-az extension show --name azure-devops
+# Verify Azure CLI login and DevOps extension
+az account show --query "{user: user.name, subscription: name}" -o table && az extension show --name azure-devops --query "{name: name, version: version}" -o table
+```
+
+If login is missing, re-authenticate:
+
+```bash
+az login
 ```
 
 If the Azure DevOps extension is missing, install it:
@@ -140,6 +147,37 @@ If a template exists, read it and use its structure. If multiple templates exist
 
 Use the commit messages and diff to write accurate, helpful descriptions.
 
+#### Including Images in the Description
+
+When images help illustrate a change (e.g., before/after screenshots, architecture diagrams), upload them as PR attachments after creation and update the description to reference them.
+
+```bash
+# 1. Upload the image as a PR attachment (--body @path reads the file directly)
+az rest --method post \
+  --url "https://dev.azure.com/{organization}/{project}/_apis/git/repositories/{repositoryId}/pullRequests/{pullRequestId}/attachments/{fileName}?api-version=7.1" \
+  --headers "Content-Type=application/octet-stream" \
+  --body @path/to/image.png
+
+# 2. The response includes a "url" field — use it in the PR description
+az repos pr update \
+  --id {pullRequestId} \
+  --detect true \
+  --description "## What
+
+Updated dialog styling.
+
+![Before and after](ATTACHMENT_URL_FROM_RESPONSE)"
+```
+
+Control image size with Azure DevOps's `=WIDTHxHEIGHT` Markdown extension (note the space before `=`):
+
+```md
+![Alt text](ATTACHMENT_URL =500x250)
+![Alt text](ATTACHMENT_URL =500x)
+```
+
+Supported image formats: PNG, GIF, JPEG, ICO.
+
 ### 9) Create the PR
 
 The `source_branch` is the branch you pushed.
@@ -152,15 +190,11 @@ Target branch resolution order:
 
 Default to a **ready PR**. Only use `--draft true` when user explicitly requests a draft PR.
 
-Most `az repos pr` commands require `--org`.
-
-Use explicit org/project/repository when available:
+When running inside a cloned Azure DevOps repository, use `--detect true` to auto-detect organization and project from the local git remote — this avoids passing `--org`, `--project`, and `--repository` explicitly in most cases.
 
 ```bash
 az repos pr create \
-  --org https://dev.azure.com/{organization} \
-  --project {project} \
-  --repository {repository} \
+  --detect true \
   --source-branch "{source_branch}" \
   --target-branch "{target_branch}" \
   --title "<title>" \
@@ -181,7 +215,50 @@ az repos pr create \
 <How the changes were verified>"
 ```
 
-If org/project/repository defaults are already configured and verified, you may omit `--project` and `--repository`.
+If auto-detection fails or you're outside the repo, use explicit parameters:
+
+```bash
+az repos pr create \
+  --org https://dev.azure.com/{organization} \
+  --project {project} \
+  --repository {repository} \
+  --source-branch "{source_branch}" \
+  --target-branch "{target_branch}" \
+  --title "<title>" \
+  --description "<description>"
+```
+
+#### Additional Create-Time Flags
+
+These flags can be set at PR creation to avoid separate commands:
+
+| Flag                      | Description                                                       |
+| ------------------------- | ----------------------------------------------------------------- |
+| `--work-items`            | Link work item IDs (space-separated). Infer from branch name if it contains an ID pattern. |
+| `--labels`                | Apply labels (space-separated)                                    |
+| `--reviewers`             | Add optional reviewers (space-separated, emails or names)         |
+| `--required-reviewers`    | Add required reviewers who must approve before merge              |
+| `--auto-complete`         | Auto-complete when all policies pass (`true`/`false`)             |
+| `--delete-source-branch`  | Delete source branch after merge (`true`/`false`)                 |
+| `--squash`                | Squash commits on merge (`true`/`false`)                          |
+| `--transition-work-items` | Transition linked work items on merge (e.g. Active → Resolved)    |
+| `--merge-commit-message`  | Custom merge commit message                                       |
+| `--open`                  | Open the PR in the browser after creation                         |
+
+Example with common flags:
+
+```bash
+az repos pr create \
+  --detect true \
+  --source-branch "{source_branch}" \
+  --target-branch "{target_branch}" \
+  --title "<title>" \
+  --description "<description>" \
+  --work-items 12345 \
+  --auto-complete true \
+  --delete-source-branch true \
+  --transition-work-items true
+```
 
 ### 10) Validate Completion
 
@@ -224,13 +301,11 @@ Optional checks when requested:
 
 ## Examples
 
-### Ready PR with explicit target branch
+### Ready PR with auto-detect
 
 ```bash
 az repos pr create \
-  --org https://dev.azure.com/{organization} \
-  --project {project} \
-  --repository {repository} \
+  --detect true \
   --source-branch "alias/feature-name" \
   --target-branch "main" \
   --title "Add Azure DevOps PR preflight checks" \
@@ -248,16 +323,29 @@ Adds preflight, stop conditions, and troubleshooting guidance.
 
 ## Testing
 
-Validated workflow against repository skill conventions."
+Validated workflow against repository skill conventions." \
+  --auto-complete true \
+  --delete-source-branch true
 ```
 
-### Draft PR (only when requested)
+### Ready PR with explicit org (fallback)
 
 ```bash
 az repos pr create \
   --org https://dev.azure.com/{organization} \
   --project {project} \
   --repository {repository} \
+  --source-branch "alias/feature-name" \
+  --target-branch "main" \
+  --title "Add Azure DevOps PR preflight checks" \
+  --description "<template-filled description>"
+```
+
+### Draft PR (only when requested)
+
+```bash
+az repos pr create \
+  --detect true \
   --source-branch "alias/feature-name" \
   --target-branch "main" \
   --draft true \
