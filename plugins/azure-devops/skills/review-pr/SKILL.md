@@ -70,25 +70,61 @@ Provide a code review for the given Azure DevOps pull request.
 
    Valid thread `status` values: `active`, `fixed`, `wontFix`, `closed`, `byDesign`, `pending`.
 
-6. **Tag the PR as AI-reviewed**: After finishing the review (whether or not issues were found), add labels that indicate AI review completion and which model(s) were used.
+6. **Tag the PR as AI-reviewed**: After finishing the review (whether or not issues were found), add PR labels that indicate AI review completion and which model(s) were used.
+
+   Azure DevOps shows these in the UI as **Tags**, but the REST API calls them **labels**. Don't use `az repos pr update` here: it can set `--labels` during PR creation, but it does **not** support updating labels on an existing PR. Use the Pull Request Labels REST API instead.
 
    ```bash
    # Replace with the actual model IDs used for this review run.
    MODEL_IDS=("gpt-5.4" "claude-opus-4.6")
-   MODEL_LABELS=()
+   LABELS=("ai-reviewed")
    for model in "${MODEL_IDS[@]}"; do
-     MODEL_LABELS+=("ai-model-${model}")
+     LABELS+=("ai-model-${model}")
    done
 
-   az repos pr update \
+   PROJECT_ID=$(az repos pr show \
      --id {prId} \
      --detect true \
-     --labels ai-reviewed "${MODEL_LABELS[@]}"
+     --query "repository.project.id" -o tsv)
+   REPOSITORY_ID=$(az repos pr show \
+     --id {prId} \
+     --detect true \
+     --query "repository.id" -o tsv)
+
+   TOKEN=$(az account get-access-token \
+     --resource 499b84ac-1321-427f-aa17-267ca6975798 \
+     --query accessToken -o tsv)
+
+   EXISTING_LABELS=$(curl -sS \
+     -H "Authorization: Bearer ${TOKEN}" \
+     "https://dev.azure.com/{organization}/${PROJECT_ID}/_apis/git/repositories/${REPOSITORY_ID}/pullRequests/{prId}/labels?api-version=7.1" \
+     | python3 -c 'import json,sys; print("\n".join(label["name"] for label in json.load(sys.stdin)))')
+
+   for label in "${LABELS[@]}"; do
+     if ! grep -Fxq "$label" <<< "${EXISTING_LABELS}"; then
+       cat > /tmp/pr-label.json << EOF
+   {"name":"${label}"}
+   EOF
+
+       curl -sS -X POST \
+         -H "Authorization: Bearer ${TOKEN}" \
+         -H "Content-Type: application/json" \
+         --data-binary @/tmp/pr-label.json \
+         "https://dev.azure.com/{organization}/${PROJECT_ID}/_apis/git/repositories/${REPOSITORY_ID}/pullRequests/{prId}/labels?api-version=7.1" \
+         > /dev/null
+     fi
+   done
+
+   curl -sS \
+     -H "Authorization: Bearer ${TOKEN}" \
+     "https://dev.azure.com/{organization}/${PROJECT_ID}/_apis/git/repositories/${REPOSITORY_ID}/pullRequests/{prId}/labels?api-version=7.1" \
+     | python3 -c 'import json,sys; print("\n".join(label["name"] for label in json.load(sys.stdin)))'
    ```
 
    - Always include the `ai-reviewed` label.
    - Add one `ai-model-<model-id>` label per model used (including sub-agents, if any).
    - Use the exact model IDs (for example: `gpt-5.4`, `claude-opus-4.6`).
+   - Verify the final GET output contains the labels you added.
 
 ## Avoid False Positives
 
