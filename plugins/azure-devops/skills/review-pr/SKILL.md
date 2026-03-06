@@ -16,12 +16,18 @@ Provide a code review for the given Azure DevOps pull request.
    - **Note**: These commands will only work when executed in the same git repository as the PR.
    - Optionally check policy status: `az repos pr policy list --id {prId} --detect true --output table`
 
-3. **Review the Changes**: Use agents to analyze the code changes for:
-   - Compliance with instruction files (GitHub Copilot instructions, AGENTS.md, CLAUDE.md — only applicable instructions)
-   - Obvious bugs in the changes themselves
-   - Issues revealed by git history/blame
-   - Patterns from previous PRs on these files
-   - Violations of code comments/guidance
+3. **Review the Changes**:
+   - Prefer available custom agents that match the technologies or risk areas in the PR (for example: React/UI, Angular, performance, accessibility, testing, security, or API specialists).
+   - Use multiple independent review passes with different models. At minimum, run one pass with `gpt-5.4` and one pass with `claude-opus-4.6`.
+   - If a relevant specialist agent is available, use it in addition to a general review agent rather than replacing the general pass entirely.
+   - If no relevant custom agent exists for part of the diff, fall back to the best available general review/code-review agent for that area.
+   - Deduplicate overlapping findings from different agents/models before presenting or posting them.
+   - Review the PR for:
+     - Compliance with instruction files (GitHub Copilot instructions, AGENTS.md, CLAUDE.md — only applicable instructions)
+     - Obvious bugs in the changes themselves
+     - Issues revealed by git history/blame
+     - Patterns from previous PRs on these files
+     - Violations of code comments/guidance
 
 4. **Validate Issues**: For each potential issue, assess confidence (0-100 scale). Filter to only high-confidence issues (80+):
    - **0-25**: False positive or stylistic preference not in instruction files
@@ -30,14 +36,28 @@ Provide a code review for the given Azure DevOps pull request.
    - **100**: Definite issue that will cause problems
 
 5. **Post Review**: If high-confidence issues found:
-   
+
    a. **Confirm with User**: Ask the user to confirm before posting comments to the PR, unless they explicitly requested not to confirm. Present a summary of the issues you found and ask if they should be posted.
-   
-   b. **Post Comments**: After user confirmation, write the comment body to a temporary file and use `az devops invoke` with `--in-file` to avoid shell escaping issues:
+
+   b. **Post Inline Comments (Required)**: After user confirmation, post **one thread per issue** on the **exact file and line range** where the issue appears. Do not post only a single aggregated summary when issues exist. Write each thread body to a temporary file and use `az devops invoke` with `--in-file` to avoid shell escaping issues:
 
    ```shell
    cat > /tmp/review-thread.json << 'REVIEW_EOF'
-   {"comments":[{"parentCommentId":0,"content":"Your review","commentType":"text"}],"status":"active"}
+   {
+     "comments": [
+       {
+         "parentCommentId": 0,
+         "content": "<Issue summary + why it matters + actionable fix>",
+         "commentType": "text"
+       }
+     ],
+     "status": "active",
+     "threadContext": {
+       "filePath": "/src/path/to/file.ext",
+       "rightFileStart": { "line": 42, "offset": 1 },
+       "rightFileEnd": { "line": 42, "offset": 1 }
+     }
+   }
    REVIEW_EOF
 
    az devops invoke --area git --resource pullRequestThreads \
@@ -46,9 +66,29 @@ Provide a code review for the given Azure DevOps pull request.
      --detect true --in-file /tmp/review-thread.json
    ```
 
-   For file-specific comments, include `threadContext` with `filePath`, `rightFileStart`, and `rightFileEnd` in the JSON file.
+   For line-specific comments, `threadContext` is required and must include `filePath`, `rightFileStart`, and `rightFileEnd` with precise line numbers. Prefer the smallest relevant range (single line when possible).
 
    Valid thread `status` values: `active`, `fixed`, `wontFix`, `closed`, `byDesign`, `pending`.
+
+6. **Tag the PR as AI-reviewed**: After finishing the review (whether or not issues were found), add labels that indicate AI review completion and which model(s) were used.
+
+   ```bash
+   # Replace with the actual model IDs used for this review run.
+   MODEL_IDS=("gpt-5.4" "claude-opus-4.6")
+   MODEL_LABELS=()
+   for model in "${MODEL_IDS[@]}"; do
+     MODEL_LABELS+=("ai-model-${model}")
+   done
+
+   az repos pr update \
+     --id {prId} \
+     --detect true \
+     --labels ai-reviewed "${MODEL_LABELS[@]}"
+   ```
+
+   - Always include the `ai-reviewed` label.
+   - Add one `ai-model-<model-id>` label per model used (including sub-agents, if any).
+   - Use the exact model IDs (for example: `gpt-5.4`, `claude-opus-4.6`).
 
 ## Avoid False Positives
 
@@ -67,31 +107,26 @@ Provide a code review for the given Azure DevOps pull request.
 - Keep comments brief and professional
 - Use Azure CLI commands from the ado-cli skill
 
-## Comment Format
+## Inline Comment Format
 
-When posting the review using `az devops invoke`, format as follows:
-
-**If issues found:**
+When posting review findings, use this format per thread:
 
 ```markdown
-### Code review
+<brief issue title>
 
-Found {N} issues:
+<why this is a problem in this specific code path>
 
-1. <brief description> (instruction file says "<quote>")
-
-   <Azure DevOps link to file with full commit hash + line range>
-
-2. <brief description> (bug due to <file and code snippet>)
-
-   <Azure DevOps link to file with full commit hash + line range>
+<clear, actionable suggestion>
 
 🤖 Generated with AI
-
-<sub>- If this code review was useful, please react with 👍. Otherwise, react with 👎.</sub>
 ```
 
-**If no issues:**
+- Post one thread per issue at the exact file/line location using `threadContext`.
+- Include only one issue per thread so authors can resolve items independently.
+- Keep comments brief, specific, and fix-oriented.
+- Optional: after posting all inline threads, post one short top-level summary comment linking the key findings.
+
+**If no issues:** post a single top-level comment:
 
 ```markdown
 ### Code review
