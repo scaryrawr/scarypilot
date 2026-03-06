@@ -4,9 +4,9 @@ Bootstrap a repository for GitHub Copilot by generating coding instructions, cus
 
 ## What This Plugin Does
 
-- Generates a `copilot-instructions.md` with build/test/lint commands, architecture overview, and code style guidelines
-- Creates path-specific instructions for different parts of the repository (e.g., test conventions, package-level patterns)
-- Scaffolds custom agents based on your project's needs (code reviewer, test specialist, UX reviewer, etc.)
+- Generates a `.github/copilot-instructions.md` with build/test/lint commands, architecture overview, and code style guidelines
+- Creates path-specific instructions in `.github/instructions/*.instructions.md` for different parts of the repository (e.g., test conventions, package-level patterns)
+- Scaffolds custom agents in `.github/agents/*.agent.md` based on your project's needs (code reviewer, test specialist, UX reviewer, etc.)
 - Scaffolds custom skills in `.github/skills` for PR workflows, validation, reviews, and more
 - Analyzes repository structure, dependencies, and coding styles to produce relevant configuration
 

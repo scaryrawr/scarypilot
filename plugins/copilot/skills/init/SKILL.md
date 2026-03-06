@@ -5,7 +5,7 @@ description: Quickly bootstrap repo-specific Copilot instructions with high sign
 
 # Creating Copilot Instructions
 
-Configure instructions as documented in [Best practices for Copilot coding agent in your repository](https://gh.io/copilot-coding-agent-tips). Use subagents to explore first, then write only durable, repo-specific guidance.
+Configure instructions as documented in [Best practices for Copilot coding agent in your repository](https://gh.io/copilot-coding-agent-tips). Use subagents to explore first, then create or update `.github/copilot-instructions.md` with only durable, repo-specific guidance.
 
 Optimize for fast onboarding: help a new agent become productive quickly without adding noisy or redundant instructions.
 
@@ -20,7 +20,7 @@ Keep this section compact. Prefer short bullets over long prose, and avoid instr
 
 ## Path Specific Instructions
 
-Add path-specific rules only when behavior genuinely differs by folder, package, or file type.
+Add path-specific rules only when behavior genuinely differs by folder, package, or file type. Create them as `.github/instructions/<name>.instructions.md` files with `applyTo` frontmatter so Copilot loads them only for matching paths.
 
 Paths can target file extensions and concrete directories. Focus on high-impact differences such as:
 
@@ -30,13 +30,14 @@ Paths can target file extensions and concrete directories. Focus on high-impact 
 
 ## Custom Agents
 
-Create custom agents for repeated, specialized tasks where a constrained toolset and focused persona improve outcomes.
+[Create custom agents](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-custom-agents) in `.github/agents/<name>.agent.md` for repeated, specialized tasks where a constrained toolset and focused persona improve outcomes.
 
 When defining agents:
 
 - Scope each agent to one clear job (for example: code review, test debugging, migration planning).
+- Give each agent clear YAML frontmatter and a focused prompt; include `description`, and add `name` or `tools` when they improve discoverability or tool safety.
 - Keep the tool list minimal and intentional.
-- Add explicit invocation cues in instructions so the main agent knows when to delegate.
+- Make it obvious when a human or main agent should choose this specialist.
 - Do not create agents that duplicate general-purpose behavior.
 
 ## Custom Skills
@@ -58,7 +59,7 @@ Do not create skills that already exist, and avoid niche skills unless they are 
 
 ## Custom Hooks
 
-Consider adding custom hooks as documented in [hooks configuration](https://docs.github.com/en/copilot/reference/hooks-configuration).
+Consider adding custom hooks in `.github/hooks/<name>.json` as documented in [Using hooks with GitHub Copilot agents](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/use-hooks).
 
 Use hooks as lightweight guardrails:
 
