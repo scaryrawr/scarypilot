@@ -54,8 +54,8 @@ Provide a code review for the given Azure DevOps pull request.
      "status": "active",
      "threadContext": {
        "filePath": "/src/path/to/file.ext",
-       "rightFileStart": { "line": 42, "offset": 1 },
-       "rightFileEnd": { "line": 42, "offset": 1 }
+       "rightFileStart": { "line": 42, "offset": 0 },
+       "rightFileEnd": { "line": 42, "offset": 0 }
      }
    }
    REVIEW_EOF
@@ -67,6 +67,8 @@ Provide a code review for the given Azure DevOps pull request.
    ```
 
    For line-specific comments, `threadContext` is required and must include `filePath`, `rightFileStart`, and `rightFileEnd` with precise line numbers. Prefer the smallest relevant range (single line when possible).
+
+   **Determining correct line numbers**: `rightFileStart` and `rightFileEnd` use the **new-file** (right-side) line numbers — the actual line numbers in the PR branch file. In `git diff` hunk headers like `@@ -35,3 +39,7 @@`, always use the `+` side (`39`), never the `-` side (`35`). To avoid miscounting within a hunk, verify the line number by running `grep -n '<unique text>' <file>` on the checked-out PR branch.
 
    Valid thread `status` values: `active`, `fixed`, `wontFix`, `closed`, `byDesign`, `pending`.
 
