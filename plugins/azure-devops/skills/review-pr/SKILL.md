@@ -37,7 +37,7 @@ Provide a code review for the given Azure DevOps pull request.
 
 5. **Post Review**: If high-confidence issues found:
 
-   a. **Confirm with User**: Ask the user to confirm before posting comments to the PR, unless they explicitly requested not to confirm. Present a summary of the issues you found and ask if they should be posted.
+   a. **Confirm with User**: Use the ask user question tool to confirm before posting comments to the PR, unless they explicitly requested not to confirm. Present a summary of the issues you found and ask if they should be posted.
 
    b. **Post Inline Comments (Required)**: After user confirmation, post **one thread per issue** on the **exact file and line range** where the issue appears. Do not post only a single aggregated summary when issues exist. Write each thread body to a temporary file and use `az devops invoke` with `--in-file` to avoid shell escaping issues:
 
