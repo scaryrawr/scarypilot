@@ -19,25 +19,6 @@ Hard stop conditions:
 - `origin` is not an Azure DevOps remote
 - Azure auth or permissions failure
 
-## Preflight
-
-```bash
-# Verify Azure CLI login and DevOps extension
-az account show --query "{user: user.name, subscription: name}" -o table && az extension show --name azure-devops --query "{name: name, version: version}" -o table
-```
-
-If login is missing, re-authenticate:
-
-```bash
-az login
-```
-
-If the Azure DevOps extension is missing, install it:
-
-```bash
-az extension add --name azure-devops
-```
-
 ## Workflow
 
 ### 1) Check Git State and Remote Context
