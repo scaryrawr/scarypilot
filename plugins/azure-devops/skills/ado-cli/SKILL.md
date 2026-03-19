@@ -1,6 +1,7 @@
 ---
 name: ado-cli
 description: When users share Azure DevOps links (dev.azure.com or visualstudio.com) or mention Azure DevOps, parse URLs to identify the resource and route to the appropriate action.
+user-invocable: false
 ---
 
 # Azure DevOps CLI

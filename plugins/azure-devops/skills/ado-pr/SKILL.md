@@ -1,6 +1,7 @@
 ---
 name: ado-pr
 description: When users share Azure DevOps pull request links or ask about PRs, use the Azure DevOps CLI to view, list, checkout, review, vote on, and manage pull requests.
+user-invocable: false
 ---
 
 # Azure DevOps Pull Request Operations

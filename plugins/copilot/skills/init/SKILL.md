@@ -1,6 +1,7 @@
 ---
 name: init
 description: Quickly bootstrap repo-specific Copilot instructions with high signal and low context bloat.
+disable-model-invocation: true
 ---
 
 # Creating Copilot Instructions
