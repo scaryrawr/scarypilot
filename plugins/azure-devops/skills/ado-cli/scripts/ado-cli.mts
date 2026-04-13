@@ -145,12 +145,12 @@ function parseAzureDevOpsUrl(rawUrl: string): ParsedAzureUrl {
 
   if (resourceSection === '_git') {
     const repositoryIndex = segments[2] === '_optimized' ? 3 : 2;
-    if (segments.length <= repositoryIndex + 1) {
+    const repository = segments[repositoryIndex];
+    const nextSegment = segments.at(repositoryIndex + 1);
+    if (!nextSegment) {
       return parsed;
     }
 
-    const repository = segments[repositoryIndex];
-    const nextSegment = segments[repositoryIndex + 1];
     if (nextSegment === 'pullrequest') {
       if (!repository) {
         throw new Error(`Could not determine repository from ${rawUrl}`);
