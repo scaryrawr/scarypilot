@@ -126,15 +126,17 @@ function parseAzureRemote(remoteUrl: string): ParsedRemote | undefined {
       const project = segments[0];
       const resourceSection = segments[1];
       const repositorySegment = segments[2] === '_optimized' ? segments[3] : segments[2];
-      if (project && resourceSection === '_git' && repositorySegment) {
-        return {
-          organization,
-          organizationUrl: `https://dev.azure.com/${organization}`,
-          project,
-          repository: repositorySegment,
-          scheme: 'https'
-        };
+      if (!project || resourceSection !== '_git' || !repositorySegment) {
+        return undefined;
       }
+
+      return {
+        organization,
+        organizationUrl: `https://dev.azure.com/${organization}`,
+        project,
+        repository: repositorySegment,
+        scheme: 'https'
+      };
     }
   }
 
