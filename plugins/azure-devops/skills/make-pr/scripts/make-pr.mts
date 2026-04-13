@@ -100,28 +100,42 @@ function runGit(commandArgs: string[], cwd?: string): string {
 }
 
 function parseAzureRemote(remoteUrl: string): ParsedRemote | undefined {
-  const httpsDevMatch = /^https:\/\/dev\.azure\.com\/([^/]+)\/([^/]+)\/_git\/([^/]+)$/.exec(remoteUrl);
-  if (httpsDevMatch) {
-    const [, organization, project, repository] = httpsDevMatch;
-    return {
-      organization,
-      organizationUrl: `https://dev.azure.com/${organization}`,
-      project,
-      repository,
-      scheme: 'https'
-    };
-  }
+  if (remoteUrl.startsWith('https://')) {
+    const parsedUrl = new URL(remoteUrl);
+    const isVisualStudioHost = parsedUrl.hostname.endsWith('.visualstudio.com');
+    const isDevAzureHost = parsedUrl.hostname === 'dev.azure.com';
 
-  const httpsLegacyMatch = /^https:\/\/([^/.]+)\.visualstudio\.com\/([^/]+)\/_git\/([^/]+)$/.exec(remoteUrl);
-  if (httpsLegacyMatch) {
-    const [, organization, project, repository] = httpsLegacyMatch;
-    return {
-      organization,
-      organizationUrl: `https://dev.azure.com/${organization}`,
-      project,
-      repository,
-      scheme: 'https'
-    };
+    if (isVisualStudioHost || isDevAzureHost) {
+      let organization = '';
+      let segments = parsedUrl.pathname.split('/').filter(Boolean);
+
+      if (isDevAzureHost) {
+        const [org, ...rest] = segments;
+        if (!org) {
+          return undefined;
+        }
+        organization = org;
+        segments = rest;
+      } else {
+        organization = parsedUrl.hostname.replace(/\.visualstudio\.com$/, '');
+        if (segments[0]?.toLowerCase() === 'defaultcollection') {
+          segments = segments.slice(1);
+        }
+      }
+
+      const project = segments[0];
+      const resourceSection = segments[1];
+      const repositorySegment = segments[2] === '_optimized' ? segments[3] : segments[2];
+      if (project && resourceSection === '_git' && repositorySegment) {
+        return {
+          organization,
+          organizationUrl: `https://dev.azure.com/${organization}`,
+          project,
+          repository: repositorySegment,
+          scheme: 'https'
+        };
+      }
+    }
   }
 
   const sshUrlMatch = /^ssh:\/\/git@ssh\.dev\.azure\.com:v3\/([^/]+)\/([^/]+)\/([^/]+)$/.exec(remoteUrl);

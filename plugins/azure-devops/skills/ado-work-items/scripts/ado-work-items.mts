@@ -80,6 +80,9 @@ function parseWorkItemUrl(rawUrl: string): ParsedWorkItemUrl {
     segments = rest;
   } else {
     organization = parsedUrl.hostname.replace(/\.visualstudio\.com$/, '');
+    if (segments[0]?.toLowerCase() === 'defaultcollection') {
+      segments = segments.slice(1);
+    }
   }
 
   const project = segments[0];

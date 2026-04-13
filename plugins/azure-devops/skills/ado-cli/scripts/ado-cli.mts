@@ -125,6 +125,9 @@ function parseAzureDevOpsUrl(rawUrl: string): ParsedAzureUrl {
     segments = rest;
   } else {
     organization = parsedUrl.hostname.replace(/\.visualstudio\.com$/, '');
+    if (segments[0]?.toLowerCase() === 'defaultcollection') {
+      segments = segments.slice(1);
+    }
   }
 
   const project = segments[0];
@@ -140,11 +143,19 @@ function parseAzureDevOpsUrl(rawUrl: string): ParsedAzureUrl {
     isVisualStudioHost
   };
 
-  if (resourceSection === '_git' && segments[3] === 'pullrequest') {
-    const repository = segments[2];
-    const pullRequestId = Number.parseInt(segments[4] ?? '', 10);
+  if (resourceSection === '_git') {
+    const repositoryIndex = segments[2] === '_optimized' ? 3 : 2;
+    if (segments[repositoryIndex + 1] !== 'pullrequest') {
+      return parsed;
+    }
+
+    const repository = segments[repositoryIndex];
+    const pullRequestId = Number.parseInt(segments[repositoryIndex + 2] ?? '', 10);
     if (!Number.isFinite(pullRequestId)) {
       throw new Error(`Could not determine pull request id from ${rawUrl}`);
+    }
+    if (!repository) {
+      throw new Error(`Could not determine repository from ${rawUrl}`);
     }
 
     return {
