@@ -1,10 +1,12 @@
 # Copilot Plugin
 
-Bootstrap a repository for GitHub Copilot by generating coding instructions, custom agents, and custom skills tailored to your project.
+Bootstrap a repository for GitHub Copilot by generating shared agent instructions, Copilot-specific guidance, custom agents, and custom skills tailored to your project.
 
 ## What This Plugin Does
 
-- Generates a `.github/copilot-instructions.md` with build/test/lint commands, architecture overview, and code style guidelines
+- Creates a shared `AGENTS.md` instruction hierarchy (including nested `AGENTS.md` files when needed) as the primary source of durable guidance
+- Creates `CLAUDE.md` files that reference corresponding `AGENTS.md` files using `@{FILE}` syntax (for example `@AGENTS.md`) to minimize duplication
+- Generates a `.github/copilot-instructions.md` that focuses on Copilot-specific behavior and references corresponding `AGENTS.md` files
 - Creates path-specific instructions in `.github/instructions/*.instructions.md` for different parts of the repository (e.g., test conventions, package-level patterns)
 - Scaffolds custom agents in `.github/agents/*.agent.md` based on your project's needs (code reviewer, test specialist, UX reviewer, etc.)
 - Scaffolds custom skills in `.github/skills` for PR workflows, validation, reviews, and more
