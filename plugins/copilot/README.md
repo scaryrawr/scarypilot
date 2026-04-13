@@ -5,7 +5,7 @@ Bootstrap a repository for GitHub Copilot by generating shared agent instruction
 ## What This Plugin Does
 
 - Creates a shared `AGENTS.md` instruction hierarchy (including nested `AGENTS.md` files when needed) as the primary source of durable guidance
-- Creates `CLAUDE.md` files that `@include` corresponding `AGENTS.md` files to minimize duplication
+- Creates `CLAUDE.md` files that reference corresponding `AGENTS.md` files using `@{FILE}` syntax (for example `@AGENTS.md`) to minimize duplication
 - Generates a `.github/copilot-instructions.md` that focuses on Copilot-specific behavior and references corresponding `AGENTS.md` files
 - Creates path-specific instructions in `.github/instructions/*.instructions.md` for different parts of the repository (e.g., test conventions, package-level patterns)
 - Scaffolds custom agents in `.github/agents/*.agent.md` based on your project's needs (code reviewer, test specialist, UX reviewer, etc.)
