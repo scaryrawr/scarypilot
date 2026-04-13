@@ -145,6 +145,10 @@ function parseAzureDevOpsUrl(rawUrl: string): ParsedAzureUrl {
 
   if (resourceSection === '_git') {
     const repositoryIndex = segments[2] === '_optimized' ? 3 : 2;
+    if (segments.length <= repositoryIndex) {
+      return parsed;
+    }
+
     const repository = segments[repositoryIndex];
     const nextSegment = segments.at(repositoryIndex + 1);
     if (!nextSegment) {
