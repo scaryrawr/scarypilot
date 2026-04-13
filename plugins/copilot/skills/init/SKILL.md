@@ -4,11 +4,19 @@ description: Quickly bootstrap repo-specific Copilot instructions with high sign
 disable-model-invocation: true
 ---
 
-# Creating Copilot Instructions
+# Creating Shared Agent Instructions
 
-Configure instructions as documented in [Best practices for Copilot coding agent in your repository](https://gh.io/copilot-coding-agent-tips). Use subagents to explore first, then create or update `.github/copilot-instructions.md` with only durable, repo-specific guidance.
+Configure instructions as documented in [Best practices for Copilot coding agent in your repository](https://gh.io/copilot-coding-agent-tips). Use subagents to explore first, then establish shared instruction files with `AGENTS.md` as the source of truth.
 
 Optimize for fast onboarding: help a new agent become productive quickly without adding noisy or redundant instructions.
+
+## Shared instruction hierarchy
+
+1. Create or update a root `AGENTS.md` with durable repository-wide guidance.
+2. Add nested `AGENTS.md` files in subdirectories when behavior differs meaningfully by area.
+3. Keep shared guidance in `AGENTS.md` files and avoid copying the same rules into multiple instruction formats.
+4. Create `CLAUDE.md` files that use `@include` to reference the corresponding `AGENTS.md` file containing the real guidance.
+5. Create or update `.github/copilot-instructions.md` with Copilot-specific guidance and references to the corresponding `AGENTS.md` files instead of duplicating shared instructions.
 
 ## What to include
 
@@ -18,10 +26,11 @@ Optimize for fast onboarding: help a new agent become productive quickly without
 4. Operating constraints - Include any important safety rules, approval workflows, or environment limits.
 
 Keep this section compact. Prefer short bullets over long prose, and avoid instructions that can be inferred from common language defaults.
+When guidance applies to multiple agents, put it in `AGENTS.md` and reference it from agent-specific files.
 
 ## Path Specific Instructions
 
-Add path-specific rules only when behavior genuinely differs by folder, package, or file type. Create them as `.github/instructions/<name>.instructions.md` files with `applyTo` frontmatter so Copilot loads them only for matching paths.
+Add path-specific rules only when behavior genuinely differs by folder, package, or file type. Prefer a nested `AGENTS.md` in that area first, then add `.github/instructions/<name>.instructions.md` with `applyTo` frontmatter only for Copilot-specific behavior.
 
 Paths can target file extensions and concrete directories. Focus on high-impact differences such as:
 
