@@ -1,13 +1,13 @@
 # Copilot Plugin
 
-Bootstrap a repository for GitHub Copilot by generating shared agent instructions, Copilot-specific guidance, custom agents, and custom skills tailored to your project.
+Bootstrap a repository for GitHub Copilot by generating shared `AGENTS.md` guidance, Copilot-specific instruction files, compatibility shims for other agents, custom agents, and custom skills tailored to your project.
 
 ## What This Plugin Does
 
-- Creates a shared `AGENTS.md` instruction hierarchy (including nested `AGENTS.md` files when needed) as the primary source of durable guidance
-- Creates `CLAUDE.md` files that reference corresponding `AGENTS.md` files using `@{FILE}` syntax (for example `@AGENTS.md`) to minimize duplication
-- Generates a `.github/copilot-instructions.md` that focuses on Copilot-specific behavior and references corresponding `AGENTS.md` files
-- Creates path-specific instructions in `.github/instructions/*.instructions.md` for different parts of the repository (e.g., test conventions, package-level patterns)
+- Creates a shared root `AGENTS.md` for durable repo-wide guidance, with optional nested `AGENTS.md` files for shared subtree guidance when your workflow supports them (VS Code nested discovery is experimental and requires `chat.useNestedAgentsMdFiles`)
+- Generates `.github/copilot-instructions.md` to layer Copilot-specific behavior on top of the shared `AGENTS.md` guidance
+- Creates focused `.github/instructions/*.instructions.md` files with `applyTo` patterns for Copilot-only directory-, framework-, or file-type-specific guidance
+- Adds a root `CLAUDE.md` only as a thin `@AGENTS.md` compatibility shim beside the root `AGENTS.md`
 - Scaffolds custom agents in `.github/agents/*.agent.md` based on your project's needs (code reviewer, test specialist, UX reviewer, etc.)
 - Scaffolds custom skills in `.github/skills` for PR workflows, validation, reviews, and more
 - Analyzes repository structure, dependencies, and coding styles to produce relevant configuration
@@ -41,5 +41,5 @@ copilot plugin install copilot@scarypilot
 
 ## Resources
 
-- [Best practices for Copilot coding agent in your repository](https://gh.io/copilot-coding-agent-tips)
+- [VS Code custom instructions](https://code.visualstudio.com/docs/copilot/customization/custom-instructions)
 - [About agent skills](https://docs.github.com/en/copilot/concepts/agents/about-agent-skills)

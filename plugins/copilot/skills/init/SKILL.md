@@ -4,44 +4,60 @@ description: Quickly bootstrap repo-specific Copilot instructions with high sign
 disable-model-invocation: true
 ---
 
-# Creating Shared Agent Instructions
+# Creating Shared and Copilot-Specific Instructions
 
-Configure instructions as documented in [Best practices for Copilot coding agent in your repository](https://gh.io/copilot-coding-agent-tips). Use subagents to explore first, then establish shared instruction files with `AGENTS.md` as the source of truth.
+Follow VS Code's [custom instructions guidance](https://code.visualstudio.com/docs/copilot/customization/custom-instructions). Explore the repo first, then create a layered instruction setup: shared guidance in `AGENTS.md`, Copilot-specific guidance in `.github/copilot-instructions.md`, and scoped `.instructions.md` files only when they add clear value.
 
-Optimize for fast onboarding: help a new agent become productive quickly without adding noisy or redundant instructions.
+Optimize for fast onboarding: help a new agent become productive quickly without adding redundant or generic guidance.
 
-## Shared instruction hierarchy
+## Recommended instruction layout
 
-1. Create or update a root `AGENTS.md` with durable repository-wide guidance.
-2. Add nested `AGENTS.md` files in subdirectories when behavior differs meaningfully by area.
-3. Keep shared guidance in `AGENTS.md` files and avoid copying the same rules into multiple instruction formats.
-4. Create `CLAUDE.md` files for Claude clients that support `@{FILE}` directives.
-   - Use include lines in `@{FILE}` format, for example `@AGENTS.md`.
-   - Keep the real shared guidance in the corresponding `AGENTS.md` file.
-5. Create or update `.github/copilot-instructions.md` with Copilot-specific guidance.
-   - Add explicit file-path references to corresponding `AGENTS.md` files (for example: "For `plugins/foo`, shared guidance lives in `plugins/foo/AGENTS.md`").
-   - Treat references as documentation pointers, not automatic includes.
-   - Avoid duplicating shared instructions that already live in `AGENTS.md`.
+1. Create or update a root `AGENTS.md` as the shared source of truth for durable repo-wide guidance.
+   - Put architecture, preferred libraries, naming/style conventions, safety rules, and validation commands here.
+   - Keep it concise, repo-specific, and reusable across agents.
+2. Add nested `AGENTS.md` files in subdirectories only when shared guidance differs meaningfully by area and your tooling supports them.
+   - In VS Code, nested `AGENTS.md` discovery is experimental and requires `chat.useNestedAgentsMdFiles`.
+   - For stable Copilot path- or file-specific behavior, prefer `.github/instructions/*.instructions.md`.
+3. Create or update `.github/copilot-instructions.md` to layer in Copilot-specific behavior.
+   - Keep shared rules in `AGENTS.md` and use `.github/copilot-instructions.md` for Copilot/VS Code specifics, such as instruction discovery, prompt-shaping details, or explicit links to the relevant `AGENTS.md` files.
+   - Avoid copying the full contents of `AGENTS.md` into Copilot-specific files.
+4. Add `.github/instructions/*.instructions.md` only for Copilot-specific rules that should apply by `applyTo` pattern.
+   - Use YAML frontmatter with `applyTo`, and optionally `name` and `description`.
+   - Prefer focused files for test conventions, framework patterns, or docs rules.
+5. Create a root `CLAUDE.md` only as a thin compatibility file next to the root `AGENTS.md`.
+   - Its content should just be `@AGENTS.md`.
+   - Do not duplicate or restate instructions in `CLAUDE.md`, and do not create nested `CLAUDE.md` shims that Copilot will not discover.
 
 ## What to include
 
-1. Build, test, and lint commands - Include fast local commands and at least one single-test command when available.
-2. High-level architecture - Capture major modules, boundaries, and where key responsibilities live.
-3. Style and patterns - Record conventions that are specific to this repo and repeated across multiple files.
-4. Operating constraints - Include any important safety rules, approval workflows, or environment limits.
+1. Build, test, and lint commands - Include the default local commands and at least one narrow validation command when available.
+2. High-level architecture - Capture the main packages, boundaries, and where important responsibilities live.
+3. Project-specific conventions - Record patterns that are repeated across the repo and would not be obvious from general language norms.
+4. Safety and review constraints - Note security requirements, approval workflows, risky commands, or environment limits.
+5. Examples and rationale - When a rule matters, briefly explain why and show a preferred pattern if it helps.
 
-Keep this section compact. Prefer short bullets over long prose, and avoid instructions that can be inferred from common language defaults.
-When guidance applies to multiple agents, put it in `AGENTS.md` and reference it from agent-specific files.
+Keep instructions short, self-contained, and durable. Skip formatter-enforced basics, temporary tasks, and generic advice the model already knows.
 
-## Path Specific Instructions
+## Path-Specific Instructions
 
-Add path-specific rules only when behavior genuinely differs by folder, package, or file type. Prefer a nested `AGENTS.md` in that area first, then add `.github/instructions/<name>.instructions.md` with `applyTo` frontmatter only for Copilot-specific behavior.
+Use `.instructions.md` files for targeted guidance such as:
 
-Paths can target file extensions and concrete directories. Focus on high-impact differences such as:
+- Different frontend vs backend patterns
+- Different test conventions by folder
+- Framework-specific rules for one package
+- Documentation rules for docs-only paths
 
-- Different test frameworks or test styles (unit/integration/e2e)
-- Different architectural patterns by package
-- Different review or validation requirements by area
+For automatic application, include an `applyTo` glob pattern. If the rule is shared across agents, prefer `AGENTS.md`; use a nested `AGENTS.md` only when your workflow supports it and you accept VS Code's experimental discovery. If the rule is Copilot-only but path-scoped, use `.instructions.md`.
+
+## Existing instruction files
+
+If the repo already has `.github/copilot-instructions.md`, `.instructions.md`, `AGENTS.md`, or `CLAUDE.md` files, reconcile them before adding new ones:
+
+- Preserve durable shared guidance that is still correct.
+- Consolidate shared rules into the most relevant `AGENTS.md`.
+- Keep `.github/copilot-instructions.md` focused on Copilot-specific additions.
+- Keep only supported top-level `CLAUDE.md` files, and make them a local `@AGENTS.md` include when needed.
+- Remove duplication and avoid overlapping files that give conflicting instructions.
 
 ## Custom Agents
 
