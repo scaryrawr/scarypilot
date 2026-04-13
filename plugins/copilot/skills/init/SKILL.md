@@ -15,8 +15,8 @@ Optimize for fast onboarding: help a new agent become productive quickly without
 1. Create or update a root `AGENTS.md` with durable repository-wide guidance.
 2. Add nested `AGENTS.md` files in subdirectories when behavior differs meaningfully by area.
 3. Keep shared guidance in `AGENTS.md` files and avoid copying the same rules into multiple instruction formats.
-4. Create `CLAUDE.md` files that use `@include` to reference the corresponding `AGENTS.md` file containing the real guidance.
-5. Create or update `.github/copilot-instructions.md` with Copilot-specific guidance and references to the corresponding `AGENTS.md` files instead of duplicating shared instructions.
+4. Create `CLAUDE.md` files that use explicit include lines such as `@include ./AGENTS.md` (or `@include ../AGENTS.md` when needed) to reference the corresponding `AGENTS.md` file containing the real guidance.
+5. Create or update `.github/copilot-instructions.md` with Copilot-specific guidance and explicit file-path references to the corresponding `AGENTS.md` files (for example: "Shared guidance for `plugins/foo/**` lives in `plugins/foo/AGENTS.md`") instead of duplicating shared instructions.
 
 ## What to include
 
