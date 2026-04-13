@@ -1,6 +1,6 @@
 # Azure DevOps Plugin
 
-Intelligent Azure DevOps integration for GitHub Copilot. Manages pull requests and work items through the Azure CLI with automatic URL parsing and context-aware actions.
+Intelligent Azure DevOps integration for GitHub Copilot. The Azure DevOps skills now use executable Node `.mts` helper scripts for URL parsing, PR context resolution, payload generation, template discovery, review label sync, and attachment uploads.
 
 > **⚠️ Note:** Some commands and features in this plugin are AI-generated/vibe-coded. While functional, they may require adjustments for your specific Azure DevOps setup. Always review generated actions before executing in production environments.
 
@@ -9,11 +9,13 @@ Intelligent Azure DevOps integration for GitHub Copilot. Manages pull requests a
 - Detects Azure DevOps URLs and infers appropriate actions
 - Manages pull requests (review, checkout, approve, merge)
 - Works with work items (view, update, query)
-- Automates common Azure DevOps workflows
+- Automates common Azure DevOps workflows with local `.mts` helper scripts
 
 ## Installation
 
-1. Install [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) and the DevOps extension:
+1. Install Node.js `>=22.18.0` so the bundled `.mts` skill scripts can run directly.
+
+2. Install [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) and the DevOps extension:
 
    ```bash
    az extension add --name azure-devops
@@ -21,7 +23,7 @@ Intelligent Azure DevOps integration for GitHub Copilot. Manages pull requests a
    az devops configure --defaults organization=https://dev.azure.com/YourOrganization
    ```
 
-2. Install the plugin:
+3. Install the plugin:
 
    ```bash
    copilot plugin marketplace add scaryrawr/scarypilot
@@ -54,7 +56,19 @@ Intelligent Azure DevOps integration for GitHub Copilot. Manages pull requests a
 "Show me all work items assigned to me"
 ```
 
+## Development / Validation
+
+Install the repo's lightweight TypeScript tooling and run the native-preview type checker:
+
+```bash
+npm install
+npm run typecheck
+```
+
+The TypeScript configuration follows Node's type-stripping guidance for direct `.mts` execution.
+
 ## Resources
 
 - [Azure CLI Documentation](https://learn.microsoft.com/en-us/cli/azure/)
 - [Azure DevOps CLI Extension](https://learn.microsoft.com/en-us/azure/devops/cli/)
+- [Node.js TypeScript type stripping](https://nodejs.org/api/typescript.html#type-stripping)

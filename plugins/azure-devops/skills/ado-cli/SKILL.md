@@ -1,89 +1,62 @@
 ---
 name: ado-cli
-description: When users share Azure DevOps links (dev.azure.com or visualstudio.com) or mention Azure DevOps, parse URLs to identify the resource and route to the appropriate action.
+description: When users share Azure DevOps links or mention Azure DevOps resources, parse the URL, identify the resource type, and route to the right Azure DevOps skill.
+compatibility: "Requires Node.js >=22.18 and Azure CLI with the azure-devops extension."
 user-invocable: false
 ---
 
-# Azure DevOps CLI
+# Azure DevOps Router
 
-You have access to an already signed-in Azure CLI with the `azure-devops` extension. When users share Azure DevOps links or mention Azure DevOps resources, parse the URL to identify the resource type and infer the appropriate action.
+Use this skill when a user gives you an Azure DevOps URL or needs the shared attachment-upload helper.
 
-## Organization Detection
+## Parse Azure DevOps URLs first
 
-Most `az` DevOps commands support `--detect true` to auto-detect organization and project from the local git remote. When running inside a cloned Azure DevOps repository, prefer `--detect true` over explicit `--org {orgUrl}` to reduce parameter errors.
+Always normalize the URL with the script instead of manually re-parsing host and path segments:
 
-If auto-detection fails (e.g., outside a repo or ambiguous remote), fall back to `--org {orgUrl}`.
-
-## Parsing Azure DevOps URLs
-
-Extract parameters from common URL patterns:
-
-- `https://dev.azure.com/{org}/{project}/_git/{repo}/pullrequest/{prId}` → PR operations
-- `https://{org}.visualstudio.com/{project}/_git/{repo}/pullrequest/{prId}` → PR operations
-- `https://dev.azure.com/{org}/{project}/_workitems/edit/{workItemId}` → Work item operations
-
-## Routing by Resource Type
-
-| URL contains         | Resource     | Skill to use   |
-| -------------------- | ------------ | -------------- |
-| `/pullrequest/`      | Pull Request | ado-pr         |
-| `/_workitems/edit/`  | Work Item    | ado-work-items |
-| User says "create PR"| Pull Request | make-pr        |
-| User says "review PR"| Pull Request | review-pr      |
-
-## Using `az devops invoke` for REST APIs
-
-When the CLI lacks a first-class command, use `invoke` to call any Azure DevOps REST API:
-
-```shell
-az devops invoke --area {area} --resource {resource} \
-  --route-parameters {key}={value} \
-  --detect true --api-version 7.1
+```bash
+./scripts/ado-cli.mts parse-url "https://dev.azure.com/{org}/{project}/_git/{repo}/pullrequest/{prId}"
 ```
 
-Common areas: `git`, `wit` (work item tracking), `core`
+The script returns structured JSON including:
 
-For POST/PUT/PATCH requests, write the JSON body to a temporary file and use `--in-file` to avoid shell escaping issues:
+- `organization`
+- `organizationUrl`
+- `project`
+- `repository` when present
+- `resourceType`
+- `resourceId`
+- `routeSkill`
 
-```shell
-cat > /tmp/payload.json << 'EOF'
-{"key": "value"}
-EOF
+Routing rules:
 
-az devops invoke --area {area} --resource {resource} \
-  --route-parameters {key}={value} \
-  --http-method POST --api-version 7.1-preview \
-  --detect true --in-file /tmp/payload.json
+- `pull-request` -> `ado-pr`
+- `work-item` -> `ado-work-items`
+- creation requests -> `make-pr`
+- explicit review requests -> `review-pr`
+
+## Organization detection
+
+For Azure CLI commands that support it, prefer `--detect true` when you are inside the target repository.
+
+If auto-detection fails, fall back to `organizationUrl` from the parse result or a user-supplied org URL.
+
+## Pull request attachment upload helper
+
+When you need a PR attachment URL, use the script instead of rebuilding the token + binary upload flow inline:
+
+```bash
+./scripts/ado-cli.mts upload-attachment \
+  --org {org-or-url} \
+  --project {project} \
+  --repository-id {repositoryId} \
+  --pull-request-id {prId} \
+  --file /absolute/path/to/image.png
 ```
 
-### Binary uploads (PR image/file attachments)
+The script performs the token lookup and upload, then returns the attachment URL as JSON.
 
-For Pull Request attachment uploads, don't use `az devops invoke` (it expects UTF-8 text) and don't use `az rest --body @file` for images (it stores base64 text, which renders as broken images).
+## Rules
 
-Use a bearer token + `curl --data-binary` so raw bytes are uploaded:
-
-```shell
-TOKEN=$(az account get-access-token \
-  --resource 499b84ac-1321-427f-aa17-267ca6975798 \
-  --query accessToken -o tsv)
-
-ATTACHMENT_URL=$(curl -sS -X POST \
-  -H "Authorization: Bearer ${TOKEN}" \
-  -H "Content-Type: application/octet-stream" \
-  --data-binary "@/absolute/path/to/image.png" \
-  "https://dev.azure.com/{organization}/{project}/_apis/git/repositories/{repositoryId}/pullRequests/{pullRequestId}/attachments/{fileName}?api-version=7.1" \
-  | python3 -c 'import json,sys; print(json.load(sys.stdin)["url"])')
-```
-
-## Output Formatting
-
-- Use `--output table` for human-readable summaries
-- Use `--output json` (default) for programmatic processing
-- Use `--query "<JMESPath>"` to extract specific fields:
-
-```shell
-# Example: get just the PR title
-az repos pr show --id 123 --detect true --query "title" -o tsv
-```
-
-- Pipe JSON output to `jq` for complex filtering
+- Prefer the script output over handwritten URL parsing.
+- Prefer the script output over handwritten `curl` + `python3` attachment upload snippets.
+- Fail loudly when the URL host or path is unsupported.

@@ -1,162 +1,79 @@
 ---
 name: ado-work-items
-description: When users share Azure DevOps work item links or ask about work items, use the Azure DevOps CLI to view, create, update, query, and manage work items.
+description: When users share Azure DevOps work item links or ask about work items, inspect and manage work items with Azure CLI plus the local work-item helper script.
+compatibility: "Requires Node.js >=22.18 and Azure CLI with the azure-devops extension."
 ---
 
 # Azure DevOps Work Item Operations
 
-You have access to an already signed-in Azure CLI with the `azure-devops` extension. Use these commands to manage Azure DevOps work items.
+Use this skill for Azure DevOps Boards work items.
 
-## Organization Detection
+## Script-first helpers
 
-Most `az boards` commands require an organization URL. When running inside a cloned Azure DevOps repository, use `--detect true` to auto-detect the organization and project from the local git remote — this avoids passing `--org` explicitly.
+### Parse work item URLs
 
-If auto-detection fails or you're outside a repo, pass `--org {orgUrl}` directly.
+Use the script instead of manually pulling the ID out of the URL:
 
-## Parsing Work Item URLs
+```bash
+./scripts/ado-work-items.mts parse-url "https://dev.azure.com/{org}/{project}/_workitems/edit/{workItemId}"
+```
 
-Extract the work item ID from common URL patterns:
+### Build WIQL safely
 
-- `https://dev.azure.com/{org}/{project}/_workitems/edit/{workItemId}`
+Use the helper to assemble common WIQL queries instead of rewriting the `WHERE` clause from scratch:
 
-## Show Work Item Details
+```bash
+./scripts/ado-work-items.mts wiql \
+  --assigned-to @Me \
+  --exclude-state Closed \
+  --type Bug \
+  --fields System.Id,System.Title,System.State
+```
 
-```shell
+The script returns both the WIQL string and a ready-to-run `az boards query` command.
+
+## Common work item commands
+
+Show a work item:
+
+```bash
 az boards work-item show --id {workItemId} --detect true
 ```
 
-Useful flags:
+Show specific fields:
 
-| Flag         | Description                                                        |
-| ------------ | ------------------------------------------------------------------ |
-| `--expand`   | Control returned data: `all` (default), `fields`, `links`, `relations`, `none` |
-| `--fields`   | Comma-separated field list (e.g. `System.Id,System.Title,System.State`) |
-| `--as-of`    | Show state at a point in time (e.g. `"2024-01-15"`, `"2024-01-15 14:00:00 UTC"`) |
-| `--open`     | Also open the work item in the browser                             |
-
-Examples:
-
-```shell
-# Get only specific fields
+```bash
 az boards work-item show --id {workItemId} --fields "System.Title,System.State,System.AssignedTo" --detect true
-
-# View work item state as of a specific date
-az boards work-item show --id {workItemId} --as-of "2024-06-01" --detect true
-
-# Show only relations
-az boards work-item show --id {workItemId} --expand relations --detect true
 ```
 
-## Create Work Item
+Create a work item:
 
-```shell
+```bash
 az boards work-item create --title "Title" --type "Task" --project {project} --detect true
 ```
 
-Optional flags:
+Update a work item:
 
-| Flag             | Description                                          |
-| ---------------- | ---------------------------------------------------- |
-| `--assigned-to`  | Email of the assignee                                |
-| `--description`  | Work item description                                |
-| `--area`         | Area path (e.g. `MyProject\TeamA`)                   |
-| `--iteration`    | Iteration path (e.g. `MyProject\Sprint 1`)           |
-| `--discussion`   | Add an initial discussion comment                    |
-| `--reason`       | Reason for the state                                 |
-| `--fields`       | Custom fields as `"field=value"` pairs               |
-| `--open`         | Open in browser after creation                       |
-
-Example with custom fields:
-
-```shell
-az boards work-item create \
-  --title "Fix login timeout" \
-  --type "Bug" \
-  --project {project} \
-  --assigned-to "dev@contoso.com" \
-  --fields "Microsoft.VSTS.Common.Priority=1" "Microsoft.VSTS.Common.Severity=2 - High" \
-  --detect true
-```
-
-## Update Work Item
-
-```shell
+```bash
 az boards work-item update --id {workItemId} --state "Active" --detect true
 ```
 
-Commonly used update flags:
+Run WIQL:
 
-| Flag             | Description                                          |
-| ---------------- | ---------------------------------------------------- |
-| `--state`        | New state (e.g. `Active`, `Resolved`, `Closed`)      |
-| `--assigned-to`  | Reassign the work item                               |
-| `--title`        | Update title                                         |
-| `--description`  | Update description                                   |
-| `--discussion`   | Add a comment without changing other fields           |
-| `--area`         | Move to a different area path                        |
-| `--iteration`    | Move to a different iteration                        |
-| `--reason`       | Reason for the state transition                      |
-| `--fields`       | Custom fields as `"field=value"` pairs               |
-| `--open`         | Open in browser after update                         |
-
-Add a comment without making other changes:
-
-```shell
-az boards work-item update --id {workItemId} --discussion "Investigated — root cause is a race condition in the auth flow." --detect true
+```bash
+az boards query --wiql "SELECT [System.Id], [System.Title] FROM workitems WHERE [System.AssignedTo] = @Me" --detect true
 ```
 
-## Query Work Items (WIQL)
+Manage relations:
 
-Run inline queries:
-
-```shell
-az boards query --wiql "SELECT [System.Id], [System.Title], [System.State] FROM workitems WHERE [System.AssignedTo] = @Me AND [System.State] <> 'Closed'" --detect true
-```
-
-Run a saved query by path:
-
-```shell
-az boards query --path "Shared Queries/Active Bugs" --detect true
-```
-
-Run a saved query by ID:
-
-```shell
-az boards query --id {queryId} --detect true
-```
-
-## Manage Work Item Relations
-
-Add a relation:
-
-```shell
-# Link types: parent, child, related, predecessor, successor, etc.
-az boards work-item relation add --id {workItemId} --relation-type "parent" --target-id {targetId} --detect true
-
-# Link multiple targets at once (comma-separated)
-az boards work-item relation add --id {workItemId} --relation-type "child" --target-id {id1},{id2} --detect true
-```
-
-View relations with friendly names:
-
-```shell
+```bash
+az boards work-item relation add --id {workItemId} --relation-type parent --target-id {targetId} --detect true
 az boards work-item relation show --id {workItemId} --detect true
+az boards work-item relation remove --id {workItemId} --relation-type child --target-id {targetId} --detect true
 ```
 
-Remove a relation:
+## Rules
 
-```shell
-az boards work-item relation remove --id {workItemId} --relation-type "child" --target-id {targetId} --detect true
-```
-
-List available link types:
-
-```shell
-az boards work-item relation list-type --detect true
-```
-
-## Output Tips
-
-- Use `--output table` for human-readable summaries
-- Use `--query "<JMESPath>"` to extract specific fields from JSON output
-- Use `--fields` on show/create/update to limit which fields are returned or set
+- Prefer the helper script for URL parsing and WIQL assembly.
+- Prefer `--detect true` when repository context is available.
+- Keep custom field names exact; do not silently rewrite them.
