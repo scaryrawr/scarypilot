@@ -125,6 +125,9 @@ function parseAzureDevOpsUrl(rawUrl: string): ParsedAzureUrl {
     segments = rest;
   } else {
     organization = parsedUrl.hostname.replace(/\.visualstudio\.com$/, '');
+    if (segments[0] === 'DefaultCollection') {
+      segments = segments.slice(1);
+    }
   }
 
   const project = segments[0];
@@ -140,21 +143,37 @@ function parseAzureDevOpsUrl(rawUrl: string): ParsedAzureUrl {
     isVisualStudioHost
   };
 
-  if (resourceSection === '_git' && segments[3] === 'pullrequest') {
-    const repository = segments[2];
-    const pullRequestId = Number.parseInt(segments[4] ?? '', 10);
-    if (!Number.isFinite(pullRequestId)) {
-      throw new Error(`Could not determine pull request id from ${rawUrl}`);
+  if (resourceSection === '_git') {
+    const repositoryIndex = segments[2] === '_optimized' ? 3 : 2;
+    if (segments.length <= repositoryIndex) {
+      return parsed;
     }
 
-    return {
-      ...parsed,
-      repository,
-      resourceType: 'pull-request',
-      resourceId: pullRequestId,
-      pullRequestId,
-      routeSkill: 'ado-pr'
-    };
+    const repository = segments[repositoryIndex];
+    const nextSegment = segments.at(repositoryIndex + 1);
+    if (!nextSegment) {
+      return parsed;
+    }
+
+    if (nextSegment === 'pullrequest') {
+      if (!repository) {
+        throw new Error(`Could not determine repository from ${rawUrl}`);
+      }
+
+      const pullRequestId = Number.parseInt(segments[repositoryIndex + 2] ?? '', 10);
+      if (!Number.isFinite(pullRequestId)) {
+        throw new Error(`Could not determine pull request id from ${rawUrl}`);
+      }
+
+      return {
+        ...parsed,
+        repository,
+        resourceType: 'pull-request',
+        resourceId: pullRequestId,
+        pullRequestId,
+        routeSkill: 'ado-pr'
+      };
+    }
   }
 
   if (resourceSection === '_workitems' && segments[2] === 'edit') {
