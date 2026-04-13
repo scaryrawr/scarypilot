@@ -125,7 +125,7 @@ function parseAzureRemote(remoteUrl: string): ParsedRemote | undefined {
 
       const project = segments[0];
       const resourceSection = segments[1];
-      const repositorySegment = segments[2] === '_optimized' ? segments[3] : segments[2];
+      const repositorySegment = segments[2] === '_optimized' ? (segments[3] ?? '') : (segments[2] ?? '');
       if (!project || resourceSection !== '_git' || !repositorySegment) {
         return undefined;
       }
