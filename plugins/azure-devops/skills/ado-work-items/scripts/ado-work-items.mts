@@ -80,7 +80,7 @@ function parseWorkItemUrl(rawUrl: string): ParsedWorkItemUrl {
     segments = rest;
   } else {
     organization = parsedUrl.hostname.replace(/\.visualstudio\.com$/, '');
-    if (segments[0]?.toLowerCase() === 'defaultcollection') {
+    if (segments[0] === 'DefaultCollection') {
       segments = segments.slice(1);
     }
   }
