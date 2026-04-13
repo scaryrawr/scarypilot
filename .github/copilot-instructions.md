@@ -16,6 +16,7 @@ This is a GitHub Copilot plugin marketplace repository ("ScaryPilot"). It contai
   - `chrome-devtools/`: Chrome DevTools Protocol integration (MCP-based, with agent profiles)
   - `playwright-ext/`: Playwright browser automation (MCP-based)
 - `.github/plugin/marketplace.json`: Marketplace manifest listing all available plugins
+- Root TypeScript tooling: `package.json`, `package-lock.json`, and `tsconfig.json` support validation for executable `.mts` helper scripts
 
 ## Plugin Architecture
 
@@ -67,6 +68,13 @@ tools: ["Read", "Grep", "Glob", "Bash", "mcp-server/*"]
 
 Skills that invoke shell tools (tmux, gh, ghostty, etc.) must set up the full environment before testing. Do not assume helpers are globally available — source or load all plugin files before running smoke tests. A test that passes with only a subset of files sourced is not valid.
 
+### Node / TypeScript guidance
+
+- Treat `package.json#engines.node` as the runtime compatibility floor for shipped scripts.
+- `@types/node` is pinned to the current Node LTS line for editor and type-checking support, but that does not expand the runtime contract.
+- When editing `.mts` helper scripts, avoid Node APIs newer than the declared engine unless you intentionally raise the engine requirement and update the docs.
+- Validate `.mts` helper-script changes from the repo root with `npm install` and `npm run typecheck`.
+
 ## Key Guidelines
 
 1. **Plugin structure**: Each plugin lives in its own directory under `plugins/` or `external_plugins/` and must include a `README.md`
@@ -74,4 +82,4 @@ Skills that invoke shell tools (tmux, gh, ghostty, etc.) must set up the full en
 3. **Markdown-first**: Plugin configuration is primarily done through Markdown files (skills, agents) and JSON (MCP servers, LSP configs)
 4. **Attribution**: External or adapted plugins must include proper attribution and license information (see `plugins/tmux/` for an example)
 5. **Documentation**: Every plugin README should include: what it does, installation prerequisites, installation steps, usage examples, and resource links
-6. **No build system**: This repository has no build step or test suite — validation is done through manual review
+6. **Lightweight validation**: This repository has a small repo-level TypeScript validation flow for executable `.mts` helper scripts. Run `npm install` and `npm run typecheck` when you change that code; other plugin changes are still primarily validated through manual review.

@@ -52,3 +52,12 @@ Interested in adding plugins to this marketplace? Check out the plugin developme
 
 - [Plugin Architecture Guide](./.github/copilot-instructions.md)
 - [Marketplace Configuration](./.github/plugin/marketplace.json)
+
+If you touch the Azure DevOps `.mts` helper scripts, install the repo dependencies and run:
+
+```sh
+npm install
+npm run typecheck
+```
+
+Contributor guidance: keep runtime compatibility aligned with `package.json#engines.node` (`>=22.18.0` today). The repo pins `@types/node` to the current Node LTS line for type definitions, but that should not be treated as permission to use newer runtime-only APIs unless the engine requirement is updated too.
