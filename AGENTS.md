@@ -25,6 +25,8 @@ Prefer Markdown and JSON configuration over adding new executable code.
 ## Authoring rules
 
 - Every plugin directory must include a `README.md` with what it does, prerequisites, install steps, usage examples, and resource links.
+- When authoring or updating skills, follow the Agent Skills specification: https://agentskills.io/specification
+- If a skill needs bundled scripts, follow the Agent Skills scripts guidance: https://agentskills.io/skill-creation/using-scripts
 - If you add or remove a plugin, update `.github/plugin/marketplace.json` to match the directory layout.
 - Keep the root `README.md` aligned with the current plugin inventory and docs links when plugin availability changes.
 - External or adapted plugins need clear attribution and license information.
