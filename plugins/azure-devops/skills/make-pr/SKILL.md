@@ -35,7 +35,32 @@ git diff --stat
 git diff -- path/to/file
 ```
 
-### 3. Create commits when needed
+### 3. Determine the source branch
+
+If the current branch is already a non-default working branch, reuse it unless the user asks to rename or recreate it.
+
+If you are on the default branch (for example `main` or `master`) and need to create a branch:
+
+- Check repository guidance first and follow any documented branch naming policy.
+- Inspect existing remote branches to infer the convention the repo already uses.
+- For Azure DevOps repos, derive the user's alias from the configured git email by taking the part before `@`.
+- If the repo has a clear convention like `users/{alias}/{topic}` or `user/{alias}/{topic}`, follow it.
+- If no clearer repository convention exists, default to `{alias}/{topic}` for Azure DevOps.
+
+Useful read-only commands:
+
+```bash
+git config user.email
+git ls-remote --heads origin
+```
+
+Example fallback:
+
+```bash
+git checkout -b alias/feature-name
+```
+
+### 4. Create commits when needed
 
 Group changes into focused commits:
 
@@ -44,13 +69,15 @@ git add path/to/file
 git commit -m "Short, descriptive summary"
 ```
 
-### 4. Push the branch
+### 5. Push the branch
 
 ```bash
 git push -u origin {source_branch}
 ```
 
-### 5. Discover the PR template
+If push or PR creation fails because of an Azure DevOps branch naming policy, surface the policy failure verbatim and adjust the branch name to match the repository convention.
+
+### 6. Discover the PR template
 
 Use the helper script instead of manually walking the Azure DevOps template search order:
 
@@ -60,7 +87,7 @@ Use the helper script instead of manually walking the Azure DevOps template sear
 
 The script checks branch-specific templates first, then default templates, then additional template folders.
 
-### 6. Create the PR
+### 7. Create the PR
 
 Prefer `--detect true` when you are inside the repository:
 
@@ -75,7 +102,7 @@ az repos pr create \
 
 If auto-detection fails, use explicit org/project/repository values.
 
-### 7. Upload attachments when needed
+### 8. Upload attachments when needed
 
 Use the helper script instead of reconstructing the token + binary upload flow:
 
