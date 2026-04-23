@@ -125,10 +125,14 @@ Common sizes: `512x512`, `768x768`, `1024x1024`
 ## Workflow
 
 1. Confirm the user's prompt and preferences (model, size, style, optional steps/seed/negative prompt)
-2. Run the helper script with `--backend auto` unless the user explicitly requests a backend
-3. If advanced controls are requested, prefer `--backend cli` (or rely on `auto` when CLI is available)
-4. Report the output file location to the user
-5. If the user wants adjustments, iterate with modified prompt, size, or advanced controls
+2. Pick the starting model based on the request: default to `x/z-image-turbo`, but prefer `x/flux2-klein` for text-heavy images, signage, UI, or other typography-sensitive work
+3. Run the helper script with `--backend auto` unless the user explicitly requests a backend
+4. If advanced controls are requested, prefer `--backend cli` (or rely on `auto` when CLI is available)
+5. Inspect the generated image before surfacing it to the user and compare it against the prompt, with extra attention to text accuracy, composition, subject fidelity, and obvious artifacts
+6. If the image misses the prompt, refine the next attempt instead of immediately returning it: tighten the prompt, switch to a more suitable model, adjust size, or add CLI-only controls such as `--negative-prompt`, `--steps`, or `--seed`
+7. Repeat the evaluate-and-refine loop for up to **4 total attempts**, keeping track of which output best matches the request
+8. Return the best image you produced, report the output file location, and note any meaningful limitation only if the best result still falls short of the prompt
+9. If the user wants further changes after that, continue iterating with modified prompt, size, model, or advanced controls
 
 ## Prompting Tips
 
