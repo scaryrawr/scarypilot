@@ -9,7 +9,15 @@ user-invocable: false
 
 Use this skill when a user gives you an Azure DevOps URL or needs the shared attachment-upload helper.
 
-## Parse Azure DevOps URLs first
+## Script execution model
+
+- Run the bundled helpers via the skill-relative paths shown below (`./scripts/...` resolves from this skill directory).
+- The helper scripts are non-interactive. Read structured JSON from stdout and treat stderr as diagnostics.
+- If you need to confirm flags or subcommands, run `./scripts/ado-cli.mts --help`.
+
+## Available scripts
+
+### `parse-url`
 
 Always normalize the URL with the script instead of manually re-parsing host and path segments:
 
@@ -31,16 +39,9 @@ Routing rules:
 
 - `pull-request` -> `ado-pr`
 - `work-item` -> `ado-work-items`
-- creation requests -> `make-pr`
-- explicit review requests -> `review-pr`
+- `unknown` -> inspect the user request and choose `make-pr`, `review-pr`, or another flow yourself
 
-## Organization detection
-
-For Azure CLI commands that support it, prefer `--detect true` when you are inside the target repository.
-
-If auto-detection fails, fall back to `organizationUrl` from the parse result or a user-supplied org URL.
-
-## Pull request attachment upload helper
+### `upload-attachment`
 
 When you need a PR attachment URL, use the script instead of rebuilding the token + binary upload flow inline:
 
@@ -53,7 +54,20 @@ When you need a PR attachment URL, use the script instead of rebuilding the toke
   --file /absolute/path/to/image.png
 ```
 
-The script performs the token lookup and upload, then returns the attachment URL as JSON.
+The script returns `fileName`, `filePath`, `id`, and `url` as JSON.
+
+## Workflow
+
+1. Parse the Azure DevOps URL with `parse-url`.
+2. Use `routeSkill` for existing resource URLs. If the parse result is `unknown`, choose `make-pr` or `review-pr` from the user's request instead of expecting the parser to infer intent.
+3. Reuse `organizationUrl` or the parsed project/repository identifiers when later Azure CLI commands need explicit scope.
+4. Use `upload-attachment` only when the task needs a PR attachment URL.
+
+## Organization detection
+
+For Azure CLI commands that support it, prefer `--detect true` when you are inside the target repository.
+
+If auto-detection fails, fall back to `organizationUrl` from the parse result or a user-supplied org URL.
 
 ## Rules
 

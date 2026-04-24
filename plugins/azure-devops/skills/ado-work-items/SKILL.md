@@ -8,9 +8,15 @@ compatibility: "Requires Node.js >=22.18 and Azure CLI with the azure-devops ext
 
 Use this skill for Azure DevOps Boards work items.
 
-## Script-first helpers
+## Script execution model
 
-### Parse work item URLs
+- Run the bundled helpers via the skill-relative paths shown below (`./scripts/...` resolves from this skill directory).
+- The helper scripts are non-interactive. Read structured JSON from stdout and treat stderr as diagnostics.
+- If you need to confirm flags or subcommands, run `./scripts/ado-work-items.mts --help`.
+
+## Available scripts
+
+### `parse-url`
 
 Use the script instead of manually pulling the ID out of the URL:
 
@@ -18,7 +24,13 @@ Use the script instead of manually pulling the ID out of the URL:
 ./scripts/ado-work-items.mts parse-url "https://dev.azure.com/{org}/{project}/_workitems/edit/{workItemId}"
 ```
 
-### Build WIQL safely
+Use these fields directly:
+
+- `organization`, `organizationUrl`
+- `project`
+- `workItemId`
+
+### `wiql`
 
 Use the helper to assemble common WIQL queries instead of rewriting the `WHERE` clause from scratch:
 
@@ -30,7 +42,16 @@ Use the helper to assemble common WIQL queries instead of rewriting the `WHERE` 
   --fields System.Id,System.Title,System.State
 ```
 
-The script returns both the WIQL string and a ready-to-run `az boards query` command.
+The script returns:
+
+- `wiql`: the query text
+- `command`: a ready-to-run `az boards query` command
+
+## Workflow
+
+1. Parse incoming Azure DevOps work item URLs with `parse-url`.
+2. Build WIQL with `wiql` instead of manually composing `WHERE` clauses.
+3. Run the appropriate Azure CLI command after the helper has normalized the inputs.
 
 ## Common work item commands
 

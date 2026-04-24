@@ -19,6 +19,11 @@ type ParsedRemote = {
 };
 
 const DEVOPS_RESOURCE = '499b84ac-1321-427f-aa17-267ca6975798';
+const HELP_TOKENS = new Set(['help', '--help', '-h']);
+const HELP_TEXT = `Usage:
+  ./scripts/make-pr.mts preflight [--repo-root <path>]
+  ./scripts/make-pr.mts discover-template [--repo-root <path>] [--target-branch <branch>]
+  ./scripts/make-pr.mts upload-attachment --org <org-or-url> --project <project> --repository-id <id> --pull-request-id <id> --file <path> [--file-name <name>]`;
 
 function parseArgs(argv: string[]): ParsedArgs {
   const [command, ...rest] = argv;
@@ -50,6 +55,15 @@ function parseArgs(argv: string[]): ParsedArgs {
 function getFlag(args: ParsedArgs, name: string): string | undefined {
   const values = args.flags.get(name);
   return values?.[values.length - 1];
+}
+
+function wantsHelp(args: ParsedArgs): boolean {
+  return (
+    args.command === undefined ||
+    HELP_TOKENS.has(args.command) ||
+    getFlag(args, 'help') === 'true' ||
+    (args.positionals.length === 1 && HELP_TOKENS.has(args.positionals[0] ?? ''))
+  );
 }
 
 function getRequiredFlag(args: ParsedArgs, name: string): string {
@@ -399,8 +413,17 @@ async function uploadAttachment(args: ParsedArgs): Promise<void> {
   );
 }
 
+function printUsage(useStderr = false): void {
+  const write = useStderr ? console.error : console.log;
+  write(HELP_TEXT);
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+  if (wantsHelp(args)) {
+    printUsage();
+    return;
+  }
 
   switch (args.command) {
     case 'preflight':
@@ -413,10 +436,7 @@ async function main(): Promise<void> {
       await uploadAttachment(args);
       return;
     default:
-  console.error(`Usage:
-  ./scripts/make-pr.mts preflight [--repo-root <path>]
-  ./scripts/make-pr.mts discover-template [--repo-root <path>] [--target-branch <branch>]
-  ./scripts/make-pr.mts upload-attachment --org <org-or-url> --project <project> --repository-id <id> --pull-request-id <id> --file <path> [--file-name <name>]`);
+      printUsage(true);
       throw new Error(`Unknown command: ${args.command ?? '<none>'}`);
   }
 }

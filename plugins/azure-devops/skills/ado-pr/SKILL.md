@@ -9,9 +9,15 @@ user-invocable: false
 
 Use this skill for existing Azure DevOps pull requests.
 
-## Script-first workflow
+## Script execution model
 
-### 1. Resolve PR context
+- Run the bundled helpers via the skill-relative paths shown below (`./scripts/...` resolves from this skill directory).
+- The helper scripts are non-interactive. Read structured JSON from stdout and treat stderr as diagnostics.
+- If you need to confirm flags or subcommands, run `./scripts/ado-pr.mts --help`.
+
+## Available scripts
+
+### `context`
 
 Start with the helper script so you have normalized IDs and branch metadata before composing follow-up commands:
 
@@ -19,9 +25,17 @@ Start with the helper script so you have normalized IDs and branch metadata befo
 ./scripts/ado-pr.mts context --id {prId} --detect true
 ```
 
+Use these fields directly:
+
+- `pullRequestId`, `title`, `status`, `isDraft`
+- `sourceBranch`, `targetBranch`
+- `repositoryId`, `repositoryName`
+- `projectId`, `projectName`
+- `createdBy`, `url`
+
 Use `--org {orgUrl}` instead of `--detect true` when auto-detection is unavailable.
 
-### 2. Retrieve threads
+### `list-threads`
 
 Use the thread helper instead of hand-building the `az devops invoke` call each time:
 
@@ -29,9 +43,9 @@ Use the thread helper instead of hand-building the `az devops invoke` call each 
 ./scripts/ado-pr.mts list-threads --id {prId} --status active --detect true
 ```
 
-Omit `--status` when you need all threads.
+Use `count` and `threads` from the JSON response. Omit `--status` when you need all threads.
 
-### 3. Build thread payloads
+### `thread-payload`
 
 Never hand-write review thread JSON when the helper can do it for you:
 
@@ -49,7 +63,13 @@ az devops invoke --area git --resource pullRequestThreads \
   --detect true --in-file /tmp/thread.json
 ```
 
-For top-level comments, omit the file and line flags.
+For top-level comments, omit the file and line flags. If you pass `--out-file`, the script returns `{ outFile, payload }`; otherwise it returns the payload directly.
+
+## Workflow
+
+1. Resolve PR context with `context`.
+2. Retrieve threads with `list-threads` when you need prior discussion state.
+3. Build comment payloads with `thread-payload` before posting inline or top-level comments.
 
 ## Common PR commands
 

@@ -15,6 +15,11 @@ type ParsedWorkItemUrl = {
   workItemId?: number;
 };
 
+const HELP_TOKENS = new Set(['help', '--help', '-h']);
+const HELP_TEXT = `Usage:
+  ./scripts/ado-work-items.mts parse-url <work-item-url>
+  ./scripts/ado-work-items.mts wiql [--assigned-to @Me] [--state Active] [--exclude-state Closed] [--type Bug] [--fields System.Id,System.Title,System.State] [--extra-clause "[System.AreaPath] UNDER 'Project\\Team'"]`;
+
 function parseArgs(argv: string[]): ParsedArgs {
   const [command, ...rest] = argv;
   const positionals: string[] = [];
@@ -45,6 +50,15 @@ function parseArgs(argv: string[]): ParsedArgs {
 function getFlag(args: ParsedArgs, name: string): string | undefined {
   const values = args.flags.get(name);
   return values?.[values.length - 1];
+}
+
+function wantsHelp(args: ParsedArgs): boolean {
+  return (
+    args.command === undefined ||
+    HELP_TOKENS.has(args.command) ||
+    getFlag(args, 'help') === 'true' ||
+    (args.positionals.length === 1 && HELP_TOKENS.has(args.positionals[0] ?? ''))
+  );
 }
 
 function getAllFlags(args: ParsedArgs, name: string): string[] {
@@ -143,8 +157,17 @@ function buildWiql(args: ParsedArgs): { wiql: string; command: string } {
   return { wiql, command };
 }
 
+function printUsage(useStderr = false): void {
+  const write = useStderr ? console.error : console.log;
+  write(HELP_TEXT);
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+  if (wantsHelp(args)) {
+    printUsage();
+    return;
+  }
 
   switch (args.command) {
     case 'parse-url': {
@@ -159,9 +182,7 @@ async function main(): Promise<void> {
       console.log(JSON.stringify(buildWiql(args), null, 2));
       return;
     default:
-      console.error(`Usage:
-  ./scripts/ado-work-items.mts parse-url <work-item-url>
-  ./scripts/ado-work-items.mts wiql [--assigned-to @Me] [--state Active] [--exclude-state Closed] [--type Bug] [--fields System.Id,System.Title,System.State] [--extra-clause "[System.AreaPath] UNDER 'Project\\Team'"]`);
+      printUsage(true);
       throw new Error(`Unknown command: ${args.command ?? '<none>'}`);
   }
 }

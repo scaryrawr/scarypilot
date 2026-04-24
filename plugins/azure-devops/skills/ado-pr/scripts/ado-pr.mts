@@ -52,6 +52,12 @@ type ThreadPayload = {
   };
 };
 
+const HELP_TOKENS = new Set(['help', '--help', '-h']);
+const HELP_TEXT = `Usage:
+  ./scripts/ado-pr.mts context --id <pr-id> [--detect true|false] [--org <org-url>]
+  ./scripts/ado-pr.mts list-threads --id <pr-id> [--status active] [--detect true|false] [--org <org-url>]
+  ./scripts/ado-pr.mts thread-payload --content <text> [--status active] [--file-path <path> --line-start <n> --line-end <n>] [--out-file <path>]`;
+
 function parseArgs(argv: string[]): ParsedArgs {
   const [command, ...rest] = argv;
   const positionals: string[] = [];
@@ -82,6 +88,15 @@ function parseArgs(argv: string[]): ParsedArgs {
 function getFlag(args: ParsedArgs, name: string): string | undefined {
   const values = args.flags.get(name);
   return values?.[values.length - 1];
+}
+
+function wantsHelp(args: ParsedArgs): boolean {
+  return (
+    args.command === undefined ||
+    HELP_TOKENS.has(args.command) ||
+    getFlag(args, 'help') === 'true' ||
+    (args.positionals.length === 1 && HELP_TOKENS.has(args.positionals[0] ?? ''))
+  );
 }
 
 function getRequiredFlag(args: ParsedArgs, name: string): string {
@@ -189,8 +204,17 @@ function buildThreadPayload(args: ParsedArgs): ThreadPayload {
   return payload;
 }
 
+function printUsage(useStderr = false): void {
+  const write = useStderr ? console.error : console.log;
+  write(HELP_TEXT);
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+  if (wantsHelp(args)) {
+    printUsage();
+    return;
+  }
 
   switch (args.command) {
     case 'context': {
@@ -263,10 +287,7 @@ async function main(): Promise<void> {
       return;
     }
     default:
-      console.error(`Usage:
-  ./scripts/ado-pr.mts context --id <pr-id> [--detect true|false] [--org <org-url>]
-  ./scripts/ado-pr.mts list-threads --id <pr-id> [--status active] [--detect true|false] [--org <org-url>]
-  ./scripts/ado-pr.mts thread-payload --content <text> [--status active] [--file-path <path> --line-start <n> --line-end <n>] [--out-file <path>]`);
+      printUsage(true);
       throw new Error(`Unknown command: ${args.command ?? '<none>'}`);
   }
 }

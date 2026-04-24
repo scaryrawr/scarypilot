@@ -8,27 +8,86 @@ compatibility: "Requires Node.js >=22.18, Git, and Azure CLI with the azure-devo
 
 You are in PR creation mode. Create a well-structured Azure DevOps pull request from the current branch state.
 
+## Script execution model
+
+- Run the bundled helpers via the skill-relative paths shown below (`./scripts/...` resolves from this skill directory).
+- The helper scripts are non-interactive. Read structured JSON from stdout and treat stderr as diagnostics.
+- If you need to confirm flags or subcommands, run `./scripts/make-pr.mts --help`.
+
 ## Safety rules
 
 - Do not perform side effects (`git checkout -b`, `git add`, `git commit`, `git push`, `az repos pr create`) unless the user explicitly asked to create a PR or clearly confirmed the action.
 - Stop immediately on detached HEAD, merge conflicts, missing `origin`, or a non-Azure-DevOps `origin` remote.
 - Do not rewrite pushed history unless the user explicitly asks.
 
-## Script-first workflow
+## Available scripts
 
-### 1. Run preflight
+### `preflight`
 
-Always start with the helper script so you get a structured view of git state, blockers, remote parsing, and default-branch hints:
+Always start here so you have a structured view of git state, blockers, remote parsing, and default-branch hints:
 
 ```bash
 ./scripts/make-pr.mts preflight
 ```
 
-If `blockers` is non-empty, stop and surface them.
+Use these fields directly:
+
+- `blockers`: stop immediately when non-empty
+- `warnings`: surface them, but do not treat them as blockers
+- `repoRoot`: run later `git` and `az` commands from this repository root
+- `parsedRemote`: source of truth for Azure DevOps org/project/repository context
+- `defaultBranch` and `isOnDefaultBranch`: decide whether to reuse the current branch or create a new one
+- `statusLines`: summarize uncommitted changes when needed
+
+### `discover-template`
+
+Use the helper instead of manually walking the Azure DevOps template search order:
+
+```bash
+./scripts/make-pr.mts discover-template --target-branch {target_branch}
+```
+
+Use these fields directly:
+
+- `selectedPath`: the chosen template path when one is found
+- `selectedContent`: the template body to reuse in the PR description
+- `checked`: which paths were examined
+- `additionalTemplates`: extra candidates when no single template could be selected automatically
+
+### `upload-attachment`
+
+Use the helper instead of rebuilding token lookup and binary upload flow inline:
+
+```bash
+./scripts/make-pr.mts upload-attachment \
+  --org {org-or-url} \
+  --project {project} \
+  --repository-id {repositoryId} \
+  --pull-request-id {prId} \
+  --file /absolute/path/to/image.png
+```
+
+Use these fields directly:
+
+- `id`: Azure DevOps attachment identifier
+- `url`: attachment URL to place in the PR description or a follow-up comment
+- `fileName` and `filePath`: confirmation of what was uploaded
+
+## Workflow
+
+### 1. Run preflight
+
+Always begin with:
+
+```bash
+./scripts/make-pr.mts preflight
+```
+
+If `blockers` is non-empty, stop and surface them verbatim.
 
 ### 2. Understand the changes
 
-Use repository context from the current session when available. Otherwise inspect the diff:
+Use repository context from the current session when available. Otherwise inspect the diff from `repoRoot`:
 
 ```bash
 git diff --stat
@@ -39,22 +98,16 @@ git diff -- path/to/file
 
 If the current branch is already a non-default working branch, reuse it unless the user asks to rename or recreate it.
 
-If you are on the default branch (for example `main` or `master`) and need to create a branch:
+If you are on the default branch (for example `main` or `master`) and need to create a branch, follow repository guidance first, then existing remote naming conventions. See `references/REFERENCE.md` for the detailed fallback rules.
 
-- Check repository guidance first and follow any documented branch naming policy.
-- Inspect existing remote branches to infer the convention the repo already uses.
-- For Azure DevOps repos, derive the user's alias from the configured git email by taking the part before `@`.
-- If the repo has a clear convention like `users/{alias}/{topic}` or `user/{alias}/{topic}`, follow it.
-- If no clearer repository convention exists, default to `{alias}/{topic}` for Azure DevOps.
-
-Useful read-only commands:
+Useful read-only commands when you need to confirm the convention:
 
 ```bash
 git config user.email
 git ls-remote --heads origin
 ```
 
-Example fallback:
+Example fallback if no clearer convention exists:
 
 ```bash
 git checkout -b alias/feature-name
@@ -79,13 +132,13 @@ If push or PR creation fails because of an Azure DevOps branch naming policy, su
 
 ### 6. Discover the PR template
 
-Use the helper script instead of manually walking the Azure DevOps template search order:
+Run:
 
 ```bash
 ./scripts/make-pr.mts discover-template --target-branch {target_branch}
 ```
 
-The script checks branch-specific templates first, then default templates, then additional template folders.
+If `selectedContent` is present, use it directly. If no template is selected, fall back to a manually written description.
 
 ### 7. Create the PR
 
@@ -100,11 +153,13 @@ az repos pr create \
   --description "<description>"
 ```
 
-If auto-detection fails, use explicit org/project/repository values.
+If auto-detection fails, use explicit org/project/repository values from `preflight.parsedRemote` or user-supplied inputs.
+
+Capture the created PR metadata so later steps can reuse the returned `pullRequestId` and repository details.
 
 ### 8. Upload attachments when needed
 
-Use the helper script instead of reconstructing the token + binary upload flow:
+Use the helper after PR creation when you need an attachment URL:
 
 ```bash
 ./scripts/make-pr.mts upload-attachment \
@@ -115,9 +170,12 @@ Use the helper script instead of reconstructing the token + binary upload flow:
   --file /absolute/path/to/image.png
 ```
 
+Use `preflight.parsedRemote` for `--org`/`--project`, and the PR creation output for `--repository-id`/`--pull-request-id`.
+
 ## PR content rules
 
 - Prefer a ready PR unless the user explicitly requests a draft.
 - Use the PR template when one exists.
 - Include clear **What**, **Why**, **How**, and **Testing** sections when there is no template.
 - Surface branch-policy or permissions failures verbatim instead of masking them.
+- See `references/REFERENCE.md` for branch naming heuristics, template discovery notes, and attachment usage details.
