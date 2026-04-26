@@ -7,13 +7,15 @@
   },
   "devDependencies": {
     "@types/node": "24.12.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260327.2",
+    "@typescript/native-preview": "^7.0.0-dev.20260327.2"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "pi": {
     "skills": [
       "./plugins/azure-devops/skills",
       "./plugins/ollama/skills"
     ]
-  },
-  "engines": {
-    "node": ">=22.18.0"
   }
 }
