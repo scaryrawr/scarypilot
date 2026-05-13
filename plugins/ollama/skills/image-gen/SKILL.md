@@ -7,6 +7,16 @@ description: "Generate images from text prompts using Ollama's local image gener
 
 Generate images locally with a single helper that supports both Ollama CLI and REST backends. This feature is currently **macOS-only** and uses Ollama's experimental image generation support.
 
+## Installed Models
+
+Before generating images, check which models are locally available by calling the Ollama API:
+
+```bash
+curl -s http://localhost:11434/api/tags | jq -r '.models[].name'
+```
+
+**Important:** If you see a quantized variant with a suffix (e.g. `x/z-image-turbo:q4_K_M`), use that **exact** ID rather than the base name.
+
 ## Models
 
 ### Z-Image Turbo (default)
@@ -124,9 +134,10 @@ Common sizes: `512x512`, `768x768`, `1024x1024`
 
 ## Workflow
 
-1. Confirm the user's prompt and preferences (model, size, style, optional steps/seed/negative prompt)
-2. Pick the starting model based on the request: default to `x/z-image-turbo`, but prefer `x/flux2-klein` for text-heavy images, signage, UI, or other typography-sensitive work
-3. Run the helper script with `--backend auto` unless the user explicitly requests a backend
+1. **Check installed models** — run `curl -s http://localhost:11434/api/tags` to list available models. Note any quantized variants (e.g. `:q4_K_M`) and use the exact ID.
+2. Confirm the user's prompt and preferences (model, size, style, optional steps/seed/negative prompt)
+3. Pick the starting model based on the request: default to `x/z-image-turbo`, but prefer `x/flux2-klein` for text-heavy images, signage, UI, or other typography-sensitive work
+4. Run the helper script with `--backend auto` unless the user explicitly requests a backend (use the exact model ID from step 1, including any quantization suffix)
 4. If advanced controls are requested, prefer `--backend cli` (or rely on `auto` when CLI is available)
 5. Inspect the generated image before surfacing it to the user and compare it against the prompt, with extra attention to text accuracy, composition, subject fidelity, and obvious artifacts
 6. If the image misses the prompt, refine the next attempt instead of immediately returning it: tighten the prompt, switch to a more suitable model, adjust size, or add CLI-only controls such as `--negative-prompt`, `--steps`, or `--seed`
