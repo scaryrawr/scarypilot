@@ -15,7 +15,6 @@
   "pi": {
     "skills": [
       "./plugins/copilot/skills",
-      "./plugins/azure-devops/skills",
       "./plugins/ollama/skills"
     ]
   }
