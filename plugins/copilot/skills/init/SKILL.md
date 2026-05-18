@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Creating Shared and Copilot-Specific Instructions
 
-Follow VS Code's [custom instructions guidance](https://code.visualstudio.com/docs/copilot/customization/custom-instructions). Explore the repo first, then create a layered instruction setup: shared guidance in `AGENTS.md`, Copilot-specific guidance in `.github/copilot-instructions.md`, and scoped `.instructions.md` files only when they add clear value.
+Follow VS Code's [custom instructions guidance](https://code.visualstudio.com/docs/copilot/customization/custom-instructions). Explore the repo first, then create a layered instruction setup: shared guidance in `AGENTS.md`, self-contained Copilot-specific guidance in `.github/copilot-instructions.md`, and scoped `.instructions.md` files only when they add clear value.
 
 Optimize for fast onboarding: help a new agent become productive quickly without adding redundant or generic guidance.
 
@@ -19,8 +19,9 @@ Optimize for fast onboarding: help a new agent become productive quickly without
    - In VS Code, nested `AGENTS.md` discovery is experimental and requires `chat.useNestedAgentsMdFiles`.
    - For stable Copilot path- or file-specific behavior, prefer `.github/instructions/*.instructions.md`.
 3. Create or update `.github/copilot-instructions.md` to layer in Copilot-specific behavior.
-   - Keep shared rules in `AGENTS.md` and use `.github/copilot-instructions.md` for Copilot/VS Code specifics, such as instruction discovery, prompt-shaping details, or explicit links to the relevant `AGENTS.md` files.
-   - Avoid copying the full contents of `AGENTS.md` into Copilot-specific files.
+   - Use `.github/copilot-instructions.md` for Copilot/VS Code specifics, such as instruction discovery, prompt-shaping details, or concise Copilot-only rules.
+   - Do not reference or include `AGENTS.md` from Copilot instruction files. Copilot resolves links relative to the repo root, which makes these references error-prone and can cause lookups outside the repo.
+   - Avoid copying the full contents of `AGENTS.md` into Copilot-specific files; repeat only the minimal context needed for Copilot-specific behavior.
 4. Add `.github/instructions/*.instructions.md` only for Copilot-specific rules that should apply by `applyTo` pattern.
    - Use YAML frontmatter with `applyTo`, and optionally `name` and `description`.
    - Prefer focused files for test conventions, framework patterns, or docs rules.
@@ -47,7 +48,7 @@ Use `.instructions.md` files for targeted guidance such as:
 - Framework-specific rules for one package
 - Documentation rules for docs-only paths
 
-For automatic application, include an `applyTo` glob pattern. If the rule is shared across agents, prefer `AGENTS.md`; use a nested `AGENTS.md` only when your workflow supports it and you accept VS Code's experimental discovery. If the rule is Copilot-only but path-scoped, use `.instructions.md`.
+For automatic application, include an `applyTo` glob pattern. If the rule is shared across agents, prefer `AGENTS.md`; use a nested `AGENTS.md` only when your workflow supports it and you accept VS Code's experimental discovery. If the rule is Copilot-only but path-scoped, use a self-contained `.instructions.md` file that does not reference or include `AGENTS.md`.
 
 ## Existing instruction files
 
@@ -55,7 +56,7 @@ If the repo already has `.github/copilot-instructions.md`, `.instructions.md`, `
 
 - Preserve durable shared guidance that is still correct.
 - Consolidate shared rules into the most relevant `AGENTS.md`.
-- Keep `.github/copilot-instructions.md` focused on Copilot-specific additions.
+- Keep `.github/copilot-instructions.md` focused on Copilot-specific additions, and do not reference or include `AGENTS.md` from it.
 - Keep only supported top-level `CLAUDE.md` files, and make them a local `@AGENTS.md` include when needed.
 - Remove duplication and avoid overlapping files that give conflicting instructions.
 
