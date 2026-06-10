@@ -1,48 +1,33 @@
 # ScaryPilot Agent Guide
 
-## Repo purpose
+## Project Structure & Module Organization
 
-ScaryPilot is a GitHub Copilot plugin marketplace. It hosts first-party plugins under `plugins/` and third-party MCP wrappers under `external_plugins/`.
+ScaryPilot is a GitHub Copilot plugin marketplace. Published plugin inventory lives in `.github/plugin/marketplace.json`; trust that manifest over README tables when they differ. First-party plugins are under `plugins/<name>/` and external MCP wrappers under `external_plugins/<name>/`.
 
-## Repository map
+Main capability patterns are Markdown/JSON first: skills in `plugins/*/skills/*/SKILL.md`, MCP wrappers in `external_plugins/*/.mcp.json`, agents in `plugins/*/agents/*.md` or `external_plugins/*/agents/*.md`, and optional LSP integrations in `plugins/*/lsp.json`. Prefer these patterns over adding executable code.
 
-- `plugins/<name>/`: first-party plugins. Today this includes `azure-devops`, `codespaces`, `copilot`, `ghostty`, `ollama`, and `worktrunk`.
-- `external_plugins/<name>/`: external integrations. Today this includes `chrome-devtools`, `microsoft-docs`, and `playwright-ext`.
-- `.github/plugin/marketplace.json`: source of truth for which plugins are published by the marketplace.
-- Root TypeScript tooling only validates Azure DevOps helper scripts under `plugins/azure-devops/skills/**/*.mts`.
+## Build, Test, and Development Commands
 
-## Plugin patterns
+This repo has no app build or broad test suite. Root TypeScript tooling exists only for Azure DevOps helper scripts included by `tsconfig.json` (`plugins/azure-devops/skills/**/*.mts`).
 
-Choose the lightest pattern that fits the capability:
+- `npm install` — install the lightweight TypeScript tooling.
+- `npm run typecheck` — run `tsgo -p tsconfig.json`; required after `.mts` helper edits.
+- `python3 -m json.tool .github/plugin/marketplace.json >/dev/null` — quick JSON sanity check after manifest edits.
 
-- **Skills**: `plugins/*/skills/*/SKILL.md`
-- **MCP wrappers**: `external_plugins/*/.mcp.json`
-- **Agents**: `plugins/*/agents/*.md` or `external_plugins/*/agents/*.md`
-- **LSP integrations**: `plugins/*/lsp.json`
+## Coding Style & Naming Conventions
 
-Prefer Markdown and JSON configuration over adding new executable code.
+Every plugin directory needs a `README.md` with purpose, prerequisites, install steps, usage examples, and resource links. When adding/removing plugins, update both `.github/plugin/marketplace.json` and root `README.md` links/inventory. External or adapted plugins need clear attribution and license information.
 
-## Authoring rules
+Skills must follow the Agent Skills spec; put bundled scripts in a skill-local `scripts/` directory and keep paths in `SKILL.md` accurate. Treat `package.json#engines.node` (`>=22.18.0`) as the runtime floor for shipped scripts; pinned `@types/node` is editor/type-checking support, not permission to use newer runtime-only APIs.
 
-- Every plugin directory must include a `README.md` with what it does, prerequisites, install steps, usage examples, and resource links.
-- When authoring or updating skills, follow the Agent Skills specification: https://agentskills.io/specification
-- If a skill needs bundled scripts, follow the Agent Skills scripts guidance: https://agentskills.io/skill-creation/using-scripts
-- If you add or remove a plugin, update `.github/plugin/marketplace.json` to match the directory layout.
-- Keep the root `README.md` aligned with the current plugin inventory and docs links when plugin availability changes.
-- External or adapted plugins need clear attribution and license information.
-- When repo guidance differs by area, add a nested `AGENTS.md` in that subtree instead of stuffing everything into the root file.
+## Testing Guidelines
 
-## Validation
+For Markdown, JSON, and manifest-only edits, prefer targeted review: validate JSON, verify linked paths exist, and cross-check plugin inventory. For Azure DevOps `.mts` helper work, also follow `plugins/azure-devops/skills/AGENTS.md`.
 
-- For Markdown, JSON, and manifest-only edits, prefer the smallest review needed and keep cross-file references in sync.
-- For `.mts` helper-script edits, run from the repo root:
-  - `npm install`
-  - `npm run typecheck`
-- Treat `package.json#engines.node` (`>=22.18.0`) as the runtime floor for shipped scripts.
-- `@types/node` is pinned for editor and type-checking support only; do not treat it as permission to use newer runtime-only Node APIs.
+## Security & Configuration Tips
 
-## Safety and workflow notes
+Skills that depend on shell helpers must load or source the full plugin environment before smoke testing; partial setup is not a valid check. Do not run side-effecting Azure DevOps, Git, Codespaces, Worktrunk, or terminal-automation commands unless the user explicitly requested or confirmed them.
 
-- Skills that depend on shell helpers must load or source the full plugin environment before smoke testing; partial setup is not a valid check.
-- Keep shared guidance in `AGENTS.md`. Keep Copilot-only behavior in `.github/copilot-instructions.md`.
-- If you add a `CLAUDE.md`, keep it as a thin compatibility shim whose entire contents are `@AGENTS.md`.
+## Agent-Specific Instructions
+
+Keep shared guidance in `AGENTS.md`; put Copilot-only behavior in `.github/copilot-instructions.md` or scoped `.github/instructions/*.instructions.md`. Keep `CLAUDE.md` as exactly `@AGENTS.md`. `package.json#pi.skills` currently exposes only `plugins/copilot/skills` and `plugins/ollama/skills` for local pi discovery.
