@@ -6,6 +6,8 @@ ScaryPilot is a GitHub Copilot plugin marketplace. Published plugin inventory li
 
 Main capability patterns are Markdown/JSON first: skills in `plugins/*/skills/*/SKILL.md`, MCP wrappers in `external_plugins/*/.mcp.json`, agents in `plugins/*/agents/*.md` or `external_plugins/*/agents/*.md`, and optional LSP integrations in `plugins/*/lsp.json`. Prefer these patterns over adding executable code.
 
+When plugin hooks invoke scripts bundled with the plugin, reference them with `${PLUGIN_ROOT}` in hook configuration instead of repo-relative paths; hooks run in the user's target repository, not necessarily the plugin directory.
+
 ## Build, Test, and Development Commands
 
 This repo has no app build or broad test suite. Root TypeScript tooling exists only for Azure DevOps helper scripts included by `tsconfig.json` (`plugins/azure-devops/skills/**/*.mts`).
