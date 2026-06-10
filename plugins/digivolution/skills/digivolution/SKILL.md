@@ -17,7 +17,7 @@ Update instructions or skills only when at least one is true:
 
 ## Where to put changes
 
-- Shared durable repo-wide guidance -> nearest relevant `AGENTS.md`, usually the root file.
+- Shared durable guidance -> the narrowest relevant `AGENTS.md`. Use the root file for truly repo-wide rules, but prefer a nested `AGENTS.md` when guidance applies only to a subtree and would clutter higher-level instructions.
 - Copilot-specific behavior -> `.github/copilot-instructions.md`.
 - Path-scoped Copilot guidance -> `.github/instructions/*.instructions.md` with `applyTo` frontmatter.
 - Root `CLAUDE.md`, when used, should remain exactly a one-line `@AGENTS.md` shim.
