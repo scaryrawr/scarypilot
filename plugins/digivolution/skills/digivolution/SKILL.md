@@ -1,6 +1,6 @@
 ---
 name: digivolution
-description: Use this skill near the end of a task to reflect on whether repo instructions or skills should be updated with durable, repo-specific knowledge discovered during the work.
+description: Use this skill for end-of-task digivolution/reflection requests that ask whether durable repo-specific guidance, AGENTS.md/Copilot instructions, or in-repo SKILL.md instructions are stale, missing, or should be updated.
 ---
 
 # Digivolution Skill

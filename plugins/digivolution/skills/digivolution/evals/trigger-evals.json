@@ -1,0 +1,18 @@
+[
+  {
+    "query": "Use the digivolution skill before finishing: briefly consider whether this session learned durable repo-specific guidance or found stale instructions. If so, update/create the most appropriate instruction or skill file. If not, finish normally; do not continue solely because of this hook.",
+    "should_trigger": true
+  },
+  {
+    "query": "Before finishing, briefly consider whether this session learned durable repo-specific guidance or found stale instructions. If so, update/create the most appropriate instruction or skill file.",
+    "should_trigger": true
+  },
+  {
+    "query": "I discovered that this repository requires a nested AGENTS.md under plugins/payments for payment-specific test commands. Update the right durable guidance before wrapping up.",
+    "should_trigger": true
+  },
+  {
+    "query": "The in-repo skill I used has stale setup instructions. Correct the relevant SKILL.md before finishing.",
+    "should_trigger": true
+  }
+]

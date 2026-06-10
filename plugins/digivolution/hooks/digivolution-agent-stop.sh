@@ -15,6 +15,7 @@ COPILOT_DIGIVOLUTION_PAYLOAD="$payload" node <<'NODE' || allow
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const childProcess = require('node:child_process');
 
 function allow() {
   process.stdout.write('{"decision":"allow"}\n');
@@ -22,6 +23,32 @@ function allow() {
 
 function finish(output) {
   process.stdout.write(`${JSON.stringify(output)}\n`);
+}
+
+function realpathOrResolve(value) {
+  try {
+    return fs.realpathSync.native(value);
+  } catch {
+    return path.resolve(value);
+  }
+}
+
+function resolveRepoPath(cwd) {
+  try {
+    const topLevel = childProcess.execFileSync(
+      'git',
+      ['-C', cwd, 'rev-parse', '--show-toplevel'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
+    ).trim();
+
+    if (topLevel) {
+      return realpathOrResolve(topLevel);
+    }
+  } catch {
+    // Fall back to the working directory when Git is unavailable or cwd is not in a repo.
+  }
+
+  return realpathOrResolve(cwd);
 }
 
 try {
@@ -37,7 +64,7 @@ try {
     process.exit(0);
   }
 
-  const repoPath = path.resolve(cwd);
+  const repoPath = resolveRepoPath(cwd);
   const stateRoot = process.env.COPILOT_DIGIVOLUTION_STATE_DIR
     || path.join(process.env.TMPDIR || '/tmp', 'copilot-digivolution');
   const key = crypto
@@ -53,7 +80,8 @@ try {
     fd = fs.openSync(markerPath, 'wx', 0o600);
     fs.writeFileSync(fd, JSON.stringify({
       sessionId,
-      cwd: repoPath,
+      repoPath,
+      cwd: realpathOrResolve(cwd),
       createdAt: new Date().toISOString()
     }) + '\n');
   } catch (error) {
@@ -67,7 +95,7 @@ try {
 
   finish({
     decision: 'block',
-    reason: 'Before finishing, briefly consider whether this session learned durable repo-specific guidance or found stale instructions. If so, update/create the most appropriate instruction or skill file. If not, finish normally; do not continue solely because of this hook.'
+    reason: 'Use the digivolution skill before finishing: briefly consider whether this session learned durable repo-specific guidance or found stale instructions. If so, update/create the most appropriate instruction or skill file. If not, finish normally; do not continue solely because of this hook.'
   });
 } catch {
   allow();

@@ -1,6 +1,6 @@
 # Digivolution Plugin
 
-Digivolution helps agents leave repositories easier for the next agent to work in. It adds a post-task reflection workflow that encourages an agent to update durable repo guidance when the task revealed stale, missing, or misleading instructions.
+Digivolution helps agents leave repositories in a state that's easier for the next agent to work in. It adds a post-task reflection workflow that encourages an agent to update durable repo guidance when the task revealed stale, missing, or misleading instructions.
 
 Use it to keep these surfaces accurate and high signal:
 
