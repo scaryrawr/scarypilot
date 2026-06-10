@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "agentStop": [
+      {
+        "type": "command",
+        "bash": "bash \"${PLUGIN_ROOT}/hooks/digivolution-agent-stop.sh\"",
+        "timeoutSec": 5
+      }
+    ]
+  }
+}

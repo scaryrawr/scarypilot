@@ -1,0 +1,42 @@
+{
+  "skill_name": "digivolution",
+  "evals": [
+    {
+      "id": 1,
+      "name": "no-durable-learning-no-edit",
+      "prompt": "You are finishing a typo-only documentation change. You did not learn any durable repository-specific setup, validation, workflow, safety, or convention details, and you found no stale instructions. Use the digivolution skill. Do not modify repository files for this eval; write the final decision to the requested output location.",
+      "expected_output": "The agent decides no instruction or skill update is needed and does not propose an edit just because the hook ran.",
+      "files": [],
+      "expectations": [
+        "The final answer says no durable guidance update is needed.",
+        "The output does not propose generic guidance.",
+        "The output preserves the no-op escape hatch rather than inventing an instruction change."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "stale-root-guidance-update",
+      "prompt": "You are finishing a task in a repository where the root AGENTS.md says to run `npm test`, but during the task you confirmed the repository has no broad test suite and the correct validation for manifest-only edits is `python3 -m json.tool .github/plugin/marketplace.json >/dev/null`. Use the digivolution skill. Do not modify repository files for this eval; write the narrow guidance update you would make and why to the requested output location.",
+      "expected_output": "The agent chooses the root AGENTS.md as the durable instruction surface and proposes a concise correction instead of duplicating guidance elsewhere.",
+      "files": [],
+      "expectations": [
+        "The output selects root AGENTS.md as the appropriate destination.",
+        "The proposed guidance is concise and repository-specific.",
+        "The output corrects the stale npm test instruction with the JSON manifest validation command.",
+        "The output does not create a nested instruction file without a narrower scope reason."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "stale-skill-update",
+      "prompt": "You are finishing a task where an in-repo skill under plugins/example/skills/example/SKILL.md told you to run a helper script path that no longer exists. The correct helper now lives in that skill's scripts/ directory. Use the digivolution skill. Do not modify repository files for this eval; write the narrow skill update you would make and why to the requested output location.",
+      "expected_output": "The agent identifies the stale in-repo SKILL.md as the right surface and proposes a narrow correction to the helper path.",
+      "files": [],
+      "expectations": [
+        "The output selects the relevant in-repo SKILL.md rather than AGENTS.md.",
+        "The proposed change is limited to correcting the stale helper path.",
+        "The output avoids adding unrelated workflow or style guidance."
+      ]
+    }
+  ]
+}
