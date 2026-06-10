@@ -1,0 +1,34 @@
+[
+  {
+    "query": "Use smahties to find where the repository handles plugin marketplace manifest loading, even if the exact symbol name is not obvious.",
+    "should_trigger": true
+  },
+  {
+    "query": "Run a semantic code search for the part of this codebase that decides which plugin skills are available.",
+    "should_trigger": true
+  },
+  {
+    "query": "Index plugins/smahties with the local code-search MCP server before searching it.",
+    "should_trigger": true
+  },
+  {
+    "query": "Check the smahties index status and tell me whether the queue has pending work.",
+    "should_trigger": true
+  },
+  {
+    "query": "List indexed TypeScript code units under plugins/azure-devops, including source snippets if available.",
+    "should_trigger": true
+  },
+  {
+    "query": "Use ripgrep to find the exact string \"marketplace.json\" in this repository.",
+    "should_trigger": false
+  },
+  {
+    "query": "Search the web for recent MCP server marketplace examples.",
+    "should_trigger": false
+  },
+  {
+    "query": "Open plugins/smahties/README.md and summarize the install instructions.",
+    "should_trigger": false
+  }
+]

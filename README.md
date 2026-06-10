@@ -31,6 +31,7 @@ copilot plugin install azure-devops@scarypilot
 | **microsoft-docs**  | Documentation      | Search and retrieve Microsoft Learn documentation, tutorials, and API references directly from Copilot.                                                                | [📖 Docs](./external_plugins/microsoft-docs/README.md)  |
 | **ollama**          | Image Generation   | Generate images from text prompts using Ollama's local image generation models (macOS-only). Supports Z-Image Turbo and FLUX.2 Klein.                                 | [📖 Docs](./plugins/ollama/README.md)                   |
 | **playwright-ext**  | Browser Automation | Browser automation using Playwright with extension bridge. Testing, web scraping, form automation with logged-in sessions.                                             | [📖 Docs](./external_plugins/playwright-ext/README.md)  |
+| **smahties**        | Code Search        | Local semantic code-search MCP server from smahtutils with indexing, embeddings, and keyword/hybrid query support. Requires the `smahties` CLI first.                  | [📖 Docs](./plugins/smahties/README.md)                 |
 | **worktrunk**       | Workflow           | Disk-aware Worktrunk (`wt`) workflows for creating parallel worktrees and splitting work into independently committable chunks.                                          | [📖 Docs](./plugins/worktrunk/README.md)                |
 
 **Install any plugin:**
