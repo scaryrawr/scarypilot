@@ -83,6 +83,14 @@
         "name": "Microsoft"
       },
       "source": "./external_plugins/microsoft-docs"
+    },
+    {
+      "name": "smahties",
+      "description": "Local semantic code-search MCP server powered by smahtutils. Requires the smahties CLI to be installed first.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/smahties"
     }
   ]
 }
