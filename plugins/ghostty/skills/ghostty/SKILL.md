@@ -5,8 +5,6 @@ description: Create Ghostty windows/tabs/splits and drive terminals with focus/i
 
 # Ghostty Skill
 
-Use Ghostty automation helpers to create terminal contexts and run commands in parallel workflows.
-
 ## Command contract (v1)
 
 Use `plugins/ghostty/skills/ghostty/scripts/ghostty-control.sh`:

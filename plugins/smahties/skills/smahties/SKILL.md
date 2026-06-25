@@ -5,8 +5,6 @@ description: Use the local smahties MCP server when users ask for semantic code 
 
 # Smahties Skill
 
-Use this skill when the user asks to search, explore, or index local code with `smahties`, especially when semantic code retrieval is more useful than exact text matching.
-
 ## Prerequisites
 
 The `smahties` binary must already be installed from [smahtutils](https://github.com/scaryrawr/smahtutils) and available on `PATH`. If the MCP server fails to start because `smahties` is missing, tell the user to install it first:

@@ -6,15 +6,9 @@ compatibility: "Requires Node.js >=22.18, Git, and Azure CLI with the azure-devo
 
 # Azure DevOps PR Review
 
-Provide a code review for the given Azure DevOps pull request.
-
-## Script execution model
-
-- Run the bundled helpers via the skill-relative paths shown below (`./scripts/...` resolves from this skill directory).
-- The helper scripts are non-interactive. Read structured JSON from stdout and treat stderr as diagnostics.
-- If you need to confirm flags or subcommands, run `./scripts/review-pr.mts --help`.
-
 ## Available scripts
+
+Run these non-interactive helpers with the skill-relative `./scripts/...` paths shown below; they print JSON to stdout and diagnostics to stderr. Run `./scripts/review-pr.mts --help` to confirm flags or subcommands.
 
 ### `eligibility`
 

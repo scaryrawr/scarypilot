@@ -5,8 +5,6 @@ description: Manage parallel git worktrees with Worktrunk (`wt`) and enforce dis
 
 # Worktrunk Skill
 
-Use this skill when users need to parallelize work into independent chunks using git worktrees managed by `wt`.
-
 ## Core commands
 
 - `wt switch --create <chunk-branch>` (or `wt switch -c <chunk-branch>`) to create and switch to a new worktree

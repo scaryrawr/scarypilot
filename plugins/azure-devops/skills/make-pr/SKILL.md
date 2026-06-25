@@ -6,14 +6,6 @@ compatibility: "Requires Node.js >=22.18, Git, and Azure CLI with the azure-devo
 
 # Azure DevOps PR Creation
 
-You are in PR creation mode. Create a well-structured Azure DevOps pull request from the current branch state.
-
-## Script execution model
-
-- Run the bundled helpers via the skill-relative paths shown below (`./scripts/...` resolves from this skill directory).
-- The helper scripts are non-interactive. Read structured JSON from stdout and treat stderr as diagnostics.
-- If you need to confirm flags or subcommands, run `./scripts/make-pr.mts --help`.
-
 ## Safety rules
 
 - Do not perform side effects (`git checkout -b`, `git add`, `git commit`, `git push`, `az repos pr create`) unless the user explicitly asked to create a PR or clearly confirmed the action.
@@ -21,6 +13,8 @@ You are in PR creation mode. Create a well-structured Azure DevOps pull request 
 - Do not rewrite pushed history unless the user explicitly asks.
 
 ## Available scripts
+
+Run these non-interactive helpers with the skill-relative `./scripts/...` paths shown below; they print JSON to stdout and diagnostics to stderr. Run `./scripts/make-pr.mts --help` to confirm flags or subcommands.
 
 ### `preflight`
 

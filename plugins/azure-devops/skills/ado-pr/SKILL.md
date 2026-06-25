@@ -7,15 +7,9 @@ user-invocable: false
 
 # Azure DevOps Pull Request Operations
 
-Use this skill for existing Azure DevOps pull requests.
-
-## Script execution model
-
-- Run the bundled helpers via the skill-relative paths shown below (`./scripts/...` resolves from this skill directory).
-- The helper scripts are non-interactive. Read structured JSON from stdout and treat stderr as diagnostics.
-- If you need to confirm flags or subcommands, run `./scripts/ado-pr.mts --help`.
-
 ## Available scripts
+
+Run these non-interactive helpers with the skill-relative `./scripts/...` paths shown below; they print JSON to stdout and diagnostics to stderr. Run `./scripts/ado-pr.mts --help` to confirm flags or subcommands.
 
 ### `context`
 

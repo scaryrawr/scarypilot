@@ -7,15 +7,9 @@ user-invocable: false
 
 # Azure DevOps Router
 
-Use this skill when a user gives you an Azure DevOps URL or needs the shared attachment-upload helper.
-
-## Script execution model
-
-- Run the bundled helpers via the skill-relative paths shown below (`./scripts/...` resolves from this skill directory).
-- The helper scripts are non-interactive. Read structured JSON from stdout and treat stderr as diagnostics.
-- If you need to confirm flags or subcommands, run `./scripts/ado-cli.mts --help`.
-
 ## Available scripts
+
+Run these non-interactive helpers with the skill-relative `./scripts/...` paths shown below; they print JSON to stdout and diagnostics to stderr. Run `./scripts/ado-cli.mts --help` to confirm flags or subcommands.
 
 ### `parse-url`
 

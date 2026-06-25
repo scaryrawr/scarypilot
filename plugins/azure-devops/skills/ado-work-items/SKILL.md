@@ -6,15 +6,9 @@ compatibility: "Requires Node.js >=22.18 and Azure CLI with the azure-devops ext
 
 # Azure DevOps Work Item Operations
 
-Use this skill for Azure DevOps Boards work items.
-
-## Script execution model
-
-- Run the bundled helpers via the skill-relative paths shown below (`./scripts/...` resolves from this skill directory).
-- The helper scripts are non-interactive. Read structured JSON from stdout and treat stderr as diagnostics.
-- If you need to confirm flags or subcommands, run `./scripts/ado-work-items.mts --help`.
-
 ## Available scripts
+
+Run these non-interactive helpers with the skill-relative `./scripts/...` paths shown below; they print JSON to stdout and diagnostics to stderr. Run `./scripts/ado-work-items.mts --help` to confirm flags or subcommands.
 
 ### `parse-url`
 
