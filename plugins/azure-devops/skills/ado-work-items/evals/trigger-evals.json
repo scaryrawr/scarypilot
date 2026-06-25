@@ -1,0 +1,30 @@
+[
+  {
+    "query": "Show Azure DevOps work item 1337 with its title, state, and assignee.",
+    "should_trigger": true
+  },
+  {
+    "query": "Build a WIQL query for the bugs assigned to me that aren't closed in Azure Boards.",
+    "should_trigger": true
+  },
+  {
+    "query": "Here's an Azure DevOps work item URL, update its state: https://dev.azure.com/contoso/Platform/_workitems/edit/1337",
+    "should_trigger": true
+  },
+  {
+    "query": "Add a parent relation between two Azure DevOps Boards work items.",
+    "should_trigger": true
+  },
+  {
+    "query": "Show me the threads on Azure DevOps pull request 4821.",
+    "should_trigger": false
+  },
+  {
+    "query": "Create a GitHub issue titled 'Flaky test in CI'.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain what WIQL is in general terms.",
+    "should_trigger": false
+  }
+]

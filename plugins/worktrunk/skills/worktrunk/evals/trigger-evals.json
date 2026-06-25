@@ -1,0 +1,30 @@
+[
+  {
+    "query": "Create a new git worktree with wt so I can parallelize this work into independent chunks.",
+    "should_trigger": true
+  },
+  {
+    "query": "Use Worktrunk to spin up a worktree for the auth-token-refresh chunk, but check disk space first.",
+    "should_trigger": true
+  },
+  {
+    "query": "List my managed worktrees and clean up the finished one.",
+    "should_trigger": true
+  },
+  {
+    "query": "Split this big task into parallel chunks, each in its own wt worktree.",
+    "should_trigger": true
+  },
+  {
+    "query": "Connect to my GitHub Codespace and run the tests there.",
+    "should_trigger": false
+  },
+  {
+    "query": "Run git checkout -b feature-x in this repo.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain how git worktrees work conceptually.",
+    "should_trigger": false
+  }
+]

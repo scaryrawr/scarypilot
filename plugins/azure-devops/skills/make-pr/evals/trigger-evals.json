@@ -1,0 +1,26 @@
+[
+  {
+    "query": "Create an Azure DevOps pull request from my current branch changes.",
+    "should_trigger": true
+  },
+  {
+    "query": "Open a PR in our Azure DevOps repo for the work I just committed, using the repo's PR template.",
+    "should_trigger": true
+  },
+  {
+    "query": "Run preflight on this repo and raise an Azure DevOps pull request when it's clean.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review the existing Azure DevOps pull request 4821 and post comments.",
+    "should_trigger": false
+  },
+  {
+    "query": "Create a GitHub pull request from my branch with gh.",
+    "should_trigger": false
+  },
+  {
+    "query": "Show the active threads on Azure DevOps PR 4821.",
+    "should_trigger": false
+  }
+]

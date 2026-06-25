@@ -1,0 +1,30 @@
+[
+  {
+    "query": "Here's an Azure DevOps link, figure out what it points to: https://dev.azure.com/contoso/Platform/_git/api/pullrequest/4821",
+    "should_trigger": true
+  },
+  {
+    "query": "What kind of Azure DevOps resource is https://dev.azure.com/contoso/Platform/_workitems/edit/1337 and which workflow should handle it?",
+    "should_trigger": true
+  },
+  {
+    "query": "Parse this dev.azure.com URL and route me to the right Azure DevOps flow.",
+    "should_trigger": true
+  },
+  {
+    "query": "I need to upload a PNG as an attachment on an Azure DevOps pull request using the shared helper.",
+    "should_trigger": true
+  },
+  {
+    "query": "Open this GitHub pull request and summarize it: https://github.com/octocat/hello/pull/12",
+    "should_trigger": false
+  },
+  {
+    "query": "Parse this Jira issue URL and tell me the project key.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain how URL parsing works in JavaScript with the URL constructor.",
+    "should_trigger": false
+  }
+]

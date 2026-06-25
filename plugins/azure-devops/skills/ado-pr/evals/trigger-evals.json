@@ -1,0 +1,30 @@
+[
+  {
+    "query": "Show me the status and active threads on Azure DevOps pull request 4821.",
+    "should_trigger": true
+  },
+  {
+    "query": "Check out Azure DevOps pull request 4821 locally and list its active comment threads.",
+    "should_trigger": true
+  },
+  {
+    "query": "Here's an Azure DevOps PR link, set my vote to approve: https://dev.azure.com/contoso/Platform/_git/api/pullrequest/4821",
+    "should_trigger": true
+  },
+  {
+    "query": "List the reviewers and policy status for this Azure DevOps pull request.",
+    "should_trigger": true
+  },
+  {
+    "query": "Create a brand new Azure DevOps pull request from my current branch changes.",
+    "should_trigger": false
+  },
+  {
+    "query": "Comment on this GitHub pull request: https://github.com/octocat/hello/pull/12",
+    "should_trigger": false
+  },
+  {
+    "query": "Update the state of Azure DevOps work item 1337 to Active.",
+    "should_trigger": false
+  }
+]
