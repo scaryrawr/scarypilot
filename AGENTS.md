@@ -26,6 +26,8 @@ Skills must follow the Agent Skills spec; put bundled scripts in a skill-local `
 
 For Markdown, JSON, and manifest-only edits, prefer targeted review: validate JSON, verify linked paths exist, and cross-check plugin inventory. For Azure DevOps `.mts` helper work, also follow `plugins/azure-devops/skills/AGENTS.md`.
 
+Skill trigger evals live in `plugins/*/skills/*/evals/trigger-evals.json`. To validate them with the skill-creator skill's `scripts/run_eval.py`, run with `--num-workers 1`: the default 5-way concurrency starves parallel `copilot` processes and reports false 0% triggers.
+
 ## Security & Configuration Tips
 
 Skills that depend on shell helpers must load or source the full plugin environment before smoke testing; partial setup is not a valid check. Do not run side-effecting Azure DevOps, Git, Codespaces, Worktrunk, or terminal-automation commands unless the user explicitly requested or confirmed them.
