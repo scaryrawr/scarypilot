@@ -1,10 +1,17 @@
 {
   "version": 1,
   "hooks": {
+    "userPromptSubmitted": [
+      {
+        "type": "command",
+        "bash": "node \"${PLUGIN_ROOT}/hooks/digivolution.mjs\" mark",
+        "timeoutSec": 5
+      }
+    ],
     "agentStop": [
       {
         "type": "command",
-        "bash": "bash \"${PLUGIN_ROOT}/hooks/digivolution-agent-stop.sh\"",
+        "bash": "node \"${PLUGIN_ROOT}/hooks/digivolution.mjs\" reflect",
         "timeoutSec": 5
       }
     ]

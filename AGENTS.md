@@ -20,7 +20,7 @@ This repo has no app build or broad test suite. Root TypeScript tooling exists o
 
 Every plugin directory needs a `README.md` with purpose, prerequisites, install steps, usage examples, and resource links. When adding/removing plugins, update both `.github/plugin/marketplace.json` and root `README.md` links/inventory. External or adapted plugins need clear attribution and license information.
 
-Skills must follow the Agent Skills spec; put bundled scripts in a skill-local `scripts/` directory and keep paths in `SKILL.md` accurate. Treat `package.json#engines.node` (`>=22.18.0`) as the runtime floor for shipped scripts; pinned `@types/node` is editor/type-checking support, not permission to use newer runtime-only APIs.
+Skills must follow the Agent Skills spec; put bundled scripts in a skill-local `scripts/` directory and keep paths in `SKILL.md` accurate. Treat `package.json#engines.node` (`>=22.18.0`) as the runtime floor for shipped scripts; pinned `@types/node` is editor/type-checking support, not permission to use newer runtime-only APIs. Shipped scripts run inside arbitrary host repos whose `package.json#type` is unknown, so never depend on it: give Node scripts an explicit module extension — prefer `.mjs` (ESM) over `.cjs` — rather than a bare `.js`, whose interpretation flips with the host repo.
 
 ## Testing Guidelines
 

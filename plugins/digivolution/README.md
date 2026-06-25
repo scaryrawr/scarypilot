@@ -15,7 +15,7 @@ The plugin is advisory: it does not directly auto-edit files. It reminds the act
 ## Prerequisites
 
 - GitHub Copilot CLI with plugin and hook support.
-- Bash and Node.js. The hook uses a small Bash wrapper with Node.js for JSON parsing and state-file handling.
+- Node.js. The hooks invoke a small Node.js script for JSON parsing and state-file handling.
 
 ## Installation
 
@@ -37,14 +37,30 @@ Example prompts:
 
 ## Hook behavior and loop safety
 
-The hook flow is designed to encourage one final reflection pass when an agent is about to stop:
+Digivolution arms one optional reflection nudge per user prompt, then steps out of the way:
 
-1. Ask the agent to consider whether durable repo instructions or in-repo skills should be updated.
-2. Prefer correcting existing guidance over duplicating text.
-3. Use the narrowest appropriate destination for any change.
-4. Allow the agent to make no edit when there is no durable improvement.
+1. When you submit a prompt, the `userPromptSubmitted` hook sets a per-session "reflection
+   pending" flag (a marker file keyed by session and repository).
+2. When the agent finishes a turn, the `agentStop` hook checks the flag. If it is set, the
+   hook clears it and blocks once, asking the agent to consider whether durable repo
+   instructions or in-repo skills should be updated.
+3. If the forced continuation is surfaced through `userPromptSubmitted`, the `mark` hook
+   recognizes its own digivolution prompt and does not re-arm the flag. The next `agentStop`
+   finds nothing pending and lets the turn finish — at most one forced continuation per
+   prompt, so there is no infinite stop-hook loop.
+4. Your next prompt arms the flag again, so digivolution can prompt again later in the same
+   multi-turn session instead of firing only once.
 
-To avoid infinite stop-hook loops, Digivolution uses a one-time guard per session/repository. At most one forced continuation is allowed for the same repo in the same session; after that, the agent can finish normally. The hook should never repeatedly force itself, and it should never bypass the agent's judgment by applying direct automatic edits.
+The nudge is intentionally low pressure. The agent should:
+
+1. Prefer correcting existing guidance over duplicating text.
+2. Use the narrowest appropriate destination for any change.
+3. Make no edit when there is no durable improvement — it can silently skip the nudge without
+   re-reading files or acknowledging it.
+
+The hook never edits files or overrides the agent's judgement; it only emits an advisory
+reason. If Node.js is unavailable or the hook errors, it fails open and the turn finishes
+normally.
 
 ## Resources
 

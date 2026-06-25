@@ -1,6 +1,6 @@
 [
   {
-    "query": "Use the digivolution skill before finishing: briefly consider whether this session learned durable repo-specific guidance or found stale instructions. If so, update/create the most appropriate instruction or skill file. If not, finish normally; do not continue solely because of this hook.",
+    "query": "Optional digivolution check before finishing: if this work revealed durable, repo-specific guidance worth recording — or stale instructions worth fixing — use the digivolution skill to update the most appropriate AGENTS.md, Copilot instruction, or in-repo skill file. If nothing durable came up, or you have already considered it, just finish — you do not need to re-read files, explain, or acknowledge this note.",
     "should_trigger": true
   },
   {
