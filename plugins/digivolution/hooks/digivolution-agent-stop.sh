@@ -64,6 +64,16 @@ try {
     process.exit(0);
   }
 
+  // Task-tool sub-agents fire agentStop with sessionId set to their tool-call id
+  // (e.g. "call_..."), while real main-agent sessions always use a canonical UUID.
+  // Only block on genuine sessions so sub-agents aren't interrupted with the
+  // reflection prompt.
+  const SESSION_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!SESSION_UUID.test(sessionId)) {
+    allow();
+    process.exit(0);
+  }
+
   const repoPath = resolveRepoPath(cwd);
   const stateRoot = process.env.COPILOT_DIGIVOLUTION_STATE_DIR
     || path.join(process.env.TMPDIR || '/tmp', 'copilot-digivolution');
