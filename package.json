@@ -14,8 +14,7 @@
   },
   "pi": {
     "skills": [
-      "./plugins/copilot/skills",
-      "./plugins/ollama/skills"
+      "./plugins/copilot/skills"
     ]
   }
 }

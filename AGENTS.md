@@ -32,4 +32,4 @@ Skills that depend on shell helpers must load or source the full plugin environm
 
 ## Agent-Specific Instructions
 
-Keep shared guidance in `AGENTS.md`; put Copilot-only behavior in `.github/copilot-instructions.md` or scoped `.github/instructions/*.instructions.md`. Keep `CLAUDE.md` as exactly `@AGENTS.md`. `package.json#pi.skills` currently exposes only `plugins/copilot/skills` and `plugins/ollama/skills` for local pi discovery.
+Keep shared guidance in `AGENTS.md`; put Copilot-only behavior in `.github/copilot-instructions.md` or scoped `.github/instructions/*.instructions.md`. Keep `CLAUDE.md` as exactly `@AGENTS.md`. `package.json#pi.skills` currently exposes only `plugins/copilot/skills` for local pi discovery.

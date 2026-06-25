@@ -61,14 +61,6 @@
       "source": "./plugins/codespaces"
     },
     {
-      "name": "ollama",
-      "description": "Generate images from text prompts using Ollama's local image generation models.",
-      "author": {
-        "name": "Mike Wallio"
-      },
-      "source": "./plugins/ollama"
-    },
-    {
       "name": "worktrunk",
       "description": "Disk-aware Worktrunk (wt) workflows for parallel agent worktrees and independently committable chunks.",
       "author": {
