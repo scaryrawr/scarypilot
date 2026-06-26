@@ -1,6 +1,6 @@
 [
   {
-    "query": "Optional digivolution check before finishing: if this work revealed durable, repo-specific guidance worth recording — or stale instructions worth fixing — use the digivolution skill to update the most appropriate AGENTS.md, Copilot instruction, or in-repo skill file. If nothing durable came up, or you have already considered it, just finish — you do not need to re-read files, explain, or acknowledge this note.",
+    "query": "Optional digivolution check before finishing: silently decide whether this work revealed durable, repo-specific guidance worth recording — or stale instructions worth fixing. If yes, use the digivolution skill to update the most appropriate AGENTS.md, Copilot instruction, or in-repo skill file, then explain only the update you made. If no update is needed, end this continuation with no user-visible response: do not say that no changes are needed, do not recap, and do not acknowledge this note.",
     "should_trigger": true
   },
   {

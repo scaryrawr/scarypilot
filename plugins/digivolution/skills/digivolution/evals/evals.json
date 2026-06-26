@@ -5,12 +5,12 @@
       "id": 1,
       "name": "no-durable-learning-no-edit",
       "prompt": "You are finishing a typo-only documentation change. You did not learn any durable repository-specific setup, validation, workflow, safety, or convention details, and you found no stale instructions. Use the digivolution skill. Do not modify repository files for this eval; write the final decision to the requested output location.",
-      "expected_output": "The agent decides no instruction or skill update is needed and does not propose an edit just because the hook ran.",
+      "expected_output": "The agent decides no instruction or skill update is needed, does not propose an edit just because the hook ran, and treats any no-op acknowledgement as eval-only output rather than normal user-visible behavior.",
       "files": [],
       "expectations": [
-        "The final answer says no durable guidance update is needed.",
+        "The final decision says no durable guidance update is needed only because the eval requested an output artifact.",
         "The output does not propose generic guidance.",
-        "The output preserves the no-op escape hatch rather than inventing an instruction change."
+        "The output preserves the silent no-op escape hatch rather than inventing an instruction change or requiring a normal user-visible acknowledgement."
       ]
     },
     {

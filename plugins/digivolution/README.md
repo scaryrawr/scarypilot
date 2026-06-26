@@ -10,7 +10,7 @@ Use it to keep these surfaces accurate and high signal:
 - `.github/instructions/*.instructions.md`
 - In-repo skills such as `.github/skills/**/SKILL.md` or `plugins/*/skills/**/SKILL.md`
 
-The plugin is advisory: it does not directly auto-edit files. It reminds the active agent to decide whether an update is useful, and the agent can decide that no change is needed.
+The plugin is advisory: it does not directly auto-edit files. It reminds the active agent to decide whether an update is useful, and the agent can silently do nothing when no change is needed.
 
 ## Prerequisites
 
@@ -55,8 +55,8 @@ The nudge is intentionally low pressure. The agent should:
 
 1. Prefer correcting existing guidance over duplicating text.
 2. Use the narrowest appropriate destination for any change.
-3. Make no edit when there is no durable improvement — it can silently skip the nudge without
-   re-reading files or acknowledging it.
+3. Make no edit when there is no durable improvement — it should silently skip the nudge without
+   re-reading files, acknowledging it, or saying that no update is needed.
 
 The hook never edits files or overrides the agent's judgement; it only emits an advisory
 reason. If Node.js is unavailable or the hook errors, it fails open and the turn finishes

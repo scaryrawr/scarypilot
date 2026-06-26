@@ -28,7 +28,9 @@ Update instructions or skills only when at least one is true:
 
 - Do not add generic advice, one-off task details, secrets, private data, or speculative preferences.
 - Do not create nested instructions unless the scope differs meaningfully from parent guidance.
-- Do not update instructions or skills just to satisfy a hook. If there is no durable improvement, make no change.
+- Do not update instructions or skills just to satisfy a hook.
+- When an automatic digivolution hook invoked this skill and there is no durable improvement, make no change and produce no user-visible response. Do not say that no update is needed, recap the check, or acknowledge the hook.
+- If an eval harness or explicit user instruction asks you to write a final decision artifact when no update is needed, comply with that artifact requirement instead of staying silent, but make clear the no-op response exists only because that artifact was explicitly requested. Normal hook-triggered no-op checks should remain silent.
 
 ## Checklist
 
