@@ -15,23 +15,18 @@ copilot plugin marketplace add scaryrawr/scarypilot
 Use the `/plugin` command in copilot or install from the terminal:
 
 ```sh
-copilot plugin install azure-devops@scarypilot
+copilot plugin install chrome-devtools@scarypilot
 ```
 
 ## Available Plugins
 
 | Plugin              | Category           | Description                                                                                                                                                            | Docs                                                   |
 | ------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| **azure-devops**    | Integration        | Intelligent Azure DevOps integration with URL parsing, PR management, and work item tracking using Azure CLI.                                                          | [📖 Docs](./plugins/azure-devops/README.md)             |
 | **chrome-devtools** | Browser Automation | Chrome DevTools Protocol integration for automation, debugging, accessibility testing (WCAG), and performance analysis (Core Web Vitals). Includes specialized agents. | [📖 Docs](./external_plugins/chrome-devtools/README.md) |
-| **codespaces**      | Remote Dev         | Connect to and interact with GitHub Codespaces via `gh ado-codespaces` and `gh cs ssh`, including persistent connections and remote command execution.                | [📖 Docs](./plugins/codespaces/README.md)               |
-| **copilot**         | Skills             | Skills for working with GitHub Copilot, including repository initialization with coding instructions, custom agents, and custom skills.                                | [📖 Docs](./plugins/copilot/README.md)                  |
 | **digivolution**    | Workflow           | Agent self-improvement hooks and skills that encourage durable updates to repo instructions and stale in-repo skills.                                                  | [📖 Docs](./plugins/digivolution/README.md)             |
-| **ghostty**         | Terminal           | Ghostty automation for opening windows/tabs/splits and driving terminals with focus/input for multitasking workflows on macOS.                                         | [📖 Docs](./plugins/ghostty/README.md)                  |
 | **microsoft-docs**  | Documentation      | Search and retrieve Microsoft Learn documentation, tutorials, and API references directly from Copilot.                                                                | [📖 Docs](./external_plugins/microsoft-docs/README.md)  |
 | **playwright-ext**  | Browser Automation | Browser automation using Playwright with extension bridge. Testing, web scraping, form automation with logged-in sessions.                                             | [📖 Docs](./external_plugins/playwright-ext/README.md)  |
 | **smahties**        | Code Search        | Local semantic code-search MCP server from smahtutils with indexing, embeddings, and keyword/hybrid query support. Requires the `smahties` CLI first.                  | [📖 Docs](./plugins/smahties/README.md)                 |
-| **worktrunk**       | Workflow           | Disk-aware Worktrunk (`wt`) workflows for creating parallel worktrees and splitting work into independently committable chunks.                                          | [📖 Docs](./plugins/worktrunk/README.md)                |
 
 **Install any plugin:**
 
@@ -44,7 +39,6 @@ copilot plugin install <plugin-name>
 This marketplace supports multiple plugin patterns:
 
 - **MCP-Based Plugins**: Integrate external Model Context Protocol servers
-- **Skill-Based Plugins**: Provide contextual instructions for specific domains
 - **Agent-Based Plugins**: Define specialized agent behaviors for complex tasks
 - **LSP-Based Plugins**: Enable language server integration for code intelligence
 
@@ -54,12 +48,3 @@ Interested in adding plugins to this marketplace? Check out the plugin developme
 
 - [Plugin Architecture Guide](./.github/copilot-instructions.md)
 - [Marketplace Configuration](./.github/plugin/marketplace.json)
-
-If you touch the Azure DevOps `.mts` helper scripts, install the repo dependencies and run:
-
-```sh
-npm install
-npm run typecheck
-```
-
-Contributor guidance: keep runtime compatibility aligned with `package.json#engines.node` (`>=22.18.0` today). The repo pins `@types/node` to the current Node LTS line for type definitions, but that should not be treated as permission to use newer runtime-only APIs unless the engine requirement is updated too.

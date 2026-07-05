@@ -16,7 +16,7 @@
     "should_trigger": true
   },
   {
-    "query": "List indexed TypeScript code units under plugins/azure-devops, including source snippets if available.",
+    "query": "List indexed Markdown entries under plugins/smahties, including source snippets if available.",
     "should_trigger": true
   },
   {

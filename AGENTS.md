@@ -10,21 +10,19 @@ When plugin hooks invoke scripts bundled with the plugin, reference them with `$
 
 ## Build, Test, and Development Commands
 
-This repo has no app build or broad test suite. Root TypeScript tooling exists only for Azure DevOps helper scripts included by `tsconfig.json` (`plugins/azure-devops/skills/**/*.mts`).
+This repo has no app build or broad test suite.
 
-- `npm install` — install the lightweight TypeScript tooling.
-- `npm run typecheck` — run `tsgo -p tsconfig.json`; required after `.mts` helper edits.
 - `python3 -m json.tool .github/plugin/marketplace.json >/dev/null` — quick JSON sanity check after manifest edits.
 
 ## Coding Style & Naming Conventions
 
 Every plugin directory needs a `README.md` with purpose, prerequisites, install steps, usage examples, and resource links. When adding/removing plugins, update both `.github/plugin/marketplace.json` and root `README.md` links/inventory. External or adapted plugins need clear attribution and license information.
 
-Skills must follow the Agent Skills spec; put bundled scripts in a skill-local `scripts/` directory and keep paths in `SKILL.md` accurate. Treat `package.json#engines.node` (`>=22.18.0`) as the runtime floor for shipped scripts; pinned `@types/node` is editor/type-checking support, not permission to use newer runtime-only APIs. Shipped scripts run inside arbitrary host repos whose `package.json#type` is unknown, so never depend on it: give Node scripts an explicit module extension — prefer `.mjs` (ESM) over `.cjs` — rather than a bare `.js`, whose interpretation flips with the host repo.
+Skills should live outside this marketplace unless paired with plugin-specific hooks, MCP, agents, or other marketplace resources. Personal skills belong in `~/.agents/skills`; repo-local project skills belong in that repository's `.agents/skills`. Skills must follow the Agent Skills spec; put bundled scripts in a skill-local `scripts/` directory and keep paths in `SKILL.md` accurate. Shipped Node scripts run inside arbitrary host repos whose `package.json#type` is unknown, so never depend on it: give Node scripts an explicit module extension — prefer `.mjs` (ESM) over `.cjs` — rather than a bare `.js`, whose interpretation flips with the host repo.
 
 ## Testing Guidelines
 
-For Markdown, JSON, and manifest-only edits, prefer targeted review: validate JSON, verify linked paths exist, and cross-check plugin inventory. For Azure DevOps `.mts` helper work, also follow `plugins/azure-devops/skills/AGENTS.md`.
+For Markdown, JSON, and manifest-only edits, prefer targeted review: validate JSON, verify linked paths exist, and cross-check plugin inventory.
 
 Skill trigger evals live in `plugins/*/skills/*/evals/trigger-evals.json`. To validate them with the skill-creator skill's `scripts/run_eval.py`, run with `--num-workers 1`: the default 5-way concurrency starves parallel `copilot` processes and reports false 0% triggers.
 
@@ -34,4 +32,4 @@ Skills that depend on shell helpers must load or source the full plugin environm
 
 ## Agent-Specific Instructions
 
-Keep shared guidance in `AGENTS.md`; put Copilot-only behavior in `.github/copilot-instructions.md` or scoped `.github/instructions/*.instructions.md`. Keep `CLAUDE.md` as exactly `@AGENTS.md`. `package.json#pi.skills` currently exposes only `plugins/copilot/skills` for local pi discovery.
+Keep shared guidance in `AGENTS.md`; put Copilot-only behavior in `.github/copilot-instructions.md` or scoped `.github/instructions/*.instructions.md`. Keep `CLAUDE.md` as exactly `@AGENTS.md`.

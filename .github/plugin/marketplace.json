@@ -5,36 +5,12 @@
   },
   "plugins": [
     {
-      "name": "azure-devops",
-      "description": "Plugin for interacting with Azure DevOps",
-      "author": {
-        "name": "Mike Wallio"
-      },
-      "source": "./plugins/azure-devops"
-    },
-    {
-      "name": "copilot",
-      "description": "Skills for working with GitHub Copilot",
-      "author": {
-        "name": "Mike Wallio"
-      },
-      "source": "./plugins/copilot"
-    },
-    {
       "name": "digivolution",
       "description": "Agent self-improvement hooks and skills for keeping repo instructions and in-repo skills accurate.",
       "author": {
         "name": "Mike Wallio"
       },
       "source": "./plugins/digivolution"
-    },
-    {
-      "name": "ghostty",
-      "description": "Ghostty automation for windows, tabs, splits, focus, and input on macOS.",
-      "author": {
-        "name": "Mike Wallio"
-      },
-      "source": "./plugins/ghostty"
     },
     {
       "name": "chrome-devtools",
@@ -51,22 +27,6 @@
         "name": "Microsoft"
       },
       "source": "./external_plugins/playwright-ext"
-    },
-    {
-      "name": "codespaces",
-      "description": "Connect to and interact with GitHub Codespaces via gh ado-codespaces and gh cs ssh. Manages persistent connections with port forwarding and Azure auth, runs commands and Copilot CLI remotely, and supports multiple codespaces.",
-      "author": {
-        "name": "Mike Wallio"
-      },
-      "source": "./plugins/codespaces"
-    },
-    {
-      "name": "worktrunk",
-      "description": "Disk-aware Worktrunk (wt) workflows for parallel agent worktrees and independently committable chunks.",
-      "author": {
-        "name": "Mike Wallio"
-      },
-      "source": "./plugins/worktrunk"
     },
     {
       "name": "microsoft-docs",
