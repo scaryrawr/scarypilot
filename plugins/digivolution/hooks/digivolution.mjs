@@ -24,6 +24,7 @@
  */
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import childProcess from 'node:child_process';
@@ -118,7 +119,7 @@ function resolveMarker(payload) {
   const repoPath = resolveRepoPath(cwd);
   const stateRoot =
     process.env.COPILOT_DIGIVOLUTION_STATE_DIR ||
-    path.join(process.env.TMPDIR || '/tmp', 'copilot-digivolution');
+    path.join(os.tmpdir(), 'copilot-digivolution');
   const key = crypto
     .createHash('sha256')
     .update(`${sessionId}\0${repoPath}`)

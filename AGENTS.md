@@ -6,7 +6,7 @@ ScaryPilot is a GitHub Copilot plugin marketplace. Published plugin inventory li
 
 Main capability patterns are Markdown/JSON first: skills in `plugins/*/skills/*/SKILL.md`, MCP wrappers in `plugins/*/.mcp.json` or `external_plugins/*/.mcp.json`, agents in `plugins/*/agents/*.md` or `external_plugins/*/agents/*.md`, and optional LSP integrations in `plugins/*/lsp.json`. Prefer these patterns over adding executable code. MCP wrapper files use the marketplace plugin format with top-level server names, not an `mcpServers` envelope.
 
-When plugin hooks invoke scripts bundled with the plugin, reference them with `${PLUGIN_ROOT}` in hook configuration instead of repo-relative paths; hooks run in the user's target repository, not necessarily the plugin directory.
+When plugin hooks invoke scripts bundled with the plugin, reference them with `${PLUGIN_ROOT}` in hook configuration instead of repo-relative paths; hooks run in the user's target repository, not necessarily the plugin directory. For command hooks that run the same invocation on every OS, use the cross-platform `command` field, not `bash` — a `bash`-only entry never fires on Windows (which uses `powershell`). Likewise, bundled Node scripts must stay cross-platform: use `os.tmpdir()` rather than `/tmp` and avoid other POSIX-only assumptions.
 
 ## Build, Test, and Development Commands
 
