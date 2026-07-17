@@ -5,6 +5,14 @@
   },
   "plugins": [
     {
+      "name": "digivolution",
+      "description": "Agent self-improvement hooks and skills for keeping repo instructions and in-repo skills accurate.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/digivolution"
+    },
+    {
       "name": "chrome-devtools",
       "description": "Give your AI coding assistant access to the full power of Chrome DevTools for reliable automation, in-depth debugging, and performance analysis.",
       "author": {
