@@ -12,6 +12,7 @@ planning, delegation, review, and verification.
 - The `poteto-agent` and `comment-sicko` custom agents.
 - PR watching, orchestration, decision-log, and worktree-audit helpers used by
   advanced playbooks.
+- Verified multi-phase planning with an executable checklist checker.
 - Project-local model configuration through `/setup-pstack`.
 
 ## Prerequisites
