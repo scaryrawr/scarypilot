@@ -29,6 +29,14 @@
       "source": "./external_plugins/playwright-ext"
     },
     {
+      "name": "pstack",
+      "description": "Copilot-compatible adaptation of pstack's rigorous planning, review, delegation, and verification workflows.",
+      "author": {
+        "name": "Lauren Tan"
+      },
+      "source": "./external_plugins/pstack"
+    },
+    {
       "name": "microsoft-docs",
       "description": "Search and retrieve Microsoft Learn documentation, tutorials, and API references directly from Copilot.",
       "author": {
