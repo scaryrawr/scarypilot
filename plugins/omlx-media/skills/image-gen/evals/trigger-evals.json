@@ -1,0 +1,30 @@
+[
+  {
+    "query": "Generate a PNG image of a watercolor fox sitting under a crescent moon and save it to my workspace.",
+    "should_trigger": true
+  },
+  {
+    "query": "Create a square product hero image for a blue ceramic mug on a white background.",
+    "should_trigger": true
+  },
+  {
+    "query": "Edit this photo so the background becomes a sunset beach and save the result as a PNG.",
+    "should_trigger": true
+  },
+  {
+    "query": "Use the attached image as a source and add sunglasses to the person in it.",
+    "should_trigger": true
+  },
+  {
+    "query": "Write a short explanation of how diffusion image models work; do not create an image.",
+    "should_trigger": false
+  },
+  {
+    "query": "Summarize the contents of this screenshot in text only.",
+    "should_trigger": false
+  },
+  {
+    "query": "Create a Python script that resizes PNG files in a folder; no image generation or editing is needed.",
+    "should_trigger": false
+  }
+]

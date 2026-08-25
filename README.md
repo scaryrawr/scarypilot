@@ -22,11 +22,13 @@ copilot plugin install chrome-devtools@scarypilot
 
 | Plugin              | Category           | Description                                                                                                                                                            | Docs                                                   |
 | ------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| **azure-devops**    | DevOps             | Create, inspect, review, and manage Azure DevOps pull requests and Azure Boards work items through bundled cross-platform helpers.                                      | [📖 Docs](./plugins/azure-devops/README.md)             |
 | **chrome-devtools** | Browser Automation | Chrome DevTools Protocol integration for automation, debugging, accessibility testing (WCAG), and performance analysis (Core Web Vitals). Includes specialized agents. | [📖 Docs](./external_plugins/chrome-devtools/README.md) |
 | **copilot-autoresearch** | Workflow       | Measurable, resumable experiment loops with Copilot CLI tools, commands, skills, Git integration, and live reporting.                                                  | [📖 Docs](./plugins/copilot-autoresearch/README.md)     |
 | **copilot-local-llm** | AI Models        | Discovers supported local LLM servers and registers their models in Copilot sessions.                                                                                   | [📖 Docs](./plugins/copilot-local-llm/README.md)        |
 | **digivolution**    | Workflow           | Skill-only post-task reflection for keeping repo instructions and stale in-repo skills accurate.                                                                       | [📖 Docs](./plugins/digivolution/README.md)             |
 | **microsoft-docs**  | Documentation      | Search and retrieve Microsoft Learn documentation, tutorials, and API references directly from Copilot.                                                                | [📖 Docs](./external_plugins/microsoft-docs/README.md)  |
+| **omlx-media**      | Media              | Generate and edit images or turn recordings into transcripts, screenshots, and grounded written content with local OMLX models.                                       | [📖 Docs](./plugins/omlx-media/README.md)               |
 | **playwright-ext**  | Browser Automation | Browser automation using Playwright with extension bridge. Testing, web scraping, form automation with logged-in sessions.                                             | [📖 Docs](./external_plugins/playwright-ext/README.md)  |
 | **pstack**          | Workflow           | Copilot adaptation of pstack's rigorous planning, review, delegation, and verification workflows.                                                                       | [📖 Docs](./external_plugins/pstack/README.md)          |
 | **smahties**        | Code Search        | Local semantic code-search MCP server from smahtutils with indexing, embeddings, and keyword/hybrid query support. Requires the `smahties` CLI first.                  | [📖 Docs](./plugins/smahties/README.md)                 |
@@ -41,6 +43,7 @@ copilot plugin install <plugin-name>@scarypilot
 
 This marketplace supports multiple plugin patterns:
 
+- **Skill-Based Plugins**: Install reusable workflows and their bundled helpers
 - **MCP-Based Plugins**: Integrate external Model Context Protocol servers
 - **Extension-Based Plugins**: Run Copilot CLI extensions that add tools,
   commands, hooks, providers, and other session behavior

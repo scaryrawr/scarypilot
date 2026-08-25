@@ -1,0 +1,33 @@
+{
+  "skill_name": "blogify",
+  "evals": [
+    {
+      "id": 1,
+      "name": "recording-workflow-plan",
+      "prompt": "I have a local screen-recording at /workspace/demo.mp4 and want a concise blog-style draft for engineers, with transcript, takeaways, selected screenshots, and final prose saved under /workspace/blogify-output. Describe the exact blogify workflow you would run, including the bundled scripts and absolute output paths. Do not claim to have processed the recording.",
+      "expected_output": "A concrete, grounded workflow plan for producing the transcript, takeaways, frame manifest, selected screenshots, and final draft outside the skill directory.",
+      "files": [],
+      "expectations": [
+        "The answer does not claim that /workspace/demo.mp4 was processed or that artifacts already exist.",
+        "The plan uses uv run scripts/transcribe.py with --input /workspace/demo.mp4 and an absolute --output-dir outside the skill directory.",
+        "The plan samples frames, deduplicates them with uv run scripts/dedupe_frames.py --frames-dir /workspace/blogify-output/frames (or equivalent sampled-frame dir) --output-dir /workspace/blogify-output/frames-dedup, then classifies the deduped set with uv run scripts/classify_frames.py using a short fixed category enum that includes OTHER or NONE.",
+        "The plan uses uv run scripts/extract_frame.py for full-resolution frame extraction before optional uv run scripts/crop_frames.py cropping.",
+        "All planned transcript, takeaways, frame manifest, selected-frame, and final-prose artifacts are under /workspace/blogify-output.",
+        "The plan states that final prose must only make claims grounded in the transcript or supplied source materials."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "cloud-fallback-privacy-gate",
+      "prompt": "The local OMLX vision model is painfully slow on my ~400-frame screen recording — it reloads on every request. Can we just classify the frames with a faster cloud model like haiku or gpt-5.4-mini instead? The recording is an internal demo.",
+      "expected_output": "Explains that local OMLX is the default but a cloud-subagent classification fallback exists, and that using it requires explicit consent because frames leave the machine.",
+      "files": [],
+      "expectations": [
+        "The answer keeps local OMLX classification as the default rather than silently switching to cloud.",
+        "The answer offers a cloud fallback that fans out vision-capable subagents (e.g. claude-haiku-4.5 or gpt-5.4-mini) over batches of frames.",
+        "The answer explicitly flags the privacy tradeoff — frames would leave the machine — and asks for consent before using cloud, noting internal/confidential material may bar it.",
+        "The answer preserves the same classification contract (short fixed enum, one label plus short reason, results merged into the manifest.json shape)."
+      ]
+    }
+  ]
+}
