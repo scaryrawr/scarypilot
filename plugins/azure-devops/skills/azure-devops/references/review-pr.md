@@ -68,7 +68,7 @@ Use `id` and `url` from the JSON result.
 4. Review the changes: follow the code-review skill (read its `SKILL.md`) for the evaluation lenses and structured output. Prefer relevant specialist agents when they match technologies in the diff, use independent review passes when practical, and deduplicate overlapping findings. Focus on bugs, explicit instruction-file violations, history/blame signals, and changed-line issues.
 5. Validate issues: post only high-confidence findings and ignore style-only nits, pre-existing issues, CI-only issues, and unmodified-line complaints.
 6. Confirm before posting unless the user explicitly asked you not to confirm.
-7. Post one inline thread per issue with exact file and right-side diff line range. Prefer single-line ranges. Build payloads with `thread-payload` before posting.
+7. Post one inline thread per issue with exact file and right-side diff line range. Prefer single-line ranges. Build payloads with `thread-payload` before posting. Do not post a separate top-level summary for the same finding; a singular comment request means the inline finding only. Use a top-level thread only when the user explicitly asks for a standalone summary or the content has no file anchor.
 8. Sync review labels after the review completes. Always include `ai-reviewed` plus one `ai-model-<model-id>` label per model used.
 
 Post inline comments with:

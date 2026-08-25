@@ -40,13 +40,13 @@ uv run ./scripts/ado-pr.py thread-payload --content "Your comment" --file-path s
 az devops invoke --area git --resource pullRequestThreads --route-parameters project={project} repositoryId={repo} pullRequestId={prId} --http-method POST --api-version 7.1-preview --detect true --in-file {outFile}
 ```
 
-For top-level comments, omit the file and line flags. Pass repo-relative Azure paths with `/` separators to `--file-path`; the helper also normalizes Windows `\` separators. If you pass `--out-file auto`, the helper writes to the OS temp directory and returns `{ outFile, payload }`; otherwise it returns the payload directly.
+Pass repo-relative Azure paths with `/` separators to `--file-path`; the helper also normalizes Windows `\` separators. If you pass `--out-file auto`, the helper writes to the OS temp directory and returns `{ outFile, payload }`; otherwise it returns the payload directly. Use a top-level thread only when the user explicitly requests a standalone summary or when the comment cannot be anchored to a file.
 
 ## Workflow
 
 1. Resolve PR context with `context`.
 2. Retrieve threads with `list-threads` when you need prior discussion state.
-3. Build comment payloads with `thread-payload` before posting inline or top-level comments.
+3. Build comment payloads with `thread-payload` before posting inline comments. Do not add a separate top-level summary when it repeats an inline finding.
 
 ## Common PR commands
 
