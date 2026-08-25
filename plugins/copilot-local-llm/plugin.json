@@ -1,6 +1,6 @@
 {
   "name": "copilot-local-llm",
-  "description": "Discover and register models from supported local LLM providers in local Copilot CLI sessions.",
+  "description": "Discover and register models from supported local LLM providers in Copilot sessions.",
   "version": "0.1.0",
   "author": {
     "name": "Mike Wallio",

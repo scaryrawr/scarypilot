@@ -1,7 +1,7 @@
 # Copilot Local LLM
 
 `copilot-local-llm` exposes models from local OpenAI-compatible servers in the
-Copilot CLI model picker. It adds providers only when their model-discovery
+Copilot model picker. It adds providers only when their model-discovery
 endpoint is available, so Copilot-hosted models continue to work normally.
 Discovery requests time out after three seconds to avoid delaying session joins.
 Discovered models are registered in the active session, making them available
@@ -13,8 +13,6 @@ through `/model` as `provider/model-id` (for example,
 - A current [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli)
   release with plugin extension support.
 - At least one supported local model server. Unavailable servers are ignored.
-
-The extension runs only in local sessions. Remote sessions are left unchanged.
 
 ## Install
 
