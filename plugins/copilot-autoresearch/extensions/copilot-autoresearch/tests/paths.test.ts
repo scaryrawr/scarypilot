@@ -177,7 +177,7 @@ describe("session layout", () => {
     try {
       const legacy = path.join(dir, "autoresearch.jsonl");
       writeFileSync(legacy, "");
-      const runtimePath = autoresearchRuntimePath(dir);
+      const runtimePath = autoresearchRuntimePath(dir, "session-a");
       ensureParentDir(runtimePath);
       writeFileSync(runtimePath, "{}");
       expect(autoresearchJsonlPath(dir)).toBe(legacy);

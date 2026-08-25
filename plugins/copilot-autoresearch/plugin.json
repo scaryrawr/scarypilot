@@ -1,7 +1,7 @@
 {
   "name": "copilot-autoresearch",
   "description": "Run measurable, resumable experiment loops with Copilot CLI tools, commands, and skills.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "Mike Wallio",
     "url": "https://github.com/scaryrawr"

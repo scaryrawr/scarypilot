@@ -13,7 +13,8 @@ and standalone setup script were not copied. The finalization skill now keeps
 its generated groups file in the repository's `.auto/` directory instead of a
 hard-coded `/tmp` path.
 
-No separate license file was present at the imported revision. This record
-documents provenance and does not grant or imply a license. The upstream README
-credits `davebcn87/pi-autoresearch` for the original concept, workflow design,
-and file format.
+No separate license file was present in the intermediate Copilot port at the
+imported revision. Files subsequently synchronized or adapted directly from
+`davebcn87/pi-autoresearch` remain under its MIT license, reproduced in
+`LICENSE.pi-autoresearch`. The upstream project is credited for the original
+concept, workflow design, file format, skills, and hook examples.

@@ -28,6 +28,13 @@ copilot plugin install copilot-autoresearch@scarypilot
 Restart Copilot or run `/clear` after installing or updating the plugin.
 Approve the extension access prompt the first time it loads.
 
+### Migrating from the standalone extension
+
+Remove any legacy user extension at
+`~/.copilot/extensions/copilot-autoresearch` before enabling this plugin, then
+restart Copilot or run `/clear`. Loading both copies registers the same three
+tool names; the second copy will be rejected by Copilot CLI.
+
 ## What it adds
 
 **Tools**
@@ -93,7 +100,7 @@ artifact is introduced, the current layout consistently takes precedence.
 | `.auto/hooks/before.sh` | Optional executable hook fired before each iteration. |
 | `.auto/hooks/after.sh` | Optional executable hook fired after each iteration. |
 | `.auto/config.json` | Optional `workingDir` and `maxIterations` configuration. |
-| `.auto/runtime.json` | Internal sidecar preserving the run/checks boundary and explicit mode state. |
+| `.auto/runtime/<session-id>.json` | Internal per-session sidecar preserving the run/checks boundary and explicit mode state without leaking activation across sessions. |
 
 ## Confidence scoring
 
@@ -140,6 +147,7 @@ cd extensions/copilot-autoresearch
 npm install
 npm run typecheck
 npm run test
+bash ../../skills/autoresearch-finalize/tests/finalize-smoke.sh
 ```
 
 Copilot CLI injects its bundled `@github/copilot-sdk` when it loads the
@@ -152,6 +160,7 @@ is required.
 
 - [Copilot CLI plugin reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference)
 - [Source migration record](./NOTICE.md)
+- [pi-autoresearch MIT license](./LICENSE.pi-autoresearch)
 
 This plugin was migrated from
 [`scaryrawr/copilot-autoresearch`](https://github.com/scaryrawr/copilot-autoresearch)

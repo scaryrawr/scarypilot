@@ -57,7 +57,7 @@ export function createInitTool(ctx: InitContext): Tool<InitArgs> {
       required: ["name", "metric_name"],
       additionalProperties: false,
     },
-    handler: async (args) => {
+    handler: async (args, invocation) => {
       if (!ctx.runtime.autoresearchMode) {
         return "❌ Autoresearch mode is off. Start it with `/autoresearch <goal>`.";
       }
@@ -93,7 +93,7 @@ export function createInitTool(ctx: InitContext): Tool<InitArgs> {
 
       ctx.runtime.lastRunChecks = null;
       ctx.runtime.lastRunDurationSeconds = null;
-      savePersistedRuntime(workDir, ctx.runtime);
+      savePersistedRuntime(workDir, invocation.sessionId, ctx.runtime);
 
       const maxIterations = readMaxIterations(cwd);
       const limitNote = maxIterations !== null ? `\nMax iterations: ${maxIterations}` : "";
