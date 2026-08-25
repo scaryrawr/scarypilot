@@ -1,0 +1,23 @@
+{
+  "name": "pstack",
+  "description": "Copilot-compatible adaptation of pstack's rigorous planning, review, delegation, and verification workflows.",
+  "version": "0.14.2-copilot.1",
+  "author": {
+    "name": "Lauren Tan"
+  },
+  "homepage": "https://github.com/cursor/plugins/tree/main/pstack",
+  "repository": "https://github.com/scaryrawr/scarypilot",
+  "license": "MIT",
+  "keywords": [
+    "pstack",
+    "poteto-mode",
+    "workflow",
+    "review",
+    "planning",
+    "copilot"
+  ],
+  "skills": [
+    "skills/"
+  ],
+  "agents": "agents/"
+}

@@ -26,6 +26,7 @@ copilot plugin install chrome-devtools@scarypilot
 | **digivolution**    | Workflow           | Agent self-improvement hooks and skills that encourage durable updates to repo instructions and stale in-repo skills.                                                  | [📖 Docs](./plugins/digivolution/README.md)             |
 | **microsoft-docs**  | Documentation      | Search and retrieve Microsoft Learn documentation, tutorials, and API references directly from Copilot.                                                                | [📖 Docs](./external_plugins/microsoft-docs/README.md)  |
 | **playwright-ext**  | Browser Automation | Browser automation using Playwright with extension bridge. Testing, web scraping, form automation with logged-in sessions.                                             | [📖 Docs](./external_plugins/playwright-ext/README.md)  |
+| **pstack**          | Workflow           | Copilot adaptation of pstack's rigorous planning, review, delegation, and verification workflows.                                                                       | [📖 Docs](./external_plugins/pstack/README.md)          |
 | **smahties**        | Code Search        | Local semantic code-search MCP server from smahtutils with indexing, embeddings, and keyword/hybrid query support. Requires the `smahties` CLI first.                  | [📖 Docs](./plugins/smahties/README.md)                 |
 
 **Install any plugin:**
