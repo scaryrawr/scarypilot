@@ -1,0 +1,19 @@
+{
+  "name": "copilot-autoresearch",
+  "version": "0.1.0",
+  "private": true,
+  "description": "copilot version of https://github.com/davebcn87/pi-autoresearch",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsgo -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@github/copilot-sdk": "0.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2",
+    "@typescript/native-preview": "^7.0.0-dev.20260418.1",
+    "vitest": "^4.1.4"
+  }
+}

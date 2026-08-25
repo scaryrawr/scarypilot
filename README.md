@@ -23,6 +23,8 @@ copilot plugin install chrome-devtools@scarypilot
 | Plugin              | Category           | Description                                                                                                                                                            | Docs                                                   |
 | ------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | **chrome-devtools** | Browser Automation | Chrome DevTools Protocol integration for automation, debugging, accessibility testing (WCAG), and performance analysis (Core Web Vitals). Includes specialized agents. | [📖 Docs](./external_plugins/chrome-devtools/README.md) |
+| **copilot-autoresearch** | Workflow       | Measurable, resumable experiment loops with Copilot CLI tools, commands, skills, Git integration, and live reporting.                                                  | [📖 Docs](./plugins/copilot-autoresearch/README.md)     |
+| **copilot-local-llm** | AI Models        | Discovers supported local LLM servers and registers their models in local Copilot CLI sessions.                                                                         | [📖 Docs](./plugins/copilot-local-llm/README.md)        |
 | **digivolution**    | Workflow           | Agent self-improvement hooks and skills that encourage durable updates to repo instructions and stale in-repo skills.                                                  | [📖 Docs](./plugins/digivolution/README.md)             |
 | **microsoft-docs**  | Documentation      | Search and retrieve Microsoft Learn documentation, tutorials, and API references directly from Copilot.                                                                | [📖 Docs](./external_plugins/microsoft-docs/README.md)  |
 | **playwright-ext**  | Browser Automation | Browser automation using Playwright with extension bridge. Testing, web scraping, form automation with logged-in sessions.                                             | [📖 Docs](./external_plugins/playwright-ext/README.md)  |
@@ -32,7 +34,7 @@ copilot plugin install chrome-devtools@scarypilot
 **Install any plugin:**
 
 ```sh
-copilot plugin install <plugin-name>
+copilot plugin install <plugin-name>@scarypilot
 ```
 
 ## Plugin Architecture
@@ -40,6 +42,8 @@ copilot plugin install <plugin-name>
 This marketplace supports multiple plugin patterns:
 
 - **MCP-Based Plugins**: Integrate external Model Context Protocol servers
+- **Extension-Based Plugins**: Run Copilot CLI extensions that add tools,
+  commands, hooks, providers, and other session behavior
 - **Agent-Based Plugins**: Define specialized agent behaviors for complex tasks
 - **LSP-Based Plugins**: Enable language server integration for code intelligence
 
