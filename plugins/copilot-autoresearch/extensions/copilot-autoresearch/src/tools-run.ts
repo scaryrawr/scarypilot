@@ -64,7 +64,7 @@ export function createRunTool(ctx: RunContext): Tool<RunArgs> {
       required: ["command"],
       additionalProperties: false,
     },
-    handler: async (args) => {
+    handler: async (args, invocation) => {
       if (!ctx.runtime.autoresearchMode) {
         return "❌ Autoresearch mode is off. Start it with `/autoresearch <goal>`.";
       }
@@ -79,7 +79,7 @@ export function createRunTool(ctx: RunContext): Tool<RunArgs> {
       ).length;
       if (maxIterations !== null && segmentRuns >= maxIterations) {
         ctx.runtime.autoresearchMode = false;
-        savePersistedRuntime(workDir, ctx.runtime);
+        savePersistedRuntime(workDir, invocation.sessionId, ctx.runtime);
         return `🛑 Maximum experiments reached (${maxIterations}). Start a new segment with init_experiment before running again.`;
       }
 
@@ -154,7 +154,7 @@ export function createRunTool(ctx: RunContext): Tool<RunArgs> {
           ? null
           : { pass: checksPass, output: checksOutput, durationSeconds: checksDurationSeconds };
       ctx.runtime.lastRunDurationSeconds = durationSeconds;
-      savePersistedRuntime(workDir, ctx.runtime);
+      savePersistedRuntime(workDir, invocation.sessionId, ctx.runtime);
 
       // Parse METRIC lines
       const parsed = parseMetricLines(result.stdout);

@@ -29,6 +29,8 @@ import {
 } from "./confidence.ts";
 import type { CwdRef } from "./extension-context.ts";
 
+type AutoresearchSession = Pick<CopilotSession, "abort" | "log" | "send">;
+
 export interface CommandContextDeps {
   cwdRef: CwdRef;
   runtime: RuntimeState;
@@ -38,7 +40,7 @@ export interface CommandContextDeps {
    * cannot capture the session value eagerly. Handlers always resolve it at
    * invocation time, after the session is ready.
    */
-  getSession: () => CopilotSession;
+  getSession: () => AutoresearchSession;
   resetAutoResume: () => void;
 }
 
@@ -83,7 +85,8 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
         deps.runtime.lastRunDurationSeconds = null;
         deps.resetAutoResume();
         await stopLiveDashboard();
-        savePersistedRuntime(workDir, deps.runtime);
+        savePersistedRuntime(workDir, cmdCtx.sessionId, deps.runtime);
+        await abortActiveTurn(session);
         await session.log("Autoresearch mode OFF (state files preserved).");
         return;
       }
@@ -110,7 +113,8 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
         deps.runtime.lastRunDurationSeconds = null;
         deps.resetAutoResume();
         await stopLiveDashboard();
-        clearPersistedRuntime(workDir);
+        clearPersistedRuntime(workDir, cmdCtx.sessionId);
+        await abortActiveTurn(session);
         const jsonlPaths = sessionFileCandidates(workDir, "log");
         const existing = [...new Set(Object.values(jsonlPaths))].filter((p) => fs.existsSync(p));
         if (existing.length > 0) {
@@ -141,7 +145,7 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
 
       deps.runtime.autoresearchMode = true;
       deps.resetAutoResume();
-      savePersistedRuntime(workDir, deps.runtime);
+      savePersistedRuntime(workDir, cmdCtx.sessionId, deps.runtime);
 
       const jsonlPath = autoresearchJsonlPath(workDir);
       const hasState = fs.existsSync(autoresearchMdPath(workDir));
@@ -194,6 +198,19 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
       await session.send({ prompt: prefix + kickoff });
     },
   };
+}
+
+async function abortActiveTurn(session: AutoresearchSession): Promise<void> {
+  try {
+    await session.abort();
+  } catch (e) {
+    await session.log(
+      `Autoresearch mode changed, but the active turn could not be aborted: ${
+        e instanceof Error ? e.message : String(e)
+      }`,
+      { level: "warning" },
+    );
+  }
 }
 
 function lastRun(jsonlPath: string): Record<string, unknown> | null {

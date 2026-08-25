@@ -78,7 +78,8 @@ export const autoresearchIdeasPath = (dir: string) => sessionFilePath(dir, "idea
 export const autoresearchChecksPath = (dir: string) => sessionFilePath(dir, "checks");
 export const autoresearchScriptPath = (dir: string) => sessionFilePath(dir, "measure");
 export const autoresearchConfigPath = (dir: string) => sessionFilePath(dir, "config");
-export const autoresearchRuntimePath = (dir: string) => sessionFilePath(dir, "runtime");
+export const autoresearchRuntimePath = (dir: string, sessionId: string) =>
+  path.join(dir, AUTO_DIR, "runtime", `${encodeURIComponent(sessionId)}.json`);
 export const autoresearchHtmlPath = (dir: string) => sessionFilePath(dir, "dashboard");
 
 export function autoresearchHookPath(dir: string, stage: HookStage): string {

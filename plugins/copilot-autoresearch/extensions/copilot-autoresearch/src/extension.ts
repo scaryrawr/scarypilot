@@ -5,7 +5,6 @@ import {
   defaultRuntimeState,
   loadPersistedRuntime,
   restoredMode,
-  savePersistedRuntime,
 } from "./state.ts";
 import {
   autoresearchJsonlPath,
@@ -36,11 +35,11 @@ let lastLoggedRun = 0;
 let sessionRef: import("@github/copilot-sdk").CopilotSession | null = null;
 let autoResumeRef: ReturnType<typeof createAutoResumeScheduler> | null = null;
 
-function refreshFromDisk(): void {
+function refreshFromDisk(sessionId: string): void {
   const cwd = cwdRef.get();
   const workDir = resolveWorkDir(cwd);
   const jsonlPath = autoresearchJsonlPath(workDir);
-  const persisted = loadPersistedRuntime(workDir);
+  const persisted = loadPersistedRuntime(workDir, sessionId);
   if (!fs.existsSync(jsonlPath)) {
     runtime.autoresearchMode = restoredMode(
       persisted?.autoresearchMode,
@@ -88,9 +87,9 @@ const autoresearchCommand = createAutoresearchCommand({
 
 const session = await joinSession({
   hooks: {
-    onSessionStart: async (input) => {
-      cwdRef.set(input.cwd);
-      refreshFromDisk();
+    onSessionStart: async (input, invocation) => {
+      cwdRef.set(input.workingDirectory);
+      refreshFromDisk(invocation.sessionId);
       await session.log(
         `copilot-autoresearch loaded${runtime.autoresearchMode ? " — autoresearch mode ACTIVE" : ""}`,
         { ephemeral: true },
@@ -104,9 +103,9 @@ const session = await joinSession({
       }
       return undefined;
     },
-    onUserPromptSubmitted: async (input) => {
-      cwdRef.set(input.cwd);
-      refreshFromDisk();
+    onUserPromptSubmitted: async (input, invocation) => {
+      cwdRef.set(input.workingDirectory);
+      refreshFromDisk(invocation.sessionId);
       if (!runtime.autoresearchMode) return;
       const workDir = resolveWorkDir(cwdRef.get());
       return {
@@ -114,10 +113,10 @@ const session = await joinSession({
       };
     },
     onPreToolUse: async (input) => {
-      cwdRef.set(input.cwd);
+      cwdRef.set(input.workingDirectory);
     },
     onPostToolUse: async (input) => {
-      cwdRef.set(input.cwd);
+      cwdRef.set(input.workingDirectory);
     },
     onSessionEnd: async () => {
       autoResumeRef?.cancel();
@@ -139,7 +138,6 @@ const session = await joinSession({
       log: (m, level) => void session.log(m, level ? { level } : undefined),
       onLogged: (n) => {
         lastLoggedRun = Math.max(lastLoggedRun, n);
-        savePersistedRuntime(resolveWorkDir(cwdRef.get()), runtime);
       },
     }),
   ],

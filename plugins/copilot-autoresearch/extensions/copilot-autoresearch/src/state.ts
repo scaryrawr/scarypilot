@@ -9,6 +9,7 @@ import {
   autoresearchIdeasPath,
   autoresearchHookPath,
   ensureParentDir,
+  sessionFileCandidates,
 } from "./paths.ts";
 
 /** State shared between init/run/log within a session, persisted as a sidecar. */
@@ -59,9 +60,12 @@ interface PersistedRuntime {
  * `run_experiment` and `log_experiment` calls. Auto-resume counters stay in
  * memory because they are session-scoped, not iteration-scoped.
  */
-export function loadPersistedRuntime(workDir: string): PersistedRuntime | null {
+export function loadPersistedRuntime(
+  workDir: string,
+  sessionId: string,
+): PersistedRuntime | null {
   try {
-    const p = autoresearchRuntimePath(workDir);
+    const p = autoresearchRuntimePath(workDir, sessionId);
     if (!fs.existsSync(p)) return null;
     const parsed = JSON.parse(fs.readFileSync(p, "utf-8"));
     if (typeof parsed !== "object" || parsed === null) return null;
@@ -71,26 +75,36 @@ export function loadPersistedRuntime(workDir: string): PersistedRuntime | null {
   }
 }
 
-export function savePersistedRuntime(workDir: string, runtime: RuntimeState): void {
+export function savePersistedRuntime(
+  workDir: string,
+  sessionId: string,
+  runtime: RuntimeState,
+): void {
   try {
-    ensureParentDir(autoresearchRuntimePath(workDir));
+    const runtimePath = autoresearchRuntimePath(workDir, sessionId);
+    ensureParentDir(runtimePath);
     const data: PersistedRuntime = {
       autoresearchMode: runtime.autoresearchMode,
       lastRunChecks: runtime.lastRunChecks,
       lastRunDurationSeconds: runtime.lastRunDurationSeconds,
     };
-    fs.writeFileSync(autoresearchRuntimePath(workDir), JSON.stringify(data));
+    fs.writeFileSync(runtimePath, JSON.stringify(data));
   } catch {
     // best-effort; never throw from persistence
   }
 }
 
-export function clearPersistedRuntime(workDir: string): void {
-  try {
-    const p = autoresearchRuntimePath(workDir);
-    if (fs.existsSync(p)) fs.unlinkSync(p);
-  } catch {
-    // ignore
+export function clearPersistedRuntime(workDir: string, sessionId: string): void {
+  const legacyPaths = Object.values(sessionFileCandidates(workDir, "runtime"));
+  for (const runtimePath of [
+    autoresearchRuntimePath(workDir, sessionId),
+    ...legacyPaths,
+  ]) {
+    try {
+      if (fs.existsSync(runtimePath)) fs.unlinkSync(runtimePath);
+    } catch {
+      // best-effort; stale runtime state must not block the active session
+    }
   }
 }
 
@@ -115,9 +129,9 @@ export function fileExists(p: string): boolean {
   }
 }
 
-export function workDirArtifacts(workDir: string) {
+export function workDirArtifacts(workDir: string, sessionId: string) {
   return {
-    runtimePath: autoresearchRuntimePath(workDir),
+    runtimePath: autoresearchRuntimePath(workDir, sessionId),
     checksPath: autoresearchChecksPath(workDir),
     scriptPath: autoresearchScriptPath(workDir),
     mdPath: autoresearchMdPath(workDir),

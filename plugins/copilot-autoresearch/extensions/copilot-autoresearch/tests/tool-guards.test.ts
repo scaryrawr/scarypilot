@@ -30,6 +30,9 @@ describe("tool mode guards", () => {
       const init = createInitTool({ cwdRef, runtime, log: () => {} });
       const run = createRunTool({ cwdRef, runtime, log: () => {} });
       const log = createLogTool({ cwdRef, runtime, log: () => {}, onLogged: () => {} });
+      if (!init.handler || !run.handler || !log.handler) {
+        throw new Error("autoresearch tools must define handlers");
+      }
 
       const results = await Promise.all([
         init.handler({ name: "test", metric_name: "time" }, invocation),
@@ -88,6 +91,7 @@ describe("tool mode guards", () => {
         runtime,
         log: () => {},
       });
+      if (!tool.handler) throw new Error("run_experiment must define a handler");
 
       const result = await tool.handler({ command: "exit 99" }, invocation);
 

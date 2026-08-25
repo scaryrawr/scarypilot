@@ -49,6 +49,7 @@ git merge-base --is-ancestor "$BASE" "$FINAL_TREE" ||
 
 declare -a BRANCHES=()
 declare -a RANGES=()
+VERIFY_DIR=""
 TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/autoresearch-finalize.XXXXXX")"
 OWNERS_FILE="$TEMP_DIR/owners"
 : > "$OWNERS_FILE"
@@ -120,9 +121,18 @@ restore_original() {
   fi
 }
 
+cleanup_verify_worktree() {
+  [[ -n "$VERIFY_DIR" ]] || return 0
+  git worktree remove --force "$VERIFY_DIR" >/dev/null 2>&1 ||
+    rmdir "$VERIFY_DIR" >/dev/null 2>&1 ||
+    true
+  VERIFY_DIR=""
+}
+
 rollback() {
   local status=$?
   trap - ERR INT TERM
+  cleanup_verify_worktree
   restore_original || true
   for branch in "${BRANCHES[@]}"; do
     git branch -D "$branch" >/dev/null 2>&1 || true
@@ -166,7 +176,7 @@ while IFS= read -r file; do
   fi
 done < <(git -C "$VERIFY_DIR" diff --name-only "$FINAL_TREE")
 if [[ "$DIFFERS" -eq 1 ]]; then
-  git worktree remove --force "$VERIFY_DIR" >/dev/null
+  cleanup_verify_worktree
   if ! restore_original; then
     trap - ERR INT TERM
     exit 1
@@ -178,7 +188,7 @@ if [[ "$DIFFERS" -eq 1 ]]; then
   exit 1
 fi
 
-git worktree remove --force "$VERIFY_DIR" >/dev/null
+cleanup_verify_worktree
 restore_original
 trap - ERR INT TERM
 

@@ -5,6 +5,9 @@ description: Create before/after hooks for an autoresearch session. Use for rese
 
 # Author autoresearch hooks
 
+Read [references/contract.md](references/contract.md), then create the smallest
+hook that satisfies the request. Start from a bundled example when one matches.
+
 Hooks are optional executable scripts:
 
 ```text
@@ -12,16 +15,23 @@ Hooks are optional executable scripts:
 .auto/hooks/after.sh
 ```
 
-They receive one JSON object on stdin and have a 30-second timeout. Stdout up
-to 8 KB becomes guidance for the next iteration. Empty stdout is silent.
-Non-zero exit, stderr, and timeout details are surfaced to the agent.
+1. Read `.auto/prompt.md` and `.auto/measure.sh`.
+2. Choose the correct boundary: prospective work belongs in `before.sh`;
+   retrospective side effects belong in `after.sh`.
+3. Browse `examples/before/` or `examples/after/` relative to this skill.
+4. Copy and adapt one example, or write a focused script with the same shape.
+5. Mark it executable.
+6. Pipe a representative JSON payload into it and verify stdout, stderr, and
+   exit status before relying on it.
 
-`before.sh` receives `event`, `cwd`, `next_run`, `last_run`, and `session`.
-`after.sh` receives `event`, `cwd`, `run_entry`, and `session`. The session
-contains `metric_name`, `metric_unit`, `direction`, `baseline_metric`,
-`best_metric`, `run_count`, and `goal`.
+Rules:
 
-Keep each hook focused. Parse stdin with `jq`, use guard clauses, avoid hidden
-environment-variable contracts, and print only actionable guidance. Mark the
-script executable and test it with a representative JSON payload before use.
-Everything under `.auto/` survives experiment reverts.
+- Parse the single stdin object with `jq`.
+- Read fields the loop already records; do not invent hidden environment
+  variables or require the agent to populate hook-only fields.
+- Use guard clauses and remain silent unless guidance is actionable.
+- Keep one concern per script.
+- Treat external commands and network calls as explicit user-approved
+  dependencies.
+- Keep runtime under 30 seconds and stdout under 8 KB.
+- Store persistent output under `.auto/` so discard preserves it.

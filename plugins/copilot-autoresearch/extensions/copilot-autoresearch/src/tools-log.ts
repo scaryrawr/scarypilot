@@ -105,7 +105,7 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
       required: ["commit", "metric", "status", "description"],
       additionalProperties: false,
     },
-    handler: async (args) => {
+    handler: async (args, invocation) => {
       if (!ctx.runtime.autoresearchMode) {
         return "❌ Autoresearch mode is off. Start it with `/autoresearch <goal>`.";
       }
@@ -311,8 +311,8 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
       // Reset per-run gates
       ctx.runtime.lastRunChecks = null;
       ctx.runtime.lastRunDurationSeconds = null;
-      clearPersistedRuntime(workDir);
-      savePersistedRuntime(workDir, ctx.runtime);
+      clearPersistedRuntime(workDir, invocation.sessionId);
+      savePersistedRuntime(workDir, invocation.sessionId, ctx.runtime);
 
       ctx.onLogged(runNumber);
 
@@ -336,7 +336,7 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
         const beforeSteer = steerMessageFor("before", beforeHook);
         if (beforeSteer) lines.push("", "[before-hook → next run]", beforeSteer);
       }
-      savePersistedRuntime(workDir, ctx.runtime);
+      savePersistedRuntime(workDir, invocation.sessionId, ctx.runtime);
 
       ctx.log(`Logged ${args.status} #${runNumber}: ${args.description}`);
 
