@@ -1,0 +1,106 @@
+[
+  {
+    "query": "Create an Azure DevOps pull request from my current branch changes.",
+    "should_trigger": true
+  },
+  {
+    "query": "Open a PR in draft mode in our Azure DevOps repo for the work I just committed, using the repo's PR template.",
+    "should_trigger": true
+  },
+  {
+    "query": "Run preflight on this repo and raise an Azure DevOps pull request when it's clean.",
+    "should_trigger": true
+  },
+  {
+    "query": "Show me the status and active threads on Azure DevOps pull request 4821.",
+    "should_trigger": true
+  },
+  {
+    "query": "Check out Azure DevOps pull request 4821 locally and list its active comment threads.",
+    "should_trigger": true
+  },
+  {
+    "query": "Here's an Azure DevOps PR link, set my vote to approve: https://dev.azure.com/contoso/Platform/_git/api/pullrequest/4821",
+    "should_trigger": true
+  },
+  {
+    "query": "List the reviewers and policy status for this Azure DevOps pull request.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review Azure DevOps pull request 4821 and post inline comments for any real issues.",
+    "should_trigger": true
+  },
+  {
+    "query": "Do a code review of this Azure DevOps PR and sync the ai-reviewed labels when you're done.",
+    "should_trigger": true
+  },
+  {
+    "query": "Check whether Azure DevOps PR 4821 is eligible for review, then review the diff.",
+    "should_trigger": true
+  },
+  {
+    "query": "Find the active work items assigned to me in Azure Boards.",
+    "should_trigger": true
+  },
+  {
+    "query": "Show Azure DevOps work item 1337 with its title, state, and assignee.",
+    "should_trigger": true
+  },
+  {
+    "query": "Build a WIQL query for the bugs assigned to me that aren't closed in Azure Boards.",
+    "should_trigger": true
+  },
+  {
+    "query": "Here's an Azure DevOps work item URL, update its state: https://dev.azure.com/contoso/Platform/_workitems/edit/1337",
+    "should_trigger": true
+  },
+  {
+    "query": "Add a parent relation between two Azure DevOps Boards work items.",
+    "should_trigger": true
+  },
+  {
+    "query": "Here's an Azure DevOps link, figure out what it points to: https://dev.azure.com/contoso/Platform/_git/api/pullrequest/4821",
+    "should_trigger": true
+  },
+  {
+    "query": "What kind of Azure DevOps resource is https://dev.azure.com/contoso/Platform/_workitems/edit/1337 and which workflow should handle it?",
+    "should_trigger": true
+  },
+  {
+    "query": "Parse this dev.azure.com URL and route me to the right Azure DevOps flow.",
+    "should_trigger": true
+  },
+  {
+    "query": "I need to upload a PNG as an attachment on an Azure DevOps pull request using the shared helper.",
+    "should_trigger": true
+  },
+  {
+    "query": "Open this GitHub pull request and summarize it: https://github.com/octocat/hello/pull/12",
+    "should_trigger": false
+  },
+  {
+    "query": "Create a GitHub pull request from my branch with gh.",
+    "should_trigger": false
+  },
+  {
+    "query": "Comment on this GitHub pull request: https://github.com/octocat/hello/pull/12",
+    "should_trigger": false
+  },
+  {
+    "query": "Create a GitHub issue titled 'Flaky test in CI'.",
+    "should_trigger": false
+  },
+  {
+    "query": "Parse this Jira issue URL and tell me the project key.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain how URL parsing works in JavaScript with the URL constructor.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain what WIQL is in general terms.",
+    "should_trigger": false
+  }
+]

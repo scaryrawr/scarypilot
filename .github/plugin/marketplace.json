@@ -5,6 +5,14 @@
   },
   "plugins": [
     {
+      "name": "azure-devops",
+      "description": "Create, inspect, review, and manage Azure DevOps pull requests and Azure Boards work items.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/azure-devops"
+    },
+    {
       "name": "digivolution",
       "description": "Skill-only post-task reflection for keeping repo instructions and in-repo skills accurate.",
       "author": {
@@ -27,6 +35,14 @@
         "name": "Mike Wallio"
       },
       "source": "./plugins/copilot-local-llm"
+    },
+    {
+      "name": "omlx-media",
+      "description": "Generate and edit images or turn recordings into grounded written content with local OMLX media models.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/omlx-media"
     },
     {
       "name": "chrome-devtools",

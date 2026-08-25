@@ -1,0 +1,20 @@
+{
+  "name": "azure-devops",
+  "description": "Create, inspect, review, and manage Azure DevOps pull requests and Azure Boards work items.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Mike Wallio",
+    "url": "https://github.com/scaryrawr"
+  },
+  "repository": "https://github.com/scaryrawr/scarypilot",
+  "keywords": [
+    "copilot",
+    "azure-devops",
+    "azure-boards",
+    "pull-requests",
+    "wiql"
+  ],
+  "skills": [
+    "skills/"
+  ]
+}
