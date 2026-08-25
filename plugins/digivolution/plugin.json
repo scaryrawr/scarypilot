@@ -1,7 +1,7 @@
 {
   "name": "digivolution",
-  "description": "Copilot CLI plugin scaffold for iterative agent improvement workflows.",
-  "version": "0.1.0",
+  "description": "Skill-only post-task reflection for keeping repository guidance accurate.",
+  "version": "0.2.0",
   "author": {
     "name": "Mike Wallio"
   },
@@ -12,7 +12,6 @@
     "agents",
     "digivolution"
   ],
-  "hooks": "hooks.json",
   "skills": [
     "skills/"
   ]

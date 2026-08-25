@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "digivolution",
-      "description": "Agent self-improvement hooks and skills for keeping repo instructions and in-repo skills accurate.",
+      "description": "Skill-only post-task reflection for keeping repo instructions and in-repo skills accurate.",
       "author": {
         "name": "Mike Wallio"
       },

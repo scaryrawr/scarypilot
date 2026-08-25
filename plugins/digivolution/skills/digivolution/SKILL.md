@@ -1,6 +1,6 @@
 ---
 name: digivolution
-description: Use this skill for end-of-task digivolution/reflection requests that ask whether durable repo-specific guidance, AGENTS.md/Copilot instructions, or in-repo SKILL.md instructions are stale, missing, or should be updated.
+description: Use for "digivolve", "use digivolution", or end-of-task reflection requests that ask whether durable repo-specific guidance, AGENTS.md/Copilot instructions, or in-repo SKILL.md instructions are stale, missing, or should be updated.
 ---
 
 # Digivolution Skill
@@ -28,9 +28,9 @@ Update instructions or skills only when at least one is true:
 
 - Do not add generic advice, one-off task details, secrets, private data, or speculative preferences.
 - Do not create nested instructions unless the scope differs meaningfully from parent guidance.
-- Do not update instructions or skills just to satisfy a hook.
-- When an automatic digivolution hook invoked this skill and there is no durable improvement, make no change and produce no user-visible response. Do not say that no update is needed, recap the check, or acknowledge the hook.
-- If an eval harness or explicit user instruction asks you to write a final decision artifact when no update is needed, comply with that artifact requirement instead of staying silent, but make clear the no-op response exists only because that artifact was explicitly requested. Normal hook-triggered no-op checks should remain silent.
+- Do not update instructions or skills merely because this reflection was requested.
+- When there is no durable improvement, make no change and do not interrupt task completion with a no-op status.
+- If an eval harness or explicit user instruction requires a final decision artifact, produce it even when no update is needed.
 
 ## Checklist
 
