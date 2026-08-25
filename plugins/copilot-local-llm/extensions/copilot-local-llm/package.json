@@ -1,0 +1,27 @@
+{
+  "name": "copilot-local-llm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Discover and register local LLM providers in Copilot CLI.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --ignore-pattern extension.mjs",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check ."
+  },
+  "dependencies": {
+    "@github/copilot-sdk": "1.0.9"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "oxfmt": "^0.62.0",
+    "oxlint": "^1.75.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  }
+}

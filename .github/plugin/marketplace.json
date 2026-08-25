@@ -13,6 +13,22 @@
       "source": "./plugins/digivolution"
     },
     {
+      "name": "copilot-autoresearch",
+      "description": "Run measurable, resumable experiment loops with Copilot CLI tools, commands, and skills.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/copilot-autoresearch"
+    },
+    {
+      "name": "copilot-local-llm",
+      "description": "Discover and register models from supported local LLM providers in local Copilot CLI sessions.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/copilot-local-llm"
+    },
+    {
       "name": "chrome-devtools",
       "description": "Give your AI coding assistant access to the full power of Chrome DevTools for reliable automation, in-depth debugging, and performance analysis.",
       "author": {
