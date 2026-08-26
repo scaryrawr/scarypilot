@@ -54,5 +54,5 @@ This marketplace supports multiple plugin patterns:
 
 Interested in adding plugins to this marketplace? Check out the plugin development documentation:
 
-- [Plugin Architecture Guide](./.github/copilot-instructions.md)
+- [Plugin Architecture Guide](./AGENTS.md)
 - [Marketplace Configuration](./.github/plugin/marketplace.json)
