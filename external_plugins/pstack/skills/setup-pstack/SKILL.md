@@ -1,11 +1,11 @@
 ---
 name: setup-pstack
-description: Configure which models pstack uses per role. Detect available Copilot Task models and write a project-local override file. Use for /setup-pstack, "configure pstack models", or changing pstack's model choices.
+description: Configure which models pstack uses per role. Detect available Copilot Task models and write an always-applied user instruction in Copilot home. Use for /setup-pstack, "configure pstack models", or changing pstack's model choices.
 ---
 
 # Setup pstack
 
-Write `.github/pstack-models.md`, a project-local configuration file that pstack skills read when choosing Task models. The file is an override layer, not a requirement. When it is absent, omit the Task `model` argument and let Copilot choose the agent's default.
+Write `instructions/pstack-models.instructions.md` in the user's Copilot home directory. Resolve Copilot home from `$COPILOT_HOME` when set, otherwise use `$HOME/.copilot`. The `applyTo: "**"` instruction makes the role mapping available across repositories, matching upstream pstack's always-applied user rule. The file is an override layer, not a requirement. When it is absent, omit the Task `model` argument and let Copilot choose the agent's default.
 
 ## Steps
 
@@ -15,7 +15,7 @@ Read the current Task tool schema or another first-party Copilot model listing. 
 
 ### 2. Load current state
 
-Read `.github/pstack-models.md` when it exists. Otherwise start every scalar role at `auto` and each panel at a single `auto` entry.
+Read `instructions/pstack-models.instructions.md` from Copilot home when it exists. Otherwise start every scalar role at `auto` and each panel at a single `auto` entry.
 
 ### 3. Map and confirm
 
@@ -29,9 +29,13 @@ Every non-alias model ID must appear in the detected set. Stop before writing if
 
 ### 5. Write the configuration
 
-Overwrite `.github/pstack-models.md` so reruns are idempotent:
+Create the Copilot home `instructions` directory when needed, then overwrite `pstack-models.instructions.md` so reruns are idempotent:
 
 ```markdown
+---
+applyTo: "**"
+---
+
 # pstack model configuration
 
 Use `auto` or `inherit-parent` to omit the Task `model` argument.
@@ -60,7 +64,7 @@ Replace aliases with validated IDs only when the user chooses explicit models.
 
 ### 6. Confirm
 
-Tell the user which project configuration was written and which roles use explicit models.
+Tell the user which user-level configuration was written and which roles use explicit models. Explain that Copilot loads the change in new or resumed sessions.
 
 ### 7. Offer a verification skill
 
