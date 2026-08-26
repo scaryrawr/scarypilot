@@ -75,6 +75,9 @@ function refreshFromDisk(sessionId: string): void {
   }
 }
 
+const extensionSessionId = process.env.SESSION_ID;
+if (extensionSessionId) refreshFromDisk(extensionSessionId);
+
 const autoresearchCommand = createAutoresearchCommand({
   cwdRef,
   runtime,
@@ -90,6 +93,7 @@ const session = await joinSession({
     onSessionStart: async (input, invocation) => {
       cwdRef.set(input.workingDirectory);
       refreshFromDisk(invocation.sessionId);
+      autoResumeRef?.syncToCurrentRun();
       await session.log(
         `copilot-autoresearch loaded${runtime.autoresearchMode ? " — autoresearch mode ACTIVE" : ""}`,
         { ephemeral: true },
@@ -106,6 +110,7 @@ const session = await joinSession({
     onUserPromptSubmitted: async (input, invocation) => {
       cwdRef.set(input.workingDirectory);
       refreshFromDisk(invocation.sessionId);
+      autoResumeRef?.syncToCurrentRun();
       if (!runtime.autoresearchMode) return;
       const workDir = resolveWorkDir(cwdRef.get());
       return {

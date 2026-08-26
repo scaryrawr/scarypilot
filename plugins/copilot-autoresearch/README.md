@@ -68,7 +68,9 @@ When in autoresearch mode and the agent goes idle after logging at least one
 new experiment, the extension waits 800 ms then sends a follow-up
 `Run the next iteration now…` prompt with a deterministic rehydration summary
 attached. It matches upstream's 200-turn safety ceiling and stops after more
-than 20 consecutive discards or crashes.
+than 20 consecutive discards or crashes. On CLI resume, persisted mode is
+restored before the extension joins and existing runs become the scheduler
+baseline instead of being mistaken for newly logged work.
 
 **Live run status**
 

@@ -1,6 +1,6 @@
 {
   "name": "copilot-autoresearch",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "copilot version of https://github.com/davebcn87/pi-autoresearch",
   "type": "module",

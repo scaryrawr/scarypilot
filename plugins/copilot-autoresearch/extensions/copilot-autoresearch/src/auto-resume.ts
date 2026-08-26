@@ -27,7 +27,7 @@ export function countConsecutiveFailures(
 export interface AutoResumeDeps {
   cwdRef: CwdRef;
   runtime: RuntimeState;
-  session: CopilotSession;
+  session: Pick<CopilotSession, "log" | "send">;
   /** Returns the highest run number ever logged in this session. */
   getLastLoggedRun: () => number;
 }
@@ -56,11 +56,17 @@ export function createAutoResumeScheduler(deps: AutoResumeDeps) {
     }
   };
 
-  const reset = () => {
+  const syncToCurrentRun = () => {
     cancel();
     deps.runtime.lastResumeAtRunNumber = deps.getLastLoggedRun();
+  };
+
+  const reset = () => {
+    syncToCurrentRun();
     deps.runtime.autoResumeTurns = 0;
   };
+
+  syncToCurrentRun();
 
   const fireIfReady = async () => {
     pendingTimer = null;
@@ -125,5 +131,5 @@ export function createAutoResumeScheduler(deps: AutoResumeDeps) {
     }, SETTLE_WINDOW_MS);
   };
 
-  return { onIdle, cancel, reset };
+  return { onIdle, cancel, reset, syncToCurrentRun };
 }
