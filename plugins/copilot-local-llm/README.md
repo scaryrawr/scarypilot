@@ -3,8 +3,9 @@
 `copilot-local-llm` exposes models from local OpenAI-compatible servers in the
 Copilot model picker. It adds providers only when their model-discovery
 endpoint is available, so Copilot-hosted models continue to work normally.
-Discovery requests time out after three seconds to avoid delaying session joins.
-Discovered models are registered in the active session, making them available
+Discovery requests time out after three seconds to bound extension startup time.
+Discovered models are registered as part of the session join, so resuming the
+CLI does not replay additive provider registrations. Models remain available
 through `/model` as `provider/model-id` (for example,
 `omlx/Qwen3.5-9B-mxfp4`).
 

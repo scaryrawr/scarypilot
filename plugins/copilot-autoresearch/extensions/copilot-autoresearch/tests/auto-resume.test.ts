@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CONSECUTIVE_FAILURE_LIMIT,
   MAX_AUTO_RESUME_TURNS,
   countConsecutiveFailures,
+  createAutoResumeScheduler,
 } from "../src/auto-resume.ts";
 import type { ReconstructedRun } from "../src/jsonl.ts";
+import { defaultRuntimeState } from "../src/state.ts";
 
 function run(
   runNumber: number,
@@ -25,6 +27,10 @@ function run(
 }
 
 describe("auto-resume guards", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("matches upstream guard limits", () => {
     expect(MAX_AUTO_RESUME_TURNS).toBe(200);
     expect(CONSECUTIVE_FAILURE_LIMIT).toBe(20);
@@ -50,5 +56,54 @@ describe("auto-resume guards", () => {
       run(3, "discard", 1),
     ];
     expect(countConsecutiveFailures(results, 1)).toBe(1);
+  });
+
+  it("does not treat restored runs as newly logged work", async () => {
+    vi.useFakeTimers();
+    const runtime = defaultRuntimeState();
+    runtime.autoresearchMode = true;
+    const send = vi.fn(async () => "message-id");
+    let lastLoggedRun = 3;
+    const scheduler = createAutoResumeScheduler({
+      cwdRef: { get: () => process.cwd(), set: () => undefined },
+      runtime,
+      session: {
+        log: vi.fn(async () => undefined),
+        send,
+      },
+      getLastLoggedRun: () => lastLoggedRun,
+    });
+
+    scheduler.onIdle();
+    await vi.runAllTimersAsync();
+    expect(send).not.toHaveBeenCalled();
+
+    lastLoggedRun = 4;
+    scheduler.onIdle();
+    await vi.runAllTimersAsync();
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("synchronizes disk refreshes without scheduling stale runs", async () => {
+    vi.useFakeTimers();
+    const runtime = defaultRuntimeState();
+    runtime.autoresearchMode = true;
+    const send = vi.fn(async () => "message-id");
+    let lastLoggedRun = 1;
+    const scheduler = createAutoResumeScheduler({
+      cwdRef: { get: () => process.cwd(), set: () => undefined },
+      runtime,
+      session: {
+        log: vi.fn(async () => undefined),
+        send,
+      },
+      getLastLoggedRun: () => lastLoggedRun,
+    });
+
+    lastLoggedRun = 2;
+    scheduler.onIdle();
+    scheduler.syncToCurrentRun();
+    await vi.runAllTimersAsync();
+    expect(send).not.toHaveBeenCalled();
   });
 });
