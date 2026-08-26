@@ -13,7 +13,7 @@ planning, delegation, review, and verification.
 - PR watching, orchestration, decision-log, and worktree-audit helpers used by
   advanced playbooks.
 - Verified multi-phase planning with an executable checklist checker.
-- Project-local model configuration through `/setup-pstack`.
+- User-level model configuration through `/setup-pstack`.
 
 ## Prerequisites
 
@@ -48,14 +48,16 @@ Use the full workflow style:
 /poteto-mode implement this feature and prove it works
 ```
 
-Configure Task models for the current repository:
+Configure Task models across Copilot projects:
 
 ```text
 /setup-pstack
 ```
 
-The setup skill writes `.github/pstack-models.md`. Without that file, pstack
-lets Copilot select each Task agent's default model.
+The setup skill writes `instructions/pstack-models.instructions.md` in
+`$COPILOT_HOME`, defaulting to `$HOME/.copilot`. Copilot loads this user
+instruction across repositories. Without it, pstack lets Copilot select each
+Task agent's default model.
 
 ## Copilot adaptation
 

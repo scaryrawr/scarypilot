@@ -14,7 +14,8 @@ ScaryPilot changed the integration layer for GitHub Copilot:
 
 - Converted Cursor model, subagent, and background-execution instructions to
   Copilot Task conventions.
-- Moved generated project skills and pstack configuration under `.github/`.
+- Moved generated project skills under `.github/` and pstack's user-level
+  configuration into Copilot home.
 - Replaced Cursor transcript paths with scoped Copilot session-history tools.
 - Replaced dependencies on Cursor-only built-ins and companion plugins with
   Copilot-native tools or project verification skills.

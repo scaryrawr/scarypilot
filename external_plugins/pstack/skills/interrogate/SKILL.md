@@ -32,7 +32,7 @@ Write one clear paragraph. Reviewers challenge whether the work achieves the int
 
 ## Step 3, Spawn Reviewers
 
-Launch all reviewers in a single message using the Task tool. Use the `interrogate reviewers` list from `.github/pstack-models.md` when present, one reviewer per entry. Without a configuration, spawn three reviewers and omit `model`.
+Launch all reviewers in a single message using the Task tool. Use the `interrogate reviewers` list from `instructions/pstack-models.instructions.md` in Copilot home (`$COPILOT_HOME`, or `$HOME/.copilot` when unset) when present, one reviewer per entry. Without a configuration, spawn three reviewers and omit `model`.
 
 For each reviewer:
 - `agent_type`: `general-purpose`
