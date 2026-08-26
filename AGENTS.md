@@ -34,4 +34,4 @@ Skills that depend on shell helpers must load or source the full plugin environm
 
 ## Agent-Specific Instructions
 
-Keep shared guidance in `AGENTS.md`; put Copilot-only behavior in `.github/copilot-instructions.md` or scoped `.github/instructions/*.instructions.md`. Keep `CLAUDE.md` as exactly `@AGENTS.md`.
+Keep repository guidance in `AGENTS.md`; use scoped `.github/instructions/*.instructions.md` only when Copilot-specific behavior must apply by path or file type. Keep `CLAUDE.md` as exactly `@AGENTS.md`.
