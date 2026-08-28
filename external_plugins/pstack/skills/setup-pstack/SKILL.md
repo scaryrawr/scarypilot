@@ -11,7 +11,7 @@ Write `instructions/pstack-models.instructions.md` in the user's Copilot home di
 
 ### 1. Detect available models
 
-Read the current Task tool schema or another first-party Copilot model listing. Treat it as authoritative for this session. Never write a model ID that is not currently accepted. `auto` and `inherit-parent` both mean to omit the Task `model` argument.
+Read the current Task tool schema or another first-party Copilot model listing when the host exposes one. Treat it as authoritative for this session. When no first-party listing is available, keep every role at `auto` and do not invent explicit model IDs. `auto` and `inherit-parent` both mean to omit the Task `model` argument.
 
 ### 2. Load current state
 

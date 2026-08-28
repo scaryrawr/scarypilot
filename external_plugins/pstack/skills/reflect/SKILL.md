@@ -33,7 +33,7 @@ One message, three `Task` calls with `agent_type: "general-purpose"`. Use config
 | Tooling | configured reflect-tooling model or Task default | `references/tooling-reviewer.md` |
 | Divergent | configured reflect-judgment model or Task default | `references/divergent-reviewer.md` |
 
-Pass each template verbatim, substituting the transcript path or digest where marked. Reviewers return findings in the `Task` response body.
+Pass each template verbatim, substituting the scoped conversation digest where marked. Use a transcript reference only when the current Copilot host explicitly provides one. Reviewers return findings in the `Task` response body.
 
 ### 3. Synthesize
 

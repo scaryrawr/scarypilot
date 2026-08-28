@@ -139,6 +139,7 @@ export interface RecordLedgerParams {
   readonly verdict: Verdict;
   readonly evidence: string;
   readonly verifier?: string;
+  readonly expectedEvidence?: string | null;
 }
 
 export interface CheckLedgerParams {
@@ -227,11 +228,14 @@ export interface NotFoundOutput {
 export class UserError extends Error {}
 export class UsageError extends UserError {}
 export class NotFoundError extends UserError {
+  public readonly output?: NotFoundOutput;
+
   public constructor(
     message: string,
-    public readonly output?: NotFoundOutput
+    output?: NotFoundOutput
   ) {
     super(message);
+    this.output = output;
   }
 }
 
@@ -1347,6 +1351,20 @@ export function openStore(
         const index = rows.findIndex(
           (old) => old.pr === row.pr && old.sha === row.sha
         );
+        const existing = rows[index];
+        if (params.expectedEvidence === null && existing !== undefined) {
+          throw new UserError(
+            `ledger entry for PR ${row.pr} at ${row.sha} changed concurrently`
+          );
+        }
+        if (
+          typeof params.expectedEvidence === "string" &&
+          existing?.evidence !== params.expectedEvidence
+        ) {
+          throw new UserError(
+            `ledger entry for PR ${row.pr} at ${row.sha} changed concurrently`
+          );
+        }
         if (index < 0) {
           rows.push(row);
         } else {

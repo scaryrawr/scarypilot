@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/scaryrawr/scarypilot/pstack-handoff.v1.schema.json",
+  "title": "PstackHandoffV1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "sessionId",
+    "createdAt",
+    "intent",
+    "progress",
+    "nextAction",
+    "keyFiles",
+    "snapshot"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "intent": { "type": "string", "minLength": 1 },
+    "progress": { "type": "string", "minLength": 1 },
+    "nextAction": { "type": "string", "minLength": 1 },
+    "keyFiles": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "snapshot": {
+      "$ref": "./pstack-snapshot.v1.schema.json"
+    }
+  },
+  "additionalProperties": false
+}
