@@ -13,6 +13,8 @@ planning, delegation, review, and verification.
 - PR watching, orchestration, decision-log, and worktree-audit helpers used by
   advanced playbooks.
 - Verified multi-phase planning with an executable checklist checker.
+- Compatible upstream changes through pstack 0.14.5, with Cursor-only features
+  intentionally excluded.
 - User-level model configuration through `/setup-pstack`.
 
 ## Prerequisites
