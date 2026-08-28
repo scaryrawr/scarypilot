@@ -62,7 +62,7 @@
     },
     {
       "name": "pstack",
-      "description": "Copilot-compatible adaptation of pstack's rigorous planning, review, delegation, and verification workflows.",
+      "description": "Copilot-native adaptation of pstack with rigorous workflow skills, deterministic status, durable handoffs, and verification receipts.",
       "author": {
         "name": "Lauren Tan"
       },

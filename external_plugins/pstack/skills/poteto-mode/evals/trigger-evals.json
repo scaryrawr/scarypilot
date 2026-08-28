@@ -1,0 +1,22 @@
+[
+  {
+    "query": "Use poteto mode to implement this feature and prove the real behavior works.",
+    "should_trigger": true
+  },
+  {
+    "query": "Pause safely and leave a durable pstack handoff for the next session.",
+    "should_trigger": true
+  },
+  {
+    "query": "Resume this pstack orchestration from its saved status.",
+    "should_trigger": true
+  },
+  {
+    "query": "What does the word potato mean?",
+    "should_trigger": false
+  },
+  {
+    "query": "Summarize this short paragraph.",
+    "should_trigger": false
+  }
+]

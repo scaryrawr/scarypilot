@@ -1,0 +1,22 @@
+[
+  {
+    "query": "Validate this pstack snapshot JSON against the plugin contract.",
+    "should_trigger": true
+  },
+  {
+    "query": "Check whether this pstack verification receipt is structurally valid.",
+    "should_trigger": true
+  },
+  {
+    "query": "Run the verified-stack pstack plan validator on docs/plan.md.",
+    "should_trigger": true
+  },
+  {
+    "query": "Explain how JSON Schema works in general.",
+    "should_trigger": false
+  },
+  {
+    "query": "Validate this OpenAPI document.",
+    "should_trigger": false
+  }
+]

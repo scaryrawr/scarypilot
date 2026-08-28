@@ -7,9 +7,11 @@ planning, delegation, review, and verification.
 
 ## What this plugin provides
 
-- 44 Agent Skills, including `poteto-mode`, `how`, `why`, `architect`,
+- 45 Agent Skills, including `poteto-mode`, `how`, `why`, `architect`,
   `arena`, `swarm`, `interrogate`, `tdd`, `unslop`, and the pstack principles.
 - The `poteto-agent` and `comment-sicko` custom agents.
+- Native `pstack_status`, capability, plan-validation, verification-receipt,
+  handoff, and worktree-inspection tools plus the `/pstack` command.
 - PR watching, orchestration, decision-log, and worktree-audit helpers used by
   advanced playbooks.
 - Verified multi-phase planning with an executable checklist checker.
@@ -21,10 +23,12 @@ planning, delegation, review, and verification.
 
 - GitHub Copilot CLI with plugin and Agent Skills support.
 - Git and GitHub CLI for GitHub and PR workflows.
-- Bun for the advanced `poteto-mode` PR watcher and orchestration helpers.
+- Bun only for the legacy `poteto-mode` PR watcher and orchestration CLIs.
 - Graphite CLI only for playbooks that explicitly use stacked PRs.
 
-The core principles and most skills need no extra runtime.
+The native extension and core skills need no extra runtime. Optional host
+capabilities are reported as available, unavailable, or unknown instead of
+being assumed.
 
 ## Installation
 
@@ -50,6 +54,20 @@ Use the full workflow style:
 /poteto-mode implement this feature and prove it works
 ```
 
+Inspect native state and capabilities:
+
+```text
+/pstack status
+/pstack capabilities
+/pstack resume
+```
+
+The status tool builds a versioned `PstackSnapshot` from existing orch,
+watch-pr, handoff, and Git facts. It is a read-only projection, not another
+state database. Verification receipts and handoffs are durable JSON artifacts
+under the repository Git state directory. Their schemas live in
+[`contracts/`](./contracts/).
+
 Configure Task models across Copilot projects:
 
 ```text
@@ -69,6 +87,11 @@ commands, and companion plugins. This adaptation maps those assumptions to
 Copilot Task agents, scoped session history, background completion
 notifications, `.github/skills/`, and available browser, computer-use,
 terminal, and project verification tools.
+
+The native extension centralizes capability detection and deterministic state
+access. Host-controlled surfaces such as Task agents, session history, browser
+automation, MCP tools, and App sidebar state remain conditional until the host
+proves they are available.
 
 Cursor's `automations/benny` pack is not included because Copilot plugins do
 not provide the Cursor Automations runtime. See [`NOTICE.md`](./NOTICE.md) for

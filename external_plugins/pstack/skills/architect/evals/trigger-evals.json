@@ -1,0 +1,18 @@
+[
+  {
+    "query": "Architect this subsystem before implementing it.",
+    "should_trigger": true
+  },
+  {
+    "query": "Design the module boundaries and type signatures first, then build it.",
+    "should_trigger": true
+  },
+  {
+    "query": "Fix this typo in the README.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain what this existing function does.",
+    "should_trigger": false
+  }
+]

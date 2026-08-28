@@ -63,7 +63,7 @@ Fix the log, not the story. If the work diverged from what a row claims, the row
 
 ## Cross-model review of the trail
 
-Before handing back, spawn a subagent on a different configured model family when one is available; otherwise omit `model`. Self-review is not a substitute. The subagent reads the audit trail and the current session evidence, then flags what the user should pay attention to. This is a scan for risk, not a redo of the work.
+Before handing back, spawn a subagent on a different configured model family when the current Task schema proves one is available. Otherwise omit `model` and record that model diversity was unavailable. Self-review is not a substitute. The subagent reads the audit trail and the current session evidence, then flags what the user should pay attention to. This is a scan for risk, not a redo of the work.
 
 - Decisions logged with weak or absent evidence.
 - Verification steps skipped or claimed without proof in the transcript.

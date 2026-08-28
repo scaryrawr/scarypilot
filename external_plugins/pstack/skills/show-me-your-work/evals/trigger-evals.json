@@ -1,0 +1,18 @@
+[
+  {
+    "query": "Keep an auditable decision trail while you do this migration.",
+    "should_trigger": true
+  },
+  {
+    "query": "Show me your work with evidence for each important decision.",
+    "should_trigger": true
+  },
+  {
+    "query": "Show me the git diff.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain your final answer in more detail.",
+    "should_trigger": false
+  }
+]
