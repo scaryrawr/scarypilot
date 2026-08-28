@@ -43,6 +43,10 @@ uv run ./scripts/ado-cli.py parse-url "{azure_devops_url}"
 Use the returned `organizationUrl`, `project`, `repository`, `resourceType`, and
 `resourceId` directly. `routeSkill` is an internal workflow hint:
 
+`project` is `null` for organization-scoped repository URLs such as
+`https://dev.azure.com/{org}/_git/{repo}`; prefer Azure CLI auto-detection or
+repository IDs when a later operation requires project context.
+
 - `pull-request` -> use `references/pr.md` for existing PR inspection/management (or `references/review-pr.md` if the user asked for a review).
 - `work-items` -> use `references/work-items.md` for Azure Boards work items and WIQL.
 - `unknown` -> pick the row above that matches the user's stated intent (PR creation, PR review, existing PR ops, or work items).

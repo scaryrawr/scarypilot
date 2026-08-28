@@ -14,7 +14,14 @@ import urllib.parse
 from pathlib import Path
 from typing import Any
 
-from shared.ado import normalize_organization, request_json, run, token, upload_pr_attachment
+from shared.ado import (
+    normalize_organization,
+    parse_azure_devops_https_url,
+    request_json,
+    run,
+    token,
+    upload_pr_attachment,
+)
 
 
 PR_DESCRIPTION_MAX = 4000
@@ -27,30 +34,19 @@ def git(args: list[str], cwd: Path | None = None, *, exit_on_error: bool = True)
 
 def parse_azure_remote(remote_url: str) -> dict[str, Any] | None:
     """Parse Azure DevOps HTTPS or SSH git remotes."""
-    parsed = urllib.parse.urlparse(remote_url)
-    if parsed.scheme == "https" and parsed.hostname:
-        is_visual_studio = parsed.hostname.endswith(".visualstudio.com")
-        is_dev_azure = parsed.hostname == "dev.azure.com"
-        if is_visual_studio or is_dev_azure:
-            segments = [urllib.parse.unquote(part) for part in parsed.path.split("/") if part]
-            if is_dev_azure:
-                if not segments:
-                    return None
-                organization, segments = segments[0], segments[1:]
-            else:
-                organization = parsed.hostname.removesuffix(".visualstudio.com")
-                if segments[:1] == ["DefaultCollection"]:
-                    segments = segments[1:]
-            repository_index = 3 if len(segments) > 2 and segments[2] == "_optimized" else 2
-            if len(segments) <= repository_index or len(segments) < 2 or segments[1] != "_git":
-                return None
-            return {
-                "organization": organization,
-                "organizationUrl": f"https://dev.azure.com/{organization}",
-                "project": segments[0],
-                "repository": segments[repository_index],
-                "scheme": "https",
-            }
+    url_parts = parse_azure_devops_https_url(remote_url)
+    if url_parts and url_parts["resourceSection"] == "_git":
+        resource_segments = url_parts["resourceSegments"]
+        repository_index = 1 if resource_segments[:1] == ["_optimized"] else 0
+        if len(resource_segments) <= repository_index:
+            return None
+        return {
+            "organization": url_parts["organization"],
+            "organizationUrl": url_parts["organizationUrl"],
+            "project": url_parts["project"],
+            "repository": resource_segments[repository_index],
+            "scheme": "https",
+        }
 
     ssh_prefixes = ("ssh://git@ssh.dev.azure.com:v3/", "git@ssh.dev.azure.com:v3/")
     for prefix in ssh_prefixes:
