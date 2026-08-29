@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-readonly MODEL="claude-haiku-4-5"
+readonly MODEL="gpt-5.6-luna"
 
 input="$(cat)"
 [ "$(jq -r '.last_run.status // empty' <<<"$input")" = "discard" ] || exit 0
