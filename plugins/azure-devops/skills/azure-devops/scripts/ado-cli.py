@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import urllib.parse
 from typing import Any
 
 from shared.ado import parse_azure_devops_https_url, upload_pr_attachment
@@ -17,10 +16,9 @@ from shared.ado import parse_azure_devops_https_url, upload_pr_attachment
 
 def parse_azure_devops_url(raw_url: str) -> dict[str, Any]:
     """Parse a supported Azure DevOps URL and identify the internal workflow."""
-    parsed = urllib.parse.urlparse(raw_url)
     url_parts = parse_azure_devops_https_url(raw_url)
     if not url_parts:
-        sys.exit(f"error: unsupported Azure DevOps host: {parsed.hostname}")
+        sys.exit(f"error: unsupported Azure DevOps URL: {raw_url}")
 
     resource_section = url_parts["resourceSection"]
     resource_segments = url_parts["resourceSegments"]
@@ -40,6 +38,7 @@ def parse_azure_devops_url(raw_url: str) -> dict[str, Any]:
         if len(resource_segments) <= repository_index:
             return result
         repository = resource_segments[repository_index]
+        result["repository"] = repository
         next_segment = resource_segments[repository_index + 1] if len(resource_segments) > repository_index + 1 else None
         if next_segment == "pullrequest":
             try:
