@@ -35,7 +35,7 @@ Pass repo-relative Azure paths with `/` separators to `--file-path`; the helper 
 Use the helper after the review is complete:
 
 ```text
-uv run ./scripts/review-pr.py sync-labels --id {prId} --model gpt-5.4 --model claude-opus-4.6 --detect true
+uv run ./scripts/review-pr.py sync-labels --id {prId} --model gpt-5.6-sol --model claude-opus-5 --detect true
 ```
 
 Use `desiredLabels`, `addedLabels`, `removedLabels`, and `finalLabels` from the JSON result.

@@ -128,8 +128,8 @@ stay local.
 How to run it (no bundled script — the orchestrating agent drives it, since a
 standalone script can't reach the Copilot model gateway):
 
-1. Fan out `task` subagents on a vision-capable cloud model (e.g.
-   `claude-haiku-4.5` or `gpt-5.4-mini`), each given a batch of frame paths.
+1. Fan out `task` subagents on the vision-capable `gpt-5.6-luna` cloud model,
+   each given a batch of frame paths.
 2. Give each subagent the **same enum + one-line context** contract as the local
    classifier (`build_prompt` in `classify_frames.py`), and require exactly
    `{"file","label","reason"}` per frame, `label` from the fixed enum (else
