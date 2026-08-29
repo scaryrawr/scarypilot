@@ -9,52 +9,40 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import urllib.parse
 from typing import Any
 
-from shared.ado import upload_pr_attachment
+from shared.ado import parse_azure_devops_https_url, upload_pr_attachment
 
 
 def parse_azure_devops_url(raw_url: str) -> dict[str, Any]:
     """Parse a supported Azure DevOps URL and identify the internal workflow."""
-    parsed = urllib.parse.urlparse(raw_url)
-    is_visual_studio = (parsed.hostname or "").endswith(".visualstudio.com")
-    is_dev_azure = parsed.hostname == "dev.azure.com"
-    if not is_dev_azure and not is_visual_studio:
-        sys.exit(f"error: unsupported Azure DevOps host: {parsed.hostname}")
+    url_parts = parse_azure_devops_https_url(raw_url)
+    if not url_parts:
+        sys.exit(f"error: unsupported Azure DevOps URL: {raw_url}")
 
-    segments = [urllib.parse.unquote(part) for part in parsed.path.split("/") if part]
-    if is_dev_azure:
-        if not segments:
-            sys.exit(f"error: could not determine organization from {raw_url}")
-        organization, segments = segments[0], segments[1:]
-    else:
-        organization = (parsed.hostname or "").removesuffix(".visualstudio.com")
-        if segments[:1] == ["DefaultCollection"]:
-            segments = segments[1:]
-
-    project = segments[0] if segments else None
-    resource_section = segments[1] if len(segments) > 1 else None
+    resource_section = url_parts["resourceSection"]
+    resource_segments = url_parts["resourceSegments"]
     result: dict[str, Any] = {
         "url": raw_url,
-        "host": parsed.hostname,
-        "organization": organization,
-        "organizationUrl": f"https://dev.azure.com/{organization}",
-        "project": project,
+        "host": url_parts["host"],
+        "organization": url_parts["organization"],
+        "organizationUrl": url_parts["organizationUrl"],
+        "project": url_parts["project"],
         "resourceType": "unknown",
         "routeSkill": "unknown",
-        "isVisualStudioHost": is_visual_studio,
+        "isVisualStudioHost": url_parts["isVisualStudioHost"],
     }
 
     if resource_section == "_git":
-        repository_index = 3 if len(segments) > 2 and segments[2] == "_optimized" else 2
-        if len(segments) <= repository_index:
+        repository_index = 1 if resource_segments[:1] == ["_optimized"] else 0
+        if len(resource_segments) <= repository_index:
             return result
-        repository = segments[repository_index]
-        next_segment = segments[repository_index + 1] if len(segments) > repository_index + 1 else None
+        repository = resource_segments[repository_index]
+        result["repository"] = repository
+        next_segment = resource_segments[repository_index + 1] if len(resource_segments) > repository_index + 1 else None
         if next_segment == "pullrequest":
             try:
-                pull_request_id = int(segments[repository_index + 2])
+                pull_request_id = int(resource_segments[repository_index + 2])
             except (IndexError, ValueError):
                 sys.exit(f"error: could not determine pull request id from {raw_url}")
             result.update(
@@ -68,9 +56,9 @@ def parse_azure_devops_url(raw_url: str) -> dict[str, Any]:
             )
             return result
 
-    if resource_section == "_workitems" and len(segments) > 3 and segments[2] == "edit":
+    if resource_section == "_workitems" and len(resource_segments) > 1 and resource_segments[0] == "edit":
         try:
-            work_item_id = int(segments[3])
+            work_item_id = int(resource_segments[1])
         except ValueError:
             sys.exit(f"error: could not determine work item id from {raw_url}")
         result.update(

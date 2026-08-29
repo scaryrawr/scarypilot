@@ -16,6 +16,38 @@ from typing import Any
 DEVOPS_RESOURCE = "499b84ac-1321-427f-aa17-267ca6975798"
 
 
+def parse_azure_devops_https_url(value: str) -> dict[str, Any] | None:
+    """Split an Azure DevOps HTTPS URL into organization, project, and resource parts."""
+    parsed = urllib.parse.urlparse(value)
+    hostname = parsed.hostname or ""
+    is_dev_azure = hostname == "dev.azure.com"
+    is_visual_studio = hostname.endswith(".visualstudio.com")
+    if parsed.scheme != "https" or not (is_dev_azure or is_visual_studio):
+        return None
+
+    segments = [urllib.parse.unquote(part) for part in parsed.path.split("/") if part]
+    if is_dev_azure:
+        if not segments:
+            return None
+        organization, segments = segments[0], segments[1:]
+    else:
+        organization = hostname.removesuffix(".visualstudio.com")
+        if segments[:1] == ["DefaultCollection"]:
+            segments = segments[1:]
+
+    project = None if segments[:1] == ["_git"] else (segments[0] if segments else None)
+    resource_index = 0 if project is None else 1
+    return {
+        "host": hostname,
+        "organization": organization,
+        "organizationUrl": f"https://dev.azure.com/{organization}",
+        "project": project,
+        "resourceSection": segments[resource_index] if len(segments) > resource_index else None,
+        "resourceSegments": segments[resource_index + 1 :],
+        "isVisualStudioHost": is_visual_studio,
+    }
+
+
 def normalize_organization(value: str) -> dict[str, str]:
     """Normalize an Azure DevOps organization name or URL."""
     raw = value.strip().rstrip("/")
