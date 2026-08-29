@@ -2,36 +2,28 @@
 
 ## Project Structure & Module Organization
 
-ScaryPilot is a GitHub Copilot plugin marketplace. Published plugin inventory lives in `.github/plugin/marketplace.json`; trust that manifest over README tables when they differ. First-party plugins are under `plugins/<name>/` and external MCP wrappers under `external_plugins/<name>/`.
+ScaryPilot is a GitHub Copilot plugin marketplace. Treat `.github/plugin/marketplace.json` as the published inventory when it differs from README tables. First-party plugins live in `plugins/<name>/`; adapted or external integrations live in `external_plugins/<name>/`.
 
-Main capability patterns are Markdown/JSON first: skills in `plugins/*/skills/*/SKILL.md`, MCP wrappers in `plugins/*/.mcp.json` or `external_plugins/*/.mcp.json`, agents in `plugins/*/agents/*.md` or `external_plugins/*/agents/*.md`, native CLI extensions in `plugins/*/extensions/<name>/extension.mjs`, and optional LSP integrations in `plugins/*/lsp.json`. Prefer these patterns over adding executable code. MCP wrapper files use the marketplace plugin format with top-level server names, not an `mcpServers` envelope.
-
-For native extensions, declare the containing `extensions/` discovery directory in `plugin.json`; each immediate child is one extension and must contain `extension.mjs`. Copilot CLI injects its bundled `@github/copilot-sdk` into extension processes, so package dependencies are for development and tests, not a post-install step for plugin users.
-
-When plugin hooks invoke scripts bundled with the plugin, reference them with `${PLUGIN_ROOT}` in hook configuration instead of repo-relative paths; hooks run in the user's target repository, not necessarily the plugin directory. For command hooks that run the same invocation on every OS, use the cross-platform `command` field, not `bash` — a `bash`-only entry never fires on Windows (which uses `powershell`). Likewise, bundled Node scripts must stay cross-platform: use `os.tmpdir()` rather than `/tmp` and avoid other POSIX-only assumptions.
+Prefer the repository's declarative plugin patterns: skills in `skills/*/SKILL.md`, MCP configuration in `.mcp.json`, agents in `agents/*.md`, native extensions in `extensions/<name>/extension.mjs`, and optional `lsp.json`. MCP files use top-level server names, not an `mcpServers` envelope. A plugin exposing native extensions must list `extensions/` in `plugin.json`; each immediate child is a separate extension.
 
 ## Build, Test, and Development Commands
 
-This repo has no app build or broad test suite.
+There is no root build or broad test suite.
 
-- `python3 -m json.tool .github/plugin/marketplace.json >/dev/null` — quick JSON sanity check after manifest edits.
+- `python3 -m json.tool .github/plugin/marketplace.json >/dev/null` validates marketplace edits.
+- In an extension package, run `npm test` and `npm run typecheck`; `copilot-local-llm` also provides `npm run lint` and `npm run format:check`.
+- For skill trigger evals, run the skill-creator `scripts/run_eval.py` with `--num-workers 1`; higher concurrency can starve parallel `copilot` processes and report false failures.
 
-## Coding Style & Naming Conventions
+## Coding Style, Versioning, and Naming
 
-Every plugin directory needs a `README.md` with purpose, prerequisites, install steps, usage examples, and resource links. When adding/removing plugins, update both `.github/plugin/marketplace.json` and root `README.md` links/inventory. External or adapted plugins need clear attribution and license information.
+Each plugin needs a `README.md` covering purpose, prerequisites, installation, usage, and resources. Adding or removing a plugin requires matching updates to the marketplace manifest and root README. External or adapted plugins require attribution and license details.
 
-Skills should live outside this marketplace unless paired with plugin-specific hooks, MCP, agents, or other marketplace resources. Personal skills belong in `~/.agents/skills`; repo-local project skills belong in that repository's `.agents/skills`. Skills must follow the Agent Skills spec; put bundled scripts in a skill-local `scripts/` directory and keep paths in `SKILL.md` accurate. Shipped Node scripts run inside arbitrary host repos whose `package.json#type` is unknown, so never depend on it: give Node scripts an explicit module extension — prefer `.mjs` (ESM) over `.cjs` — rather than a bare `.js`, whose interpretation flips with the host repo.
+Bump the affected plugin's `plugin.json` version for any change to shipped plugin behavior or bundled content so installed users can detect an update. Use SemVer: patch for fixes, minor for backward-compatible features, and major for breaking changes. Do not bump for repository-only docs, tests, or development tooling. When an extension package mirrors the plugin version, keep its `package.json` version synchronized; independent extension package versions need not match. Preserve upstream-derived version suffixes such as pstack's `-copilot.N`.
 
-## Testing Guidelines
+Bundled Node scripts must use explicit `.mjs` or `.cjs` extensions because the host repository's `package.json#type` is unknown. Prefer `.mjs`. Plugin hooks must reference bundled files through `${PLUGIN_ROOT}`. Use cross-platform `command` hooks when the invocation is identical on every OS, and use `os.tmpdir()` instead of `/tmp`.
 
-For Markdown, JSON, and manifest-only edits, prefer targeted review: validate JSON, verify linked paths exist, and cross-check plugin inventory.
+## Testing and Safety
 
-Skill trigger evals live in `plugins/*/skills/*/evals/trigger-evals.json`. To validate them with the skill-creator skill's `scripts/run_eval.py`, run with `--num-workers 1`: the default 5-way concurrency starves parallel `copilot` processes and reports false 0% triggers.
+For Markdown or manifest-only changes, validate JSON, linked paths, and inventory consistency. Load the complete plugin environment before smoke-testing shell-dependent skills. Do not run side-effecting Azure DevOps, Git, Codespaces, Worktrunk, or terminal-automation commands without explicit user approval.
 
-## Security & Configuration Tips
-
-Skills that depend on shell helpers must load or source the full plugin environment before smoke testing; partial setup is not a valid check. Do not run side-effecting Azure DevOps, Git, Codespaces, Worktrunk, or terminal-automation commands unless the user explicitly requested or confirmed them.
-
-## Agent-Specific Instructions
-
-Keep repository guidance in `AGENTS.md`; use scoped `.github/instructions/*.instructions.md` only when Copilot-specific behavior must apply by path or file type. Keep `CLAUDE.md` as exactly `@AGENTS.md`.
+Keep repository guidance here. Use scoped `.github/instructions/*.instructions.md` only for path-specific Copilot behavior, and keep `CLAUDE.md` exactly `@AGENTS.md`.
