@@ -1,6 +1,7 @@
 # image-gen evals
 
 - `evals.json` contains task evals for text-to-image generation and image editing.
+- The task evals accept the native `omlx_image` tool when the full plugin is installed and the bundled Python fallback when the skill is evaluated by itself.
 - `trigger-evals.json` contains description-trigger checks for prompts that should/should not load the skill.
 - `files/edit-base.png` is a deterministic 512x512 PNG fixture for edit evals. It has a central blue square, green circle, orange triangle, grid, and border so each edit eval starts from the same base state.
 - `files/edit-center-mask.png` is an optional matching mask fixture for future mask-capable edit evals. The current task eval does not require masks because the local `FLUX.2-klein-4B-mxfp8` edit model reports that masks are unsupported.

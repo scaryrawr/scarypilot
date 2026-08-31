@@ -65,7 +65,7 @@ uv run ./scripts/generate.py \
 
 ## Model Discovery
 
-Available models are listed at `$OMLX_BASE_URL/v1/models/status`. Prefer models whose `capabilities` or `tasks` include `generation`, or whose `engine_type`/`model_type` is `image`.
+Available models are listed at `${OMLX_BASE_URL:-http://127.0.0.1:8000}/v1/models/status`. Prefer models whose `capabilities` or `tasks` include `generation`, or whose `engine_type`/`model_type` is `image`.
 
 ## Tips
 

@@ -1,17 +1,17 @@
 # OMLX Media Plugin
 
 Local media generation and processing workflows for GitHub Copilot CLI. The
-plugin includes two skills:
+plugin includes a native image tool and two skills:
 
-| Skill | Purpose |
+| Capability | Purpose |
 | --- | --- |
-| `image-gen` | Generate PNG images or edit existing images with an OMLX image model. |
-| `blogify` | Turn video or audio recordings into transcripts, takeaways, selected frames, and grounded written content. |
+| `omlx_image` tool + `image-gen` skill | Generate PNG images or edit existing images while keeping model discovery, API calls, and file handling out of the prompt workflow. |
+| `blogify` skill | Turn video or audio recordings into transcripts, takeaways, selected frames, and grounded written content. |
 
 ## Prerequisites
 
 - A current GitHub Copilot CLI release with plugin and skill support.
-- [`uv`](https://docs.astral.sh/uv/) and Python.
+- [`uv`](https://docs.astral.sh/uv/) and Python for `blogify` and the image skill's legacy direct-install fallback.
 - A running OMLX OpenAI-compatible media endpoint. Set `OMLX_BASE_URL` when it
   is not available at `http://127.0.0.1:8000`.
 - `ffmpeg`, `ffprobe`, and ImageMagick for the `blogify` video workflow.
@@ -27,7 +27,9 @@ copilot plugin marketplace add scaryrawr/scarypilot
 copilot plugin install omlx-media@scarypilot
 ```
 
-Install either skill directly with GitHub CLI:
+Install either skill directly with GitHub CLI. Direct installation of
+`image-gen` uses its legacy Python fallback because native extension tools are
+available only through plugin installation:
 
 ```sh
 gh skill install scaryrawr/scarypilot plugins/omlx-media/skills/image-gen --scope user
@@ -49,9 +51,11 @@ Recording-to-document workflows:
 - "Turn this demo recording into a tutorial with a transcript and selected screenshots."
 - "Create release notes from this meeting recording and keep the supporting artifacts."
 
-Both skills keep inputs and outputs in the user's workspace and use the bundled
-helpers rather than copying scripts elsewhere. `blogify` uses local models by
-default; sending frames to a cloud model requires explicit user consent.
+Both skills keep inputs and outputs in the user's workspace. Plugin-based image
+generation uses the native `omlx_image` tool, which discovers a capable model,
+authenticates with `OMLX_API_KEY` when set, and saves fresh results without
+returning image bytes to the model. `blogify` uses local models by default;
+sending frames to a cloud model requires explicit user consent.
 
 ## Resources
 

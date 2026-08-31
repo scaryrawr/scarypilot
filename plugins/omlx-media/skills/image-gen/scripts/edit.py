@@ -50,12 +50,15 @@ def data_uri(path: Path) -> str:
     return f"data:{image_mime_type(path)};base64,{encoded}"
 
 
-def request_json(url: str, body: dict[str, Any]) -> dict[str, Any]:
+def request_json(url: str, body: dict[str, Any], api_key: str) -> dict[str, Any]:
     """POST JSON and return the decoded JSON response, surfacing server errors."""
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
     request = urllib.request.Request(
         url,
         data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     try:
@@ -121,9 +124,8 @@ def main() -> None:
     parser.add_argument("--output", default="")
     args = parser.parse_args()
 
-    base_url = os.environ.get("OMLX_BASE_URL", "").rstrip("/")
-    if not base_url:
-        sys.exit("error: OMLX_BASE_URL environment variable must be set")
+    base_url = os.environ.get("OMLX_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+    api_key = os.environ.get("OMLX_API_KEY", "")
     if args.n < 1:
         sys.exit("error: --n must be a positive integer")
 
@@ -150,7 +152,7 @@ def main() -> None:
         if parsed is not None:
             body[field] = parsed
 
-    response = request_json(f"{base_url}/v1/images/edits", body)
+    response = request_json(f"{base_url}/v1/images/edits", body, api_key)
     data = response.get("data") or []
     if not data:
         sys.exit(f"error: image edit API response did not contain any data: {response}")
