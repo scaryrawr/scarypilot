@@ -15,7 +15,6 @@ export async function configureLocalModelTools(
   models: ProviderModelConfig[],
 ): Promise<void> {
   const localModelIds = new Set(models.map(({ provider, id }) => `${provider}/${id}`));
-  let unrestrictedTools: string[] | undefined;
   let usesLocalProfile = false;
   let updateQueue = Promise.resolve();
 
@@ -25,21 +24,10 @@ export async function configureLocalModelTools(
       return;
     }
 
-    if (shouldUseLocalProfile) {
-      await session.rpc.tools.initializeAndValidate();
-      const { tools } = await session.rpc.tools.getCurrentMetadata();
-      if (!tools) {
-        throw new Error("The runtime did not provide the current tool catalog");
-      }
-      unrestrictedTools = tools.map(({ name }) => name);
-      const excludedTools = new Set<string>(LOCAL_MODEL_EXCLUDED_TOOLS);
-      await updateAvailableTools(
-        session,
-        unrestrictedTools.filter((name) => !excludedTools.has(name)),
-      );
-    } else if (unrestrictedTools) {
-      await updateAvailableTools(session, unrestrictedTools);
-    }
+    await updateExcludedTools(
+      session,
+      shouldUseLocalProfile ? [...LOCAL_MODEL_EXCLUDED_TOOLS] : [],
+    );
 
     usesLocalProfile = shouldUseLocalProfile;
   };
@@ -59,8 +47,11 @@ export async function configureLocalModelTools(
   });
 }
 
-async function updateAvailableTools(session: CopilotSession, availableTools: string[]) {
-  const result = await session.rpc.options.update({ availableTools });
+async function updateExcludedTools(session: CopilotSession, excludedTools: string[]) {
+  const result = await session.rpc.options.update({
+    excludedTools,
+    toolFilterPrecedence: "excluded",
+  });
   if (!result.success) {
     throw new Error("The runtime rejected the tool update");
   }
