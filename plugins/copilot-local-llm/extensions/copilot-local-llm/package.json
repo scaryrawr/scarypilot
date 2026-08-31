@@ -1,6 +1,6 @@
 {
   "name": "copilot-local-llm",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Discover and register local LLM providers in Copilot CLI.",
   "type": "module",

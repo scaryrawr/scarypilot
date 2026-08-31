@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ModelChangeEvent } from "@github/copilot-sdk";
-import { LOCAL_MODEL_TOOLS } from "../src/model-tools.ts";
+import { LOCAL_MODEL_EXCLUDED_TOOLS } from "../src/model-tools.ts";
 import { COMPACT_SYSTEM_MESSAGE } from "../src/system-message.ts";
 
 const mocks = vi.hoisted(() => {
@@ -17,12 +17,6 @@ const mocks = vi.hoisted(() => {
       },
       options: {
         update: vi.fn(async () => ({ success: true })),
-      },
-      tools: {
-        initializeAndValidate: vi.fn(async () => ({})),
-        getCurrentMetadata: vi.fn(async () => ({
-          tools: [{ name: "bash" }, { name: "view" }, { name: "cloud-tool" }],
-        })),
       },
     },
   };
@@ -58,7 +52,8 @@ describe("extension", () => {
       systemMessage: COMPACT_SYSTEM_MESSAGE,
     });
     expect(mocks.session.rpc.options.update).toHaveBeenCalledWith({
-      availableTools: [...LOCAL_MODEL_TOOLS],
+      excludedTools: [...LOCAL_MODEL_EXCLUDED_TOOLS],
+      toolFilterPrecedence: "excluded",
     });
     expect(mocks.session.log).toHaveBeenCalledWith("Registered 1 local model(s).", {
       level: "info",
@@ -77,7 +72,8 @@ describe("extension", () => {
 
     await vi.waitFor(() => {
       expect(mocks.session.rpc.options.update).toHaveBeenLastCalledWith({
-        availableTools: ["bash", "view", "cloud-tool"],
+        excludedTools: [],
+        toolFilterPrecedence: "excluded",
       });
     });
   });

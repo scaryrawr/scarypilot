@@ -1,20 +1,13 @@
 import type { CopilotSession } from "@github/copilot-sdk";
 import type { ProviderModelConfig } from "@github/copilot-sdk";
 
-export const LOCAL_MODEL_TOOLS = [
-  "bash",
-  "view",
-  "apply_patch",
-  "edit",
-  "read_bash",
-  "stop_bash",
-  "list_bash",
-  "rg",
-  "grep",
-  "glob",
-  "web_search",
-  "skill",
-  "ask_user",
+export const LOCAL_MODEL_EXCLUDED_TOOLS = [
+  "task",
+  "list_agents",
+  "read_agent",
+  "write_agent",
+  "run_factory",
+  "factories_manage",
 ] as const;
 
 export async function configureLocalModelTools(
@@ -22,7 +15,6 @@ export async function configureLocalModelTools(
   models: ProviderModelConfig[],
 ): Promise<void> {
   const localModelIds = new Set(models.map(({ provider, id }) => `${provider}/${id}`));
-  let unrestrictedTools: string[] | undefined;
   let usesLocalProfile = false;
   let updateQueue = Promise.resolve();
 
@@ -32,17 +24,10 @@ export async function configureLocalModelTools(
       return;
     }
 
-    if (shouldUseLocalProfile) {
-      await session.rpc.tools.initializeAndValidate();
-      const { tools } = await session.rpc.tools.getCurrentMetadata();
-      if (!tools) {
-        throw new Error("The runtime did not provide the current tool catalog");
-      }
-      unrestrictedTools = tools.map(({ name }) => name);
-      await updateAvailableTools(session, [...LOCAL_MODEL_TOOLS]);
-    } else if (unrestrictedTools) {
-      await updateAvailableTools(session, unrestrictedTools);
-    }
+    await updateExcludedTools(
+      session,
+      shouldUseLocalProfile ? [...LOCAL_MODEL_EXCLUDED_TOOLS] : [],
+    );
 
     usesLocalProfile = shouldUseLocalProfile;
   };
@@ -62,8 +47,11 @@ export async function configureLocalModelTools(
   });
 }
 
-async function updateAvailableTools(session: CopilotSession, availableTools: string[]) {
-  const result = await session.rpc.options.update({ availableTools });
+async function updateExcludedTools(session: CopilotSession, excludedTools: string[]) {
+  const result = await session.rpc.options.update({
+    excludedTools,
+    toolFilterPrecedence: "excluded",
+  });
   if (!result.success) {
     throw new Error("The runtime rejected the tool update");
   }
