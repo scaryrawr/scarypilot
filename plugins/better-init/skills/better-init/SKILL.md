@@ -1,6 +1,6 @@
 ---
 name: better-init
-description: Create or modify repository guidance for GitHub Copilot CLI. Use when asked to initialize, bootstrap, refresh, reorganize, or generate AGENTS.md, Copilot instructions, path-specific instructions, project skills, or custom agents. Do not use for requests that only read or explain existing guidance.
+description: Create or modify repository guidance through GitHub Copilot CLI, including guidance consumed by Copilot code review. Use when asked to initialize, bootstrap, refresh, reorganize, or generate AGENTS.md, Copilot instructions, path-specific instructions, project skills, code-review guidance, or custom agents. Do not use for requests that only read or explain existing guidance.
 ---
 
 # Better Init
@@ -27,6 +27,8 @@ Read the highest-value sources first:
 - Build, lint, formatter, typecheck, test, migration, and code-generation
   configuration.
 - CI workflows, pre-commit configuration, and contributor documentation.
+- Pull request templates, ownership rules, review checklists, and configured MCP
+  integrations that provide issue, incident, or service context.
 - Existing `AGENTS.md`, nested instruction files, `CLAUDE.md`, `GEMINI.md`,
   `.github/copilot-instructions.md`, and `.github/instructions`.
 - Existing project skills under `.github/skills`, `.agents/skills`, or
@@ -117,6 +119,32 @@ Prefer `.github/skills` for new Copilot-focused project skills. Preserve
 existing `.agents/skills` or `.claude/skills` layouts unless migration is
 explicitly requested.
 
+#### Copilot code-review skills
+
+When the repository has non-obvious, repeatable review requirements, create
+`.github/skills/code-review/SKILL.md`. Use this exact review-focused directory
+name so GitHub Copilot code review is more likely to load the skill.
+
+Good candidates include:
+
+- Security, compatibility, migration, generated-artifact, or API-contract
+  checks tied to identifiable paths.
+- Required narrow validation commands or changed-file checks that reviewers
+  would not reliably infer from standard tooling.
+- Rules for consulting issue, incident, service-catalog, or other context
+  through an MCP server already configured for the repository.
+
+The skill must tell the reviewer what evidence to inspect, which checks to run
+or reason through, and when a finding is actionable. Keep general coding
+standards in repository instructions instead. Do not create a generic review
+checklist that merely says to look for bugs, security issues, tests, or style.
+Do not assume an MCP server exists; name MCP context or tools only when verified
+from repository configuration or explicitly requested by the user.
+
+Remember that GitHub Copilot code review reads instructions and skills from the
+pull request's head branch. The generated skill must therefore be self-contained
+and must not depend on an uncommitted local file or a plugin-only resource.
+
 ### `.github/agents/<name>.agent.md`
 
 Create a custom agent only when a specialist role benefits from an independent
@@ -155,6 +183,8 @@ result to contain only `AGENTS.md`.
   available.
 - Ensure path-specific globs match their intended files.
 - Ensure new skills and agents have unique, matching names and clear triggers.
+- For a code-review skill, confirm it is under `.github/skills/code-review`,
+  contains repository-specific checks, and does not claim unverified MCP access.
 - Check that no guidance is duplicated across surfaces without a specific
   reason.
 
