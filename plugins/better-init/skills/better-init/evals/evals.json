@@ -1,0 +1,62 @@
+{
+  "skill_name": "better-init",
+  "evals": [
+    {
+      "id": 1,
+      "name": "simple-typescript-repository",
+      "prompt": "Initialize repository instructions for this TypeScript project. The executable sources show npm scripts for build, lint, typecheck, and test; src/index.ts is the entrypoint and tests are under test/. No instruction files exist. Use the better-init skill and write the resulting files.",
+      "expected_output": "A concise root AGENTS.md with verified structure and commands, without unnecessary Copilot-specific files, skills, or agents.",
+      "files": [],
+      "expectations": [
+        "AGENTS.md exists at the repository root.",
+        "AGENTS.md includes the build, lint, typecheck, and test commands.",
+        "AGENTS.md describes src/index.ts and test/ without inventorying unrelated directories.",
+        "No .github/copilot-instructions.md is created without Copilot-specific guidance.",
+        "No project skill or custom agent is created merely because those surfaces are supported.",
+        "The guidance is concise and repository-specific."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "split-portable-and-copilot-guidance",
+      "prompt": "Improve this repository's agent setup. Portable facts include pnpm workspace package boundaries and the exact lint, typecheck, and test commands. The team also requires Copilot CLI specifically to use the smallest targeted test before a full suite and never create pull requests unless explicitly requested. Existing AGENTS.md mixes all of this together. Use better-init and write the corrected files.",
+      "expected_output": "Portable repository facts remain in AGENTS.md while Copilot-only operating behavior moves to .github/copilot-instructions.md without duplication.",
+      "files": [],
+      "expectations": [
+        "AGENTS.md contains the pnpm workspace structure and exact validation commands.",
+        ".github/copilot-instructions.md contains the Copilot-specific targeted-test and pull-request behavior.",
+        "The Copilot instructions do not copy or reference AGENTS.md.",
+        "Duplicated guidance is removed rather than retained in both files."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "path-specific-monorepo-guidance",
+      "prompt": "Initialize guidance for a monorepo with shared root commands. Files under services/payments/** require a local payment emulator and must use a payments-only integration test command. Files under generated/** must never be edited manually. Use better-init to choose concise instruction surfaces and write them.",
+      "expected_output": "Root guidance holds shared commands while narrow .github/instructions files use applyTo globs for payments and generated-code constraints.",
+      "files": [],
+      "expectations": [
+        "A root AGENTS.md contains shared repository commands.",
+        "A .github/instructions file scopes payment guidance to services/payments/** with applyTo frontmatter.",
+        "A .github/instructions file scopes generated-code guidance to generated/** with applyTo frontmatter.",
+        "Subsystem-specific details are not duplicated into the root guide.",
+        "No unrelated skills or agents are created."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "repeatable-workflow-skill",
+      "prompt": "Initialize this Turborepo's guidance and add an on-demand workflow for creating a new app package. The workflow has several required steps: copy the app template, register workspace metadata, add standard scripts, and run package-scoped lint, typecheck, and tests. Use better-init and write the resulting files.",
+      "expected_output": "Shared facts go in AGENTS.md and the repeatable creation workflow becomes a compliant project skill under .github/skills.",
+      "files": [],
+      "expectations": [
+        "AGENTS.md contains concise Turborepo structure and shared commands.",
+        ".github/skills/new-app-package/SKILL.md exists.",
+        "The skill name matches its directory and its description states the trigger.",
+        "The skill contains the required creation and package-scoped validation steps.",
+        "AGENTS.md mentions the skill briefly without copying its workflow.",
+        "No custom agent is created for a workflow adequately represented by a skill."
+      ]
+    }
+  ]
+}

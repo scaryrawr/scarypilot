@@ -1,0 +1,30 @@
+[
+  {
+    "query": "Initialize this repository for Copilot CLI with concise, accurate instructions.",
+    "should_trigger": true
+  },
+  {
+    "query": "Create AGENTS.md and decide whether we need Copilot-specific or path-specific instructions.",
+    "should_trigger": true
+  },
+  {
+    "query": "Refresh our stale repository agent guidance and remove duplication between AGENTS.md and .github/copilot-instructions.md.",
+    "should_trigger": true
+  },
+  {
+    "query": "Set up reusable project skills and custom agents for the workflows in this monorepo.",
+    "should_trigger": true
+  },
+  {
+    "query": "Run npm init and create a package.json for this JavaScript library.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain what the existing AGENTS.md says without changing anything.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write contributor documentation for installing the application.",
+    "should_trigger": false
+  }
+]

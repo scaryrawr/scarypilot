@@ -13,6 +13,14 @@
       "source": "./plugins/azure-devops"
     },
     {
+      "name": "better-init",
+      "description": "Create concise, Copilot-aware repository instructions, skills, and custom agents.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/better-init"
+    },
+    {
       "name": "digivolution",
       "description": "Skill-only post-task reflection for keeping repo instructions and in-repo skills accurate.",
       "author": {
