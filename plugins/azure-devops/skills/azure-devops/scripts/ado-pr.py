@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from typing import Any
 
@@ -72,6 +73,75 @@ def list_threads(args: argparse.Namespace) -> None:
     print(json.dumps({"count": len(threads), "threads": threads}, indent=2))
 
 
+def invoke_thread_api(
+    args: argparse.Namespace,
+    *,
+    resource: str,
+    method: str,
+    payload: dict[str, Any],
+    thread_id: str,
+) -> Any:
+    """Invoke a PR thread API with a temporary JSON payload."""
+    details = run_json(["az", "repos", "pr", "show", "--id", args.id, *scope_args(args)])
+    repo = details.get("repository") or {}
+    project = repo.get("project") or {}
+    project_name = project.get("name")
+    repository_id = repo.get("id")
+    if not project_name or not repository_id:
+        sys.exit("error: could not determine project or repository for the pull request")
+
+    out_file = resolve_out_file("auto", "ado-pr-thread-")
+    try:
+        out_file.write_text(json.dumps(payload), encoding="utf-8")
+        route_parameters = [
+            f"project={project_name}",
+            f"repositoryId={repository_id}",
+            f"pullRequestId={args.id}",
+            f"threadId={thread_id}",
+        ]
+        return run_json(
+            [
+                "az",
+                "devops",
+                "invoke",
+                "--area",
+                "git",
+                "--resource",
+                resource,
+                "--route-parameters",
+                *route_parameters,
+                "--http-method",
+                method,
+                "--api-version",
+                "7.1",
+                "--in-file",
+                str(out_file),
+                *scope_args(args),
+            ]
+        )
+    finally:
+        shutil.rmtree(out_file.parent, ignore_errors=True)
+
+
+def reply_and_resolve(args: argparse.Namespace) -> None:
+    """Reply to a pull request thread, then resolve it only after the reply succeeds."""
+    reply = invoke_thread_api(
+        args,
+        resource="pullRequestThreadComments",
+        method="POST",
+        payload={"content": args.content, "parentCommentId": 0, "commentType": 1},
+        thread_id=args.thread_id,
+    )
+    resolved = invoke_thread_api(
+        args,
+        resource="pullRequestThreads",
+        method="PATCH",
+        payload={"status": args.status},
+        thread_id=args.thread_id,
+    )
+    print(json.dumps({"reply": reply, "thread": resolved}, indent=2))
+
+
 def add_scope_flags(parser: argparse.ArgumentParser) -> None:
     """Add common Azure DevOps CLI scope flags."""
     parser.add_argument("--detect", default="true")
@@ -88,6 +158,12 @@ def main() -> None:
     threads_parser.add_argument("--id", required=True)
     threads_parser.add_argument("--status", default="")
     add_scope_flags(threads_parser)
+    resolve_parser = subparsers.add_parser("reply-and-resolve")
+    resolve_parser.add_argument("--id", required=True)
+    resolve_parser.add_argument("--thread-id", required=True)
+    resolve_parser.add_argument("--content", required=True)
+    resolve_parser.add_argument("--status", default="fixed", choices=["fixed", "closed", "wontFix", "byDesign"])
+    add_scope_flags(resolve_parser)
     payload_parser = subparsers.add_parser("thread-payload")
     payload_parser.add_argument("--content", required=True)
     payload_parser.add_argument("--status", default="active")
@@ -101,6 +177,8 @@ def main() -> None:
         context(args)
     elif args.command == "list-threads":
         list_threads(args)
+    elif args.command == "reply-and-resolve":
+        reply_and_resolve(args)
     elif args.command == "thread-payload":
         payload = build_thread_payload(args)
         if args.out_file:

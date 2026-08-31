@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "azure-devops",
-      "description": "Create, inspect, review, and manage Azure DevOps pull requests and Azure Boards work items.",
+      "description": "Create, inspect, review, and drive Azure DevOps pull requests through completion, and manage Azure Boards work items.",
       "author": {
         "name": "Mike Wallio"
       },

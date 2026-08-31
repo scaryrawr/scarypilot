@@ -1,0 +1,30 @@
+[
+  {
+    "query": "Create an Azure DevOps PR from this branch and get it all the way through.",
+    "should_trigger": true
+  },
+  {
+    "query": "Use ADO agent merge on pull request 4821.",
+    "should_trigger": true
+  },
+  {
+    "query": "Keep working this Azure DevOps pull request until it can merge, then enable auto-complete.",
+    "should_trigger": true
+  },
+  {
+    "query": "Address the active review threads and policy failures on this ADO PR so it can complete.",
+    "should_trigger": true
+  },
+  {
+    "query": "Show me the status of Azure DevOps pull request 4821.",
+    "should_trigger": false
+  },
+  {
+    "query": "Create a GitHub pull request and turn on auto-merge.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain Azure DevOps branch policies.",
+    "should_trigger": false
+  }
+]
