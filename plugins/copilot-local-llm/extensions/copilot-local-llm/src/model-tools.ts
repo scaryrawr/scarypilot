@@ -1,20 +1,13 @@
 import type { CopilotSession } from "@github/copilot-sdk";
 import type { ProviderModelConfig } from "@github/copilot-sdk";
 
-export const LOCAL_MODEL_TOOLS = [
-  "bash",
-  "view",
-  "apply_patch",
-  "edit",
-  "read_bash",
-  "stop_bash",
-  "list_bash",
-  "rg",
-  "grep",
-  "glob",
-  "web_search",
-  "skill",
-  "ask_user",
+export const LOCAL_MODEL_EXCLUDED_TOOLS = [
+  "task",
+  "list_agents",
+  "read_agent",
+  "write_agent",
+  "run_factory",
+  "factories_manage",
 ] as const;
 
 export async function configureLocalModelTools(
@@ -39,7 +32,11 @@ export async function configureLocalModelTools(
         throw new Error("The runtime did not provide the current tool catalog");
       }
       unrestrictedTools = tools.map(({ name }) => name);
-      await updateAvailableTools(session, [...LOCAL_MODEL_TOOLS]);
+      const excludedTools = new Set<string>(LOCAL_MODEL_EXCLUDED_TOOLS);
+      await updateAvailableTools(
+        session,
+        unrestrictedTools.filter((name) => !excludedTools.has(name)),
+      );
     } else if (unrestrictedTools) {
       await updateAvailableTools(session, unrestrictedTools);
     }

@@ -16,12 +16,11 @@ session. Copilot's safety, project, runtime, and environment instructions remain
 enabled. Tools remain available through their schemas with compact usage
 guidance.
 
-When a discovered local model is selected, the plugin limits the model-facing
-tool set to file inspection and editing, shell process management, search, web
-search, skills, and user questions. Switching back to a Copilot-hosted model
-restores the tool set that was available before the local model was selected.
-Subagent and factory tools are omitted because local inference generally cannot
-serve concurrent agent workloads effectively.
+When a discovered local model is selected, the plugin preserves the current
+tool catalog except for subagent and factory orchestration tools, because local
+inference generally cannot serve concurrent agent workloads effectively.
+Switching back to a Copilot-hosted model restores the complete tool set that was
+available before the local model was selected.
 
 ## Prerequisites
 
