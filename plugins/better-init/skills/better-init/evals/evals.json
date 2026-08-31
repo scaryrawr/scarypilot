@@ -57,6 +57,22 @@
         "AGENTS.md mentions the skill briefly without copying its workflow.",
         "No custom agent is created for a workflow adequately represented by a skill."
       ]
+    },
+    {
+      "id": 5,
+      "name": "repository-specific-code-review-skill",
+      "prompt": "Improve this repository's Copilot setup for pull request review. Changes under db/migrations/** require a matching schema snapshot update, API changes under src/public-api/** require a compatibility check, and pull request descriptions may reference incidents available through the repository's configured incident MCP server. Use better-init and write the resulting files.",
+      "expected_output": "A review-focused project skill captures the repository-specific checks and verified MCP context without turning general review advice into a long checklist.",
+      "files": [],
+      "expectations": [
+        ".github/skills/code-review/SKILL.md exists.",
+        "The skill name is code-review and its description explicitly targets pull request review.",
+        "The skill checks migration changes for the matching schema snapshot.",
+        "The skill checks public API changes for compatibility.",
+        "The skill tells reviewers to consult incident context through the configured MCP server when a pull request references an incident.",
+        "The skill does not consist primarily of generic advice to look for bugs, security issues, tests, or style.",
+        "Repository-wide facts are not duplicated into the code-review skill."
+      ]
     }
   ]
 }
