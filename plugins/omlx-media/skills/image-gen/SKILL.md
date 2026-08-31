@@ -1,7 +1,7 @@
 ---
 name: image-gen
 description: Use this skill to create, generate, draw, or edit images/photos into saved PNG files with OMLX image models. Covers text-to-image and image-to-image edits. Do not use for text-only image explanations, screenshot summaries, or non-generative image processing scripts.
-allowed-tools: omlx_image Bash(curl:*) Bash(uv run ./scripts/generate.py:*) Bash(uv run ./scripts/edit.py:*)
+allowed-tools: omlx_image Bash(uv run ./scripts/generate.py:*) Bash(uv run ./scripts/edit.py:*)
 ---
 
 # OMLX Image Generation and Editing
