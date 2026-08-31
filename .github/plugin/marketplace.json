@@ -77,14 +77,6 @@
       "source": "./external_plugins/pstack"
     },
     {
-      "name": "microsoft-docs",
-      "description": "Search and retrieve Microsoft Learn documentation, tutorials, and API references directly from Copilot.",
-      "author": {
-        "name": "Microsoft"
-      },
-      "source": "./external_plugins/microsoft-docs"
-    },
-    {
       "name": "smahties",
       "description": "Local semantic code-search MCP server powered by smahtutils. Requires the smahties CLI to be installed first.",
       "author": {
