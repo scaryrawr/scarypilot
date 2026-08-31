@@ -1,6 +1,6 @@
 ---
 name: better-init
-description: Create or modify repository guidance for GitHub Copilot. Use when asked to initialize, bootstrap, refresh, reorganize, or generate AGENTS.md, Copilot instructions, path-specific instructions, project skills, code-review guidance, or custom agents. Do not use for requests that only read or explain existing guidance.
+description: Create or modify repository guidance through GitHub Copilot CLI, including guidance consumed by Copilot code review. Use when asked to initialize, bootstrap, refresh, reorganize, or generate AGENTS.md, Copilot instructions, path-specific instructions, project skills, code-review guidance, or custom agents. Do not use for requests that only read or explain existing guidance.
 ---
 
 # Better Init

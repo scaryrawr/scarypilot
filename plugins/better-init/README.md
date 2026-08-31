@@ -1,9 +1,10 @@
 # Better Init Plugin
 
-Better Init creates or refreshes repository guidance using the instruction
-surfaces supported by GitHub Copilot. It keeps portable repository facts in
-`AGENTS.md` while moving Copilot-only behavior, path-specific rules, reusable
-workflows, review procedures, and specialist roles to their native locations.
+Better Init runs through GitHub Copilot CLI to create or refresh repository
+guidance, including skills consumed by GitHub Copilot code review. It keeps
+portable repository facts in `AGENTS.md` while moving Copilot-only behavior,
+path-specific rules, reusable workflows, review procedures, and specialist
+roles to their native locations.
 
 The plugin provides:
 
