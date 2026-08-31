@@ -42,11 +42,22 @@ az devops invoke --area git --resource pullRequestThreads --route-parameters pro
 
 Pass repo-relative Azure paths with `/` separators to `--file-path`; the helper also normalizes Windows `\` separators. If you pass `--out-file auto`, the helper writes to the OS temp directory and returns `{ outFile, payload }`; otherwise it returns the payload directly. Use a top-level thread only when the user explicitly requests a standalone summary or when the comment cannot be anchored to a file.
 
+## `reply-and-resolve`
+
+Reply inside an existing review thread and resolve it only after the reply succeeds:
+
+```text
+uv run ./scripts/ado-pr.py reply-and-resolve --id {prId} --thread-id {threadId} --content "Applied the fix and added coverage." --status fixed --detect true
+```
+
+Use `fixed` when code changed, `wontFix` or `byDesign` when the suggestion was considered but intentionally not applied, and `closed` only for a general discussion that is complete. Do not resolve a thread without first leaving a concise reply that records the disposition.
+
 ## Workflow
 
 1. Resolve PR context with `context`.
 2. Retrieve threads with `list-threads` when you need prior discussion state.
-3. Build comment payloads with `thread-payload` before posting inline comments. Do not add a separate top-level summary when it repeats an inline finding.
+3. Use `reply-and-resolve` after addressing an existing active thread.
+4. Build comment payloads with `thread-payload` before posting new inline comments. Do not add a separate top-level summary when it repeats an inline finding.
 
 ## Common PR commands
 
