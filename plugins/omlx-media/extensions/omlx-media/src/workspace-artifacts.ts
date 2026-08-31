@@ -94,6 +94,16 @@ export async function persistImages(outputs: string[], images: Buffer[]): Promis
             `Image output already exists: ${outputs[index]}`,
           );
         }
+        try {
+          await rm(outputs[index], { force: true });
+        } catch (cleanupError) {
+          throw new ImageToolError(
+            "OUTPUT_CLEANUP_FAILED",
+            `Failed to remove incomplete image output ${outputs[index]}: ${
+              cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+            }`,
+          );
+        }
         throw error;
       }
       committed.push(outputs[index]);
