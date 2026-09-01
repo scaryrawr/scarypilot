@@ -1,0 +1,26 @@
+[
+  {
+    "query": "Record my screen while you drive this app demo, then trim off the setup.",
+    "should_trigger": true
+  },
+  {
+    "query": "Put these two product demo videos side by side and add captions.",
+    "should_trigger": true
+  },
+  {
+    "query": "Generate local narration for this screen recording and mix it into the video.",
+    "should_trigger": true
+  },
+  {
+    "query": "Turn this recorded engineering talk into a blog post with screenshots.",
+    "should_trigger": false
+  },
+  {
+    "query": "Transcribe this meeting recording and identify the speakers.",
+    "should_trigger": false
+  },
+  {
+    "query": "Upload this finished video to YouTube and publish it.",
+    "should_trigger": false
+  }
+]

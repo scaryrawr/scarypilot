@@ -53,6 +53,14 @@
       "source": "./plugins/omlx-media"
     },
     {
+      "name": "screen-record",
+      "description": "Record agent-driven demos and edit them into polished videos with local FFmpeg.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/screen-record"
+    },
+    {
       "name": "chrome-devtools",
       "description": "Give your AI coding assistant access to the full power of Chrome DevTools for reliable automation, in-depth debugging, and performance analysis.",
       "author": {

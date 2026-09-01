@@ -1,0 +1,48 @@
+{
+  "skill_name": "screen-record",
+  "evals": [
+    {
+      "id": 1,
+      "name": "agent-driven-demo",
+      "prompt": "Use the screen-record skill to describe the concrete workflow you would execute to record a short agent-driven UI demo, trim its setup, and preserve reproducible artifacts. Do not actually capture the screen in this eval.",
+      "expected_output": "A safe, ordered capture and editing workflow using the bundled managed recorder and preserving the raw source.",
+      "files": [],
+      "expectations": [
+        "The workflow rehearses and prepares the application before recording.",
+        "The workflow uses the bundled start and stop commands rather than an unmanaged FFmpeg process.",
+        "The workflow coordinates application driving through computer-use tools.",
+        "The raw recording is preserved and trimming writes a new output.",
+        "The final file is probed or otherwise checked for duration, dimensions, and audio."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "side-by-side-captioned",
+      "prompt": "Use the screen-record skill to plan how to turn before.mp4 and after.mp4 into a 720p-high side-by-side comparison with captions.srt. Do not execute the commands; provide the exact bundled helper commands and output sequence.",
+      "expected_output": "An exact, reproducible two-stage side-by-side and subtitle workflow.",
+      "files": [],
+      "expectations": [
+        "The response uses side-by-side with before.mp4 as left and after.mp4 as right.",
+        "The side-by-side command sets height to 720.",
+        "The response adds captions in a separate subtitles step.",
+        "Each stage writes to a new output path rather than overwriting an input.",
+        "The final output is inspected with the bundled probe command."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "local-narration",
+      "prompt": "Use the screen-record skill to add narration from narration.txt to demo.mp4 without sending text or media to a cloud service. Preserve the original video and explain the relevant voice-safety constraint.",
+      "expected_output": "A local platform-default narration and dubbing workflow that preserves source media, using SAPI on Windows and FFmpeg Flite elsewhere.",
+      "files": [],
+      "expectations": [
+        "The response uses the bundled narrate command with narration.txt.",
+        "The response identifies SAPI as the default local narration engine on Windows.",
+        "The response uses the bundled dub command to create a new video.",
+        "The workflow is explicitly local and does not upload media or narration.",
+        "The response does not propose voice cloning or impersonation.",
+        "The original demo.mp4 is preserved."
+      ]
+    }
+  ]
+}
