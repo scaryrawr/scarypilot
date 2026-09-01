@@ -1,0 +1,22 @@
+{
+  "name": "screen-record",
+  "description": "Record agent-driven demos and edit them into polished videos with FFmpeg.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Mike Wallio",
+    "url": "https://github.com/scaryrawr"
+  },
+  "repository": "https://github.com/scaryrawr/scarypilot",
+  "license": "MIT",
+  "keywords": [
+    "copilot",
+    "screen-recording",
+    "ffmpeg",
+    "demo",
+    "video-editing"
+  ],
+  "skills": [
+    "skills/"
+  ],
+  "agents": "agents/"
+}
