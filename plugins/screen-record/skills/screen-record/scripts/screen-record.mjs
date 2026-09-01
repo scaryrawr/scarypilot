@@ -426,7 +426,11 @@ function start() {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     sleep(100);
     const state = readState(paths.state);
-    if (state?.status === "recording" && pidRunning(state.workerPid)) {
+    if (
+      state?.status === "recording" &&
+      pidRunning(state.workerPid) &&
+      pidRunning(state.ffmpegPid)
+    ) {
       console.log(JSON.stringify(state, null, 2));
       return;
     }
@@ -455,11 +459,11 @@ function captureWorker() {
     statePath: config.state,
     logPath: config.log,
   };
-  writeFileSync(config.state, `${JSON.stringify(state, null, 2)}\n`);
 
   let stopping = false;
+  let finalized = false;
   const requestStop = () => {
-    if (!stopping && ffmpeg.stdin.writable) {
+    if (!stopping && ffmpeg.stdin?.writable) {
       stopping = true;
       ffmpeg.stdin.write("q\n");
     }
@@ -472,17 +476,31 @@ function captureWorker() {
   process.on("SIGINT", requestStop);
   process.on("SIGTERM", requestStop);
 
-  ffmpeg.on("error", (error) => {
-    writeFileSync(config.log, `Could not start ffmpeg: ${error.message}\n`, {
-      flag: "a",
-    });
-  });
-  ffmpeg.on("exit", (code) => {
+  const finish = (code, error) => {
+    if (finalized) {
+      return;
+    }
+    finalized = true;
     clearInterval(interval);
+    if (error) {
+      writeFileSync(config.log, `Could not start ffmpeg: ${error.message}\n`, {
+        flag: "a",
+      });
+    }
     closeSync(logFd);
     rmSync(config.stop, { force: true });
     rmSync(config.state, { force: true });
-    process.exit(code ?? 1);
+    process.exit(code);
+  };
+
+  ffmpeg.once("spawn", () => {
+    writeFileSync(config.state, `${JSON.stringify(state, null, 2)}\n`);
+  });
+  ffmpeg.once("error", (error) => {
+    finish(1, error);
+  });
+  ffmpeg.once("close", (code) => {
+    finish(code ?? 1);
   });
 }
 
@@ -498,7 +516,10 @@ function status() {
     JSON.stringify(
       {
         ...state,
-        status: pidRunning(state.workerPid) ? state.status : "stale",
+        status:
+          pidRunning(state.workerPid) && pidRunning(state.ffmpegPid)
+            ? state.status
+            : "stale",
       },
       null,
       2,
@@ -510,7 +531,11 @@ function stop() {
   const output = resolve(requireOption("output"));
   const paths = recordingPaths(output);
   const state = readState(paths.state);
-  if (!state || !pidRunning(state.workerPid)) {
+  if (
+    !state ||
+    !pidRunning(state.workerPid) ||
+    !pidRunning(state.ffmpegPid)
+  ) {
     fail(`no active recording found for ${output}`);
   }
   writeFileSync(paths.stop, `${new Date().toISOString()}\n`);

@@ -31,7 +31,7 @@ node scripts/screen-record.mjs start --output raw.mp4 \
   --video-input 2 --audio-device 0
 ```
 
-Crop a region after capture:
+Crop a region in the capture pipeline:
 
 ```text
 node scripts/screen-record.mjs start --output raw.mp4 \
