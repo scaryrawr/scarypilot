@@ -113,7 +113,7 @@ confirm before keeping. Advisory only; never auto-discards.
 
 ## Differences vs pi-autoresearch
 
-Parity is tracked against pi-autoresearch 1.6.2. The `.auto/` contract,
+Parity is tracked against pi-autoresearch 1.7.0. The `.auto/` contract,
 experiment lifecycle, benchmark and checks gates, hooks, iteration limits,
 failure guard, finalization workflow, and live browser reporting are preserved
 where Copilot exposes an equivalent extension API.
@@ -130,7 +130,8 @@ adapted:
   `session_before_compact` hook to extensions, so the deterministic rehydration
   summary is included in every auto-resume prompt instead.
 - **No configurable keyboard shortcuts.** Copilot CLI extensions can't bind
-  keys; use the slash command subcommands.
+  keys. Upstream 1.7.0 also makes Pi shortcuts opt-in; use the Copilot slash
+  command subcommands instead.
 - **Tools cannot be removed dynamically from Copilot's model schema.** They
   remain discoverable while mode is off, but reject execution until
   `/autoresearch <goal>` activates the loop.
