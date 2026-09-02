@@ -1,7 +1,7 @@
 {
   "name": "pstack",
   "description": "Copilot-compatible adaptation of pstack's rigorous planning, review, delegation, and verification workflows.",
-  "version": "0.14.5-copilot.2",
+  "version": "0.14.7-copilot.3",
   "author": {
     "name": "Lauren Tan"
   },
