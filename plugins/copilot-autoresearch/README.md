@@ -162,6 +162,7 @@ is required.
 ## Resources
 
 - [Copilot CLI plugin reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference)
+- [pi-autoresearch website](https://davebcn87.github.io/pi-autoresearch/)
 - [Source migration record](./NOTICE.md)
 - [pi-autoresearch MIT license](./LICENSE.pi-autoresearch)
 
