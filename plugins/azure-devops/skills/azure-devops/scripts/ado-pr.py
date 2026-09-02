@@ -15,6 +15,13 @@ from typing import Any
 from shared.ado import build_thread_payload, resolve_out_file, run_json, scope_args, strip_refs_heads
 
 
+def positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
 def context(args: argparse.Namespace) -> None:
     """Print compact context for an Azure DevOps pull request."""
     details = run_json(["az", "repos", "pr", "show", "--id", args.id, *scope_args(args)])
@@ -232,7 +239,7 @@ def main() -> None:
     add_scope_flags(threads_parser)
     builds_parser = subparsers.add_parser("list-builds")
     builds_parser.add_argument("--id", required=True)
-    builds_parser.add_argument("--top", type=int, default=100)
+    builds_parser.add_argument("--top", type=positive_int, default=100)
     add_scope_flags(builds_parser)
     resolve_parser = subparsers.add_parser("reply-and-resolve")
     resolve_parser.add_argument("--id", required=True)
