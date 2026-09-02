@@ -30,6 +30,21 @@ uv run ./scripts/ado-pr.py list-threads --id {prId} --status active --detect tru
 
 Use `count` and `threads` from the JSON response. Omit `--status` when you need all threads.
 
+## `list-builds`
+
+Query pipeline runs for the PR's current synthetic merge commit:
+
+```text
+uv run ./scripts/ado-pr.py list-builds --id {prId} --detect true
+```
+
+This is separate from `az repos pr policy list`: policy output is not a complete
+inventory of pipelines triggered for a PR. The helper queries
+`refs/pull/{prId}/merge`, then filters out runs from superseded merge commits.
+Treat nonempty `failed` as a current build failure and nonempty `pending` as work
+still running. Inspect each failed build's status, logs, and issues before deciding
+whether the failure is actionable, pre-existing, or infrastructure-related.
+
 ## `thread-payload`
 
 Never hand-write review thread JSON when the helper can do it for you:
@@ -56,8 +71,10 @@ Use `fixed` when code changed, `wontFix` or `byDesign` when the suggestion was c
 
 1. Resolve PR context with `context`.
 2. Retrieve threads with `list-threads` when you need prior discussion state.
-3. Use `reply-and-resolve` after addressing an existing active thread.
-4. Build comment payloads with `thread-payload` before posting new inline comments. Do not add a separate top-level summary when it repeats an inline finding.
+3. Retrieve current-merge pipeline runs with `list-builds`; do not infer build
+   health only from branch policies.
+4. Use `reply-and-resolve` after addressing an existing active thread.
+5. Build comment payloads with `thread-payload` before posting new inline comments. Do not add a separate top-level summary when it repeats an inline finding.
 
 ## Common PR commands
 

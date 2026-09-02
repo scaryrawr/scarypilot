@@ -75,6 +75,7 @@ At the start of each pass, gather fresh state:
 ```text
 uv run ../azure-devops/scripts/ado-pr.py context --id {prId} --detect true
 uv run ../azure-devops/scripts/ado-pr.py list-threads --id {prId} --status active --detect true
+uv run ../azure-devops/scripts/ado-pr.py list-builds --id {prId} --detect true
 az repos pr reviewer list --id {prId} --detect true --output json
 az repos pr policy list --id {prId} --detect true --output json
 az repos pr show --id {prId} --detect true --output json
@@ -90,6 +91,7 @@ The PR is ready for auto-complete when:
 - every actionable active review thread has a recorded disposition;
 - required reviewer votes and branch policies are satisfied or legitimately
   waiting on Azure DevOps;
+- every pipeline run for the current synthetic merge commit has succeeded;
 - the source branch has no merge conflicts with the target branch;
 - local verification for the final pushed commit passes.
 
@@ -119,6 +121,15 @@ if the helper fails. Do not post a duplicate top-level summary.
 Required policy failures are signals, not obstacles to hide. Inspect the policy
 record and its linked build or status details, reproduce failures locally when
 possible, and fix the root cause tied to this PR.
+
+Policy records are not a complete pipeline inventory. Always run `list-builds`
+and evaluate only runs whose `sourceVersion` matches the PR's current synthetic
+merge commit. A failure in `failed` blocks readiness even when it is absent from
+`az repos pr policy list`; a run in `pending` means build health is not settled.
+Ignore failures from superseded merge commits, but do not ignore a current
+`failed`, `partiallySucceeded`, or `canceled` run. Inspect its build status,
+issues, and relevant log before deciding whether to change code or report an
+external failure.
 
 Do not change shared CI configuration merely to conceal a failure. Do not spend
 effort on optional policies unless the user requested it. If a failure is clearly
@@ -165,7 +176,7 @@ report that result.
 End the turn instead of waiting when:
 
 - auto-complete is enabled and only server-side policies, builds, or reviewer
-  votes remain;
+  votes remain, with no failed build on the current merge commit;
 - the PR completed or was abandoned externally;
 - a permission, policy, infrastructure, or genuinely ambiguous conflict requires
   a human;

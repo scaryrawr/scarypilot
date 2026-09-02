@@ -73,6 +73,78 @@ def list_threads(args: argparse.Namespace) -> None:
     print(json.dumps({"count": len(threads), "threads": threads}, indent=2))
 
 
+def list_builds(args: argparse.Namespace) -> None:
+    """List pipeline runs for the pull request's current synthetic merge commit."""
+    details = run_json(["az", "repos", "pr", "show", "--id", args.id, *scope_args(args)])
+    repo = details.get("repository") or {}
+    project = repo.get("project") or {}
+    project_name = project.get("name")
+    repository_id = repo.get("id")
+    merge_commit_id = (details.get("lastMergeCommit") or {}).get("commitId")
+    if not project_name or not repository_id or not merge_commit_id:
+        sys.exit("error: could not determine project, repository, or current merge commit for the pull request")
+
+    merge_ref = f"refs/pull/{args.id}/merge"
+    response = run_json(
+        [
+            "az",
+            "devops",
+            "invoke",
+            "--area",
+            "build",
+            "--resource",
+            "builds",
+            "--route-parameters",
+            f"project={project_name}",
+            "--query-parameters",
+            f"branchName={merge_ref}",
+            f"repositoryId={repository_id}",
+            "repositoryType=TfsGit",
+            "queryOrder=queueTimeDescending",
+            f"$top={args.top}",
+            "--api-version",
+            "7.1",
+            *scope_args(args),
+        ]
+    )
+    current_builds = [
+        build for build in response.get("value") or [] if build.get("sourceVersion") == merge_commit_id
+    ]
+    builds = [
+        {
+            "id": build.get("id"),
+            "buildNumber": build.get("buildNumber"),
+            "status": build.get("status"),
+            "result": build.get("result"),
+            "definitionId": (build.get("definition") or {}).get("id"),
+            "definitionName": (build.get("definition") or {}).get("name"),
+            "sourceBranch": build.get("sourceBranch"),
+            "sourceVersion": build.get("sourceVersion"),
+            "queueTime": build.get("queueTime"),
+            "startTime": build.get("startTime"),
+            "finishTime": build.get("finishTime"),
+            "url": ((build.get("_links") or {}).get("web") or {}).get("href") or build.get("url"),
+        }
+        for build in current_builds
+    ]
+    failed_results = {"failed", "partiallySucceeded", "canceled"}
+    failed = [build for build in builds if build.get("result") in failed_results]
+    pending = [build for build in builds if build.get("status") != "completed"]
+    succeeded = [build for build in builds if build.get("result") == "succeeded"]
+    payload = {
+        "pullRequestId": details.get("pullRequestId"),
+        "mergeRef": merge_ref,
+        "mergeCommitId": merge_commit_id,
+        "hasFailures": bool(failed),
+        "hasPending": bool(pending),
+        "failed": failed,
+        "pending": pending,
+        "succeeded": succeeded,
+        "builds": builds,
+    }
+    print(json.dumps(payload, indent=2))
+
+
 def invoke_thread_api(
     args: argparse.Namespace,
     *,
@@ -158,6 +230,10 @@ def main() -> None:
     threads_parser.add_argument("--id", required=True)
     threads_parser.add_argument("--status", default="")
     add_scope_flags(threads_parser)
+    builds_parser = subparsers.add_parser("list-builds")
+    builds_parser.add_argument("--id", required=True)
+    builds_parser.add_argument("--top", type=int, default=100)
+    add_scope_flags(builds_parser)
     resolve_parser = subparsers.add_parser("reply-and-resolve")
     resolve_parser.add_argument("--id", required=True)
     resolve_parser.add_argument("--thread-id", required=True)
@@ -177,6 +253,8 @@ def main() -> None:
         context(args)
     elif args.command == "list-threads":
         list_threads(args)
+    elif args.command == "list-builds":
+        list_builds(args)
     elif args.command == "reply-and-resolve":
         reply_and_resolve(args)
     elif args.command == "thread-payload":

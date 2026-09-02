@@ -16,6 +16,10 @@
     "should_trigger": true
   },
   {
+    "query": "Keep working this ADO PR through the pipeline failures even though its required policies look green.",
+    "should_trigger": true
+  },
+  {
     "query": "Show me the status of Azure DevOps pull request 4821.",
     "should_trigger": false
   },
