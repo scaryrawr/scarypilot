@@ -4,8 +4,8 @@
 - Revision: `468f6ddecaa473f69ffc25243db326ba6bd5188b`
 - Imported: 2026-08-25
 - Original workflow: <https://github.com/davebcn87/pi-autoresearch>
-- Upstream parity reviewed through: `dab7046feedfcc47b406eef36e59a3f4a0d9e508`
-  (`v1.7.0`, 2026-08-31)
+- Upstream parity reviewed through: `41820794dcdc1a1fa9f3f19593052f7978f0de5e`
+  (2026-09-01; runtime remains `v1.7.0`)
 
 The extension runtime, tests, and three bundled skills were imported into
 ScaryPilot. Marketplace metadata and installation documentation were added,
@@ -27,3 +27,8 @@ keyboard shortcuts or terminal overlays, so those changes do not apply to this
 port. The release's portable browser-launcher hardening was already present:
 launcher errors are ignored while the loopback dashboard URL remains available
 for manual opening.
+
+The commits after 1.7.0 add the upstream project's GitHub Pages website and
+social-preview assets. The website is linked from this plugin's documentation,
+but its Pi-specific site build, deployment workflow, and generated assets are
+not part of the Copilot plugin.
