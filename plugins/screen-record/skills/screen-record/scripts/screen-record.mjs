@@ -80,6 +80,80 @@ function findPowerShell() {
   return null;
 }
 
+function macosSayAvailable() {
+  if (process.platform !== "darwin") {
+    return false;
+  }
+  return spawnSync("/usr/bin/say", ["-v", "?"], {
+    encoding: "utf8",
+  }).status === 0;
+}
+
+function omlxBaseUrl() {
+  return (process.env.OMLX_BASE_URL || "http://127.0.0.1:8000")
+    .replace(/\/+$/, "")
+    .replace(/\/v1$/, "");
+}
+
+function omlxHeaders() {
+  const headers = { "Content-Type": "application/json" };
+  if (process.env.OMLX_API_KEY) {
+    headers.Authorization = `Bearer ${process.env.OMLX_API_KEY}`;
+  }
+  return headers;
+}
+
+async function omlxRequest(path, init = {}, timeout = 2000) {
+  return fetch(`${omlxBaseUrl()}${path}`, {
+    ...init,
+    headers: {
+      ...omlxHeaders(),
+      ...init.headers,
+    },
+    signal: AbortSignal.timeout(timeout),
+  });
+}
+
+async function discoverOmlxTts() {
+  try {
+    const response = await omlxRequest("/v1/models/status");
+    if (!response.ok) {
+      return null;
+    }
+    const payload = await response.json();
+    const models = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload.data)
+        ? payload.data
+        : Array.isArray(payload.models)
+          ? payload.models
+          : [];
+    const requestedModel = options.model ?? process.env.OMLX_TTS_MODEL;
+    if (requestedModel) {
+      const available = models.some(
+        (model) =>
+          model.id === requestedModel ||
+          model.model_alias === requestedModel ||
+          (Array.isArray(model.aliases) && model.aliases.includes(requestedModel)),
+      );
+      return available ? { baseUrl: omlxBaseUrl(), model: requestedModel } : null;
+    }
+    const candidates = models
+      .filter(
+        (model) =>
+          model.engine_type === "audio_tts" ||
+          model.model_type === "audio_tts" ||
+          String(model.config_model_type ?? "").toLowerCase().includes("tts"),
+      )
+      .sort((left, right) => Number(right.loaded) - Number(left.loaded));
+    return candidates[0]
+      ? { baseUrl: omlxBaseUrl(), model: candidates[0].id }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function run(name, commandArgs, { capture = false } = {}) {
   const result = spawnSync(name, commandArgs, {
     encoding: "utf8",
@@ -150,16 +224,33 @@ function sleep(milliseconds) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
-function narrationEngine() {
-  const requested = options.engine ?? "auto";
-  if (!["auto", "sapi", "flite"].includes(requested)) {
-    fail("--engine must be auto, sapi, or flite");
+function nativeNarrationEngine() {
+  if (process.platform === "win32") {
+    return "sapi";
   }
-  return requested === "auto"
-    ? process.platform === "win32"
-      ? "sapi"
-      : "flite"
-    : requested;
+  if (process.platform === "darwin") {
+    return "say";
+  }
+  return "flite";
+}
+
+async function narrationEngine() {
+  const requested = options.engine ?? "auto";
+  if (!["auto", "omlx", "sapi", "say", "flite"].includes(requested)) {
+    fail("--engine must be auto, omlx, sapi, say, or flite");
+  }
+  if (requested === "auto" || requested === "omlx") {
+    const omlx = await discoverOmlxTts();
+    if (omlx) {
+      return { engine: "omlx", omlx };
+    }
+    if (requested === "omlx") {
+      fail(
+        `no OMLX TTS model is available at ${omlxBaseUrl()}; set OMLX_BASE_URL or OMLX_TTS_MODEL`,
+      );
+    }
+  }
+  return { engine: requested === "auto" ? nativeNarrationEngine() : requested };
 }
 
 function ffmpegCaptureArgs(config) {
@@ -253,7 +344,7 @@ function ffmpegCaptureArgs(config) {
   return ffmpegArgs;
 }
 
-function doctor() {
+async function doctor() {
   const ffmpeg = executableWorks("ffmpeg");
   const ffprobe = executableWorks("ffprobe");
   if (!ffmpeg || !ffprobe) {
@@ -262,6 +353,8 @@ function doctor() {
   const filters = run("ffmpeg", ["-hide_banner", "-filters"], { capture: true });
   const devices = run("ffmpeg", ["-hide_banner", "-devices"], { capture: true });
   const powershell = findPowerShell();
+  const sayTts = macosSayAvailable();
+  const omlx = await discoverOmlxTts();
   const sapiCheck =
     powershell
       ? spawnSync(
@@ -296,10 +389,13 @@ function doctor() {
     capture_available: devices.includes(captureDevice),
     subtitles: /\bsubtitles\b/.test(filters),
     flite_tts: /\bflite\b/.test(filters),
+    omlx_tts: Boolean(omlx),
+    omlx_base_url: omlx?.baseUrl ?? omlxBaseUrl(),
+    omlx_tts_model: omlx?.model ?? null,
+    say_tts: sayTts,
     sapi_tts: sapiCheck?.status === 0 && sapiVoices.length > 0,
     sapi_voice_count: sapiVoices.length,
-    default_tts:
-      sapiCheck?.status === 0 && sapiVoices.length > 0 ? "sapi" : "flite",
+    default_tts: omlx ? "omlx" : nativeNarrationEngine(),
   };
   console.log(JSON.stringify(result, null, 2));
   if (!result.capture_available) {
@@ -307,8 +403,31 @@ function doctor() {
   }
 }
 
-function voices() {
-  const engine = narrationEngine();
+async function voices() {
+  const automatic = (options.engine ?? "auto") === "auto";
+  let selection = await narrationEngine();
+  let engine = selection.engine;
+  if (engine === "omlx") {
+    try {
+      const response = await omlxRequest(
+        `/v1/audio/voices?model=${encodeURIComponent(selection.omlx.model)}`,
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+      process.stdout.write(`${JSON.stringify(await response.json(), null, 2)}\n`);
+      return;
+    } catch (error) {
+      if (!automatic) {
+        fail(`OMLX voice discovery failed: ${error.message}`);
+      }
+      console.error(
+        `screen-record: OMLX voice discovery failed; using ${nativeNarrationEngine()}`,
+      );
+      selection = { engine: nativeNarrationEngine() };
+      engine = selection.engine;
+    }
+  }
   if (engine === "sapi") {
     if (process.platform !== "win32") {
       fail("the SAPI narration engine is available only on Windows");
@@ -331,6 +450,26 @@ function voices() {
       { capture: true },
     );
     process.stdout.write(output);
+    return;
+  }
+  if (engine === "say") {
+    if (process.platform !== "darwin") {
+      fail("the say narration engine is available only on macOS");
+    }
+    if (!macosSayAvailable()) {
+      fail("macOS narration requires /usr/bin/say");
+    }
+    const output = run("/usr/bin/say", ["-v", "?"], { capture: true });
+    const voices = output
+      .split(/\r?\n/)
+      .map((line) => line.match(/^(.+?)\s+([A-Za-z]{2,3}_[A-Za-z]{2,4})\s+#/))
+      .filter(Boolean)
+      .map((match) => ({
+        name: match[1].trim(),
+        locale: match[2],
+        engine: "say",
+      }));
+    console.log(JSON.stringify(voices, null, 2));
     return;
   }
   const result = spawnSync(
@@ -676,10 +815,62 @@ function subtitles() {
   ]);
 }
 
-function narrate() {
+async function narrate() {
   const textFile = ensureInput(requireOption("text-file"));
   const output = ensureNewOutput(requireOption("output"));
-  const engine = narrationEngine();
+  const automatic = (options.engine ?? "auto") === "auto";
+  let selection = await narrationEngine();
+  let engine = selection.engine;
+  let useNativeOptions = true;
+  if (engine === "omlx") {
+    if (extname(output).toLowerCase() !== ".wav") {
+      fail("OMLX narration output must use the .wav extension");
+    }
+    const speed = Number(options.speed ?? 1);
+    if (!Number.isFinite(speed) || speed <= 0) {
+      fail("--speed must be a positive number");
+    }
+    const payload = {
+      model: selection.omlx.model,
+      input: readFileSync(textFile, "utf8"),
+      response_format: "wav",
+      speed,
+    };
+    if (typeof options.voice === "string") {
+      payload.voice = options.voice;
+    }
+    if (typeof options.language === "string") {
+      payload.language = options.language;
+    }
+    if (typeof options.instructions === "string") {
+      payload.instructions = options.instructions;
+    }
+    try {
+      const response = await omlxRequest(
+        "/v1/audio/speech",
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+        120000,
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+      writeFileSync(output, Buffer.from(await response.arrayBuffer()));
+      return;
+    } catch (error) {
+      if (!automatic) {
+        fail(`OMLX narration failed: ${error.message}`);
+      }
+      console.error(
+        `screen-record: OMLX narration failed; using ${nativeNarrationEngine()}`,
+      );
+      selection = { engine: nativeNarrationEngine() };
+      engine = selection.engine;
+      useNativeOptions = false;
+    }
+  }
   if (engine === "sapi") {
     if (process.platform !== "win32") {
       fail("the SAPI narration engine is available only on Windows");
@@ -691,8 +882,8 @@ function narrate() {
     if (extname(output).toLowerCase() !== ".wav") {
       fail("SAPI narration output must use the .wav extension");
     }
-    const rate = Number(options.rate ?? 0);
-    const volume = Number(options.volume ?? 100);
+    const rate = Number(useNativeOptions ? (options.rate ?? 0) : 0);
+    const volume = Number(useNativeOptions ? (options.volume ?? 100) : 100);
     if (!Number.isInteger(rate) || rate < -10 || rate > 10) {
       fail("--rate must be an integer from -10 to 10");
     }
@@ -715,16 +906,53 @@ function narrate() {
       "-Volume",
       String(volume),
     ];
-    if (typeof options.voice === "string") {
+    if (useNativeOptions && typeof options.voice === "string") {
       sapiArgs.push("-Voice", options.voice);
     }
     run(powershell, sapiArgs);
     return;
   }
-  if (options.rate !== undefined || options.volume !== undefined) {
-    fail("--rate and --volume are supported only by the SAPI engine");
+  if (engine === "say") {
+    if (process.platform !== "darwin") {
+      fail("the say narration engine is available only on macOS");
+    }
+    if (!macosSayAvailable()) {
+      fail("macOS narration requires /usr/bin/say");
+    }
+    if (extname(output).toLowerCase() !== ".wav") {
+      fail("macOS say narration output must use the .wav extension");
+    }
+    if (useNativeOptions && options.volume !== undefined) {
+      fail("--volume is supported only by the SAPI engine");
+    }
+    const sayArgs = [
+      "--file-format=WAVE",
+      "--data-format=LEI16@48000",
+      "-o",
+      output,
+      "-f",
+      textFile,
+    ];
+    if (useNativeOptions && typeof options.voice === "string") {
+      sayArgs.unshift("-v", options.voice);
+    }
+    if (useNativeOptions && options.rate !== undefined) {
+      const rate = Number(options.rate);
+      if (!Number.isFinite(rate) || rate <= 0) {
+        fail("--rate must be a positive words-per-minute value for the say engine");
+      }
+      sayArgs.unshift("-r", String(rate));
+    }
+    run("/usr/bin/say", sayArgs);
+    return;
   }
-  const voice = options.voice ?? "slt";
+  if (useNativeOptions && options.rate !== undefined) {
+    fail("--rate is supported only by the SAPI and say engines");
+  }
+  if (useNativeOptions && options.volume !== undefined) {
+    fail("--volume is supported only by the SAPI engine");
+  }
+  const voice = useNativeOptions ? (options.voice ?? "slt") : "slt";
   if (!/^[A-Za-z0-9_-]+$/.test(voice)) {
     fail("--voice contains unsupported characters");
   }
@@ -782,7 +1010,7 @@ function usage() {
 Commands:
   doctor
   devices
-  voices [--engine sapi|flite]
+  voices [--engine omlx|sapi|say|flite] [--model <name>]
   start --output <file> [--fps 30] [--region x,y,w,h]
         [--audio-device <name>] [--video-input <source>]
   status --output <file>
@@ -793,19 +1021,21 @@ Commands:
   side-by-side --left <file> --right <file> --output <file> [--height 720]
   subtitles --input <file> --srt <file> --output <file>
   narrate --text-file <file> --output <file>
-           [--engine sapi|flite] [--voice <name>] [--rate 0] [--volume 100]
+           [--engine omlx|sapi|say|flite] [--model <name>] [--voice <name>]
+           [--speed 1] [--language <code>] [--instructions <text>]
+           [--rate <value>] [--volume 100]
   dub --video <file> --audio <file> --output <file> [--mix-original]`);
 }
 
 switch (command) {
   case "doctor":
-    doctor();
+    await doctor();
     break;
   case "devices":
     devices();
     break;
   case "voices":
-    voices();
+    await voices();
     break;
   case "start":
     start();
@@ -832,7 +1062,7 @@ switch (command) {
     subtitles();
     break;
   case "narrate":
-    narrate();
+    await narrate();
     break;
   case "dub":
     dub();

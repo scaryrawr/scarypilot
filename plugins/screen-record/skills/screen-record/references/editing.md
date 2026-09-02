@@ -56,19 +56,25 @@ covering important controls.
 ## Local narration and dubbing
 
 ```text
-voices [--engine sapi|flite]
+voices [--engine omlx|sapi|say|flite] [--model name]
 narrate --text-file narration.txt --output narration.wav
-         [--engine sapi|flite] [--voice "Microsoft Mark"]
-         [--rate 0] [--volume 100]
+         [--engine omlx|sapi|say|flite] [--model name] [--voice name]
+         [--speed 1] [--language code] [--instructions text]
+         [--rate value] [--volume 100]
 dub --video captioned.mp4 --audio narration.wav --output final.mp4
 dub --video captioned.mp4 --audio narration.wav --output final.mp4 --mix-original
 ```
 
-On Windows, `narrate` defaults to the local SAPI engine and the system's default
-voice. Use `voices` to list installed names. SAPI supports `--rate` from -10 to
-10 and `--volume` from 0 to 100. On other platforms, narration defaults to
-FFmpeg's local `flite` filter; pass `--engine flite` to use it explicitly on
-Windows. Both engines keep narration text local.
+Automatic narration first checks `$OMLX_BASE_URL`, defaulting to
+`http://127.0.0.1:8000`, and prefers a loaded TTS model. Set `$OMLX_TTS_MODEL`
+or pass `--model` to override discovery. OMLX supports `--speed`, `--language`,
+and `--instructions`; set `$OMLX_API_KEY` only when required.
+
+If OMLX is unavailable or generation fails, automatic narration falls back to
+the platform engine. Read the current host's capture reference for its fallback
+engine, voice options, and platform-specific rate or volume behavior. Use
+`voices` to list names for the selected engine. All defaults keep narration text
+local.
 
 `dub` replaces original audio by default. `--mix-original` lowers the original
 track and mixes narration over it; it requires the video to already contain

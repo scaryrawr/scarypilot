@@ -1,7 +1,7 @@
 {
   "name": "screen-record",
   "description": "Record agent-driven demos and edit them into polished videos with FFmpeg.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "Mike Wallio",
     "url": "https://github.com/scaryrawr"
