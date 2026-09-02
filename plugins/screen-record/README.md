@@ -16,8 +16,10 @@ FFmpeg screen capture and editing. The plugin includes:
 - Windows screen capture uses FFmpeg's `gdigrab`; microphone capture uses
   `dshow`. Linux uses `x11grab` and PulseAudio. macOS uses `avfoundation` and
   requires an explicit screen device index.
-- Windows narration uses installed SAPI voices by default. Other platforms
-  require an FFmpeg build with the `flite` filter.
+- Narration first checks a local OMLX endpoint from `OMLX_BASE_URL`, defaulting
+  to `http://127.0.0.1:8000`. Set `OMLX_TTS_MODEL` to override automatic model
+  discovery. Fallbacks use SAPI on Windows, built-in `say` on macOS, and
+  FFmpeg's `flite` filter on Linux.
 
 Screen and microphone capture may require operating-system privacy permission.
 The plugin does not upload recordings or narration.

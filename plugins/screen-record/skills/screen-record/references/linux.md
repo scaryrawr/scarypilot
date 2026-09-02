@@ -44,4 +44,21 @@ The region is `x,y,width,height`. Keep width and height even for H.264 output.
 For system audio, select the monitor source corresponding to the desired sink;
 for microphone audio, select the microphone source.
 
+## Narration
+
+Narration first checks the local OMLX endpoint at `$OMLX_BASE_URL`, defaulting
+to `http://127.0.0.1:8000`. It discovers a TTS model automatically, preferring
+one that is already loaded. Set `$OMLX_TTS_MODEL` to choose a specific model.
+If OMLX is unavailable or generation fails, Linux falls back to FFmpeg Flite:
+
+```text
+node scripts/screen-record.mjs voices
+node scripts/screen-record.mjs narrate --text-file narration.txt \
+  --output narration.wav
+```
+
+Use `--engine flite` to select Flite explicitly. Flite requires an FFmpeg build
+that includes the optional `flite` filter. It accepts `--voice`, but not
+`--rate` or `--volume`. Narration remains local.
+
 Reference: [FFmpeg `x11grab` and PulseAudio devices](https://ffmpeg.org/ffmpeg-devices.html).

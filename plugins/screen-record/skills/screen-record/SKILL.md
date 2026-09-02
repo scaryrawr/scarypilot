@@ -57,10 +57,11 @@ Use `references/editing.md` for command options and subtitle/narration formats.
 2. Use `side-by-side` only when simultaneous comparison adds meaning.
 3. Add supplied or user-approved SRT captions with `subtitles`.
 4. For narration, draft a short script grounded in visible behavior. Generate
-   audio with `narrate`, then combine it with `dub`. On Windows, `narrate`
-   defaults to local SAPI; elsewhere it defaults to FFmpeg Flite. Use `voices`
-   before selecting a non-default voice. Never clone a person's voice or imply
-   that synthetic narration is a real speaker.
+   audio with `narrate`, then combine it with `dub`. `narrate` first checks the
+   local OMLX endpoint, then falls back to SAPI on Windows, built-in `say` on
+   macOS, or FFmpeg Flite on Linux. Use `voices` before selecting a non-default
+   voice. Never clone a person's voice or imply that synthetic narration is a
+   real speaker.
 5. Probe the final file and preview it with `ffplay <file>` when an interactive
    preview is appropriate. Confirm duration, dimensions, audio presence, and
    that no sensitive content is visible.

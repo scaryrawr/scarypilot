@@ -46,7 +46,8 @@ loopback device exposed by the installed audio driver; do not assume one exists.
 
 ## Narration
 
-Windows narration defaults to the installed SAPI voices:
+Narration first checks the local OMLX endpoint. When OMLX is unavailable,
+Windows falls back to installed SAPI voices:
 
 ```text
 node scripts/screen-record.mjs voices
@@ -54,7 +55,8 @@ node scripts/screen-record.mjs narrate --text-file narration.txt \
   --output narration.wav --voice "Microsoft Mark" --rate 1
 ```
 
-The system default voice is used when `--voice` is omitted. SAPI narration is
-local and does not send text to a service.
+Use `--engine sapi` to select SAPI explicitly. The system default voice is used
+when `--voice` is omitted. SAPI narration is local and does not send text to a
+service.
 
 Reference: [FFmpeg `gdigrab` and `dshow` devices](https://ffmpeg.org/ffmpeg-devices.html).

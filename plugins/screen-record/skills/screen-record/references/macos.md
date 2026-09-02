@@ -43,4 +43,23 @@ width and height even for H.264 output. Device indices can change when displays
 or audio hardware are connected, so list them again before relying on a saved
 command.
 
+## Narration
+
+Narration first checks the local OMLX endpoint at `$OMLX_BASE_URL`, defaulting
+to `http://127.0.0.1:8000`. It discovers a TTS model automatically, preferring
+one that is already loaded. Set `$OMLX_TTS_MODEL` to choose a specific model.
+If OMLX is unavailable or generation fails, macOS falls back to built-in `say`,
+so narration does not depend on FFmpeg's optional Flite filter:
+
+```text
+node scripts/screen-record.mjs voices
+node scripts/screen-record.mjs narrate --text-file narration.txt \
+  --output narration.wav
+```
+
+Use `voices` to inspect the selected engine. OMLX accepts `--voice`, `--speed`,
+`--language`, and `--instructions`. For the `say` fallback, use
+`--engine say --voice "Samantha"`; its optional `--rate` is words per minute.
+Narration remains local.
+
 Reference: [FFmpeg `avfoundation` device](https://ffmpeg.org/ffmpeg-devices.html#avfoundation).
