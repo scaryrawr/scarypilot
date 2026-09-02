@@ -3,7 +3,7 @@
 This plugin is adapted from
 [pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan.
 The adaptation originally imported upstream commit
-`46125561306434d8a1d7745d540d8932ab0cd2a2` and includes the compatible
+`46125561306434d8a1d7745d540d8932ab0cd2a2` and had included the compatible
 changes through upstream commit
 `bdf7aa355337897f167153e05069aca505dae17c` (pstack version `0.14.3`).
 The package metadata tracks upstream pstack `0.14.7`. Its `make-bot-ui` feature
