@@ -1,7 +1,7 @@
 {
   "name": "azure-devops",
-  "description": "Create, inspect, review, and drive Azure DevOps pull requests through completion, and manage Azure Boards work items.",
-  "version": "0.2.1",
+  "description": "Create, inspect, and pair-review Azure DevOps pull requests, drive them through completion, and manage Azure Boards work items.",
+  "version": "0.6.3",
   "author": {
     "name": "Mike Wallio",
     "url": "https://github.com/scaryrawr"
@@ -16,5 +16,8 @@
   ],
   "skills": [
     "skills/"
+  ],
+  "extensions": [
+    "extensions/"
   ]
 }
