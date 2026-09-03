@@ -274,7 +274,6 @@ export class SupervisorClient {
   }
 
   private routeEvent(event: SupervisorEvent): void {
-    this.emitLog(`Supervisor event ${event.agent_id}#${event.sequence}`, "info");
     for (const subscriber of this.subscribers) {
       try {
         void Promise.resolve(subscriber(event)).catch((error) => {

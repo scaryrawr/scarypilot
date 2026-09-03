@@ -39,7 +39,7 @@ describe("SupervisorClient", () => {
     expect(client.pending.size).toBe(0);
   });
 
-  it("logs and routes valid events while rejecting malformed boundaries", async () => {
+  it("routes valid events without logging them", async () => {
     const fake = new FakeSupervisor();
     const log = vi.fn();
     const client = new SupervisorClient({ spawnFactory: fake.spawn, log });
@@ -63,7 +63,6 @@ describe("SupervisorClient", () => {
       sequence: 3,
       event: { kind: "message" },
     });
-    expect(log).toHaveBeenCalledWith("Supervisor event agent-1#3", "info");
     expect(log).toHaveBeenCalledWith(
       "Ignored invalid supervisor message: message does not match the supervisor protocol",
       "warning",
