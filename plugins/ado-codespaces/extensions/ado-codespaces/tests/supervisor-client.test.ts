@@ -65,7 +65,7 @@ describe("SupervisorClient", () => {
     });
     expect(log).toHaveBeenCalledWith("Supervisor event agent-1#3", "info");
     expect(log).toHaveBeenCalledWith(
-      "Ignored invalid supervisor message: sequence must be a non-negative safe integer",
+      "Ignored invalid supervisor message: message does not match the supervisor protocol",
       "warning",
     );
 

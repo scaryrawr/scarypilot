@@ -1,6 +1,21 @@
 import { spawn } from "node:child_process";
+import { Type, type Static } from "@sinclair/typebox";
+import { Value } from "@sinclair/typebox/value";
 
 type LogLevel = "info" | "warning" | "error";
+
+const JsonSchema = Type.Recursive((self) =>
+  Type.Union([
+    Type.Boolean(),
+    Type.Null(),
+    Type.Number(),
+    Type.String(),
+    Type.Array(self),
+    Type.Record(Type.String(), self),
+  ]),
+);
+
+export type JsonValue = Static<typeof JsonSchema>;
 
 export interface SupervisorProcess {
   readonly stdin: {
@@ -22,134 +37,75 @@ export type SpawnFactory = (command: string, args: readonly string[]) => Supervi
 
 export type SupervisorLogger = (message: string, level: LogLevel) => void | Promise<void>;
 
-export interface SupervisorEvent {
-  readonly type: "event";
-  readonly agent_id: string;
-  readonly sequence: number;
-  readonly event: unknown;
-}
-
-export type EventSubscriber = (event: SupervisorEvent) => void | Promise<void>;
-
 interface PendingResponse {
-  readonly resolve: (result: unknown) => void;
+  readonly resolve: (result: JsonValue) => void;
   readonly reject: (error: Error) => void;
 }
 
 interface ProtocolError {
+  readonly code: string;
+  readonly context?: JsonValue;
   readonly message: string;
-  readonly code?: string | number;
-  readonly context?: unknown;
 }
 
-type SupervisorMessage =
-  | {
-      readonly type: "response";
-      readonly id: string;
-      readonly outcome:
-        | { readonly kind: "result"; readonly result: unknown }
-        | { readonly kind: "error"; readonly error: ProtocolError };
-    }
-  | SupervisorEvent;
+const ProtocolErrorSchema = Type.Object(
+  {
+    code: Type.String({ minLength: 1 }),
+    context: Type.Optional(JsonSchema),
+    message: Type.String({ minLength: 1 }),
+  },
+  { additionalProperties: false },
+);
+
+const ErrorResponseSchema = Type.Object(
+  {
+    error: ProtocolErrorSchema,
+    id: Type.String({ minLength: 1 }),
+    type: Type.Literal("response"),
+  },
+  { additionalProperties: false },
+);
+
+const ResultResponseSchema = Type.Object(
+  {
+    id: Type.String({ minLength: 1 }),
+    result: JsonSchema,
+    type: Type.Literal("response"),
+  },
+  { additionalProperties: false },
+);
+
+const SupervisorEventSchema = Type.Object(
+  {
+    agent_id: Type.String({ minLength: 1 }),
+    event: JsonSchema,
+    sequence: Type.Integer({ maximum: Number.MAX_SAFE_INTEGER, minimum: 0 }),
+    type: Type.Literal("event"),
+  },
+  { additionalProperties: false },
+);
+
+const SupervisorMessageSchema = Type.Union([
+  ErrorResponseSchema,
+  ResultResponseSchema,
+  SupervisorEventSchema,
+]);
+
+type SupervisorMessage = Static<typeof SupervisorMessageSchema>;
+export type SupervisorEvent = Static<typeof SupervisorEventSchema>;
+
+export type EventSubscriber = (event: SupervisorEvent) => void | Promise<void>;
 
 const defaultSpawnFactory: SpawnFactory = (command, args) =>
   spawn(command, [...args], { stdio: "pipe" });
 
 const SHUTDOWN_TIMEOUT_MS = 12_000;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function hasOnlyKeys(
-  value: Readonly<Record<string, unknown>>,
-  allowed: ReadonlySet<string>,
-): boolean {
-  return Object.keys(value).every((key) => allowed.has(key));
-}
-
-function requiredString(value: Readonly<Record<string, unknown>>, key: string): string {
-  const candidate = value[key];
-  if (typeof candidate !== "string" || candidate.length === 0) {
-    throw new Error(`${key} must be a non-empty string`);
-  }
-  return candidate;
-}
-
-function parseProtocolError(value: unknown): ProtocolError {
-  if (typeof value === "string" && value.length > 0) {
-    return { message: value };
-  }
-  if (!isRecord(value) || !hasOnlyKeys(value, new Set(["message", "code", "context"]))) {
-    throw new Error("error must be a string or error object");
-  }
-  const message = requiredString(value, "message");
-  const code = value.code;
-  if (code !== undefined && typeof code !== "string" && typeof code !== "number") {
-    throw new Error("error code must be a string or number");
-  }
-  const context = Object.hasOwn(value, "context") ? value.context : undefined;
-  return {
-    message,
-    ...(code === undefined ? {} : { code }),
-    ...(context === undefined ? {} : { context }),
-  };
-}
-
 function parseSupervisorMessage(value: unknown): SupervisorMessage {
-  if (!isRecord(value)) throw new Error("message must be an object");
-
-  if (value.type === "response") {
-    if (!hasOnlyKeys(value, new Set(["type", "id", "result", "error"]))) {
-      throw new Error("response contains unknown fields");
-    }
-    const id = requiredString(value, "id");
-    const hasResult = Object.hasOwn(value, "result");
-    const hasError = Object.hasOwn(value, "error");
-    if (hasResult && hasError) {
-      throw new Error("response cannot contain both result and error");
-    }
-    if (!hasResult && !hasError) {
-      throw new Error("response must contain result or error");
-    }
-    if (hasError) {
-      return {
-        type: "response",
-        id,
-        outcome: { kind: "error", error: parseProtocolError(value.error) },
-      };
-    }
-    return {
-      type: "response",
-      id,
-      outcome: { kind: "result", result: value.result },
-    };
+  if (!Value.Check(SupervisorMessageSchema, value)) {
+    throw new Error("message does not match the supervisor protocol");
   }
-
-  if (value.type === "event") {
-    if (!hasOnlyKeys(value, new Set(["type", "agent_id", "sequence", "event"]))) {
-      throw new Error("event contains unknown fields");
-    }
-    const agentId = requiredString(value, "agent_id");
-    if (
-      typeof value.sequence !== "number" ||
-      !Number.isSafeInteger(value.sequence) ||
-      value.sequence < 0
-    ) {
-      throw new Error("sequence must be a non-negative safe integer");
-    }
-    if (!Object.hasOwn(value, "event")) {
-      throw new Error("event payload is required");
-    }
-    return {
-      type: "event",
-      agent_id: agentId,
-      sequence: value.sequence,
-      event: value.event,
-    };
-  }
-
-  throw new Error("message type must be response or event");
+  return value;
 }
 
 function chunkText(chunk: unknown): string | undefined {
@@ -163,8 +119,8 @@ function errorMessage(error: unknown): string {
 }
 
 export class SupervisorRequestError extends Error {
-  readonly code?: string | number;
-  readonly context?: unknown;
+  readonly code: string;
+  readonly context?: JsonValue;
 
   constructor(error: ProtocolError) {
     super(`Supervisor request failed: ${error.message}`);
@@ -310,11 +266,11 @@ export class SupervisorClient {
       return;
     }
     this.pending.delete(message.id);
-    if (message.outcome.kind === "error") {
-      pending.reject(new SupervisorRequestError(message.outcome.error));
+    if ("error" in message) {
+      pending.reject(new SupervisorRequestError(message.error));
       return;
     }
-    pending.resolve(message.outcome.result);
+    pending.resolve(message.result);
   }
 
   private routeEvent(event: SupervisorEvent): void {

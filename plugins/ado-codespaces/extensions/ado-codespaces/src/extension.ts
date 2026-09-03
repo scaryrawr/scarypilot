@@ -1,9 +1,10 @@
 import { joinSession } from "@github/copilot-sdk/extension";
+import type { CopilotSession } from "@github/copilot-sdk";
 import { AgentEventInbox } from "./agent-event-inbox.ts";
 import { SupervisorClient } from "./supervisor-client.ts";
 import { createSupervisorTools } from "./tools.ts";
 
-let sessionRef: import("@github/copilot-sdk").CopilotSession | null = null;
+let sessionRef: CopilotSession | null = null;
 const events = new AgentEventInbox();
 
 const supervisor = new SupervisorClient({
