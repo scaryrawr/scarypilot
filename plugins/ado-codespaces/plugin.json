@@ -1,0 +1,23 @@
+{
+  "name": "ado-codespaces",
+  "description": "Supervise Azure DevOps coding agents that run in GitHub Codespaces.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Mike Wallio",
+    "url": "https://github.com/scaryrawr"
+  },
+  "repository": "https://github.com/scaryrawr/scarypilot",
+  "keywords": [
+    "copilot",
+    "azure-devops",
+    "codespaces",
+    "agents",
+    "supervisor"
+  ],
+  "extensions": [
+    "extensions"
+  ],
+  "skills": [
+    "skills/"
+  ]
+}

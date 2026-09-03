@@ -13,6 +13,14 @@
       "source": "./plugins/azure-devops"
     },
     {
+      "name": "ado-codespaces",
+      "description": "Supervise Azure DevOps coding agents that run in GitHub Codespaces.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/ado-codespaces"
+    },
+    {
       "name": "better-init",
       "description": "Create concise, Copilot-aware repository instructions, skills, and custom agents.",
       "author": {
