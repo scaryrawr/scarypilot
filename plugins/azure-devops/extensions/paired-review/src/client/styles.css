@@ -40,6 +40,7 @@ body {
 }
 
 button,
+input,
 textarea {
   font: inherit;
 }
@@ -99,14 +100,56 @@ h1 {
 
 main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 24%);
+  grid-template-columns: minmax(0, 1fr) auto;
   min-height: 0;
 }
 
-aside {
+.file-tree-sidebar {
   border-left: 1px solid var(--review-border);
-  min-width: 0;
-  overflow: auto;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  max-width: 60vw;
+  min-width: 240px;
+  overflow: hidden;
+  position: relative;
+}
+
+.file-tree-resizer {
+  bottom: 0;
+  cursor: col-resize;
+  left: -4px;
+  position: absolute;
+  top: 0;
+  touch-action: none;
+  width: 8px;
+  z-index: 6;
+}
+
+.file-tree-resizer::after {
+  background: transparent;
+  bottom: 0;
+  content: "";
+  left: 3px;
+  position: absolute;
+  top: 0;
+  transition: background-color 120ms ease;
+  width: 2px;
+}
+
+.file-tree-resizer:hover::after,
+.file-tree-resizer:focus-visible::after,
+.file-tree-sidebar.resizing .file-tree-resizer::after {
+  background: var(--review-accent);
+}
+
+.file-tree-resizer:focus-visible {
+  outline: none;
+}
+
+.file-tree-sidebar.resizing,
+.file-tree-sidebar.resizing * {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .sidebar-heading,
@@ -151,39 +194,192 @@ aside {
   color: var(--review-deleted);
 }
 
-.file-list button {
-  align-items: flex-start;
+.file-tree-filter {
+  align-items: center;
   background: transparent;
-  border: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--review-border) 65%, transparent);
-  color: var(--review-text);
-  cursor: pointer;
   display: flex;
-  gap: 10px;
-  justify-content: space-between;
-  min-height: 38px;
-  padding: 8px 10px;
-  text-align: left;
+  padding: 7px 8px;
+}
+
+.file-tree-filter input {
+  background: var(--review-bg);
+  border: 1px solid var(--review-border);
+  border-radius: 6px;
+  color: var(--review-text);
+  min-width: 0;
+  padding: 5px 8px 5px 28px;
   width: 100%;
 }
 
-.file-list button:hover {
+.file-tree-filter input:focus {
+  border-color: var(--review-accent);
+  box-shadow: 0 0 0 1px var(--review-accent);
+  outline: none;
+}
+
+.search-icon {
+  border: 1.5px solid var(--review-muted);
+  border-radius: 50%;
+  height: 10px;
+  margin-left: 9px;
+  pointer-events: none;
+  position: absolute;
+  width: 10px;
+}
+
+.search-icon::after {
+  background: var(--review-muted);
+  content: "";
+  height: 1.5px;
+  left: 8px;
+  position: absolute;
+  top: 8px;
+  transform: rotate(45deg);
+  transform-origin: left center;
+  width: 5px;
+}
+
+.file-tree {
+  min-height: 0;
+  outline: none;
+  overflow: auto;
+  padding: 4px 0 8px;
+  scrollbar-width: none;
+}
+
+.file-tree::-webkit-scrollbar {
+  display: none;
+}
+
+.file-tree-row {
+  align-items: center;
+  color: var(--review-text);
+  cursor: default;
+  display: flex;
+  font-size: 12px;
+  gap: 5px;
+  height: 28px;
+  min-width: 100%;
+  padding: 0 8px 0 calc(8px + var(--tree-depth) * 16px);
+  user-select: none;
+  width: max-content;
+}
+
+.file-tree-row:hover {
   background: var(--review-panel-hover);
 }
 
-.file-list button.active {
+.file-tree-row.active {
   background: color-mix(in srgb, var(--review-accent) 13%, var(--review-bg));
   box-shadow: inset 2px 0 var(--review-accent);
 }
 
-.file-list span {
-  overflow-wrap: anywhere;
+.file-tree-row.focused {
+  outline: 1px solid var(--review-accent);
+  outline-offset: -1px;
 }
 
-.file-list small {
+.file-tree-row.contains-active .tree-label {
+  font-weight: 600;
+}
+
+.tree-chevron,
+.tree-chevron-spacer {
+  flex: 0 0 12px;
+  height: 12px;
+  position: relative;
+  width: 12px;
+}
+
+.tree-chevron::before {
+  border-bottom: 1.5px solid var(--review-muted);
+  border-right: 1.5px solid var(--review-muted);
+  content: "";
+  height: 5px;
+  left: 2px;
+  position: absolute;
+  top: 2px;
+  transform: rotate(-45deg);
+  transition: transform 100ms ease;
+  width: 5px;
+}
+
+.tree-chevron.expanded::before {
+  transform: rotate(45deg);
+}
+
+.tree-icon {
+  flex: 0 0 13px;
+  height: 12px;
+  position: relative;
+  width: 13px;
+}
+
+.tree-icon.folder {
+  border: 1px solid var(--review-muted);
+  border-radius: 2px;
+  height: 9px;
+  margin-top: 2px;
+}
+
+.tree-icon.folder::before {
+  background: var(--review-bg);
+  border: 1px solid var(--review-muted);
+  border-bottom: 0;
+  border-radius: 2px 2px 0 0;
+  content: "";
+  height: 3px;
+  left: 1px;
+  position: absolute;
+  top: -4px;
+  width: 6px;
+}
+
+.tree-icon.file {
+  border: 1px solid var(--review-muted);
+  border-radius: 1px;
+}
+
+.tree-icon.file::after {
+  border-bottom: 1px solid var(--review-muted);
+  border-left: 1px solid var(--review-muted);
+  content: "";
+  height: 4px;
+  position: absolute;
+  right: -1px;
+  top: -1px;
+  width: 4px;
+}
+
+.tree-label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.tree-summary {
   color: var(--review-muted);
   flex: none;
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+.file-tree-empty {
+  color: var(--review-muted);
+  font-size: 12px;
+  padding: 12px;
+}
+
+.sr-only {
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
 }
 
 .diff-panel {
