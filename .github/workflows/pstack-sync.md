@@ -9,6 +9,10 @@ on:
       timezone: "America/New_York"
   workflow_dispatch:
   skip-if-match: 'is:pr is:open "gh-aw-workflow-id: pstack-sync" in:body'
+  permissions:
+    contents: read
+    issues: read
+    pull-requests: read
 permissions:
   contents: read
   copilot-requests: write
