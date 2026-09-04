@@ -71,7 +71,7 @@ describe("loadAzurePullRequest", () => {
   });
 });
 
-function reviewWithFindings() {
+function reviewWithFindings(changeTrackingId = 17, iterationId = 3) {
   const review = updateReviewState(
     createReviewState("review-1", "https://dev.azure.com/example/project/_git/repo/pullrequest/42"),
     {
@@ -84,8 +84,8 @@ function reviewWithFindings() {
         changedLineRanges: changedLineRanges(
           "@@ -2,2 +2,2 @@\n-old first\n+new first\n-old second\n+new second\n",
         ),
-        changeTrackingId: 17,
-        iterationId: 3,
+        changeTrackingId,
+        iterationId,
       }],
     },
   );
@@ -138,6 +138,25 @@ function publicationRunner(
 }
 
 describe("publishReviewFindings", () => {
+  it("publishes findings with zero-valued tracking context", async () => {
+    const review = reviewWithFindings(0, 0);
+    const { calls, runner } = publicationRunner([{ value: [] }]);
+
+    const [result] = await publishReviewFindings(
+      review,
+      { kind: "finding_ids", findingIds: [review.threads[0]!.id] },
+      runner,
+    );
+
+    expect(result?.kind).toBe("published");
+    expect(calls.find((call) => call.args.includes("--http-method"))?.body).toMatchObject({
+      pullRequestThreadContext: {
+        changeTrackingId: 0,
+        iterationContext: { secondComparingIteration: 0 },
+      },
+    });
+  });
+
   it("lists remote threads before each write and skips exact duplicates", async () => {
     const review = reviewWithFindings();
     const { calls, runner } = publicationRunner([

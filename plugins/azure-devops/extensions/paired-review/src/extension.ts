@@ -172,7 +172,7 @@ const pairedReviewCanvas = createCanvas({
       description: "List changed-file metadata in bounded pages without returning diffs or file contents.",
       inputSchema: ListReviewFilesInputSchema,
       handler: (ctx) => {
-        const input = Value.Parse(ListReviewFilesInputSchema, ctx.input);
+        const input = Value.Parse(ListReviewFilesInputSchema, ctx.input ?? {});
         return listReviewFiles(requireReview(ctx.instanceId), input.offset, input.limit);
       },
     },

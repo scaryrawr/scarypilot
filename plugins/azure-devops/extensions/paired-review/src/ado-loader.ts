@@ -229,7 +229,7 @@ async function publishReviewFindingsOnce(
         continue;
       }
       const file = review.files.find((candidate) => candidate.path === finding.anchor.path);
-      if (!file?.changeTrackingId || !file.iterationId) {
+      if (file?.changeTrackingId === undefined || file.iterationId === undefined) {
         throw new Error("Azure DevOps did not provide the change tracking context for this finding.");
       }
       const created = parseCreatedThread(await runner.json([
@@ -292,7 +292,7 @@ export const defaultAzureCliRunner: AzureCliRunner = {
     const content = itemContent(payload);
     if (content === undefined) return Buffer.from([0]);
     const buffer = Buffer.from(content, "utf8");
-    if (buffer.length > MAX_FILE_BYTES) throw new FileTooLargeError(buffer.length);
+    if (buffer.length > MAX_FILE_BYTES) throw new AzureResponseTooLargeError(MAX_FILE_BYTES);
     return buffer;
   },
 };
@@ -460,9 +460,9 @@ function omittedReviewFile(filePath: string, changeType: string, reason: string)
   };
 }
 
-class FileTooLargeError extends Error {
-  constructor(readonly size: number) {
-    super(`Azure DevOps file content exceeds ${MAX_FILE_BYTES} bytes`);
+class AzureResponseTooLargeError extends Error {
+  constructor(limit: number) {
+    super(`Azure DevOps response exceeds ${limit} bytes`);
   }
 }
 
@@ -493,7 +493,7 @@ async function fetchItem(
       "application/json",
     ]);
   } catch (error) {
-    if (error instanceof FileTooLargeError) return null;
+    if (error instanceof AzureResponseTooLargeError) return null;
     throw error;
   }
 }
@@ -511,7 +511,7 @@ async function runAzureCli(
     });
   } catch (error) {
     if (isRecord(error) && error.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") {
-      throw new FileTooLargeError(maxBuffer);
+      throw new AzureResponseTooLargeError(maxBuffer);
     }
     const message = isRecord(error) && typeof error.stderr === "string"
       ? error.stderr.trim()
