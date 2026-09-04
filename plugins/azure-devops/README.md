@@ -88,9 +88,11 @@ local findings. The canvas shows each pass as queued, running, complete, or
 failed. Findings remain local until you ask Copilot to publish selected findings
 or all open findings. The browser has no publish control or publication route.
 Before every Azure DevOps write, the extension lists current threads and skips
-only an exact duplicate that has the same hidden finding marker or the same
-path, side, range, and first comment. Retrying a publish request therefore
-adopts a prior remote write instead of creating another thread.
+only a duplicate that has the same hidden finding marker or the same path,
+side, range, and canonically normalized first comment. Normalization standardizes
+Unicode, line endings, trailing line whitespace, and outer whitespace. Retrying
+a publish request therefore adopts a prior remote write instead of creating
+another thread.
 
 The renderer is a prebuilt React application using
 [`@pierre/diffs`](https://github.com/pierrecomputer/pierre). A small built-in
