@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-type Listener = (...args: unknown[]) => void;
+type Listener = (...args: unknown[]) => unknown;
 
 const mocks = vi.hoisted(() => {
   const stdoutListeners = new Map<string, Listener>();
@@ -36,9 +36,9 @@ const mocks = vi.hoisted(() => {
   return {
     child,
     joinSession: vi.fn(async () => ({ log: vi.fn() })),
+    sessionListeners: new Map<string, Listener>(),
     options: undefined as
       | {
-          hooks: { onSessionEnd: () => Promise<void> };
           tools: Array<{ name: string }>;
         }
       | undefined,
@@ -51,7 +51,13 @@ const mocks = vi.hoisted(() => {
 vi.mock("@github/copilot-sdk/extension", () => ({
   joinSession: async (options: typeof mocks.options) => {
     mocks.options = options;
-    return mocks.joinSession();
+    return {
+      ...(await mocks.joinSession()),
+      on: (event: string, listener: Listener) => {
+        mocks.sessionListeners.set(event, listener);
+        return () => mocks.sessionListeners.delete(event);
+      },
+    };
   },
 }));
 
@@ -74,8 +80,9 @@ describe("extension", () => {
       "agent_stop",
       "agent_events",
     ]);
+    expect(mocks.options).not.toHaveProperty("hooks");
 
-    const ending = mocks.options?.hooks.onSessionEnd();
+    const ending = mocks.sessionListeners.get("session.shutdown")?.();
     expect(JSON.parse(mocks.writes[0])).toEqual({
       id: "1",
       method: "shutdown",

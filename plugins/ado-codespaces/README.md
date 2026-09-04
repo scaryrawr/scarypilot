@@ -56,7 +56,8 @@ The tools return concise JSON. `agent_events` returns remote agent output in
 sequence order. It reports dropped-event metadata when the bounded local buffer
 overflows. The extension never puts event content in the Copilot session log.
 When the Copilot session ends, it asks the supervisor to shut down and then
-terminates the child process if it remains alive.
+terminates the child process if it remains alive. This cleanup uses the normal
+SDK shutdown event and does not register permission-gated session hooks.
 
 ## Develop and test
 
