@@ -216,8 +216,14 @@ export function insertReviewFinding(
       publication: { kind: "local" },
     },
   };
+  const next = updateReviewState(review, { threads: [...review.threads, thread] });
+  const updated = next.reviewPass.kind === "running"
+    ? updateReviewState(next, {
+        reviewPass: { ...next.reviewPass, findingCount: findingCount(next) },
+      })
+    : next;
   return {
-    review: updateReviewState(review, { threads: [...review.threads, thread] }),
+    review: updated,
     thread,
     inserted: true,
   };

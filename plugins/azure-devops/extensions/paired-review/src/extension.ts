@@ -1,5 +1,6 @@
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
 import type { CommandDefinition, CopilotSession } from "@github/copilot-sdk";
+import { randomUUID } from "node:crypto";
 import { Value } from "@sinclair/typebox/value";
 import { Type } from "@sinclair/typebox";
 import {
@@ -104,7 +105,7 @@ async function getServer() {
                 ...candidate,
                 pending: true,
                 messages: [...candidate.messages, {
-                  id: crypto.randomUUID(),
+                  id: randomUUID(),
                   role: "user" as const,
                   body,
                   createdAt: new Date().toISOString(),
@@ -379,7 +380,7 @@ function finishThread(instanceId: string, threadId: string, body: string): void 
             ...thread,
             pending: false,
             messages: [...thread.messages, {
-              id: crypto.randomUUID(),
+              id: randomUUID(),
               role: "assistant" as const,
               body,
               createdAt: new Date().toISOString(),

@@ -144,6 +144,16 @@ describe("Copilot findings", () => {
       .not.toBe(first.thread.finding.id);
   });
 
+  it("updates the running pass finding count", () => {
+    const queued = queueReviewPass(changedReview(), "request-1");
+    if (queued.pass.kind !== "queued") throw new Error("expected queued pass");
+    const running = startQueuedReviewPass(queued.review, queued.pass.id);
+
+    const inserted = insertReviewFinding(running, input, queued.pass.id);
+
+    expect(inserted.review.reviewPass).toMatchObject({ kind: "running", findingCount: 1 });
+  });
+
   describe("changed line ranges", () => {
     it("keeps source lines that begin with diff header markers", () => {
       const ranges = changedLineRanges(
