@@ -66,10 +66,10 @@ export function buildFileTree(
 ): FileTreeModel {
   const threadSummaries = new Map<string, Pick<ChangeSummary, "openThreads" | "resolvedThreads">>();
   for (const thread of threads) {
-    const summary = threadSummaries.get(thread.path) ?? { openThreads: 0, resolvedThreads: 0 };
+    const summary = threadSummaries.get(thread.anchor.path) ?? { openThreads: 0, resolvedThreads: 0 };
     if (thread.resolved) summary.resolvedThreads++;
     else summary.openThreads++;
-    threadSummaries.set(thread.path, summary);
+    threadSummaries.set(thread.anchor.path, summary);
   }
 
   const nodesById = new Map<FileTreeNodeId, MutableTreeNode>();

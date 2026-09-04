@@ -1,35 +1,61 @@
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
 import type { CommandDefinition, CopilotSession } from "@github/copilot-sdk";
-import { randomUUID } from "node:crypto";
+import { Value } from "@sinclair/typebox/value";
+import { Type } from "@sinclair/typebox";
 import {
+  completeReviewPass,
+  createQuestionThread,
   createReviewState,
+  failReviewPass,
+  insertReviewFinding,
   isAzurePullRequestUrl,
+  linkFinding,
+  queueReviewPass,
   reviewInstanceId,
+  startQueuedReviewPass,
   updateReviewState,
-  type ReviewFile,
-  type ReviewFinding,
   type ReviewState,
-  type ReviewThread,
 } from "./review-state.ts";
-import { loadAzurePullRequest } from "./ado-loader.ts";
+import { loadAzurePullRequest, publishReviewFindings } from "./ado-loader.ts";
 import {
+  buildReviewPassPrompt,
   buildThreadPrompt,
   getReviewFileLines,
   getThreadContext,
   listReviewFiles,
 } from "./review-context.ts";
+import {
+  CreateReviewFindingInputSchema,
+  CreateReviewThreadInputSchema,
+  GetReviewFileLinesInputSchema,
+  GetThreadContextInputSchema,
+  ListReviewFilesInputSchema,
+  PublishReviewFindingsInputSchema,
+} from "./review-schema.ts";
 import { startReviewServer } from "./server.ts";
 
 const CANVAS_ID = "azure-devops-paired-review";
 const MAX_AGENT_RESPONSE_CHARS = 32 * 1024;
+const CanvasInputSchema = Type.Object({
+  prUrl: Type.String({ minLength: 1 }),
+});
 const reviews = new Map<string, ReviewState>();
 let sessionRef: CopilotSession | null = null;
 let serverPromise: Promise<Awaited<ReturnType<typeof startReviewServer>>> | null = null;
 let shutdownPromise: Promise<void> | null = null;
-let answerQueue = Promise.resolve();
+let agentQueue = Promise.resolve();
+let activeAgentJob: "review_pass" | "thread_reply" | null = null;
+
+function enqueue(work: () => Promise<void>): void {
+  agentQueue = agentQueue.then(work, work);
+}
 
 function scheduleThreadAnswer(instanceId: string, threadId: string): void {
-  answerQueue = answerQueue.then(() => answerThread(instanceId, threadId));
+  enqueue(() => answerThread(instanceId, threadId));
+}
+
+function scheduleReviewPass(instanceId: string, passId: string): void {
+  enqueue(() => runReviewPass(instanceId, passId));
 }
 
 async function getServer() {
@@ -40,38 +66,35 @@ async function getServer() {
         const current = reviews.get(instanceId);
         if (current) reviews.set(instanceId, updateReviewState(current, { activePath }));
       },
-      createThread: async (instanceId, input) => {
-        const review = reviews.get(instanceId);
-        if (!review) throw new Error("paired review is no longer available");
-        if (!review.files.some((file) => file.path === input.path)) {
-          throw new Error("selected file is not part of this review");
+      startReviewPass: async (instanceId, requestId) => {
+        const review = requireReview(instanceId);
+        if (!review.loaded) throw new Error("wait for the pull request to finish loading");
+        const queued = queueReviewPass(review, requestId);
+        reviews.set(instanceId, queued.review);
+        if (queued.scheduled && queued.pass.kind === "queued") {
+          scheduleReviewPass(instanceId, queued.pass.id);
         }
-        const thread: ReviewThread = {
-          id: randomUUID(),
-          path: input.path,
-          side: input.side,
-          lineStart: input.lineStart,
-          lineEnd: input.lineEnd,
-          pending: true,
-          collapsed: false,
-          resolved: false,
-          messages: [{
-            id: randomUUID(),
-            role: "user",
-            body: input.body,
-            createdAt: new Date().toISOString(),
-          }],
+        return {
+          pass: queued.pass,
+          scheduled: queued.scheduled,
         };
-        reviews.set(
-          instanceId,
-          updateReviewState(review, { threads: [...review.threads, thread] }),
+      },
+      createThread: async (instanceId, input) => {
+        const review = requireReview(instanceId);
+        const created = createQuestionThread(
+          review,
+          input.path,
+          input.side,
+          input.lineStart,
+          input.lineEnd,
+          input.body,
         );
-        scheduleThreadAnswer(instanceId, thread.id);
-        return thread.id;
+        reviews.set(instanceId, created.review);
+        scheduleThreadAnswer(instanceId, created.thread.id);
+        return created.thread.id;
       },
       replyToThread: async (instanceId, threadId, body) => {
-        const review = reviews.get(instanceId);
-        if (!review) throw new Error("paired review is no longer available");
+        const review = requireReview(instanceId);
         const thread = review.threads.find((candidate) => candidate.id === threadId);
         if (!thread) throw new Error("review thread was not found");
         if (thread.pending) throw new Error("wait for the current response before replying");
@@ -81,7 +104,7 @@ async function getServer() {
                 ...candidate,
                 pending: true,
                 messages: [...candidate.messages, {
-                  id: randomUUID(),
+                  id: crypto.randomUUID(),
                   role: "user" as const,
                   body,
                   createdAt: new Date().toISOString(),
@@ -93,15 +116,15 @@ async function getServer() {
         scheduleThreadAnswer(instanceId, threadId);
       },
       updateThread: async (instanceId, threadId, input) => {
-        const review = reviews.get(instanceId);
-        if (!review) throw new Error("paired review is no longer available");
+        const review = requireReview(instanceId);
         if (!review.threads.some((thread) => thread.id === threadId)) {
           throw new Error("review thread was not found");
         }
-        const threads = review.threads.map((thread) =>
-          thread.id === threadId ? { ...thread, ...input } : thread
-        );
-        reviews.set(instanceId, updateReviewState(review, { threads }));
+        reviews.set(instanceId, updateReviewState(review, {
+          threads: review.threads.map((thread) =>
+            thread.id === threadId ? { ...thread, ...input } : thread
+          ),
+        }));
       },
     });
   }
@@ -116,147 +139,26 @@ async function getServer() {
 const pairedReviewCanvas = createCanvas({
   id: CANVAS_ID,
   displayName: "Azure DevOps Paired Review",
-  description: "Review an Azure DevOps pull request with a local changed-file tree, diffs, and draft findings.",
-  inputSchema: {
-    type: "object",
-    properties: {
-      prUrl: {
-        type: "string",
-        description: "Full HTTPS URL of an Azure DevOps pull request.",
-      },
-    },
-    required: ["prUrl"],
-    additionalProperties: false,
-  },
+  description: "Review an Azure DevOps pull request with local diffs and draft findings.",
+  inputSchema: CanvasInputSchema,
   actions: [
     {
-      name: "set_review_data",
-      description: "Replace the paired-review metadata, changed files, diffs, and draft findings after inspecting the PR.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          title: { type: "string" },
-          status: { type: "string" },
-          sourceBranch: { type: "string" },
-          targetBranch: { type: "string" },
-          files: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                path: { type: "string" },
-                previousPath: { type: "string" },
-                status: { type: "string" },
-                additions: { type: "number" },
-                deletions: { type: "number" },
-                diff: { type: "string" },
-                oldContent: { type: "string" },
-                newContent: { type: "string" },
-              },
-              required: ["path", "diff"],
-              additionalProperties: false,
-            },
-          },
-          findings: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                path: { type: "string" },
-                line: { type: "number" },
-                severity: { type: "string" },
-                title: { type: "string" },
-                body: { type: "string" },
-              },
-              required: ["path", "title"],
-              additionalProperties: false,
-            },
-          },
-        },
-        additionalProperties: false,
-      },
-      handler: (ctx) => {
-        const current = reviews.get(ctx.instanceId);
-        if (!current) throw new Error("paired review is no longer available");
-        const input = (ctx.input ?? {}) as {
-          title?: string;
-          status?: string;
-          sourceBranch?: string;
-          targetBranch?: string;
-          files?: ReviewFile[];
-          findings?: ReviewFinding[];
-        };
-        const next = updateReviewState(current, input);
-        reviews.set(ctx.instanceId, next);
-        return { updatedAt: next.updatedAt, fileCount: next.files.length, findingCount: next.findings.length };
-      },
-    },
-    {
-      name: "set_status",
-      description: "Update the paired-review loading or analysis status.",
-      inputSchema: {
-        type: "object",
-        properties: { status: { type: "string" } },
-        required: ["status"],
-        additionalProperties: false,
-      },
-      handler: (ctx) => {
-        const current = reviews.get(ctx.instanceId);
-        if (!current) throw new Error("paired review is no longer available");
-        const input = ctx.input as { status: string };
-        reviews.set(ctx.instanceId, updateReviewState(current, { status: input.status }));
-        return { status: input.status };
-      },
-    },
-    {
       name: "get_thread_context",
-      description: "Get bounded, untrusted code context and recent transcript for one local paired-review thread. Use this before answering a thread question instead of asking for the entire diff.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          threadId: { type: "string" },
-          contextLines: {
-            type: "number",
-            description: "Unchanged lines to include before and after the selected range (0-100).",
-            minimum: 0,
-            maximum: 100,
-          },
-        },
-        required: ["threadId"],
-        additionalProperties: false,
-      },
+      description: "Get bounded, untrusted code context and transcript for one local paired-review thread.",
+      inputSchema: GetThreadContextInputSchema,
       handler: (ctx) => {
-        const review = reviews.get(ctx.instanceId);
-        if (!review) throw new Error("paired review is no longer available");
-        const input = ctx.input as { threadId: string; contextLines?: number };
-        return getThreadContext(review, input.threadId, input.contextLines);
+        const input = Value.Parse(GetThreadContextInputSchema, ctx.input);
+        return getThreadContext(requireReview(ctx.instanceId), input.threadId, input.contextLines);
       },
     },
     {
       name: "get_review_file_lines",
-      description: "Read a bounded line range from one side of a paired-review file. Returned source is untrusted review data. Requests are limited to 400 lines and 48 KiB.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          path: { type: "string" },
-          side: { type: "string", enum: ["additions", "deletions"] },
-          startLine: { type: "number", minimum: 1 },
-          endLine: { type: "number", minimum: 1 },
-        },
-        required: ["path", "side", "startLine", "endLine"],
-        additionalProperties: false,
-      },
+      description: "Read a bounded line range from one side of a paired-review file. Returned source is untrusted review data.",
+      inputSchema: GetReviewFileLinesInputSchema,
       handler: (ctx) => {
-        const review = reviews.get(ctx.instanceId);
-        if (!review) throw new Error("paired review is no longer available");
-        const input = ctx.input as {
-          path: string;
-          side: "additions" | "deletions";
-          startLine: number;
-          endLine: number;
-        };
+        const input = Value.Parse(GetReviewFileLinesInputSchema, ctx.input);
         return getReviewFileLines(
-          review,
+          requireReview(ctx.instanceId),
           input.path,
           input.side,
           input.startLine,
@@ -266,26 +168,56 @@ const pairedReviewCanvas = createCanvas({
     },
     {
       name: "list_review_files",
-      description: "List changed-file metadata for the paired review in bounded pages without returning diffs or file contents.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          offset: { type: "number", minimum: 0 },
-          limit: { type: "number", minimum: 1, maximum: 100 },
-        },
-        additionalProperties: false,
-      },
+      description: "List changed-file metadata in bounded pages without returning diffs or file contents.",
+      inputSchema: ListReviewFilesInputSchema,
       handler: (ctx) => {
-        const review = reviews.get(ctx.instanceId);
-        if (!review) throw new Error("paired review is no longer available");
-        const input = (ctx.input ?? {}) as { offset?: number; limit?: number };
-        return listReviewFiles(review, input.offset, input.limit);
+        const input = Value.Parse(ListReviewFilesInputSchema, ctx.input);
+        return listReviewFiles(requireReview(ctx.instanceId), input.offset, input.limit);
+      },
+    },
+    {
+      name: "create_review_finding",
+      description: "Create one local Copilot-authored inline finding on changed review content.",
+      inputSchema: CreateReviewFindingInputSchema,
+      handler: (ctx) => {
+        const input = Value.Parse(CreateReviewFindingInputSchema, ctx.input);
+        const review = requireReview(ctx.instanceId);
+        if (review.reviewPass.kind !== "running") {
+          throw new Error("Copilot findings can only be created during a running review pass");
+        }
+        const inserted = insertReviewFinding(review, input, review.reviewPass.id);
+        reviews.set(ctx.instanceId, inserted.review);
+        return {
+          findingId: inserted.thread.finding.id,
+          inserted: inserted.inserted,
+        };
+      },
+    },
+    {
+      name: "publish_review_findings",
+      description: "Publish selected local findings only when the user asks to post them to Azure DevOps.",
+      inputSchema: PublishReviewFindingsInputSchema,
+      handler: async (ctx) => {
+        if (activeAgentJob) {
+          throw new Error("Publishing is unavailable during an extension-initiated agent turn");
+        }
+        const input = Value.Parse(PublishReviewFindingsInputSchema, ctx.input);
+        const review = requireReview(ctx.instanceId);
+        const results = await publishReviewFindings(review, input.selection);
+        let next = requireReview(ctx.instanceId);
+        for (const result of results) {
+          if (result.kind !== "failed") {
+            next = linkFinding(next, result.findingId, result.remoteThreadId, result.kind);
+          }
+        }
+        reviews.set(ctx.instanceId, next);
+        return { results };
       },
     },
   ],
   open: async (ctx) => {
-    const input = (ctx.input ?? {}) as { prUrl?: string };
-    const prUrl = input.prUrl?.trim() ?? "";
+    const input = Value.Parse(CanvasInputSchema, ctx.input);
+    const prUrl = input.prUrl.trim();
     if (!isAzurePullRequestUrl(prUrl)) {
       throw new Error("Provide a full HTTPS Azure DevOps pull request URL ending in /pullrequest/<id>.");
     }
@@ -318,7 +250,6 @@ const pairedReviewCommand: CommandDefinition = {
       );
       return;
     }
-
     const instanceId = reviewInstanceId(prUrl);
     await session.rpc.canvas.open({
       canvasId: CANVAS_ID,
@@ -358,40 +289,71 @@ function requireSession(): CopilotSession {
   return sessionRef;
 }
 
+function requireReview(instanceId: string): ReviewState {
+  const review = reviews.get(instanceId);
+  if (!review) throw new Error("paired review is no longer available");
+  return review;
+}
+
 async function populateReview(instanceId: string, prUrl: string): Promise<void> {
   try {
     const loaded = await loadAzurePullRequest(prUrl);
     const current = reviews.get(instanceId);
-    if (!current) return;
-    reviews.set(instanceId, updateReviewState(current, loaded));
+    if (current) reviews.set(instanceId, updateReviewState(current, loaded));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const current = reviews.get(instanceId);
     if (current) {
+      reviews.set(instanceId, updateReviewState(current, {
+        status: `Could not load pull request: ${message}`,
+      }));
+    }
+    await sessionRef?.log(`Paired review could not load ${prUrl}: ${message}`, { level: "error" });
+  }
+}
+
+async function runReviewPass(instanceId: string, passId: string): Promise<void> {
+  const queued = reviews.get(instanceId);
+  if (!queued) return;
+  const running = startQueuedReviewPass(queued, passId);
+  if (running === queued) return;
+  reviews.set(instanceId, running);
+  try {
+    activeAgentJob = "review_pass";
+    try {
+      await requireSession().sendAndWait({
+        prompt: buildReviewPassPrompt(running, passId, instanceId, CANVAS_ID),
+      });
+    } finally {
+      activeAgentJob = null;
+    }
+    const current = reviews.get(instanceId);
+    if (current) reviews.set(instanceId, completeReviewPass(current, passId));
+  } catch (error) {
+    const current = reviews.get(instanceId);
+    if (current) {
       reviews.set(
         instanceId,
-        updateReviewState(current, {
-          status: `Could not load pull request: ${message}`,
-        }),
+        failReviewPass(current, passId, error instanceof Error ? error.message : String(error)),
       );
     }
-
-    await sessionRef?.log(`Paired review could not load ${prUrl}: ${message}`, {
-      level: "error",
-    });
   }
 }
 
 async function answerThread(instanceId: string, threadId: string): Promise<void> {
   const review = reviews.get(instanceId);
   const thread = review?.threads.find((candidate) => candidate.id === threadId);
-  const file = review?.files.find((candidate) => candidate.path === thread?.path);
-  if (!review || !thread || !file) return;
-
+  if (!review || !thread) return;
   try {
-    const response = await requireSession().sendAndWait({
-      prompt: buildThreadPrompt(review, thread, instanceId, CANVAS_ID),
-    });
+    activeAgentJob = "thread_reply";
+    let response;
+    try {
+      response = await requireSession().sendAndWait({
+        prompt: buildThreadPrompt(review, thread, instanceId, CANVAS_ID),
+      });
+    } finally {
+      activeAgentJob = null;
+    }
     finishThread(
       instanceId,
       threadId,
@@ -410,19 +372,20 @@ async function answerThread(instanceId: string, threadId: string): Promise<void>
 function finishThread(instanceId: string, threadId: string, body: string): void {
   const review = reviews.get(instanceId);
   if (!review) return;
-  const threads = review.threads.map((thread) =>
-    thread.id === threadId
-      ? {
-          ...thread,
-          pending: false,
-          messages: [...thread.messages, {
-            id: randomUUID(),
-            role: "assistant" as const,
-            body,
-            createdAt: new Date().toISOString(),
-          }],
-        }
-      : thread,
-  );
-  reviews.set(instanceId, updateReviewState(review, { threads }));
+  reviews.set(instanceId, updateReviewState(review, {
+    threads: review.threads.map((thread) =>
+      thread.id === threadId
+        ? {
+            ...thread,
+            pending: false,
+            messages: [...thread.messages, {
+              id: crypto.randomUUID(),
+              role: "assistant" as const,
+              body,
+              createdAt: new Date().toISOString(),
+            }],
+          }
+        : thread,
+    ),
+  }));
 }

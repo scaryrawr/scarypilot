@@ -9,14 +9,20 @@ import {
   CreateReviewThreadInputSchema,
   FocusReviewFileInputSchema,
   ReplyToReviewThreadInputSchema,
+  StartReviewPassInputSchema,
   UpdateReviewThreadInputSchema,
   type CreateReviewThreadInput,
+  type ReviewPass,
   type UpdateReviewThreadInput,
 } from "./review-schema.ts";
 import type { ReviewState } from "./review-state.ts";
 
 interface ReviewServerOptions {
   getState: (instanceId: string) => ReviewState | undefined;
+  startReviewPass: (
+    instanceId: string,
+    requestId: string,
+  ) => Promise<{ pass: ReviewPass; scheduled: boolean }>;
   createThread: (instanceId: string, input: CreateReviewThreadInput) => Promise<string>;
   replyToThread: (instanceId: string, threadId: string, body: string) => Promise<void>;
   updateThread: (instanceId: string, threadId: string, input: UpdateReviewThreadInput) => Promise<void>;
@@ -91,6 +97,35 @@ async function route(
   if (request.method === "GET" && url.pathname === "/api/state") {
     const state = options.getState(instanceId);
     respondJson(response, state ? 200 : 404, state ?? { error: "review not found" });
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/review-passes") {
+    const review = options.getState(instanceId);
+    if (!review) {
+      respondJson(response, 404, { error: "review not found" });
+      return;
+    }
+    if (!review.loaded) {
+      respondJson(response, 409, { error: "pull request is still loading" });
+      return;
+    }
+    const body = await readJsonBody(request);
+    if (!Value.Check(StartReviewPassInputSchema, body)) {
+      respondJson(response, 400, { error: "requestId is required" });
+      return;
+    }
+    const requestId = body.requestId.trim();
+    if (!requestId) {
+      respondJson(response, 400, { error: "requestId is required" });
+      return;
+    }
+    const started = await options.startReviewPass(instanceId, requestId);
+    respondJson(response, 202, {
+      accepted: true,
+      scheduled: started.scheduled,
+      reviewPass: started.pass,
+    });
     return;
   }
 

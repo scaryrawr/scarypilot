@@ -15,26 +15,22 @@ const files: ReviewFile[] = [
 
 const threads: ReviewThread[] = [
   {
+    kind: "question",
     id: "thread-1",
-    path: "src/client/main.tsx",
-    side: "additions",
-    lineStart: 1,
-    lineEnd: 1,
+    anchor: { path: "src/client/main.tsx", side: "additions", lineStart: 1, lineEnd: 1 },
     pending: false,
     collapsed: false,
     resolved: false,
-    messages: [],
+    messages: [{ id: "message-1", role: "user", body: "Question", createdAt: "2026-01-01T00:00:00.000Z" }],
   },
   {
+    kind: "question",
     id: "thread-2",
-    path: "src/server.ts",
-    side: "additions",
-    lineStart: 1,
-    lineEnd: 1,
+    anchor: { path: "src/server.ts", side: "additions", lineStart: 1, lineEnd: 1 },
     pending: false,
     collapsed: false,
     resolved: true,
-    messages: [],
+    messages: [{ id: "message-2", role: "user", body: "Question", createdAt: "2026-01-01T00:00:00.000Z" }],
   },
 ];
 

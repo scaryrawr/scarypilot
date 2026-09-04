@@ -9,6 +9,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
 } from "react";
@@ -41,6 +42,8 @@ function App() {
   const [review, setReview] = useState<ReviewState | null>(null);
   const [activePath, setActivePath] = useState("");
   const [selection, setSelection] = useState<SelectedLineRange | null>(null);
+  const [startingReview, setStartingReview] = useState(false);
+  const reviewRequestId = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     const response = await fetch(api("/api/state"), { cache: "no-store" });
@@ -61,7 +64,7 @@ function App() {
     [activePath, review],
   );
   const activeThreads = useMemo(
-    () => review?.threads.filter((thread) => thread.path === activeFile?.path) ?? [],
+    () => review?.threads.filter((thread) => thread.anchor.path === activeFile?.path) ?? [],
     [activeFile?.path, review?.threads],
   );
 
@@ -75,6 +78,26 @@ function App() {
     });
   }
 
+  async function startReview() {
+    if (!review?.loaded || startingReview) return;
+    const requestId = review.reviewPass.kind === "completed" || review.reviewPass.kind === "failed"
+      ? crypto.randomUUID()
+      : reviewRequestId.current ?? crypto.randomUUID();
+    reviewRequestId.current = requestId;
+    setStartingReview(true);
+    try {
+      const response = await fetch(api("/api/review-passes"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ requestId }),
+      });
+      if (!response.ok) throw new Error("Could not start Copilot review");
+      await load();
+    } finally {
+      setStartingReview(false);
+    }
+  }
+
   return (
     <div className="review-shell">
       <header className="review-header">
@@ -86,7 +109,21 @@ function App() {
               : ""].filter(Boolean).join(" · ")}
           </p>
         </div>
-        <span className="local-badge">Local only</span>
+        <div className="review-actions">
+          {review?.loaded ? (
+            <button
+              className="primary-button"
+              disabled={startingReview || isActiveReview(review.reviewPass)}
+              onClick={() => void startReview()}
+              type="button"
+            >
+              {review.reviewPass.kind === "idle"
+                ? "Start Copilot review"
+                : reviewPassLabel(review.reviewPass)}
+            </button>
+          ) : null}
+          <span className="local-badge">Local only</span>
+        </div>
       </header>
       <main>
         <section className="diff-panel">
@@ -153,8 +190,8 @@ function PierreDiff({
 
   const annotations = useMemo<DiffLineAnnotation<ThreadAnnotation>[]>(() => {
     const existing = threads.map((thread) => ({
-      side: thread.side,
-      lineNumber: thread.lineEnd,
+      side: thread.anchor.side,
+      lineNumber: thread.anchor.lineEnd,
       metadata: { kind: "thread" as const, thread },
     }));
     if (!selection) return existing;
@@ -329,7 +366,10 @@ function ReviewThreadCard({
     <article className={`inline-thread${thread.collapsed ? " collapsed" : ""}${thread.resolved ? " resolved" : ""}`}>
       <div className="thread-title">
         <span>
-          Lines {thread.lineStart === thread.lineEnd ? thread.lineStart : `${thread.lineStart}–${thread.lineEnd}`}
+          {thread.kind === "finding" ? `${thread.finding.severity} · ${thread.finding.title} · ` : ""}
+          Lines {thread.anchor.lineStart === thread.anchor.lineEnd
+            ? thread.anchor.lineStart
+            : `${thread.anchor.lineStart}–${thread.anchor.lineEnd}`}
           {thread.resolved ? " · Resolved" : thread.pending ? " · Copilot is thinking…" : ""}
         </span>
         <span className="thread-controls">
@@ -362,6 +402,15 @@ function ReviewThreadCard({
               </div>
             ))}
             {thread.pending ? <div className="thread-pending">Copilot is thinking…</div> : null}
+            {thread.kind === "finding" ? (
+              <div className="finding-publication">
+                {thread.finding.publication.kind === "local"
+                  ? "Local finding"
+                  : thread.finding.publication.disposition === "published"
+                    ? "Published to Azure DevOps"
+                    : "Already published to Azure DevOps"}
+              </div>
+            ) : null}
           </div>
           {!thread.resolved ? (
             <form className="thread-reply" onSubmit={submit}>
@@ -381,6 +430,25 @@ function ReviewThreadCard({
       ) : null}
     </article>
   );
+}
+
+function isActiveReview(reviewPass: ReviewState["reviewPass"]): boolean {
+  return reviewPass.kind === "queued" || reviewPass.kind === "running";
+}
+
+function reviewPassLabel(reviewPass: ReviewState["reviewPass"]): string {
+  switch (reviewPass.kind) {
+    case "queued":
+      return "Copilot review queued";
+    case "running":
+      return `Copilot reviewing · ${reviewPass.findingCount} findings`;
+    case "completed":
+      return `Review complete · ${reviewPass.findingCount} findings`;
+    case "failed":
+      return "Review failed · Try again";
+    case "idle":
+      return "Start Copilot review";
+  }
 }
 
 function useHostTheme(): HostTheme {
