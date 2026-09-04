@@ -19,6 +19,7 @@ import {
   type ReviewState,
   type ReviewThread,
 } from "../review-schema.ts";
+import { ChangedFileTree } from "./ChangedFileTree.tsx";
 import "./styles.css";
 
 type HostTheme = "light" | "dark";
@@ -114,34 +115,12 @@ function App() {
             <div className="empty">Loading pull request changes…</div>
           )}
         </section>
-        <aside>
-          <div className="sidebar-heading">
-            <h2>Files</h2>
-            <span>{review?.files.length ?? 0}</span>
-          </div>
-          <div className="file-list">
-            {review?.files.map((file) => {
-              const fileThreads = review.threads.filter((thread) => thread.path === file.path);
-              const openThreadCount = fileThreads.filter((thread) => !thread.resolved).length;
-              const threadSummary = openThreadCount
-                ? `${openThreadCount} open`
-                : fileThreads.length
-                  ? `${fileThreads.length} resolved`
-                  : `+${file.additions ?? 0} −${file.deletions ?? 0}`;
-              return (
-                <button
-                  className={file.path === activeFile?.path ? "active" : ""}
-                  key={file.path}
-                  onClick={() => void focusFile(file)}
-                  type="button"
-                >
-                  <span>{file.path}</span>
-                  <small>{threadSummary}</small>
-                </button>
-              );
-            })}
-          </div>
-        </aside>
+        <ChangedFileTree
+          activePath={activeFile?.path ?? null}
+          files={review?.files ?? []}
+          onActivate={(file) => void focusFile(file)}
+          threads={review?.threads ?? []}
+        />
       </main>
     </div>
   );
