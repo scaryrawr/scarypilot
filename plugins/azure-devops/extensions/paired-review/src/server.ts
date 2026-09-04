@@ -39,7 +39,7 @@ export async function startReviewServer(options: ReviewServerOptions) {
     try {
       await route(request, response, token, options);
     } catch (error) {
-      respondJson(response, 500, {
+      respondJson(response, error instanceof InvalidJsonError ? 400 : 500, {
         error: error instanceof Error ? error.message : String(error),
       });
     }
@@ -244,8 +244,16 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
     chunks.push(buffer);
   }
   const text = Buffer.concat(chunks).toString("utf8");
-  return text ? JSON.parse(text) : {};
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    if (error instanceof SyntaxError) throw new InvalidJsonError("request body must contain valid JSON");
+    throw error;
+  }
 }
+
+class InvalidJsonError extends Error {}
 
 function respondJson(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, {

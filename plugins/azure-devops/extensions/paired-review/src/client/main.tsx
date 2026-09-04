@@ -43,6 +43,7 @@ function App() {
   const [activePath, setActivePath] = useState("");
   const [selection, setSelection] = useState<SelectedLineRange | null>(null);
   const [startingReview, setStartingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const reviewRequestId = useRef<string | null>(null);
 
   const load = useCallback(async () => {
@@ -85,6 +86,7 @@ function App() {
       : reviewRequestId.current ?? crypto.randomUUID();
     reviewRequestId.current = requestId;
     setStartingReview(true);
+    setReviewError(null);
     try {
       const response = await fetch(api("/api/review-passes"), {
         method: "POST",
@@ -93,6 +95,8 @@ function App() {
       });
       if (!response.ok) throw new Error("Could not start Copilot review");
       await load();
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : "Could not start Copilot review");
     } finally {
       setStartingReview(false);
     }
@@ -110,6 +114,7 @@ function App() {
           </p>
         </div>
         <div className="review-actions">
+          {reviewError ? <span className="review-error" role="alert">{reviewError}</span> : null}
           {review?.loaded ? (
             <button
               className="primary-button"

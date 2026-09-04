@@ -98,6 +98,11 @@ h1 {
   padding: 2px 8px;
 }
 
+.review-error {
+  color: var(--review-deleted);
+  font-size: 12px;
+}
+
 .review-actions {
   align-items: center;
   display: flex;

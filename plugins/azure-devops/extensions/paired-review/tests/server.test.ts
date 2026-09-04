@@ -47,6 +47,14 @@ describe("review thread API", () => {
     });
     expect(invalid.status).toBe(400);
 
+    const malformed = await fetch(apiUrl("/api/review-passes"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{",
+    });
+    expect(malformed.status).toBe(400);
+    expect(await malformed.json()).toEqual({ error: "request body must contain valid JSON" });
+
     const started = await fetch(apiUrl("/api/review-passes"), {
       method: "POST",
       headers: { "content-type": "application/json" },

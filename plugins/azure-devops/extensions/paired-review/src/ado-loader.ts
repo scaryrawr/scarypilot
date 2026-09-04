@@ -436,17 +436,17 @@ function buildReviewFile(
     ).trimEnd(),
     "",
   ].join("\n");
-  const lines = diff.split("\n");
+  const ranges = changedLineRanges(diff);
   return {
     path: currentPath,
     previousPath,
     status: changeType,
-    additions: changedLineRanges(diff).additions.reduce((total, range) => total + range.end - range.start + 1, 0),
-    deletions: changedLineRanges(diff).deletions.reduce((total, range) => total + range.end - range.start + 1, 0),
+    additions: ranges.additions.reduce((total, range) => total + range.end - range.start + 1, 0),
+    deletions: ranges.deletions.reduce((total, range) => total + range.end - range.start + 1, 0),
     diff,
     oldContent: before.toString("utf8"),
     newContent: after.toString("utf8"),
-    changedLineRanges: changedLineRanges(diff),
+    changedLineRanges: ranges,
     changeTrackingId,
     iterationId,
   };

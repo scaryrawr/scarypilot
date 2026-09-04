@@ -1,17 +1,17 @@
 {
   "version": 1,
   "inputs": {
-    "src/ado-loader.ts": "00ade639fd9bccaf5955698414d6799188cacaa6b867a1c37e94a7031dd7b0a8",
+    "src/ado-loader.ts": "697f4824e8bcc6e75bc0a17257cc0336d5a4c214cd2b64001d136618967fa79b",
     "src/client/ChangedFileTree.tsx": "9198830f7631f5579a822ddab573bd643686e1ed1f3114ef51f86d6e27a38e5a",
     "src/client/file-tree-interaction.ts": "538ceb7cfced9e13e6f6c57e6a4b23564e7db127b64a3a1da8d5162b2d6aa24e",
     "src/client/file-tree-model.ts": "52a83fc6f7319c3febae3408405088e8231ab0110807fe51b9e1cce02bdc12de",
-    "src/client/main.tsx": "adeacde0d9bead965111452467e399d61ba95f0802c3d4c5dda2cc2d178099d8",
-    "src/client/styles.css": "ad5396802f540d80b7312b71258417c01e5e8e88c982e38cf5b7e6d127655eb1",
+    "src/client/main.tsx": "18c18eaf23f693bfeab3be4e8382328c52f335d315e1f055e34f025a427f84e8",
+    "src/client/styles.css": "83d85fe952447756a9d4c8402c597f565872e92f14e0593509108e3c9409df0e",
     "src/extension.ts": "e668e191921b16d993b76a86a43e67144bf55d957930b42fd853e5be1166085d",
     "src/review-context.ts": "f78a9ae0b4ec6d99994f0127e62a86c1bac783bb71c51087af6057a1c2906f7e",
     "src/review-schema.ts": "8d8cb30829546f39975d4279f3c5d6d7f265bff11829f82304c9ef9974c69879",
     "src/review-state.ts": "cb6536a328766a54121325612e07642f756f9a55411f81603f068b7f7898d282",
-    "src/server.ts": "68d9579d1d2fdbb921c47c7eae9b1b31eec8036991119baf8d9c7b1e45c7908f",
+    "src/server.ts": "26ea73ed6b183547544c97ddc0cf484542293a5b26ab681e454376b59da5f3b9",
     "index.html": "082572d9dc35ccb5e6f0e89bd379ba8565235822b465a26f9f701f04253abfa4",
     "package.json": "776547e96e1e45abb461632d780660fb598306d4836dc8f0df664e6020799d3d",
     "tsconfig.frontend.json": "5c09e14850a073e38dfbc9841d838ffc9d0010c4b8e31a2afc6cad7f604230f6",
@@ -20,9 +20,9 @@
     "vite.config.ts": "9878acad507425f4f0303cf43507c83f8962638baf82fb5a76f281d56fc48974"
   },
   "outputs": {
-    "dist/extension.mjs": "83ff66f7c93fd858c105ca05adc6a0599af63714d2f1d409ac3a6e23613e24a3",
-    "public/assets/app.js": "7208760dad958035f6a9ba55ec7eb0460d5d90a15ce3205bb08b8fc56a5e12e8",
-    "public/assets/index.css": "be387635e45419a53d065178ec2aabd88e23616ec5a77bfc6394c983edd37d0b",
+    "dist/extension.mjs": "2b600d78752a7a5343bd1cfcbcfb5368ce3fcab157daf10cea11e18893b67500",
+    "public/assets/app.js": "6eb06ff3f7d51086a12d03cfbfcb07f0868d6d7586670fe51c9e06c83c443b20",
+    "public/assets/index.css": "d7c2324b1103285cea3b18d4c962e38da13925e971325d6fb9ee38df4aa9e96f",
     "public/index.html": "d31fab13763f3ac9a17295d810e9bf9f8df7f2a77f68896f6cb057b3e95c53ad"
   }
 }
