@@ -13,13 +13,19 @@ const supervisor = new SupervisorClient({
 supervisor.subscribe((event) => events.add(event));
 
 const session = await joinSession({
-  hooks: {
-    onSessionEnd: async () => {
-      events.close();
-      await supervisor.shutdown();
-    },
-  },
   tools: createSupervisorTools(supervisor, events),
 });
 
 sessionRef = session;
+let shutdownPromise: Promise<void> | null = null;
+session.on("session.shutdown", () => {
+  shutdownPromise ??= shutdown();
+  return shutdownPromise.catch((error) => {
+    console.error("ADO Codespaces shutdown failed:", error);
+  });
+});
+
+async function shutdown(): Promise<void> {
+  events.close();
+  await supervisor.shutdown();
+}

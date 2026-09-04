@@ -89,7 +89,8 @@ The renderer is a prebuilt React application using
 [`@pierre/diffs`](https://github.com/pierrecomputer/pierre). A small built-in
 Node HTTP server serves the bundled JavaScript and CSS over loopback, so source
 and diff content remain local and the canvas does not load scripts or styles
-from a CDN.
+from a CDN. The extension listens for the normal SDK shutdown event instead of
+registering permission-gated session hooks.
 
 The checked-in runtime artifacts are generated with:
 

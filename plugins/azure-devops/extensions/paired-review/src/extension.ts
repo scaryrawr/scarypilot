@@ -24,7 +24,8 @@ const CANVAS_ID = "azure-devops-paired-review";
 const MAX_AGENT_RESPONSE_CHARS = 32 * 1024;
 const reviews = new Map<string, ReviewState>();
 let sessionRef: CopilotSession | null = null;
-let serverRef: Awaited<ReturnType<typeof startReviewServer>> | null = null;
+let serverPromise: Promise<Awaited<ReturnType<typeof startReviewServer>>> | null = null;
+let shutdownPromise: Promise<void> | null = null;
 let answerQueue = Promise.resolve();
 
 function scheduleThreadAnswer(instanceId: string, threadId: string): void {
@@ -32,8 +33,8 @@ function scheduleThreadAnswer(instanceId: string, threadId: string): void {
 }
 
 async function getServer() {
-  if (!serverRef) {
-    serverRef = await startReviewServer({
+  if (!serverPromise) {
+    serverPromise = startReviewServer({
       getState: (instanceId) => reviews.get(instanceId),
       setActivePath: (instanceId, activePath) => {
         const current = reviews.get(instanceId);
@@ -104,7 +105,12 @@ async function getServer() {
       },
     });
   }
-  return serverRef;
+  try {
+    return await serverPromise;
+  } catch (error) {
+    serverPromise = null;
+    throw error;
+  }
 }
 
 const pairedReviewCanvas = createCanvas({
@@ -327,15 +333,25 @@ const session = await joinSession({
   canvases: [pairedReviewCanvas],
   commands: [pairedReviewCommand],
   requestCanvasRenderer: true,
-  hooks: {
-    onSessionEnd: async () => {
-      reviews.clear();
-      await serverRef?.close();
-      serverRef = null;
-    },
-  },
 });
 sessionRef = session;
+session.on("session.shutdown", () =>
+  shutdown().catch((error) => {
+    console.error("Paired review shutdown failed:", error);
+  })
+);
+
+function shutdown(): Promise<void> {
+  if (shutdownPromise) return shutdownPromise;
+  reviews.clear();
+  const pendingServer = serverPromise;
+  shutdownPromise = (async () => {
+    const server = await pendingServer?.catch(() => null);
+    await server?.close();
+    serverPromise = null;
+  })();
+  return shutdownPromise;
+}
 
 function requireSession(): CopilotSession {
   if (!sessionRef) throw new Error("paired-review extension is not ready");

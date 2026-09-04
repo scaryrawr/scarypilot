@@ -1,0 +1,25 @@
+name: Paired review bundle
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/paired-review-bundle.yml"
+      - "plugins/azure-devops/extensions/paired-review/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/paired-review-bundle.yml"
+      - "plugins/azure-devops/extensions/paired-review/**"
+
+permissions:
+  contents: read
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Check generated bundle
+        working-directory: plugins/azure-devops/extensions/paired-review
+        run: npm run check:bundle

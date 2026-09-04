@@ -1,14 +1,15 @@
 {
   "name": "azure-devops-paired-review",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "private": true,
   "description": "Local paired-review canvas for Azure DevOps pull requests.",
   "type": "module",
   "scripts": {
-    "build": "npm run build:frontend && npm run build:extension",
+    "build": "npm run build:frontend && npm run build:extension && npm run bundle:record",
     "build:extension": "tsdown",
     "build:frontend": "vite build",
-    "check:bundle": "node ./scripts/check-bundle.mjs",
+    "bundle:record": "node ./scripts/check-bundle-freshness.mjs write",
+    "check:bundle": "node ./scripts/check-bundle.mjs && node ./scripts/check-bundle-freshness.mjs check",
     "smoke:bundle": "node ./scripts/smoke-bundle.mjs",
     "typecheck": "tsgo -p tsconfig.json",
     "typecheck:frontend": "tsc -p tsconfig.frontend.json",
