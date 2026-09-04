@@ -98,6 +98,18 @@ h1 {
   padding: 2px 8px;
 }
 
+.review-error {
+  color: var(--review-deleted);
+  font-size: 12px;
+}
+
+.review-actions {
+  align-items: center;
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
 main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -499,6 +511,14 @@ main {
   color: var(--review-muted);
   font-size: 12px;
   padding: 9px 10px;
+}
+
+.finding-publication {
+  border-top: 1px solid var(--review-border);
+  color: var(--review-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 7px 10px;
 }
 
 .composer {

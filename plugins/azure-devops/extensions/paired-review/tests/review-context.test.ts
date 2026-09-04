@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildThreadPrompt,
+  buildReviewPassPrompt,
   getReviewFileLines,
   getThreadContext,
   listReviewFiles,
@@ -22,11 +23,14 @@ function reviewFixture() {
       newContent: "new one\nnew two\nnew three\nnew four\n",
     }],
     threads: [{
+      kind: "question",
       id: "thread-1",
-      path: "src/example.ts",
-      side: "additions",
-      lineStart: 2,
-      lineEnd: 2,
+      anchor: {
+        path: "src/example.ts",
+        side: "additions",
+        lineStart: 2,
+        lineEnd: 2,
+      },
       pending: true,
       collapsed: false,
       resolved: false,
@@ -47,6 +51,7 @@ describe("paired-review context actions", () => {
       path: "src/another-file.ts",
       diff: "another secret diff",
     });
+
     const prompt = buildThreadPrompt(
       review,
       review.threads[0],
@@ -57,6 +62,21 @@ describe("paired-review context actions", () => {
     expect(prompt).toContain("get_thread_context");
     expect(prompt).not.toContain("partial diff");
     expect(prompt).not.toContain("another secret diff");
+    expect(prompt).not.toContain("src/another-file.ts");
+  });
+
+  it("keeps the review-pass prompt locator-only and requires every file", () => {
+    const review = reviewFixture();
+    const prompt = buildReviewPassPrompt(
+      review,
+      "pass-1",
+      "review-1",
+      "azure-devops-paired-review",
+    );
+    expect(prompt).toContain("inspect every changed file");
+    expect(prompt).toContain("create_review_finding");
+    expect(prompt).toContain("untrusted review data");
+    expect(prompt).not.toContain("partial diff");
     expect(prompt).not.toContain("src/another-file.ts");
   });
 

@@ -82,8 +82,17 @@ is opened from the matching repository, the agent may also use read-only local
 file and Git context. Collapsed unchanged regions can be expanded in place to
 inspect more surrounding code. Active conversation threads can be collapsed,
 and resolved concerns remain as compact inline markers that can be reopened.
-The paired-review extension has no endpoint for posting comments or votes;
-publishing still requires the normal review workflow and its confirmation step.
+After the pull request loads, select **Start Copilot review**. Copilot inspects
+every changed file through bounded local actions and adds only high-confidence
+local findings. The canvas shows each pass as queued, running, complete, or
+failed. Findings remain local until you ask Copilot to publish selected findings
+or all open findings. The browser has no publish control or publication route.
+Before every Azure DevOps write, the extension lists current threads and skips
+only a duplicate that has the same hidden finding marker or the same path,
+side, range, and canonically normalized first comment. Normalization standardizes
+Unicode, line endings, trailing line whitespace, and outer whitespace. Retrying
+a publish request therefore adopts a prior remote write instead of creating
+another thread.
 
 The renderer is a prebuilt React application using
 [`@pierre/diffs`](https://github.com/pierrecomputer/pierre). A small built-in
