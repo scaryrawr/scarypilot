@@ -5,7 +5,7 @@
     "src/client/ChangedFileTree.tsx": "9198830f7631f5579a822ddab573bd643686e1ed1f3114ef51f86d6e27a38e5a",
     "src/client/file-tree-interaction.ts": "538ceb7cfced9e13e6f6c57e6a4b23564e7db127b64a3a1da8d5162b2d6aa24e",
     "src/client/file-tree-model.ts": "52a83fc6f7319c3febae3408405088e8231ab0110807fe51b9e1cce02bdc12de",
-    "src/client/main.tsx": "18c18eaf23f693bfeab3be4e8382328c52f335d315e1f055e34f025a427f84e8",
+    "src/client/main.tsx": "4118318b23fbf2b6b60059892f868b037b5ac4f2adabfd6a70965052a139c61b",
     "src/client/styles.css": "83d85fe952447756a9d4c8402c597f565872e92f14e0593509108e3c9409df0e",
     "src/extension.ts": "a09d08fdea52159c6fed098f7131805c226d95dd3e3bc00fdc8aaad251154d3b",
     "src/review-context.ts": "f78a9ae0b4ec6d99994f0127e62a86c1bac783bb71c51087af6057a1c2906f7e",
@@ -21,7 +21,7 @@
   },
   "outputs": {
     "dist/extension.mjs": "ddf4061e33633eecb0119b5609ab686c5d237f168cb13d502b857f3827b0e3ff",
-    "public/assets/app.js": "6eb06ff3f7d51086a12d03cfbfcb07f0868d6d7586670fe51c9e06c83c443b20",
+    "public/assets/app.js": "2e9d17753de58dded7cdd186355ed9facb10147acbf5af86ea71f3733cdc13c6",
     "public/assets/index.css": "d7c2324b1103285cea3b18d4c962e38da13925e971325d6fb9ee38df4aa9e96f",
     "public/index.html": "d31fab13763f3ac9a17295d810e9bf9f8df7f2a77f68896f6cb057b3e95c53ad"
   }

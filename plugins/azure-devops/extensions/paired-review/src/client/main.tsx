@@ -93,7 +93,14 @@ function App() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ requestId }),
       });
-      if (!response.ok) throw new Error("Could not start Copilot review");
+      if (!response.ok) {
+        const body: unknown = await response.json();
+        const message = typeof body === "object" && body !== null &&
+          "error" in body && typeof body.error === "string" && body.error.trim()
+          ? body.error
+          : "Could not start Copilot review";
+        throw new Error(message);
+      }
       await load();
     } catch (error) {
       setReviewError(error instanceof Error ? error.message : "Could not start Copilot review");
