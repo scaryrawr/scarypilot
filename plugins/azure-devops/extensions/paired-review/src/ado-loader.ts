@@ -7,6 +7,7 @@ import { createTwoFilesPatch } from "diff";
 import {
   changedLineRanges,
   findingThreads,
+  lineCount,
   normalizePath,
   normalizeReviewText,
   parseAzurePullRequestUrl,
@@ -698,12 +699,6 @@ function collection(value: unknown): unknown[] {
 
 function positionLine(value: unknown): number | undefined {
   return isRecord(value) ? numberAt(value, "line") : undefined;
-}
-
-function lineCount(content: string): number {
-  return content.endsWith("\n")
-    ? content.slice(0, -1).split(/\r?\n/).length
-    : content.split(/\r?\n/).length;
 }
 
 function stringAt(value: Record<string, unknown>, key: string): string | undefined {

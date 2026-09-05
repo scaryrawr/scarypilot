@@ -145,4 +145,16 @@ describe("review thread API", () => {
     expect(response.status).toBe(202);
     expect(fixThread).toHaveBeenCalledWith("review-1", "thread-1");
   });
+
+  it("allows future fix options in the request object", async () => {
+    const { apiUrl, fixThread } = await createServer();
+    const response = await fetch(apiUrl("/api/threads/thread-1/fix"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ strategy: "minimal" }),
+    });
+
+    expect(response.status).toBe(202);
+    expect(fixThread).toHaveBeenCalledWith("review-1", "thread-1");
+  });
 });

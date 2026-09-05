@@ -384,7 +384,7 @@ function findingCount(review: ReviewState): number {
   return review.threads.filter((thread) => thread.kind === "finding").length;
 }
 
-function lineCount(content: string): number {
+export function lineCount(content: string): number {
   return content.endsWith("\n") ? content.slice(0, -1).split(/\r?\n/).length : content.split(/\r?\n/).length;
 }
 

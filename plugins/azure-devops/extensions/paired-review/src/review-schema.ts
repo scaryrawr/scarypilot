@@ -172,7 +172,7 @@ export const ReplyToReviewThreadInputSchema = Type.Object({
   body: Type.String({ minLength: 1, maxLength: 8000 }),
 });
 
-export const FixReviewThreadInputSchema = Type.Object({});
+export const FixReviewThreadInputSchema = Type.Object({}, { additionalProperties: true });
 
 export const UpdateReviewThreadInputSchema = Type.Object({
   collapsed: Type.Optional(Type.Boolean()),

@@ -394,7 +394,7 @@ function ReviewThreadCard({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({}),
       });
-      if (!response.ok) throw new Error("Could not start Copilot fix");
+      if (!response.ok) throw new Error(await responseError(response, "Could not start Copilot fix"));
       onUpdated();
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Could not start Copilot fix");
@@ -497,6 +497,14 @@ function ReviewThreadCard({
       ) : null}
     </article>
   );
+}
+
+async function responseError(response: Response, fallback: string): Promise<string> {
+  const body: unknown = await response.json().catch(() => null);
+  return typeof body === "object" && body !== null &&
+      "error" in body && typeof body.error === "string" && body.error.trim()
+    ? body.error
+    : fallback;
 }
 
 function isActiveReview(reviewPass: ReviewState["reviewPass"]): boolean {
