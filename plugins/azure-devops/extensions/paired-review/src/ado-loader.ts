@@ -46,8 +46,17 @@ interface PullRequestIteration {
 
 interface RemoteThread {
   id: number;
-  firstComment?: string;
   anchor?: RemoteAnchor;
+  resolved: boolean;
+  firstComment?: string;
+  messages: RemoteThreadMessage[];
+}
+
+interface RemoteThreadMessage {
+  id: string;
+  author?: string;
+  body: string;
+  createdAt: string;
 }
 
 interface RemoteAnchor {
@@ -62,6 +71,7 @@ export interface LoadedPullRequest {
   sourceBranch?: string;
   targetBranch?: string;
   files: ReviewFile[];
+  threads: ReviewThread[];
   status: string;
   loaded: true;
 }
@@ -170,18 +180,33 @@ export async function loadAzurePullRequest(
       iteration.id,
     );
   });
+  let threads: ReviewThread[] = [];
+  let threadLoadError: string | undefined;
+  try {
+    threads = remoteThreadsForFiles(
+      await listRemoteThreads(runner, invokeScope, route),
+      files,
+    );
+  } catch (error) {
+    threadLoadError = error instanceof Error ? error.message : String(error);
+  }
 
   return {
     title: details.title ?? `Pull request ${location.pullRequestId}`,
     sourceBranch: stripRef(details.sourceRefName),
     targetBranch: stripRef(details.targetRefName),
     files,
+    threads,
     loaded: true,
-    status: omittedFiles > 0
+    status: `${omittedFiles > 0
       ? `Loaded ${files.length - omittedFiles} changed files; omitted content for ${omittedFiles} files`
       : changes.length >= MAX_CHANGED_FILES
         ? `Loaded the first ${MAX_CHANGED_FILES} changed files`
-        : `Loaded ${files.length} changed file${files.length === 1 ? "" : "s"}`,
+        : `Loaded ${files.length} changed file${files.length === 1 ? "" : "s"}`}${
+      threadLoadError
+        ? `; could not load Azure DevOps threads: ${threadLoadError}`
+        : `; loaded ${threads.length} inline Azure DevOps thread${threads.length === 1 ? "" : "s"}`
+    }`,
   };
 }
 
@@ -335,12 +360,13 @@ function remoteThreadMatches(
   remote: RemoteThread,
   finding: Extract<ReviewThread, { kind: "finding" }>,
 ): boolean {
-  if (remote.firstComment?.includes(findingMarker(finding.finding.id))) return true;
+  const firstComment = remote.firstComment;
+  if (firstComment?.includes(findingMarker(finding.finding.id))) return true;
   return Boolean(
     remote.anchor &&
-    remote.firstComment &&
+    firstComment &&
     sameAnchor(remote.anchor, finding.anchor) &&
-    normalizeReviewText(removeFindingMarker(remote.firstComment)) ===
+    normalizeReviewText(removeFindingMarker(firstComment)) ===
       normalizeReviewText(removeFindingMarker(visibleFindingComment(finding))),
   );
 }
@@ -566,10 +592,70 @@ function parseRemoteThreads(value: unknown): RemoteThread[] {
     const id = numberAt(entry, "id");
     if (!id) return [];
     const comments = Array.isArray(entry.comments) ? entry.comments : [];
-    const first = comments[0];
-    const firstComment = isRecord(first) ? stringAt(first, "content") : undefined;
-    return [{ id, firstComment, anchor: parseRemoteAnchor(entry.threadContext) }];
+    const firstComment = comments.flatMap((comment) =>
+      isRecord(comment) && stringAt(comment, "content")?.trim()
+        ? [stringAt(comment, "content")!.trim()]
+        : []
+    )[0];
+    const messages = comments.flatMap((comment, index) => {
+      if (!isRecord(comment)) return [];
+      const body = stringAt(comment, "content")?.trim();
+      if (!body) return [];
+      const commentId = numberAt(comment, "id") ?? index;
+      const identity = isRecord(comment.author) ? comment.author : undefined;
+      return [{
+        id: `remote-${id}-${commentId}`,
+        author: identity
+          ? stringAt(identity, "displayName") ?? stringAt(identity, "uniqueName")
+          : undefined,
+        body: removeFindingMarker(body).trim(),
+        createdAt: stringAt(comment, "publishedDate") ?? new Date(0).toISOString(),
+      }];
+    });
+    if (!messages.length) return [];
+    return [{
+      id,
+      anchor: parseRemoteAnchor(entry.threadContext),
+      resolved: remoteThreadIsResolved(entry.status),
+      firstComment,
+      messages,
+    }];
   });
+}
+
+function remoteThreadsForFiles(remoteThreads: RemoteThread[], files: ReviewFile[]): ReviewThread[] {
+  return remoteThreads.flatMap((thread) => {
+    if (!thread.anchor) return [];
+    const file = files.find((candidate) =>
+      candidate.path === thread.anchor!.path || candidate.previousPath === thread.anchor!.path
+    );
+    if (!file) return [];
+    const content = thread.anchor.side === "additions" ? file.newContent : file.oldContent;
+    if (
+      content === undefined ||
+      thread.anchor.lineEnd > lineCount(content)
+    ) {
+      return [];
+    }
+    return [{
+      kind: "remote" as const,
+      id: `remote-${thread.id}`,
+      remoteThreadId: thread.id,
+      anchor: { ...thread.anchor, path: file.path },
+      pending: false,
+      fixing: false,
+      collapsed: thread.resolved,
+      resolved: thread.resolved,
+      messages: thread.messages.map((message) => ({
+        ...message,
+        role: "reviewer" as const,
+      })),
+    }];
+  });
+}
+
+function remoteThreadIsResolved(status: unknown): boolean {
+  return status !== undefined && status !== 1 && status !== "active";
 }
 
 function parseRemoteAnchor(value: unknown): RemoteAnchor | undefined {
@@ -612,6 +698,12 @@ function collection(value: unknown): unknown[] {
 
 function positionLine(value: unknown): number | undefined {
   return isRecord(value) ? numberAt(value, "line") : undefined;
+}
+
+function lineCount(content: string): number {
+  return content.endsWith("\n")
+    ? content.slice(0, -1).split(/\r?\n/).length
+    : content.split(/\r?\n/).length;
 }
 
 function stringAt(value: Record<string, unknown>, key: string): string | undefined {

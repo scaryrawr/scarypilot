@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { Value } from "@sinclair/typebox/value";
 import {
   CreateReviewThreadInputSchema,
+  FixReviewThreadInputSchema,
   FocusReviewFileInputSchema,
   ReplyToReviewThreadInputSchema,
   StartReviewPassInputSchema,
@@ -25,6 +26,7 @@ interface ReviewServerOptions {
   ) => Promise<{ pass: ReviewPass; scheduled: boolean }>;
   createThread: (instanceId: string, input: CreateReviewThreadInput) => Promise<string>;
   replyToThread: (instanceId: string, threadId: string, body: string) => Promise<void>;
+  fixThread: (instanceId: string, threadId: string) => Promise<void>;
   updateThread: (instanceId: string, threadId: string, input: UpdateReviewThreadInput) => Promise<void>;
   setActivePath: (instanceId: string, activePath: string) => void;
 }
@@ -152,6 +154,18 @@ async function route(
       return;
     }
     await options.replyToThread(instanceId, decodeURIComponent(replyMatch[1]), message);
+    respondJson(response, 202, { accepted: true });
+    return;
+  }
+
+  const fixMatch = url.pathname.match(/^\/api\/threads\/([^/]+)\/fix$/);
+  if (request.method === "POST" && fixMatch) {
+    const body = await readJsonBody(request);
+    if (!Value.Check(FixReviewThreadInputSchema, body)) {
+      respondJson(response, 400, { error: "request body must be an object" });
+      return;
+    }
+    await options.fixThread(instanceId, decodeURIComponent(fixMatch[1]));
     respondJson(response, 202, { accepted: true });
     return;
   }

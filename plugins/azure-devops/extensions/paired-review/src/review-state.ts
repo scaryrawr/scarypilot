@@ -199,6 +199,7 @@ export function insertReviewFinding(
     id,
     anchor,
     pending: false,
+    fixing: false,
     collapsed: false,
     resolved: false,
     messages: [{
@@ -244,6 +245,7 @@ export function createQuestionThread(
     id: randomUUID(),
     anchor,
     pending: true,
+    fixing: false,
     collapsed: false,
     resolved: false,
     messages: [{

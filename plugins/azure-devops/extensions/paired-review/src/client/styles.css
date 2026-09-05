@@ -506,6 +506,10 @@ main {
   background: color-mix(in srgb, var(--review-panel) 72%, var(--review-bg));
 }
 
+.thread-message.reviewer {
+  background: color-mix(in srgb, var(--review-accent) 6%, var(--review-bg));
+}
+
 .thread-pending {
   border-top: 1px solid var(--review-border);
   color: var(--review-muted);
@@ -556,11 +560,22 @@ main {
 
 .thread-reply {
   border-top: 1px solid var(--review-border);
+  display: block;
   padding: 0 8px 8px;
 }
 
 .thread-reply textarea {
   margin-left: 0;
+}
+
+.thread-reply .thread-actions {
+  padding: 0;
+}
+
+.thread-error {
+  color: var(--review-deleted);
+  font-size: 12px;
+  padding: 0 10px 10px;
 }
 
 .primary-button,

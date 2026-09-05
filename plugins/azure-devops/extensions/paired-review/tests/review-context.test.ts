@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildThreadPrompt,
+  buildFixPrompt,
   buildReviewPassPrompt,
   getReviewFileLines,
   getThreadContext,
@@ -32,6 +33,7 @@ function reviewFixture() {
         lineEnd: 2,
       },
       pending: true,
+      fixing: false,
       collapsed: false,
       resolved: false,
       messages: [{
@@ -78,6 +80,19 @@ describe("paired-review context actions", () => {
     expect(prompt).toContain("untrusted review data");
     expect(prompt).not.toContain("partial diff");
     expect(prompt).not.toContain("src/another-file.ts");
+  });
+
+  it("asks Copilot to apply feedback only in a matching workspace", () => {
+    const review = reviewFixture();
+    const prompt = buildFixPrompt(
+      review,
+      review.threads[0],
+      "review-1",
+      "azure-devops-paired-review",
+    );
+    expect(prompt).toContain("matching pull request checkout");
+    expect(prompt).toContain("Do not make Azure DevOps calls");
+    expect(prompt).not.toContain("partial diff");
   });
 
   it("returns bounded selected context without the full diff", () => {

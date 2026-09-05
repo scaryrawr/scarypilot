@@ -338,13 +338,18 @@ function ReviewThreadCard({
 }) {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const [fixing, setFixing] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const busy = thread.pending || thread.fixing;
+  const canDiscuss = thread.kind === "remote" || !thread.resolved;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     const body = reply.trim();
-    if (!body || thread.pending) return;
+    if (!body || busy) return;
     setSending(true);
+    setActionError(null);
     try {
       const response = await fetch(api(`/api/threads/${encodeURIComponent(thread.id)}/messages`), {
         method: "POST",
@@ -354,6 +359,8 @@ function ReviewThreadCard({
       if (!response.ok) throw new Error("Could not reply to review thread");
       setReply("");
       onUpdated();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not ask Copilot about this thread");
     } finally {
       setSending(false);
     }
@@ -361,6 +368,7 @@ function ReviewThreadCard({
 
   async function updateThread(input: { collapsed?: boolean; resolved?: boolean }) {
     setUpdating(true);
+    setActionError(null);
     try {
       const response = await fetch(api(`/api/threads/${encodeURIComponent(thread.id)}`), {
         method: "PATCH",
@@ -369,8 +377,29 @@ function ReviewThreadCard({
       });
       if (!response.ok) throw new Error("Could not update review thread");
       onUpdated();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not update review thread");
     } finally {
       setUpdating(false);
+    }
+  }
+
+  async function startFix() {
+    if (busy) return;
+    setFixing(true);
+    setActionError(null);
+    try {
+      const response = await fetch(api(`/api/threads/${encodeURIComponent(thread.id)}/fix`), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!response.ok) throw new Error("Could not start Copilot fix");
+      onUpdated();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not start Copilot fix");
+    } finally {
+      setFixing(false);
     }
   }
 
@@ -379,29 +408,32 @@ function ReviewThreadCard({
       <div className="thread-title">
         <span>
           {thread.kind === "finding" ? `${thread.finding.severity} · ${thread.finding.title} · ` : ""}
+          {thread.kind === "remote" ? `Azure DevOps · #${thread.remoteThreadId} · ` : ""}
           Lines {thread.anchor.lineStart === thread.anchor.lineEnd
             ? thread.anchor.lineStart
             : `${thread.anchor.lineStart}–${thread.anchor.lineEnd}`}
-          {thread.resolved ? " · Resolved" : thread.pending ? " · Copilot is thinking…" : ""}
+          {thread.resolved ? " · Resolved" : busy ? " · Copilot is working…" : ""}
         </span>
         <span className="thread-controls">
           <button
-            disabled={updating}
+            disabled={updating || busy}
             onClick={() => void updateThread({ collapsed: !thread.collapsed })}
             type="button"
           >
             {thread.collapsed ? "Expand" : "Collapse"}
           </button>
-          <button
-            disabled={updating}
-            onClick={() => void updateThread({
-              collapsed: !thread.resolved,
-              resolved: !thread.resolved,
-            })}
-            type="button"
-          >
-            {thread.resolved ? "Reopen" : "Resolve"}
-          </button>
+          {thread.kind !== "remote" ? (
+            <button
+              disabled={updating || busy}
+              onClick={() => void updateThread({
+                collapsed: !thread.resolved,
+                resolved: !thread.resolved,
+              })}
+              type="button"
+            >
+              {thread.resolved ? "Reopen" : "Resolve"}
+            </button>
+          ) : null}
         </span>
       </div>
       {!thread.collapsed ? (
@@ -409,11 +441,18 @@ function ReviewThreadCard({
           <div className="thread-messages">
             {thread.messages.map((message) => (
               <div className={`thread-message ${message.role}`} key={message.id}>
-                <strong>{message.role === "user" ? "You" : "Copilot"}</strong>
+                <strong>
+                  {message.role === "user"
+                    ? "You"
+                    : message.role === "assistant"
+                      ? "Copilot"
+                      : message.author || "Azure DevOps reviewer"}
+                </strong>
                 <p>{message.body}</p>
               </div>
             ))}
             {thread.pending ? <div className="thread-pending">Copilot is thinking…</div> : null}
+            {thread.fixing ? <div className="thread-pending">Copilot is applying feedback in the workspace…</div> : null}
             {thread.kind === "finding" ? (
               <div className="finding-publication">
                 {thread.finding.publication.kind === "local"
@@ -423,21 +462,37 @@ function ReviewThreadCard({
                     : "Already published to Azure DevOps"}
               </div>
             ) : null}
+            {thread.kind === "remote" ? (
+              <div className="finding-publication">Imported from Azure DevOps · private Copilot follow-ups stay local</div>
+            ) : null}
           </div>
-          {!thread.resolved ? (
+          {canDiscuss ? (
             <form className="thread-reply" onSubmit={submit}>
               <textarea
-                disabled={thread.pending}
+                disabled={busy}
                 maxLength={8000}
                 onChange={(event) => setReply(event.target.value)}
-                placeholder="Reply in this thread…"
+                placeholder={thread.kind === "remote"
+                  ? "Ask Copilot privately about this feedback…"
+                  : "Ask Copilot a follow-up…"}
                 value={reply}
               />
-              <button className="primary-button" disabled={sending || thread.pending || !reply.trim()} type="submit">
-                Reply
-              </button>
+              <div className="thread-actions">
+                <button
+                  className="secondary-button"
+                  disabled={fixing || busy}
+                  onClick={() => void startFix()}
+                  type="button"
+                >
+                  {thread.fixing ? "Fixing…" : "Fix with Copilot"}
+                </button>
+                <button className="primary-button" disabled={sending || busy || !reply.trim()} type="submit">
+                  {sending ? "Asking…" : "Ask Copilot"}
+                </button>
+              </div>
             </form>
           ) : null}
+          {actionError ? <p className="thread-error" role="alert">{actionError}</p> : null}
         </>
       ) : null}
     </article>

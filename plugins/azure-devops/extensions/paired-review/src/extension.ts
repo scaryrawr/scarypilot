@@ -20,6 +20,7 @@ import {
 import { loadAzurePullRequest, publishReviewFindings } from "./ado-loader.ts";
 import {
   buildReviewPassPrompt,
+  buildFixPrompt,
   buildThreadPrompt,
   getReviewFileLines,
   getThreadContext,
@@ -28,6 +29,7 @@ import {
 import {
   CreateReviewFindingInputSchema,
   CreateReviewThreadInputSchema,
+  FixReviewThreadInputSchema,
   GetReviewFileLinesInputSchema,
   GetThreadContextInputSchema,
   ListReviewFilesInputSchema,
@@ -45,7 +47,7 @@ let sessionRef: CopilotSession | null = null;
 let serverPromise: Promise<Awaited<ReturnType<typeof startReviewServer>>> | null = null;
 let shutdownPromise: Promise<void> | null = null;
 let agentQueue = Promise.resolve();
-let activeAgentJob: "review_pass" | "thread_reply" | null = null;
+let activeAgentJob: "review_pass" | "thread_reply" | "thread_fix" | null = null;
 
 function enqueue(work: () => Promise<void>): void {
   agentQueue = agentQueue.then(work, work);
@@ -53,6 +55,10 @@ function enqueue(work: () => Promise<void>): void {
 
 function scheduleThreadAnswer(instanceId: string, threadId: string): void {
   enqueue(() => answerThread(instanceId, threadId));
+}
+
+function scheduleThreadFix(instanceId: string, threadId: string): void {
+  enqueue(() => fixThread(instanceId, threadId));
 }
 
 function scheduleReviewPass(instanceId: string, passId: string): void {
@@ -98,7 +104,9 @@ async function getServer() {
         const review = requireReview(instanceId);
         const thread = review.threads.find((candidate) => candidate.id === threadId);
         if (!thread) throw new Error("review thread was not found");
-        if (thread.pending) throw new Error("wait for the current response before replying");
+        if (thread.pending || thread.fixing) {
+          throw new Error("wait for the current Copilot action before replying");
+        }
         const threads = review.threads.map((candidate) =>
           candidate.id === threadId
             ? {
@@ -115,6 +123,20 @@ async function getServer() {
         );
         reviews.set(instanceId, updateReviewState(review, { threads }));
         scheduleThreadAnswer(instanceId, threadId);
+      },
+      fixThread: async (instanceId, threadId) => {
+        const review = requireReview(instanceId);
+        const thread = review.threads.find((candidate) => candidate.id === threadId);
+        if (!thread) throw new Error("review thread was not found");
+        if (thread.pending || thread.fixing) {
+          throw new Error("wait for the current Copilot action before starting a fix");
+        }
+        reviews.set(instanceId, updateReviewState(review, {
+          threads: review.threads.map((candidate) =>
+            candidate.id === threadId ? { ...candidate, fixing: true } : candidate
+          ),
+        }));
+        scheduleThreadFix(instanceId, threadId);
       },
       updateThread: async (instanceId, threadId, input) => {
         const review = requireReview(instanceId);
@@ -309,6 +331,7 @@ async function populateReview(instanceId: string, prUrl: string): Promise<void> 
         status: `Could not load pull request: ${message}`,
       }));
     }
+
     await sessionRef?.log(`Paired review could not load ${prUrl}: ${message}`, { level: "error" });
   }
 }
@@ -370,6 +393,35 @@ async function answerThread(instanceId: string, threadId: string): Promise<void>
   }
 }
 
+async function fixThread(instanceId: string, threadId: string): Promise<void> {
+  const review = reviews.get(instanceId);
+  const thread = review?.threads.find((candidate) => candidate.id === threadId);
+  if (!review || !thread) return;
+  try {
+    activeAgentJob = "thread_fix";
+    let response;
+    try {
+      response = await requireSession().sendAndWait({
+        prompt: buildFixPrompt(review, thread, instanceId, CANVAS_ID),
+      });
+    } finally {
+      activeAgentJob = null;
+    }
+    finishThreadFix(
+      instanceId,
+      threadId,
+      response?.data.content?.trim().slice(0, MAX_AGENT_RESPONSE_CHARS) ||
+        "Copilot completed without a text response.",
+    );
+  } catch (error) {
+    finishThreadFix(
+      instanceId,
+      threadId,
+      `Could not apply this feedback: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
 function finishThread(instanceId: string, threadId: string, body: string): void {
   const review = reviews.get(instanceId);
   if (!review) return;
@@ -379,6 +431,27 @@ function finishThread(instanceId: string, threadId: string, body: string): void 
         ? {
             ...thread,
             pending: false,
+            messages: [...thread.messages, {
+              id: randomUUID(),
+              role: "assistant" as const,
+              body,
+              createdAt: new Date().toISOString(),
+            }],
+          }
+        : thread,
+    ),
+  }));
+}
+
+function finishThreadFix(instanceId: string, threadId: string, body: string): void {
+  const review = reviews.get(instanceId);
+  if (!review) return;
+  reviews.set(instanceId, updateReviewState(review, {
+    threads: review.threads.map((thread) =>
+      thread.id === threadId
+        ? {
+            ...thread,
+            fixing: false,
             messages: [...thread.messages, {
               id: randomUUID(),
               role: "assistant" as const,
