@@ -199,6 +199,7 @@ export function insertReviewFinding(
     id,
     anchor,
     pending: false,
+    fixing: false,
     collapsed: false,
     resolved: false,
     messages: [{
@@ -244,6 +245,7 @@ export function createQuestionThread(
     id: randomUUID(),
     anchor,
     pending: true,
+    fixing: false,
     collapsed: false,
     resolved: false,
     messages: [{
@@ -382,7 +384,7 @@ function findingCount(review: ReviewState): number {
   return review.threads.filter((thread) => thread.kind === "finding").length;
 }
 
-function lineCount(content: string): number {
+export function lineCount(content: string): number {
   return content.endsWith("\n") ? content.slice(0, -1).split(/\r?\n/).length : content.split(/\r?\n/).length;
 }
 

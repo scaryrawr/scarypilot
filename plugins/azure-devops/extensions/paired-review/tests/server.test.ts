@@ -15,6 +15,7 @@ async function createServer() {
     scheduled: true,
   }));
   const replyToThread = vi.fn(async () => {});
+  const fixThread = vi.fn(async () => {});
   const updateThread = vi.fn(async () => {});
   const server = await startReviewServer({
     getState: () => updateReviewState(
@@ -24,6 +25,7 @@ async function createServer() {
     startReviewPass,
     createThread,
     replyToThread,
+    fixThread,
     updateThread,
     setActivePath: vi.fn(),
   });
@@ -34,7 +36,7 @@ async function createServer() {
     url.pathname = pathname;
     return url;
   };
-  return { apiUrl, createThread, replyToThread, startReviewPass, updateThread };
+  return { apiUrl, createThread, fixThread, replyToThread, startReviewPass, updateThread };
 }
 
 describe("review thread API", () => {
@@ -130,5 +132,29 @@ describe("review thread API", () => {
     });
     expect(reply.status).toBe(202);
     expect(replyToThread).toHaveBeenCalledWith("review-1", "thread-1", "Follow up");
+  });
+
+  it("starts a workspace-only Copilot fix for a thread", async () => {
+    const { apiUrl, fixThread } = await createServer();
+    const response = await fetch(apiUrl("/api/threads/thread-1/fix"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    expect(response.status).toBe(202);
+    expect(fixThread).toHaveBeenCalledWith("review-1", "thread-1");
+  });
+
+  it("allows future fix options in the request object", async () => {
+    const { apiUrl, fixThread } = await createServer();
+    const response = await fetch(apiUrl("/api/threads/thread-1/fix"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ strategy: "minimal" }),
+    });
+
+    expect(response.status).toBe(202);
+    expect(fixThread).toHaveBeenCalledWith("review-1", "thread-1");
   });
 });

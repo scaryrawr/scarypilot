@@ -33,7 +33,12 @@ export type ReviewFile = Static<typeof ReviewFileSchema>;
 
 export const ReviewThreadMessageSchema = Type.Object({
   id: Type.String(),
-  role: Type.Union([Type.Literal("user"), Type.Literal("assistant")]),
+  role: Type.Union([
+    Type.Literal("user"),
+    Type.Literal("assistant"),
+    Type.Literal("reviewer"),
+  ]),
+  author: Type.Optional(Type.String()),
   body: Type.String(),
   createdAt: Type.String(),
 });
@@ -52,6 +57,7 @@ const ThreadStateSchema = {
   id: Type.String(),
   anchor: LineAnchorSchema,
   pending: Type.Boolean(),
+  fixing: Type.Boolean(),
   collapsed: Type.Boolean(),
   resolved: Type.Boolean(),
   messages: Type.Array(ReviewThreadMessageSchema, { minItems: 1 }),
@@ -84,6 +90,11 @@ export const ReviewThreadSchema = Type.Union([
         }),
       ]),
     }),
+  }),
+  Type.Object({
+    kind: Type.Literal("remote"),
+    ...ThreadStateSchema,
+    remoteThreadId: Type.Integer({ minimum: 1 }),
   }),
 ]);
 export type ReviewThread = Static<typeof ReviewThreadSchema>;
@@ -160,6 +171,8 @@ export type StartReviewPassInput = Static<typeof StartReviewPassInputSchema>;
 export const ReplyToReviewThreadInputSchema = Type.Object({
   body: Type.String({ minLength: 1, maxLength: 8000 }),
 });
+
+export const FixReviewThreadInputSchema = Type.Object({}, { additionalProperties: true });
 
 export const UpdateReviewThreadInputSchema = Type.Object({
   collapsed: Type.Optional(Type.Boolean()),

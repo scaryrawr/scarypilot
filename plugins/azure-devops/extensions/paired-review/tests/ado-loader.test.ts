@@ -35,6 +35,25 @@ describe("loadAzurePullRequest", () => {
             }],
           };
         }
+        if (args.includes("pullRequestThreads")) {
+          return {
+            value: [{
+              id: 7,
+              status: 1,
+              threadContext: {
+                filePath: "/src/greeting.ts",
+                rightFileStart: { line: 1 },
+                rightFileEnd: { line: 1 },
+              },
+              comments: [{
+                id: 11,
+                content: "Please keep this export stable.",
+                author: { displayName: "Ada Lovelace" },
+                publishedDate: "2026-01-01T00:00:00.000Z",
+              }],
+            }],
+          };
+        }
         return { changeEntries: [{ changeType: "edit", item: { path: "/src/greeting.ts" } }] };
       },
       async file(args) {
@@ -54,7 +73,7 @@ describe("loadAzurePullRequest", () => {
       title: "Update greeting",
       sourceBranch: "feature",
       targetBranch: "main",
-      status: "Loaded 1 changed file",
+      status: "Loaded 1 changed file; loaded 1 inline Azure DevOps thread",
       loaded: true,
     });
     expect(loaded.files[0]).toMatchObject({
@@ -68,6 +87,28 @@ describe("loadAzurePullRequest", () => {
     });
     expect(jsonCalls.some((args) => args.includes("pullRequestIterationChanges"))).toBe(true);
     expect(fileCalls).toHaveLength(2);
+    expect(loaded.threads).toEqual([{
+      kind: "remote",
+      id: "remote-7",
+      remoteThreadId: 7,
+      anchor: {
+        path: "src/greeting.ts",
+        side: "additions",
+        lineStart: 1,
+        lineEnd: 1,
+      },
+      pending: false,
+      fixing: false,
+      collapsed: false,
+      resolved: false,
+      messages: [{
+        id: "remote-7-11",
+        role: "reviewer",
+        author: "Ada Lovelace",
+        body: "Please keep this export stable.",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      }],
+    }]);
   });
 });
 

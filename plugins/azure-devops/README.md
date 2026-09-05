@@ -69,7 +69,8 @@ Start the paired-review canvas with an Azure DevOps pull request URL:
 ```
 
 The command opens a localhost-only canvas and the extension loads pull request
-metadata, changed paths, and file contents through the authenticated Azure CLI.
+metadata, changed paths, file contents, and existing inline review threads through
+the authenticated Azure CLI.
 It creates unified diffs locally, so the command works outside a checkout and
 does not require the agent to make Azure DevOps calls. The canvas inherits the
 Copilot app theme and presents a native-style changed-file tree and unified diff.
@@ -82,6 +83,12 @@ is opened from the matching repository, the agent may also use read-only local
 file and Git context. Collapsed unchanged regions can be expanded in place to
 inspect more surrounding code. Active conversation threads can be collapsed,
 and resolved concerns remain as compact inline markers that can be reopened.
+Azure DevOps feedback is shown inline with its original author and status. Use
+**Ask Copilot** to discuss any feedback privately without posting a reply, or
+**Fix with Copilot** to have Copilot apply the smallest suitable change in the
+current workspace only when it is the matching pull request checkout. These
+actions never reply to, resolve, vote on, or otherwise mutate the Azure DevOps
+pull request.
 After the pull request loads, select **Start Copilot review**. Copilot inspects
 every changed file through bounded local actions and adds only high-confidence
 local findings. The canvas shows each pass as queued, running, complete, or
