@@ -12,7 +12,6 @@ Create new sessions under `.auto/`:
 | `.auto/ideas.md` | Optional backlog of deferred hypotheses |
 | `.auto/checks.sh` | Optional correctness gate |
 | `.auto/config.json` | Optional working directory and iteration limits |
-| `.auto/hooks/{before,after}.sh` | Optional iteration hooks |
 
 Legacy flat `autoresearch.*` files remain readable, but never create new ones.
 
@@ -87,12 +86,12 @@ included in the primary metric.
 
 ```json
 {
-  "workingDir": "/path/to/project",
+  "workingDir": "path/to/project",
   "maxIterations": 50
 }
 ```
 
-`workingDir` may be absolute or relative to the Copilot session directory. The
+`workingDir` must resolve within the Copilot session workspace. The
 config remains in the session directory; all other autoresearch artifacts,
 commands, and Git operations use the resolved working directory.
 

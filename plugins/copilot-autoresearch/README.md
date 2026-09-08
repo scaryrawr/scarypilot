@@ -14,7 +14,7 @@ it to.
   release with plugin extension support.
 - Git, Node.js, and Bash available in the repository where experiments run.
 
-Autoresearch executes benchmark and hook commands and intentionally creates Git
+Autoresearch executes benchmark commands and intentionally creates Git
 commits or reverts experiment changes in the active repository. Use it only in
 a repository whose changes you are prepared to let the agent modify.
 
@@ -49,7 +49,6 @@ tool names; the second copy will be rejected by Copilot CLI.
 | Skill | Description |
 | --- | --- |
 | `autoresearch-create` | Creates `.auto/prompt.md` and `.auto/measure.sh`, establishes the baseline, and starts the loop. |
-| `autoresearch-hooks` | Authors and validates optional before/after iteration hooks. |
 | `autoresearch-finalize` | Groups kept experiments into clean, independently reviewable branches and verifies their combined tree. |
 
 **Slash command**
@@ -99,9 +98,7 @@ artifact is introduced, the current layout consistently takes precedence.
 | `.auto/measure.sh` | Optional benchmark script. When present, `run_experiment` rejects commands that don't invoke it. |
 | `.auto/checks.sh` | Optional correctness gate (tests, types, lint). Runs after every passing benchmark. |
 | `.auto/ideas.md` | Optional ideas backlog for promising deferred optimizations. |
-| `.auto/hooks/before.sh` | Optional executable hook fired before each iteration. |
-| `.auto/hooks/after.sh` | Optional executable hook fired after each iteration. |
-| `.auto/config.json` | Optional `workingDir` and `maxIterations` configuration. |
+| `.auto/config.json` | Optional workspace-contained `workingDir` and `maxIterations` configuration. |
 | `.auto/runtime/<session-id>.json` | Internal per-session sidecar preserving the run/checks boundary and explicit mode state without leaking activation across sessions. |
 
 ## Confidence scoring
@@ -114,13 +111,16 @@ confirm before keeping. Advisory only; never auto-discards.
 ## Differences vs pi-autoresearch
 
 Parity is tracked against pi-autoresearch 1.7.0. The `.auto/` contract,
-experiment lifecycle, benchmark and checks gates, hooks, iteration limits,
+experiment lifecycle, benchmark and checks gates, iteration limits,
 failure guard, finalization workflow, and live browser reporting are preserved
 where Copilot exposes an equivalent extension API.
 
 The Copilot CLI extension surface is narrower than pi's, so a few things are
 adapted:
 
+- **No repository-provided iteration hooks.** Executable `.auto/hooks/*.sh`
+  files are not loaded or run because a checked-out branch must not gain code
+  execution merely by activating autoresearch.
 - **No persistent status widget / dashboard expand-collapse / fullscreen
   overlay.** A transient status message updates while an experiment runs;
   `/autoresearch status` prints the full rehydration summary on demand.

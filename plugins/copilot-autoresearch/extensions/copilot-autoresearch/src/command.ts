@@ -17,16 +17,6 @@ import {
   savePersistedRuntime,
   type RuntimeState,
 } from "./state.ts";
-import {
-  appendHookLogEntryIfConfigured,
-  runHook,
-  steerMessageFor,
-} from "./hooks.ts";
-import { reconstructJsonlState } from "./jsonl.ts";
-import {
-  findBaselineMetric,
-  findBestMetric,
-} from "./confidence.ts";
 import type { CwdRef } from "./extension-context.ts";
 
 type AutoresearchSession = Pick<CopilotSession, "abort" | "log" | "send">;
@@ -147,32 +137,7 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
       deps.resetAutoResume();
       savePersistedRuntime(workDir, cmdCtx.sessionId, deps.runtime);
 
-      const jsonlPath = autoresearchJsonlPath(workDir);
       const hasState = fs.existsSync(autoresearchMdPath(workDir));
-
-      const state = reconstructJsonlState(
-        fs.existsSync(jsonlPath) ? fs.readFileSync(jsonlPath, "utf-8") : "",
-      );
-
-      let prefix = "";
-      const beforeHook = await runHook({
-        event: "before",
-        cwd: workDir,
-        next_run: state.results.length + 1,
-        last_run: lastRun(jsonlPath),
-        session: {
-          metric_name: state.metricName,
-          metric_unit: state.metricUnit,
-          direction: state.bestDirection,
-          baseline_metric: findBaselineMetric(state.results, state.currentSegment),
-          best_metric: findBestMetric(state.results, state.currentSegment, state.bestDirection),
-          run_count: state.results.length,
-          goal: state.name ?? "",
-        },
-      });
-      appendHookLogEntryIfConfigured(workDir, "before", beforeHook);
-      const beforeSteer = steerMessageFor("before", beforeHook);
-      if (beforeSteer) prefix += `[before-hook]\n${beforeSteer}\n\n`;
 
       const kickoff = hasState
         ? [
@@ -195,7 +160,7 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
           ? "Autoresearch mode ON — rehydration summary sent to agent."
           : "Autoresearch mode ON — kickoff sent.",
       );
-      await session.send({ prompt: prefix + kickoff });
+      await session.send({ prompt: kickoff });
     },
   };
 }
@@ -211,24 +176,4 @@ async function abortActiveTurn(session: AutoresearchSession): Promise<void> {
       { level: "warning" },
     );
   }
-}
-
-function lastRun(jsonlPath: string): Record<string, unknown> | null {
-  try {
-    if (!fs.existsSync(jsonlPath)) return null;
-    const lines = fs.readFileSync(jsonlPath, "utf-8").split("\n").filter(Boolean);
-    for (let i = lines.length - 1; i >= 0; i--) {
-      try {
-        const parsed = JSON.parse(lines[i]);
-        if (parsed && typeof parsed === "object" && typeof parsed.run === "number") {
-          return parsed as Record<string, unknown>;
-        }
-      } catch {
-        // skip
-      }
-    }
-  } catch {
-    // ignore
-  }
-  return null;
 }

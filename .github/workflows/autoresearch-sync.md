@@ -67,7 +67,7 @@ Work in `${{ github.workspace }}`; treat
    already represented by a Copilot-native equivalent, or unsafe/ambiguous.
    This is a Copilot CLI adaptation, not a mirror. Preserve the documented
    extension API constraints, slash-command UX, auto-resume behavior, loopback
-   dashboard, `.auto/` contract, safety limits, hook contract, and finalization
+   dashboard, `.auto/` contract, safety limits, and finalization
    workflow. Do not add Pi-only keyboard bindings, terminal overlays,
    compaction hooks, private-feed artifacts, or upstream deployment/site files.
 4. Port only meaningful compatible behavior into
@@ -80,7 +80,7 @@ Work in `${{ github.workspace }}`; treat
    repository-only documentation.
 6. Run the repository-documented validation from the Copilot adaptation:
    from `plugins/copilot-autoresearch/extensions/copilot-autoresearch`, run
-   `npm install --no-package-lock`, `npm run typecheck`, and `npm test`; then
+   `npm install --allow-remote=all --no-package-lock`, `npm run typecheck`, and `npm test`; then
    run `bash ../../skills/autoresearch-finalize/tests/finalize-smoke.sh`.
    Validate changed JSON and do not add dependency lockfiles solely as a
    validation side effect.

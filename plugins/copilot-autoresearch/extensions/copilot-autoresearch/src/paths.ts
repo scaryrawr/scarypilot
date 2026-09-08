@@ -12,8 +12,6 @@ export type SessionFileKind =
   | "config"
   | "runtime"
   | "dashboard";
-export type HookStage = "before" | "after";
-
 const SESSION_FILE_NAMES: Record<
   SessionFileKind,
   { current: string; legacy: string }
@@ -54,7 +52,7 @@ function currentLayoutExists(dir: string): boolean {
   ] as const) {
     if (fs.existsSync(sessionFileCandidates(dir, kind).current)) return true;
   }
-  return fs.existsSync(path.join(dir, AUTO_DIR, "hooks"));
+  return false;
 }
 
 /**
@@ -81,13 +79,6 @@ export const autoresearchConfigPath = (dir: string) => sessionFilePath(dir, "con
 export const autoresearchRuntimePath = (dir: string, sessionId: string) =>
   path.join(dir, AUTO_DIR, "runtime", `${encodeURIComponent(sessionId)}.json`);
 export const autoresearchHtmlPath = (dir: string) => sessionFilePath(dir, "dashboard");
-
-export function autoresearchHookPath(dir: string, stage: HookStage): string {
-  const current = path.join(dir, AUTO_DIR, "hooks", `${stage}.sh`);
-  const legacy = path.join(dir, "autoresearch.hooks", `${stage}.sh`);
-  if (currentLayoutExists(dir)) return current;
-  return fs.existsSync(legacy) ? legacy : current;
-}
 
 export interface AutoresearchConfig {
   workingDir?: string;
@@ -119,21 +110,51 @@ export function readMaxIterations(cwd: string): number | null {
 export function resolveWorkDir(cwd: string): string {
   const config = readConfig(cwd);
   if (!config.workingDir) return cwd;
-  return path.isAbsolute(config.workingDir)
+  const workDir = path.isAbsolute(config.workingDir)
     ? config.workingDir
     : path.resolve(cwd, config.workingDir);
+  if (!isWithin(path.resolve(cwd), path.resolve(workDir))) {
+    throw new Error(
+      `workingDir "${workDir}" (from .auto/config.json) must stay within the active workspace.`,
+    );
+  }
+  if (fs.existsSync(workDir) && !isWithin(fs.realpathSync(cwd), fs.realpathSync(workDir))) {
+    throw new Error(
+      `workingDir "${workDir}" (from .auto/config.json) resolves outside the active workspace.`,
+    );
+  }
+  return workDir;
 }
 
 export function validateWorkDir(cwd: string): string | null {
-  const workDir = resolveWorkDir(cwd);
+  let workDir: string;
+  try {
+    workDir = resolveWorkDir(cwd);
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
   if (workDir === cwd) return null;
   try {
     const stat = fs.statSync(workDir);
     if (!stat.isDirectory()) {
       return `workingDir "${workDir}" (from .auto/config.json) is not a directory.`;
     }
+    const root = fs.realpathSync(cwd);
+    const target = fs.realpathSync(workDir);
+    if (!isWithin(root, target)) {
+      return `workingDir "${workDir}" (from .auto/config.json) resolves outside the active workspace.`;
+    }
   } catch {
     return `workingDir "${workDir}" (from .auto/config.json) does not exist.`;
   }
   return null;
+}
+
+function isWithin(root: string, target: string): boolean {
+  const relative = path.relative(root, target);
+  return (
+    relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  );
 }
