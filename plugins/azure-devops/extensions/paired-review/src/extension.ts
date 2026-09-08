@@ -43,12 +43,14 @@ import { startReviewServer } from "./server.ts";
 
 const CANVAS_ID = "azure-devops-paired-review";
 const MAX_AGENT_RESPONSE_CHARS = 32 * 1024;
+const MAX_RETAINED_CLOSED_REVIEWS = 5;
 const CanvasInputSchema = Type.Object({
   prUrl: Type.String({ minLength: 1 }),
   target: Type.Optional(ReviewTargetSchema),
 });
 const reviews = new Map<string, ReviewState>();
 const loadingReviews = new Set<string>();
+const openReviews = new Set<string>();
 let sessionRef: CopilotSession | null = null;
 let serverPromise: Promise<Awaited<ReturnType<typeof startReviewServer>>> | null = null;
 let shutdownPromise: Promise<void> | null = null;
@@ -234,11 +236,16 @@ const pairedReviewCanvas = createCanvas({
       inputSchema: FocusReviewTargetInputSchema,
       handler: (ctx) => {
         const input = Value.Parse(FocusReviewTargetInputSchema, ctx.input);
-        const focused = focusReviewTarget(requireReview(ctx.instanceId), input.target);
-        reviews.set(ctx.instanceId, focused.review);
+        const review = requireReview(ctx.instanceId);
+        const thread = review.threads.find((candidate) => candidate.id === input.target.threadId);
+        const next = thread
+          ? focusReviewTarget(review, input.target).review
+          : requestReviewFocus(review, input.target);
+        reviews.set(ctx.instanceId, next);
         return {
           focused: input.target,
-          canvas: canvasTarget(focused.review, focused.thread.id),
+          pending: !thread,
+          canvas: canvasTarget(next, input.target.threadId),
         };
       },
     },
@@ -282,6 +289,8 @@ const pairedReviewCanvas = createCanvas({
         : requestReviewFocus(review, target);
     }
     reviews.set(ctx.instanceId, review);
+    openReviews.add(ctx.instanceId);
+    pruneClosedReviews();
     const server = await getServer();
     startPopulateReview(ctx.instanceId, prUrl);
     return {
@@ -289,6 +298,10 @@ const pairedReviewCanvas = createCanvas({
       title: "Azure DevOps Paired Review",
       status: "Local-only review",
     };
+  },
+  onClose: (ctx) => {
+    openReviews.delete(ctx.instanceId);
+    pruneClosedReviews();
   },
 });
 
@@ -331,6 +344,7 @@ function shutdown(): Promise<void> {
   if (shutdownPromise) return shutdownPromise;
   reviews.clear();
   loadingReviews.clear();
+  openReviews.clear();
   const pendingServer = serverPromise;
   shutdownPromise = (async () => {
     const server = await pendingServer?.catch(() => null);
@@ -373,7 +387,17 @@ function startPopulateReview(instanceId: string, prUrl: string): void {
   loadingReviews.add(instanceId);
   void populateReview(instanceId, prUrl).finally(() => {
     loadingReviews.delete(instanceId);
+    pruneClosedReviews();
   });
+}
+
+function pruneClosedReviews(): void {
+  const closed = [...reviews.entries()]
+    .filter(([instanceId]) => !openReviews.has(instanceId) && !loadingReviews.has(instanceId))
+    .sort((left, right) => right[1].updatedAt.localeCompare(left[1].updatedAt));
+  for (const [instanceId] of closed.slice(MAX_RETAINED_CLOSED_REVIEWS)) {
+    reviews.delete(instanceId);
+  }
 }
 
 async function populateReview(instanceId: string, prUrl: string): Promise<void> {

@@ -7,7 +7,7 @@
     "src/client/file-tree-model.ts": "21d536208dac614e208b1953bf6a10ab569a620ee674897b39839f054a5b6b56",
     "src/client/main.tsx": "192e36b8f23a359d65761449b5aceb8c671155713a3689cc1f03856cd5d10292",
     "src/client/styles.css": "4b32aa87630ecd738607cf40c4983280cef2537d630eedb7cb0d004eef33df42",
-    "src/extension.ts": "53611bf06b97197ac30551c8440182b27d953de963749343db40e9c3cc5b1888",
+    "src/extension.ts": "1446c9dd3be2f5103b73500d158bb5258a7ae13594b8e7c83e575be501e56b73",
     "src/review-context.ts": "4a028fdcb3c7dbe6665de3a31dc2900b1f6da4329480dbb73cbccb1a2fa27862",
     "src/review-schema.ts": "f8e457e89fbadd653e75b02c1f05fa6266d5a767f4d47ebea170313937964524",
     "src/review-state.ts": "fc4cf2662921ee1a5e7062827078704030d53e3e8ca19d0bd48793e079867f4b",
@@ -20,7 +20,7 @@
     "vite.config.ts": "9878acad507425f4f0303cf43507c83f8962638baf82fb5a76f281d56fc48974"
   },
   "outputs": {
-    "dist/extension.mjs": "a471fca1d2b5b7b8fc610d1d14e7359397f58e8efb5f717e4c4b09334108d49e",
+    "dist/extension.mjs": "24e50d46ab3c4f539a507dbfeffabe05e91652638e6b88a3adc60e9790358518",
     "public/assets/app.js": "9d48e50df479eb91a6bc9a9dec9e4bdd0d9166d0ce1a9261466c3a55593af3b2",
     "public/assets/index.css": "c8d2b32c4be48d4feb2595eb4c4705afbfb9e7482ae1c7b6a7b257652ed0181e",
     "public/index.html": "d31fab13763f3ac9a17295d810e9bf9f8df7f2a77f68896f6cb057b3e95c53ad"
