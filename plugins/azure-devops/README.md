@@ -3,9 +3,10 @@
 Use GitHub Copilot CLI to work with Azure DevOps pull requests and Azure Boards
 work items. The plugin includes a general Azure DevOps skill plus an agent-merge
 workflow for driving pull requests through review, policy checks, conflicts, and
-safe auto-complete. It also includes a local paired-review canvas for exploring
-the changed-file tree, diffs, and draft findings with the agent before anything
-is posted to Azure DevOps.
+safe auto-complete, with recurring same-session monitoring until the PR completes
+or needs human intervention. It also includes a local paired-review canvas for
+exploring the changed-file tree, diffs, and draft findings with the agent before
+anything is posted to Azure DevOps.
 
 ## Prerequisites
 
@@ -57,6 +58,7 @@ Example prompts:
 - "Create an Azure DevOps pull request from my current branch."
 - "Create an Azure DevOps PR and get it all the way through."
 - "Use ADO agent merge on pull request 4821."
+- "Enable auto-complete and keep monitoring this ADO PR for build failures."
 - "Review Azure DevOps pull request 4821 and post inline comments."
 - "Show the active work items assigned to me in Azure Boards."
 - "Update this Azure DevOps work item and link it to its parent."

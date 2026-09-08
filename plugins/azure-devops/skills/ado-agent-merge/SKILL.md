@@ -1,14 +1,15 @@
 ---
 name: ado-agent-merge
-description: Drive an Azure DevOps pull request from local changes through creation and merge readiness, including review threads, required policies, conflicts, and safe auto-complete. Use when asked to "agent merge" an ADO PR, create an Azure DevOps PR and get it all the way through, or keep working an ADO PR until it can merge. Not for GitHub pull requests or status-only inspection.
-compatibility: "Requires the sibling azure-devops skill, uv/Python, Git, and Azure CLI with the azure-devops extension authenticated."
+description: Drive an Azure DevOps pull request from local changes through completion, including review threads, required policies, conflicts, safe auto-complete, and continued monitoring for new failures. Use when asked to "agent merge" an ADO PR, create an Azure DevOps PR and get it all the way through, or keep working and monitoring an ADO PR until it merges. Not for GitHub pull requests or status-only inspection.
+compatibility: "Requires the sibling azure-devops skill, uv/Python, Git, Azure CLI with the azure-devops extension authenticated, and session automation support for durable monitoring."
 ---
 
 # ADO Agent Merge
 
 Drive an Azure DevOps pull request toward completion. This is a working session,
 not a status report: create or update the PR, address actionable blockers, push
-fixes, and enable safe auto-complete when Azure DevOps can take over.
+fixes, enable safe auto-complete, and keep monitoring until the PR completes or
+needs human intervention.
 
 ## Safety boundary
 
@@ -137,8 +138,8 @@ unrelated infrastructure or a pre-existing target-branch failure, report it
 instead of patching unrelated code into this branch.
 
 After a fix, run the relevant checks, commit, push, and refresh all PR state. Do
-not sleep, poll continuously, or use watch commands; one refresh after your push
-is enough for the current turn.
+not sleep, poll continuously in the foreground, or use watch commands. Refresh
+once after your push, then rely on the durable monitoring loop in step 7.
 
 ### 5. Resolve conflicts
 
@@ -171,15 +172,50 @@ settings reject auto-complete, surface the error verbatim. If all required
 conditions are already satisfied and auto-complete immediately completes the PR,
 report that result.
 
+### 7. Monitor until completion
+
+Auto-complete is not the end of the workflow. Builds, policies, conflicts, or
+review feedback can still fail after it is enabled. Unless the PR is already
+completed or abandoned, attach a recurring automation to this same session:
+
+1. Read the current session automation before changing it.
+2. If an unrelated automation is already attached, do not overwrite it. Report
+   that durable monitoring is blocked.
+3. Otherwise create or update a 10-minute recurring session automation. Its
+   durable prompt must identify the PR, organization, project, repository,
+   source branch, and workspace, and instruct this skill to continue driving that
+   PR through completion.
+4. End the current turn after confirming the automation is attached. Do not keep
+   a foreground process alive.
+
+On every automated wake:
+
+1. Refresh all authoritative state from step 2 before drawing conclusions.
+2. If the PR completed or was abandoned, clear the session automation and report
+   the terminal state.
+3. If the current synthetic merge commit has a pending build or policy, or the
+   PR is waiting for a required reviewer vote, leave auto-complete enabled and
+   keep the automation attached for the next pass.
+4. If a current build, policy, conflict, or review thread is actionable, inspect
+   it and follow steps 3-5: fix the root cause, verify locally, commit, push, and
+   refresh state. Keep monitoring the new synthetic merge commit.
+5. If progress requires a permission, infrastructure fix, or product decision
+   the agent cannot perform, clear the automation and report the blocker
+   precisely instead of looping forever.
+
+Use the host's same-session automation tools rather than creating an external
+cron job, background shell loop, or new session. If session automation is
+unavailable, say that continuous monitoring cannot be made durable and do not
+claim the PR will be watched.
+
 ## Stopping points
 
-End the turn instead of waiting when:
+End the current turn instead of waiting when:
 
-- auto-complete is enabled and only server-side policies, builds, or reviewer
-  votes remain, with no failed build on the current merge commit;
+- auto-complete is enabled and the recurring session automation is attached;
 - the PR completed or was abandoned externally;
 - a permission, policy, infrastructure, or genuinely ambiguous conflict requires
-  a human;
+  a human and the monitoring automation has been cleared;
 - all actionable work in this pass is finished.
 
 ## Summary
@@ -190,4 +226,5 @@ Keep the final update short:
 - review-thread status;
 - required-policy status;
 - mergeability status;
-- whether auto-complete is enabled or what still blocks it.
+- whether auto-complete is enabled;
+- whether recurring monitoring is attached, cleared, or blocked.
