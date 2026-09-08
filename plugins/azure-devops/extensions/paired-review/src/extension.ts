@@ -48,6 +48,7 @@ const CanvasInputSchema = Type.Object({
   target: Type.Optional(ReviewTargetSchema),
 });
 const reviews = new Map<string, ReviewState>();
+const loadingReviews = new Set<string>();
 let sessionRef: CopilotSession | null = null;
 let serverPromise: Promise<Awaited<ReturnType<typeof startReviewServer>>> | null = null;
 let shutdownPromise: Promise<void> | null = null;
@@ -282,9 +283,7 @@ const pairedReviewCanvas = createCanvas({
     }
     reviews.set(ctx.instanceId, review);
     const server = await getServer();
-    if (!existing && process.env.PAIRED_REVIEW_DISABLE_AUTOLOAD !== "1") {
-      void populateReview(ctx.instanceId, prUrl);
-    }
+    startPopulateReview(ctx.instanceId, prUrl);
     return {
       url: server.urlFor(ctx.instanceId),
       title: "Azure DevOps Paired Review",
@@ -331,6 +330,7 @@ session.on("session.shutdown", () =>
 function shutdown(): Promise<void> {
   if (shutdownPromise) return shutdownPromise;
   reviews.clear();
+  loadingReviews.clear();
   const pendingServer = serverPromise;
   shutdownPromise = (async () => {
     const server = await pendingServer?.catch(() => null);
@@ -360,6 +360,20 @@ function canvasTarget(review: ReviewState, threadId: string) {
       target: { kind: "thread" as const, threadId },
     },
   };
+}
+
+function startPopulateReview(instanceId: string, prUrl: string): void {
+  if (
+    process.env.PAIRED_REVIEW_DISABLE_AUTOLOAD === "1" ||
+    reviews.get(instanceId)?.loaded ||
+    loadingReviews.has(instanceId)
+  ) {
+    return;
+  }
+  loadingReviews.add(instanceId);
+  void populateReview(instanceId, prUrl).finally(() => {
+    loadingReviews.delete(instanceId);
+  });
 }
 
 async function populateReview(instanceId: string, prUrl: string): Promise<void> {
