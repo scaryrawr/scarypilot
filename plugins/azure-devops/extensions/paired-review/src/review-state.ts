@@ -241,15 +241,18 @@ export function focusReviewTarget(
   const thread = review.threads.find((candidate) => candidate.id === target.threadId);
   if (!thread) throw new Error("review thread was not found");
   const revision = (review.focus?.revision ?? 0) + 1;
+  const updated = updateReviewState(review, {
+    activePath: thread.anchor.path,
+    focus: { target, revision },
+    threads: review.threads.map((candidate) =>
+      candidate.id === thread.id ? { ...candidate, collapsed: false } : candidate
+    ),
+  });
+  const updatedThread = updated.threads.find((candidate) => candidate.id === thread.id);
+  if (!updatedThread) throw new Error("focused review thread disappeared");
   return {
-    thread,
-    review: updateReviewState(review, {
-      activePath: thread.anchor.path,
-      focus: { target, revision },
-      threads: review.threads.map((candidate) =>
-        candidate.id === thread.id ? { ...candidate, collapsed: false } : candidate
-      ),
-    }),
+    review: updated,
+    thread: updatedThread,
   };
 }
 

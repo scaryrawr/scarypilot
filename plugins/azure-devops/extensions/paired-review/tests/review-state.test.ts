@@ -201,6 +201,7 @@ describe("Copilot findings", () => {
 
     expect(first.review.activePath).toBe("src/example.ts");
     expect(first.thread.id).toBe(inserted.thread.id);
+    expect(first.thread.collapsed).toBe(false);
     expect(first.review.threads[0]?.collapsed).toBe(false);
     expect(first.review.focus).toMatchObject({ revision: 1 });
     expect(second.review.focus).toMatchObject({ revision: 2 });
