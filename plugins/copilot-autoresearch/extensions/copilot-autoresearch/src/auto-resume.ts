@@ -2,7 +2,11 @@ import * as fs from "node:fs";
 import type { CopilotSession } from "@github/copilot-sdk";
 import type { CwdRef } from "./extension-context.ts";
 import type { RuntimeState } from "./state.ts";
-import { autoresearchJsonlPath, resolveWorkDir } from "./paths.ts";
+import {
+  autoresearchJsonlPath,
+  resolveWorkDir,
+  validateWorkDir,
+} from "./paths.ts";
 import { buildRehydrationSummary, BENCHMARK_GUARDRAIL } from "./system-prompt.ts";
 import { reconstructJsonlState, type ReconstructedRun } from "./jsonl.ts";
 
@@ -81,7 +85,16 @@ export function createAutoResumeScheduler(deps: AutoResumeDeps) {
       );
       return;
     }
-    const workDir = resolveWorkDir(deps.cwdRef.get());
+    const cwd = deps.cwdRef.get();
+    const workDirError = validateWorkDir(cwd);
+    if (workDirError) {
+      deps.runtime.autoresearchMode = false;
+      await deps.session.log(`Autoresearch auto-resume stopped — ${workDirError}`, {
+        level: "warning",
+      });
+      return;
+    }
+    const workDir = resolveWorkDir(cwd);
     const jsonlPath = autoresearchJsonlPath(workDir);
     const state = reconstructJsonlState(
       fs.existsSync(jsonlPath) ? fs.readFileSync(jsonlPath, "utf-8") : "",

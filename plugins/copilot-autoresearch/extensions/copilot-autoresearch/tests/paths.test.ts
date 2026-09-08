@@ -162,20 +162,23 @@ describe("validateWorkDir", () => {
     }
   });
 
-  it("rejects a symlink that resolves outside the workspace", () => {
-    const dir = mkTmp();
-    const target = mkTmp();
-    const link = path.join(dir, "linked");
-    symlinkSync(target, link);
-    try {
-      writeConfig(dir, { workingDir: "linked" });
-      expect(() => resolveWorkDir(dir)).toThrow(/resolves outside the active workspace/);
-      expect(validateWorkDir(dir)).toMatch(/resolves outside the active workspace/);
-    } finally {
-      rmSync(dir, { recursive: true });
-      rmSync(target, { recursive: true });
-    }
-  });
+  it.skipIf(process.platform === "win32")(
+    "rejects a symlink that resolves outside the workspace",
+    () => {
+      const dir = mkTmp();
+      const target = mkTmp();
+      const link = path.join(dir, "linked");
+      symlinkSync(target, link);
+      try {
+        writeConfig(dir, { workingDir: "linked" });
+        expect(() => resolveWorkDir(dir)).toThrow(/resolves outside the active workspace/);
+        expect(validateWorkDir(dir)).toMatch(/resolves outside the active workspace/);
+      } finally {
+        rmSync(dir, { recursive: true });
+        rmSync(target, { recursive: true });
+      }
+    },
+  );
 });
 
 describe("session layout", () => {
