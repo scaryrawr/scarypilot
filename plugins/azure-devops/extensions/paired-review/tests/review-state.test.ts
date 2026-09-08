@@ -12,6 +12,7 @@ import {
   isAzurePullRequestUrl,
   parseAzurePullRequestUrl,
   queueReviewPass,
+  requestReviewFocus,
   reviewInstanceId,
   startQueuedReviewPass,
   completeReviewPass,
@@ -206,6 +207,20 @@ describe("Copilot findings", () => {
     expect(first.review.focus).toMatchObject({ revision: 1 });
     expect(second.review.focus).toMatchObject({ revision: 2 });
     expect(Value.Check(ReviewStateSchema, second.review)).toBe(true);
+  });
+
+  it("records a pending focus before its thread is available", () => {
+    const requested = requestReviewFocus(changedReview(), {
+      kind: "thread",
+      threadId: "future-thread",
+    });
+
+    expect(requested.activePath).toBeUndefined();
+    expect(requested.focus).toEqual({
+      target: { kind: "thread", threadId: "future-thread" },
+      revision: 1,
+    });
+    expect(Value.Check(ReviewStateSchema, requested)).toBe(true);
   });
 
   it("keeps user questions available on unchanged context lines", () => {

@@ -13,6 +13,7 @@ import {
   isAzurePullRequestUrl,
   linkFinding,
   queueReviewPass,
+  requestReviewFocus,
   reviewInstanceId,
   startQueuedReviewPass,
   updateReviewState,
@@ -273,7 +274,12 @@ const pairedReviewCanvas = createCanvas({
       throw new Error("canvas instance already belongs to a different pull request");
     }
     let review = existing ?? createReviewState(ctx.instanceId, prUrl);
-    if (input.target) review = focusReviewTarget(review, input.target).review;
+    const target = input.target;
+    if (target) {
+      review = review.threads.some((thread) => thread.id === target.threadId)
+        ? focusReviewTarget(review, target).review
+        : requestReviewFocus(review, target);
+    }
     reviews.set(ctx.instanceId, review);
     const server = await getServer();
     if (!existing && process.env.PAIRED_REVIEW_DISABLE_AUTOLOAD !== "1") {
@@ -360,7 +366,14 @@ async function populateReview(instanceId: string, prUrl: string): Promise<void> 
   try {
     const loaded = await loadAzurePullRequest(prUrl);
     const current = reviews.get(instanceId);
-    if (current) reviews.set(instanceId, updateReviewState(current, loaded));
+    if (current) {
+      let next = updateReviewState(current, loaded);
+      const target = next.focus?.target;
+      if (target && next.threads.some((thread) => thread.id === target.threadId)) {
+        next = focusReviewTarget(next, target).review;
+      }
+      reviews.set(instanceId, next);
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const current = reviews.get(instanceId);

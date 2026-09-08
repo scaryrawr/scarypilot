@@ -228,8 +228,10 @@ export function ChangedFileTree({
           role="tree"
           tabIndex={0}
         >
-          {rows.map((row) => (
-            <div
+          {rows.map((row) => {
+            const presence = conversationPresence(row.node.summary);
+            return (
+              <div
               aria-expanded={row.expanded}
               aria-label={`${row.node.fullPath}; ${accessibleSummary(row.node)}`}
               aria-level={row.depth}
@@ -257,15 +259,16 @@ export function ChangedFileTree({
               ) : <span aria-hidden="true" className="tree-chevron-spacer" />}
               <span aria-hidden="true" className={`tree-icon ${row.node.kind}`} />
               <span className="tree-label">{row.node.name}</span>
-              {conversationPresence(row.node.summary) !== "none" ? (
+              {presence !== "none" ? (
                 <span
                   aria-hidden="true"
-                  className={`conversation-indicator ${conversationPresence(row.node.summary)}`}
+                  className={`conversation-indicator ${presence}`}
                 />
               ) : null}
               <span className="tree-summary">{compactSummary(row.node)}</span>
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <p className="file-tree-empty">No changed files match your filter.</p>

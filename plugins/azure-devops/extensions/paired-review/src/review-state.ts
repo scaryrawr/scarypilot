@@ -240,10 +240,10 @@ export function focusReviewTarget(
 ): { review: ReviewState; thread: ReviewThread } {
   const thread = review.threads.find((candidate) => candidate.id === target.threadId);
   if (!thread) throw new Error("review thread was not found");
-  const revision = (review.focus?.revision ?? 0) + 1;
+  const focus = nextReviewFocus(review, target);
   const updated = updateReviewState(review, {
     activePath: thread.anchor.path,
-    focus: { target, revision },
+    focus,
     threads: review.threads.map((candidate) =>
       candidate.id === thread.id ? { ...candidate, collapsed: false } : candidate
     ),
@@ -254,6 +254,13 @@ export function focusReviewTarget(
     review: updated,
     thread: updatedThread,
   };
+}
+
+export function requestReviewFocus(
+  review: ReviewState,
+  target: ReviewTarget,
+): ReviewState {
+  return updateReviewState(review, { focus: nextReviewFocus(review, target) });
 }
 
 export function createQuestionThread(
@@ -404,6 +411,13 @@ function reviewAnchor(
 
 function reviewPassId(requestId: string): string {
   return `review-pass-${createHash("sha256").update(requestId).digest("hex").slice(0, 20)}`;
+}
+
+function nextReviewFocus(review: ReviewState, target: ReviewTarget) {
+  return {
+    target,
+    revision: (review.focus?.revision ?? 0) + 1,
+  };
 }
 
 function findingCount(review: ReviewState): number {

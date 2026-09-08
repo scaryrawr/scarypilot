@@ -2,15 +2,15 @@
   "version": 1,
   "inputs": {
     "src/ado-loader.ts": "e8fa232da3a99af558cfe1bc970178132aeb641b1a9800392035d4ef6d6f64dd",
-    "src/client/ChangedFileTree.tsx": "6c754556133f6380e87c79264bb66cc7b601c09454771f947de7767b174a5818",
+    "src/client/ChangedFileTree.tsx": "aee516f53edc6f05b38f242732e4537816ac8f563a65d452630fc902a9c430d5",
     "src/client/file-tree-interaction.ts": "538ceb7cfced9e13e6f6c57e6a4b23564e7db127b64a3a1da8d5162b2d6aa24e",
     "src/client/file-tree-model.ts": "21d536208dac614e208b1953bf6a10ab569a620ee674897b39839f054a5b6b56",
     "src/client/main.tsx": "192e36b8f23a359d65761449b5aceb8c671155713a3689cc1f03856cd5d10292",
     "src/client/styles.css": "4b32aa87630ecd738607cf40c4983280cef2537d630eedb7cb0d004eef33df42",
-    "src/extension.ts": "27ea9365d28491fa03f7f7e819ee2799c3d5e7b39b1a89d63f7b3bf52761f2bc",
+    "src/extension.ts": "1fa56115285e071ffb52211386257e69dead3fa6a71954e1d198c4c525eebe31",
     "src/review-context.ts": "4a028fdcb3c7dbe6665de3a31dc2900b1f6da4329480dbb73cbccb1a2fa27862",
     "src/review-schema.ts": "f8e457e89fbadd653e75b02c1f05fa6266d5a767f4d47ebea170313937964524",
-    "src/review-state.ts": "2b30ebb2164c6e38e74ef518c3f9329bd7b77acb56629551bd77a366bac215e8",
+    "src/review-state.ts": "fc4cf2662921ee1a5e7062827078704030d53e3e8ca19d0bd48793e079867f4b",
     "src/server.ts": "7380ae891a84b60c106f408495166a6100964db545e689dd68def592c1efce34",
     "index.html": "082572d9dc35ccb5e6f0e89bd379ba8565235822b465a26f9f701f04253abfa4",
     "package.json": "263d5c7dea518bc89e6ae776215d0a735d230d7426606be525d6a9a2c74df675",
@@ -20,8 +20,8 @@
     "vite.config.ts": "9878acad507425f4f0303cf43507c83f8962638baf82fb5a76f281d56fc48974"
   },
   "outputs": {
-    "dist/extension.mjs": "3383a804425c4b838b9268cf7b0051bc34d4922f463a943efa37e17266ba5a76",
-    "public/assets/app.js": "7f4df15d73af32a3c03b4fa60255187057268d296abe24c48bca5c93add6eafd",
+    "dist/extension.mjs": "61e4b26f7fc75c186b25d78f9bf2f359ce8159e3649bb5f1873011dbd6d3e13b",
+    "public/assets/app.js": "9d48e50df479eb91a6bc9a9dec9e4bdd0d9166d0ce1a9261466c3a55593af3b2",
     "public/assets/index.css": "c8d2b32c4be48d4feb2595eb4c4705afbfb9e7482ae1c7b6a7b257652ed0181e",
     "public/index.html": "d31fab13763f3ac9a17295d810e9bf9f8df7f2a77f68896f6cb057b3e95c53ad"
   }
