@@ -9,6 +9,7 @@ import {
 import {
   autoresearchJsonlPath,
   resolveWorkDir,
+  validateWorkDir,
 } from "./paths.ts";
 import { reconstructJsonlState } from "./jsonl.ts";
 import { createInitTool } from "./tools-init.ts";
@@ -39,6 +40,14 @@ function refreshFromDisk(
   sessionId: string,
 ): { ok: true; workDir: string } | { ok: false; error: string } {
   const cwd = cwdRef.get();
+  const workDirError = validateWorkDir(cwd);
+  if (workDirError) {
+    runtime.autoresearchMode = false;
+    runtime.lastRunChecks = null;
+    runtime.lastRunDurationSeconds = null;
+    lastLoggedRun = 0;
+    return { ok: false, error: workDirError };
+  }
   let workDir: string;
   try {
     workDir = resolveWorkDir(cwd);
