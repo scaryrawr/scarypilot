@@ -12,6 +12,7 @@ There is no root build or broad test suite.
 
 - `python3 -m json.tool .github/plugin/marketplace.json >/dev/null` validates marketplace edits.
 - In an extension package, run `npm test` and `npm run typecheck`; `copilot-local-llm` also provides `npm run lint` and `npm run format:check`.
+- npm 12 blocks URL dependencies by default. When an existing extension manifest fails with `EALLOWREMOTE`, install with `npm install --allow-remote=all --no-package-lock`; do not treat the security default as a missing-dependency blocker or change registry configuration.
 - For skill trigger evals, run the skill-creator `scripts/run_eval.py` with `--num-workers 1`; higher concurrency can starve parallel `copilot` processes and report false failures.
 
 ## Coding Style, Versioning, and Naming

@@ -1,6 +1,7 @@
 import { joinSession } from "@github/copilot-sdk/extension";
 import { createPstackCommand } from "./command.ts";
 import { createCwdRef } from "./extension-context.ts";
+import { handoffAdditionalContext } from "./handoff.ts";
 import { createPstackService } from "./service.ts";
 import { createCapabilitiesTool } from "./tools/capabilities.ts";
 import { createHandoffTool } from "./tools/handoff.ts";
@@ -27,14 +28,7 @@ const session = await joinSession({
       try {
         const handoff = await service.readHandoff();
         return {
-          additionalContext: [
-            "A durable pstack handoff exists for this repository.",
-            `Intent: ${handoff.intent}`,
-            `Progress: ${handoff.progress}`,
-            `Next action: ${handoff.nextAction}`,
-            `Snapshot hash: ${handoff.snapshot.snapshotHash}`,
-            "Verify inherited claims against the current repository before continuing.",
-          ].join("\n"),
+          additionalContext: handoffAdditionalContext(handoff),
         };
       } catch {
         return undefined;

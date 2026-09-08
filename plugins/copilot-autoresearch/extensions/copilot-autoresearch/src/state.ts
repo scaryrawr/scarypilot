@@ -7,7 +7,6 @@ import {
   autoresearchMdPath,
   autoresearchJsonlPath,
   autoresearchIdeasPath,
-  autoresearchHookPath,
   ensureParentDir,
   sessionFileCandidates,
 } from "./paths.ts";
@@ -137,7 +136,5 @@ export function workDirArtifacts(workDir: string, sessionId: string) {
     mdPath: autoresearchMdPath(workDir),
     jsonlPath: autoresearchJsonlPath(workDir),
     ideasPath: autoresearchIdeasPath(workDir),
-    beforeHookPath: autoresearchHookPath(workDir, "before"),
-    afterHookPath: autoresearchHookPath(workDir, "after"),
   };
 }

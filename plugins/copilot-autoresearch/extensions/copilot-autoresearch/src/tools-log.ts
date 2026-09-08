@@ -10,7 +10,6 @@ import {
 import {
   reconstructJsonlState,
   type ReconstructedRun,
-  type Direction,
 } from "./jsonl.ts";
 import {
   computeConfidence,
@@ -20,11 +19,6 @@ import {
 } from "./confidence.ts";
 import { formatDelta, formatNum } from "./format.ts";
 import { gitAutoCommit, gitRevertNonAutoresearch } from "./git.ts";
-import {
-  appendHookLogEntryIfConfigured,
-  runHook,
-  steerMessageFor,
-} from "./hooks.ts";
 import {
   clearPersistedRuntime,
   isGitRepo,
@@ -288,26 +282,6 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
         }
       }
 
-      // Fire after-hook
-      const session = {
-        metric_name: before.metricName,
-        metric_unit: before.metricUnit,
-        direction: before.bestDirection,
-        baseline_metric: baseline,
-        best_metric: bestKept(allResults, segment, direction),
-        run_count: allResults.length,
-        goal: before.name ?? "",
-      };
-      const afterHook = await runHook({
-        event: "after",
-        cwd: workDir,
-        run_entry: jsonlEntry,
-        session,
-      });
-      appendHookLogEntryIfConfigured(workDir, "after", afterHook);
-      const afterSteer = steerMessageFor("after", afterHook);
-      if (afterSteer) lines.push("", "[after-hook]", afterSteer);
-
       // Reset per-run gates
       ctx.runtime.lastRunChecks = null;
       ctx.runtime.lastRunDurationSeconds = null;
@@ -323,18 +297,6 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
           `🛑 Maximum experiments reached (${maxIterations}). STOP the loop now.`,
         );
         ctx.runtime.autoresearchMode = false;
-      } else if (ctx.runtime.autoresearchMode) {
-        // Fire before-hook for the next iteration so the agent can read the steer
-        const beforeHook = await runHook({
-          event: "before",
-          cwd: workDir,
-          next_run: runNumber + 1,
-          last_run: jsonlEntry,
-          session,
-        });
-        appendHookLogEntryIfConfigured(workDir, "before", beforeHook);
-        const beforeSteer = steerMessageFor("before", beforeHook);
-        if (beforeSteer) lines.push("", "[before-hook → next run]", beforeSteer);
       }
       savePersistedRuntime(workDir, invocation.sessionId, ctx.runtime);
 
@@ -345,17 +307,6 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
   };
 }
 
-function bestKept(
-  results: ReconstructedRun[],
-  segment: number,
-  direction: Direction,
-): number | null {
-  const kept = currentResults(results, segment).filter((r) => r.status === "keep");
-  if (kept.length === 0) return null;
-  return direction === "lower"
-    ? Math.min(...kept.map((r) => r.metric))
-    : Math.max(...kept.map((r) => r.metric));
-}
 
 function safeRead(p: string): string {
   try {

@@ -81,7 +81,7 @@ Work in `${{ github.workspace }}`; treat
    documentation.
 6. Run bounded validation appropriate to every changed area. At minimum,
    validate changed JSON. If the native extension changes, run `npm install
-   --no-package-lock`, `npm run typecheck`, and `npm test` from
+   --allow-remote=all --no-package-lock`, `npm run typecheck`, and `npm test` from
    `external_plugins/pstack/extensions/pstack`. If the poteto helper package
    changes and Bun is available, run its existing `typecheck` and `test`
    scripts. Do not add dependency lockfiles solely as a validation side effect.

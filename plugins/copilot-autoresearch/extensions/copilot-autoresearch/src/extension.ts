@@ -9,6 +9,7 @@ import {
 import {
   autoresearchJsonlPath,
   resolveWorkDir,
+  validateWorkDir,
 } from "./paths.ts";
 import { reconstructJsonlState } from "./jsonl.ts";
 import { createInitTool } from "./tools-init.ts";
@@ -35,9 +36,31 @@ let lastLoggedRun = 0;
 let sessionRef: import("@github/copilot-sdk").CopilotSession | null = null;
 let autoResumeRef: ReturnType<typeof createAutoResumeScheduler> | null = null;
 
-function refreshFromDisk(sessionId: string): void {
+function refreshFromDisk(
+  sessionId: string,
+): { ok: true; workDir: string } | { ok: false; error: string } {
   const cwd = cwdRef.get();
-  const workDir = resolveWorkDir(cwd);
+  const workDirError = validateWorkDir(cwd);
+  if (workDirError) {
+    runtime.autoresearchMode = false;
+    runtime.lastRunChecks = null;
+    runtime.lastRunDurationSeconds = null;
+    lastLoggedRun = 0;
+    return { ok: false, error: workDirError };
+  }
+  let workDir: string;
+  try {
+    workDir = resolveWorkDir(cwd);
+  } catch (error) {
+    runtime.autoresearchMode = false;
+    runtime.lastRunChecks = null;
+    runtime.lastRunDurationSeconds = null;
+    lastLoggedRun = 0;
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
   const jsonlPath = autoresearchJsonlPath(workDir);
   const persisted = loadPersistedRuntime(workDir, sessionId);
   if (!fs.existsSync(jsonlPath)) {
@@ -49,7 +72,7 @@ function refreshFromDisk(sessionId: string): void {
     runtime.lastRunChecks = persisted?.lastRunChecks ?? null;
     runtime.lastRunDurationSeconds = persisted?.lastRunDurationSeconds ?? null;
     lastLoggedRun = 0;
-    return;
+    return { ok: true, workDir };
   }
   try {
     const state = reconstructJsonlState(fs.readFileSync(jsonlPath, "utf-8"));
@@ -73,6 +96,7 @@ function refreshFromDisk(sessionId: string): void {
       runtime.lastRunDurationSeconds = persisted.lastRunDurationSeconds;
     }
   }
+  return { ok: true, workDir };
 }
 
 const extensionSessionId = process.env.SESSION_ID;
@@ -92,29 +116,35 @@ const session = await joinSession({
   hooks: {
     onSessionStart: async (input, invocation) => {
       cwdRef.set(input.workingDirectory);
-      refreshFromDisk(invocation.sessionId);
+      const refreshed = refreshFromDisk(invocation.sessionId);
       autoResumeRef?.syncToCurrentRun();
+      if (!refreshed.ok) {
+        await session.log(`/autoresearch: ${refreshed.error}`, { level: "error" });
+        return undefined;
+      }
       await session.log(
         `copilot-autoresearch loaded${runtime.autoresearchMode ? " — autoresearch mode ACTIVE" : ""}`,
         { ephemeral: true },
       );
       // First-turn context: only mention active mode when resuming an existing session.
       if (runtime.autoresearchMode && input.source === "resume") {
-        const workDir = resolveWorkDir(cwdRef.get());
         return {
-          additionalContext: buildAutoresearchAdditionalContext(workDir),
+          additionalContext: buildAutoresearchAdditionalContext(refreshed.workDir),
         };
       }
       return undefined;
     },
     onUserPromptSubmitted: async (input, invocation) => {
       cwdRef.set(input.workingDirectory);
-      refreshFromDisk(invocation.sessionId);
+      const refreshed = refreshFromDisk(invocation.sessionId);
       autoResumeRef?.syncToCurrentRun();
+      if (!refreshed.ok) {
+        await session.log(`/autoresearch: ${refreshed.error}`, { level: "error" });
+        return;
+      }
       if (!runtime.autoresearchMode) return;
-      const workDir = resolveWorkDir(cwdRef.get());
       return {
-        additionalContext: buildAutoresearchAdditionalContext(workDir),
+        additionalContext: buildAutoresearchAdditionalContext(refreshed.workDir),
       };
     },
     onPreToolUse: async (input) => {

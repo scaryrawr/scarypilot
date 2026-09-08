@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import {
@@ -105,15 +105,27 @@ describe("resolveWorkDir", () => {
     }
   });
 
-  it("returns absolute workingDir as-is", () => {
+  it("rejects an absolute workingDir outside the workspace", () => {
     const dir = mkTmp();
     const target = mkTmp();
+    try {
+      writeConfig(dir, { workingDir: target });
+      expect(() => resolveWorkDir(dir)).toThrow(/must stay within the active workspace/);
+    } finally {
+      rmSync(dir, { recursive: true });
+      rmSync(target, { recursive: true });
+    }
+  });
+
+  it("allows an absolute workingDir within the workspace", () => {
+    const dir = mkTmp();
+    const target = path.join(dir, "sub");
+    mkdirSync(target);
     try {
       writeConfig(dir, { workingDir: target });
       expect(resolveWorkDir(dir)).toBe(target);
     } finally {
       rmSync(dir, { recursive: true });
-      rmSync(target, { recursive: true });
     }
   });
 });
@@ -131,7 +143,7 @@ describe("validateWorkDir", () => {
   it("returns error when workingDir does not exist", () => {
     const dir = mkTmp();
     try {
-      writeConfig(dir, { workingDir: "/definitely/not/here/x123" });
+      writeConfig(dir, { workingDir: "missing" });
       expect(validateWorkDir(dir)).toMatch(/does not exist/);
     } finally {
       rmSync(dir, { recursive: true });
@@ -149,6 +161,24 @@ describe("validateWorkDir", () => {
       rmSync(dir, { recursive: true });
     }
   });
+
+  it.skipIf(process.platform === "win32")(
+    "rejects a symlink that resolves outside the workspace",
+    () => {
+      const dir = mkTmp();
+      const target = mkTmp();
+      const link = path.join(dir, "linked");
+      symlinkSync(target, link);
+      try {
+        writeConfig(dir, { workingDir: "linked" });
+        expect(() => resolveWorkDir(dir)).toThrow(/resolves outside the active workspace/);
+        expect(validateWorkDir(dir)).toMatch(/resolves outside the active workspace/);
+      } finally {
+        rmSync(dir, { recursive: true });
+        rmSync(target, { recursive: true });
+      }
+    },
+  );
 });
 
 describe("session layout", () => {
