@@ -139,7 +139,8 @@ instead of patching unrelated code into this branch.
 
 After a fix, run the relevant checks, commit, push, and refresh all PR state. Do
 not sleep, poll continuously in the foreground, or use watch commands. Refresh
-once after your push, then rely on the durable monitoring loop in step 7.
+once after your push, then rely on the durable monitoring loop in step 7 when
+session automation support is available and not already occupied.
 
 ### 5. Resolve conflicts
 
@@ -213,6 +214,8 @@ claim the PR will be watched.
 End the current turn instead of waiting when:
 
 - auto-complete is enabled and the recurring session automation is attached;
+- durable monitoring is unavailable or blocked by an unrelated session
+  automation and that limitation has been reported;
 - the PR completed or was abandoned externally;
 - a permission, policy, infrastructure, or genuinely ambiguous conflict requires
   a human and the monitoring automation has been cleared;
