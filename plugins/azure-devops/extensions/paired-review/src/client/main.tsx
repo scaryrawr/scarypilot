@@ -44,7 +44,9 @@ function App() {
   const [selection, setSelection] = useState<SelectedLineRange | null>(null);
   const [startingReview, setStartingReview] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [activeFocus, setActiveFocus] = useState<ReviewState["focus"]>();
   const reviewRequestId = useRef<string | null>(null);
+  const appliedFocusRevision = useRef(0);
 
   const load = useCallback(async () => {
     const response = await fetch(api("/api/state"), { cache: "no-store" });
@@ -69,7 +71,19 @@ function App() {
     [activeFile?.path, review?.threads],
   );
 
+  useEffect(() => {
+    const focus = review?.focus;
+    if (!focus || focus.revision <= appliedFocusRevision.current) return;
+    const thread = review.threads.find((candidate) => candidate.id === focus.target.threadId);
+    if (!thread) return;
+    appliedFocusRevision.current = focus.revision;
+    setActiveFocus(focus);
+    setActivePath(thread.anchor.path);
+    setSelection(null);
+  }, [review]);
+
   async function focusFile(file: ReviewFile) {
+    setActiveFocus(undefined);
     setActivePath(file.path);
     setSelection(null);
     await fetch(api("/api/focus"), {
@@ -158,6 +172,7 @@ function App() {
                 selection={selection}
                 theme={theme}
                 threads={activeThreads}
+                focus={activeFocus}
               />
             </>
           ) : (
@@ -177,6 +192,7 @@ function App() {
 
 interface PierreDiffProps {
   file: ReviewFile;
+  focus: ReviewState["focus"];
   onSelectionChange: (selection: SelectedLineRange | null) => void;
   onThreadCreated: () => void;
   selection: SelectedLineRange | null;
@@ -186,6 +202,7 @@ interface PierreDiffProps {
 
 function PierreDiff({
   file,
+  focus,
   onSelectionChange,
   onThreadCreated,
   selection,
@@ -264,7 +281,13 @@ function PierreDiff({
             />
           );
         }
-        return <ReviewThreadCard onUpdated={onThreadCreated} thread={metadata.thread} />;
+        return (
+          <ReviewThreadCard
+            focusRevision={focus?.target.threadId === metadata.thread.id ? focus.revision : undefined}
+            onUpdated={onThreadCreated}
+            thread={metadata.thread}
+          />
+        );
       }}
       selectedLines={selection}
     />
@@ -330,9 +353,11 @@ function NewThreadComposer({
 }
 
 function ReviewThreadCard({
+  focusRevision,
   onUpdated,
   thread,
 }: {
+  focusRevision?: number;
   onUpdated: () => void;
   thread: ReviewThread;
 }) {
@@ -341,8 +366,18 @@ function ReviewThreadCard({
   const [fixing, setFixing] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const cardRef = useRef<HTMLElement>(null);
   const busy = thread.pending || thread.fixing;
   const canDiscuss = thread.kind === "remote" || !thread.resolved;
+
+  useEffect(() => {
+    if (focusRevision === undefined) return;
+    const frame = window.requestAnimationFrame(() => {
+      cardRef.current?.scrollIntoView({ block: "center", inline: "nearest" });
+      cardRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusRevision]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -404,7 +439,11 @@ function ReviewThreadCard({
   }
 
   return (
-    <article className={`inline-thread${thread.collapsed ? " collapsed" : ""}${thread.resolved ? " resolved" : ""}`}>
+    <article
+      className={`inline-thread${thread.collapsed ? " collapsed" : ""}${thread.resolved ? " resolved" : ""}${focusRevision !== undefined ? " focused" : ""}`}
+      ref={cardRef}
+      tabIndex={-1}
+    >
       <div className="thread-title">
         <span>
           {thread.kind === "finding" ? `${thread.finding.severity} · ${thread.finding.title} · ` : ""}

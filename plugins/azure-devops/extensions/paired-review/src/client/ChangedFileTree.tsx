@@ -12,6 +12,7 @@ import { handleFileTreeKey } from "./file-tree-interaction.ts";
 import {
   ancestorIds,
   buildFileTree,
+  conversationPresence,
   projectFileTree,
   type FileTreeNode,
   type FileTreeNodeId,
@@ -256,6 +257,12 @@ export function ChangedFileTree({
               ) : <span aria-hidden="true" className="tree-chevron-spacer" />}
               <span aria-hidden="true" className={`tree-icon ${row.node.kind}`} />
               <span className="tree-label">{row.node.name}</span>
+              {conversationPresence(row.node.summary) !== "none" ? (
+                <span
+                  aria-hidden="true"
+                  className={`conversation-indicator ${conversationPresence(row.node.summary)}`}
+                />
+              ) : null}
               <span className="tree-summary">{compactSummary(row.node)}</span>
             </div>
           ))}

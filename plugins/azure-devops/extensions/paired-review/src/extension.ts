@@ -8,6 +8,7 @@ import {
   createQuestionThread,
   createReviewState,
   failReviewPass,
+  focusReviewTarget,
   insertReviewFinding,
   isAzurePullRequestUrl,
   linkFinding,
@@ -30,10 +31,12 @@ import {
   CreateReviewFindingInputSchema,
   CreateReviewThreadInputSchema,
   FixReviewThreadInputSchema,
+  FocusReviewTargetInputSchema,
   GetReviewFileLinesInputSchema,
   GetThreadContextInputSchema,
   ListReviewFilesInputSchema,
   PublishReviewFindingsInputSchema,
+  ReviewTargetSchema,
 } from "./review-schema.ts";
 import { startReviewServer } from "./server.ts";
 
@@ -41,6 +44,7 @@ const CANVAS_ID = "azure-devops-paired-review";
 const MAX_AGENT_RESPONSE_CHARS = 32 * 1024;
 const CanvasInputSchema = Type.Object({
   prUrl: Type.String({ minLength: 1 }),
+  target: Type.Optional(ReviewTargetSchema),
 });
 const reviews = new Map<string, ReviewState>();
 let sessionRef: CopilotSession | null = null;
@@ -200,19 +204,39 @@ const pairedReviewCanvas = createCanvas({
     },
     {
       name: "create_review_finding",
-      description: "Create one local Copilot-authored inline finding on changed review content.",
+      description: "Create and focus one local Copilot-authored inline finding on changed review content.",
       inputSchema: CreateReviewFindingInputSchema,
       handler: (ctx) => {
         const input = Value.Parse(CreateReviewFindingInputSchema, ctx.input);
         const review = requireReview(ctx.instanceId);
-        if (review.reviewPass.kind !== "running") {
-          throw new Error("Copilot findings can only be created during a running review pass");
-        }
-        const inserted = insertReviewFinding(review, input, review.reviewPass.id);
-        reviews.set(ctx.instanceId, inserted.review);
+        if (!review.loaded) throw new Error("wait for the pull request to finish loading");
+        const createdBy = activeAgentJob === "review_pass" && review.reviewPass.kind === "running"
+          ? { kind: "review_pass" as const, passId: review.reviewPass.id }
+          : { kind: "chat" as const };
+        const inserted = insertReviewFinding(review, input, createdBy);
+        const focused = focusReviewTarget(inserted.review, {
+          kind: "thread",
+          threadId: inserted.thread.id,
+        });
+        reviews.set(ctx.instanceId, focused.review);
         return {
           findingId: inserted.thread.finding.id,
           inserted: inserted.inserted,
+          canvas: canvasTarget(focused.review, focused.thread.id),
+        };
+      },
+    },
+    {
+      name: "focus_review_target",
+      description: "Focus an existing paired-review thread in the local canvas.",
+      inputSchema: FocusReviewTargetInputSchema,
+      handler: (ctx) => {
+        const input = Value.Parse(FocusReviewTargetInputSchema, ctx.input);
+        const focused = focusReviewTarget(requireReview(ctx.instanceId), input.target);
+        reviews.set(ctx.instanceId, focused.review);
+        return {
+          focused: input.target,
+          canvas: canvasTarget(focused.review, focused.thread.id),
         };
       },
     },
@@ -244,9 +268,15 @@ const pairedReviewCanvas = createCanvas({
     if (!isAzurePullRequestUrl(prUrl)) {
       throw new Error("Provide a full HTTPS Azure DevOps pull request URL ending in /pullrequest/<id>.");
     }
-    reviews.set(ctx.instanceId, createReviewState(ctx.instanceId, prUrl));
+    const existing = reviews.get(ctx.instanceId);
+    if (existing && reviewInstanceId(existing.prUrl) !== reviewInstanceId(prUrl)) {
+      throw new Error("canvas instance already belongs to a different pull request");
+    }
+    let review = existing ?? createReviewState(ctx.instanceId, prUrl);
+    if (input.target) review = focusReviewTarget(review, input.target).review;
+    reviews.set(ctx.instanceId, review);
     const server = await getServer();
-    if (process.env.PAIRED_REVIEW_DISABLE_AUTOLOAD !== "1") {
+    if (!existing && process.env.PAIRED_REVIEW_DISABLE_AUTOLOAD !== "1") {
       void populateReview(ctx.instanceId, prUrl);
     }
     return {
@@ -254,9 +284,6 @@ const pairedReviewCanvas = createCanvas({
       title: "Azure DevOps Paired Review",
       status: "Local-only review",
     };
-  },
-  onClose: (ctx) => {
-    reviews.delete(ctx.instanceId);
   },
 });
 
@@ -316,6 +343,17 @@ function requireReview(instanceId: string): ReviewState {
   const review = reviews.get(instanceId);
   if (!review) throw new Error("paired review is no longer available");
   return review;
+}
+
+function canvasTarget(review: ReviewState, threadId: string) {
+  return {
+    canvasId: CANVAS_ID,
+    instanceId: review.instanceId,
+    input: {
+      prUrl: review.prUrl,
+      target: { kind: "thread" as const, threadId },
+    },
+  };
 }
 
 async function populateReview(instanceId: string, prUrl: string): Promise<void> {

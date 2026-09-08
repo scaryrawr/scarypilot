@@ -10,6 +10,16 @@ export interface ChangeSummary {
   resolvedThreads: number;
 }
 
+export type ConversationPresence = "none" | "resolved-only" | "open";
+
+export function conversationPresence(
+  summary: Pick<ChangeSummary, "openThreads" | "resolvedThreads">,
+): ConversationPresence {
+  if (summary.openThreads > 0) return "open";
+  if (summary.resolvedThreads > 0) return "resolved-only";
+  return "none";
+}
+
 interface BaseTreeNode {
   id: FileTreeNodeId;
   name: string;

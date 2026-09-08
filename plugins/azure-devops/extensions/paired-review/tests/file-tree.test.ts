@@ -3,6 +3,7 @@ import type { ReviewFile, ReviewThread } from "../src/review-schema.ts";
 import { handleFileTreeKey } from "../src/client/file-tree-interaction.ts";
 import {
   buildFileTree,
+  conversationPresence,
   projectFileTree,
   type FileTreeNodeId,
 } from "../src/client/file-tree-model.ts";
@@ -72,6 +73,14 @@ describe("file tree model", () => {
       expanded: false,
       containsSelectedFile: true,
     });
+  });
+
+  it("derives open and resolved-only conversation indicators", () => {
+    const model = buildFileTree(files, threads);
+    expect(conversationPresence(model.nodesById.get("folder:src")!.summary)).toBe("open");
+    expect(conversationPresence(model.nodesById.get("file:src/server.ts")!.summary))
+      .toBe("resolved-only");
+    expect(conversationPresence(model.nodesById.get("file:README.md")!.summary)).toBe("none");
   });
 });
 
