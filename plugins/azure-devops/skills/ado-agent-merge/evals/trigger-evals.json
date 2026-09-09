@@ -20,6 +20,10 @@
     "should_trigger": true
   },
   {
+    "query": "Enable auto-complete on this Azure DevOps PR and keep monitoring it so you can fix any later build failures.",
+    "should_trigger": true
+  },
+  {
     "query": "Show me the status of Azure DevOps pull request 4821.",
     "should_trigger": false
   },
