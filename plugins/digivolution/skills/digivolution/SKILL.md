@@ -1,6 +1,6 @@
 ---
 name: digivolution
-description: Use for "digivolve", "use digivolution", or end-of-task reflection requests that ask whether durable repo-specific guidance, AGENTS.md/Copilot instructions, or in-repo SKILL.md instructions are stale, missing, or should be updated.
+description: Use for "digivolve", "use digivolution", adaptive end-of-turn reflection prompts, or requests that ask whether durable repo-specific guidance, AGENTS.md/Copilot instructions, or in-repo SKILL.md instructions are stale, missing, or should be updated.
 ---
 
 # Digivolution Skill
@@ -30,6 +30,7 @@ Update instructions or skills only when at least one is true:
 - Do not create nested instructions unless the scope differs meaningfully from parent guidance.
 - Do not update instructions or skills merely because this reflection was requested.
 - When there is no durable improvement, make no change and do not interrupt task completion with a no-op status.
+- When an adaptive hook requested the reflection and no update is warranted, finish silently without acknowledging the hook.
 - If an eval harness or explicit user instruction requires a final decision artifact, produce it even when no update is needed.
 
 ## Checklist

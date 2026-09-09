@@ -1,7 +1,7 @@
 {
   "name": "digivolution",
-  "description": "Skill-only post-task reflection for keeping repository guidance accurate.",
-  "version": "0.2.0",
+  "description": "Adaptive post-task reflection for keeping repository guidance accurate.",
+  "version": "0.3.0",
   "author": {
     "name": "Mike Wallio"
   },
@@ -11,6 +11,9 @@
     "cli",
     "agents",
     "digivolution"
+  ],
+  "extensions": [
+    "extensions"
   ],
   "skills": [
     "skills/"

@@ -30,7 +30,7 @@
     },
     {
       "name": "digivolution",
-      "description": "Skill-only post-task reflection for keeping repo instructions and in-repo skills accurate.",
+      "description": "Adaptive post-task reflection for keeping repo instructions and in-repo skills accurate.",
       "author": {
         "name": "Mike Wallio"
       },
