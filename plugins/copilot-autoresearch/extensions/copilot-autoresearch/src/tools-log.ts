@@ -54,7 +54,7 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
   return {
     name: "log_experiment",
     description:
-      "Record an experiment result. On 'keep' it auto-runs `git add -A && git commit`. On 'discard'/'crash'/'checks_failed' it auto-reverts code changes (`.auto/**` and legacy autoresearch files are preserved). Computes a session confidence score after 3+ runs (best improvement / median absolute deviation). Always include the asi parameter — at minimum {\"hypothesis\": \"what you tried\"}; on discard/crash also rollback_reason and next_action_hint.",
+      "Record an experiment result. On 'keep' it auto-runs `git add -A && git commit`. On 'discard'/'crash'/'checks_failed' it auto-reverts code changes (`.auto/**` and legacy autoresearch files are preserved). Computes a session confidence score after 3+ runs (best improvement / median absolute deviation). Always include the asi parameter — at minimum {\"hypothesis\": \"what you tried\"}; on discard/crash also rollback_reason and next_action_hint. Before choosing the next experiment, consider whether this result invalidates a previous discard's rollback reason; if so, set asi.revisits_run to that earlier run number when retrying it.",
     parameters: {
       type: "object",
       properties: {
@@ -93,7 +93,7 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
           type: "object",
           additionalProperties: true,
           description:
-            "Actionable Side Information — free-form structured diagnostics. At minimum: hypothesis. On discard/crash: also rollback_reason and next_action_hint.",
+            "Actionable Side Information — free-form structured diagnostics. At minimum: hypothesis. On discard/crash: also rollback_reason and next_action_hint. When retrying a previously discarded idea after its assumptions changed, set revisits_run to the earlier run number (a positive integer) and explain what changed in description. Omit revisits_run for new ideas and verification reruns.",
         },
       },
       required: ["commit", "metric", "status", "description"],
@@ -208,6 +208,11 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
           asiParts.push(`${k}: ${s.length > 80 ? s.slice(0, 77) + "…" : s}`);
         }
         if (asiParts.length > 0) lines.push(`📋 ASI: ${asiParts.join(" | ")}`);
+      }
+
+      const revisitsRun = newRun.asi?.revisits_run;
+      if (typeof revisitsRun === "number" && Number.isInteger(revisitsRun) && revisitsRun > 0) {
+        lines.push(`↻ Revisiting #${revisitsRun}`);
       }
 
       if (confidence !== null) {

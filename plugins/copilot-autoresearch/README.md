@@ -42,7 +42,7 @@ tool names; the second copy will be rejected by Copilot CLI.
 | --- | --- |
 | `init_experiment` | One-time session config — name, primary metric, unit, direction. Writes a config header to `.auto/log.jsonl`. |
 | `run_experiment` | Runs any shell command, times wall-clock duration, captures output, parses `METRIC name=value` lines, retains overflow output in a bounded temporary file until the next run, and runs `.auto/checks.sh` after a passing benchmark when present. |
-| `log_experiment` | Records `keep` / `discard` / `crash` / `checks_failed`. On `keep`, auto-runs `git add -A && git commit`. On other statuses, auto-reverts code changes while preserving `.auto/**`. Computes a session confidence score after 3+ runs. |
+| `log_experiment` | Records `keep` / `discard` / `crash` / `checks_failed`. On `keep`, auto-runs `git add -A && git commit`. On other statuses, auto-reverts code changes while preserving `.auto/**`. Computes a session confidence score after 3+ runs. Retrying a discard after its assumption changed can set `asi.revisits_run` to badge the result `↻ Revisiting #N`. |
 
 **Skills**
 
@@ -110,7 +110,7 @@ confirm before keeping. Advisory only; never auto-discards.
 
 ## Differences vs pi-autoresearch
 
-Parity is tracked against pi-autoresearch 1.7.0. The `.auto/` contract,
+Parity is tracked against pi-autoresearch 1.8.1. The `.auto/` contract,
 experiment lifecycle, benchmark and checks gates, iteration limits,
 failure guard, finalization workflow, and live browser reporting are preserved
 where Copilot exposes an equivalent extension API.
