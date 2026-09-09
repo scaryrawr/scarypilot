@@ -7,8 +7,9 @@ planning, delegation, review, and verification.
 
 ## What this plugin provides
 
-- 45 Agent Skills, including `poteto-mode`, `how`, `why`, `architect`,
-  `arena`, `swarm`, `interrogate`, `tdd`, `unslop`, and the pstack principles.
+- 46 Agent Skills, including `poteto-mode`, `how`, `why`, `architect`,
+  `arena`, `swarm`, `interrogate`, `tdd`, `deslop`, `unslop`, and the pstack
+  principles.
 - The `poteto-agent` and `comment-sicko` custom agents.
 - Native `pstack_status`, capability, plan-validation, verification-receipt,
   handoff, and worktree-inspection tools plus the `/pstack` command.

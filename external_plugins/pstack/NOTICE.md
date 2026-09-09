@@ -40,6 +40,8 @@ ScaryPilot changed the integration layer for GitHub Copilot:
   profiles, and read-only worktree inspection.
 - Added versioned JSON contracts and trigger evals for Copilot-specific
   workflow surfaces.
+- Bundled the `deslop` skill from
+  [cursor-team-kit](https://github.com/cursor/plugins/tree/main/cursor-team-kit).
 
 The upstream `automations/benny` pack and Cursor-specific guide are not
 included. Copilot plugins do not expose Cursor Automations, and shipping those
