@@ -138,7 +138,7 @@ function reviewWithFindings(changeTrackingId = 17, iterationId = 3) {
     severity: "warning",
     title: "First finding",
     body: "First body",
-  }, "pass-1");
+  }, { kind: "review_pass", passId: "pass-1" });
   return insertReviewFinding(first.review, {
     path: "src/example.ts",
     side: "deletions",
@@ -147,7 +147,7 @@ function reviewWithFindings(changeTrackingId = 17, iterationId = 3) {
     severity: "blocking",
     title: "Second finding",
     body: "Second body",
-  }, "pass-1").review;
+  }, { kind: "review_pass", passId: "pass-1" }).review;
 }
 
 function publicationRunner(

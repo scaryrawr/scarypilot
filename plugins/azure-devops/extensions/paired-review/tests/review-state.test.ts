@@ -7,10 +7,12 @@ import {
   createReviewState,
   failReviewPass,
   findingId,
+  focusReviewTarget,
   insertReviewFinding,
   isAzurePullRequestUrl,
   parseAzurePullRequestUrl,
   queueReviewPass,
+  requestReviewFocus,
   reviewInstanceId,
   startQueuedReviewPass,
   completeReviewPass,
@@ -132,10 +134,16 @@ describe("Copilot findings", () => {
   };
 
   it("uses a severity-independent fingerprint and starts with Copilot", () => {
-    const first = insertReviewFinding(changedReview(), input, "pass-1");
-    const second = insertReviewFinding(first.review, { ...input, severity: "blocking" }, "pass-2");
+    const first = insertReviewFinding(changedReview(), input, {
+      kind: "review_pass",
+      passId: "pass-1",
+    });
+    const second = insertReviewFinding(first.review, { ...input, severity: "blocking" }, {
+      kind: "review_pass",
+      passId: "pass-2",
+    });
     expect(first.thread.messages[0]?.role).toBe("assistant");
-    expect(first.thread.finding.createdByPass).toBe("pass-1");
+    expect(first.thread.finding.createdBy).toEqual({ kind: "review_pass", passId: "pass-1" });
     expect(second.inserted).toBe(false);
     expect(second.thread.id).toBe(first.thread.id);
     expect(findingId(first.thread.anchor, " Incorrect value ", "The value stays stale.\r\n"))
@@ -149,7 +157,10 @@ describe("Copilot findings", () => {
     if (queued.pass.kind !== "queued") throw new Error("expected queued pass");
     const running = startQueuedReviewPass(queued.review, queued.pass.id);
 
-    const inserted = insertReviewFinding(running, input, queued.pass.id);
+    const inserted = insertReviewFinding(running, input, {
+      kind: "review_pass",
+      passId: queued.pass.id,
+    });
 
     expect(inserted.review.reviewPass).toMatchObject({ kind: "running", findingCount: 1 });
   });
@@ -167,8 +178,49 @@ describe("Copilot findings", () => {
   });
 
   it("rejects ranges outside changed review lines", () => {
-    expect(() => insertReviewFinding(changedReview(), { ...input, lineStart: 3, lineEnd: 3 }, "pass-1"))
+    expect(() => insertReviewFinding(
+      changedReview(),
+      { ...input, lineStart: 3, lineEnd: 3 },
+      { kind: "chat" },
+    ))
       .toThrow("not part of the changed review content");
+  });
+
+  it("focuses, expands, and refreshes an existing finding", () => {
+    const inserted = insertReviewFinding(changedReview(), input, { kind: "chat" });
+    const collapsed = updateReviewState(inserted.review, {
+      threads: inserted.review.threads.map((thread) => ({ ...thread, collapsed: true })),
+    });
+    const first = focusReviewTarget(collapsed, {
+      kind: "thread",
+      threadId: inserted.thread.id,
+    });
+    const second = focusReviewTarget(first.review, {
+      kind: "thread",
+      threadId: inserted.thread.id,
+    });
+
+    expect(first.review.activePath).toBe("src/example.ts");
+    expect(first.thread.id).toBe(inserted.thread.id);
+    expect(first.thread.collapsed).toBe(false);
+    expect(first.review.threads[0]?.collapsed).toBe(false);
+    expect(first.review.focus).toMatchObject({ revision: 1 });
+    expect(second.review.focus).toMatchObject({ revision: 2 });
+    expect(Value.Check(ReviewStateSchema, second.review)).toBe(true);
+  });
+
+  it("records a pending focus before its thread is available", () => {
+    const requested = requestReviewFocus(changedReview(), {
+      kind: "thread",
+      threadId: "future-thread",
+    });
+
+    expect(requested.activePath).toBeUndefined();
+    expect(requested.focus).toEqual({
+      target: { kind: "thread", threadId: "future-thread" },
+      revision: 1,
+    });
+    expect(Value.Check(ReviewStateSchema, requested)).toBe(true);
   });
 
   it("keeps user questions available on unchanged context lines", () => {

@@ -103,6 +103,15 @@ Unicode, line endings, trailing line whitespace, and outer whitespace. Retrying
 a publish request therefore adopts a prior remote write instead of creating
 another thread.
 
+Agents can also create a local finding directly from chat after the paired-review
+canvas has loaded; a full review pass is not required. Creating or refocusing a
+finding updates the canvas to select its file, expand its thread, and scroll it
+into view through the `focus_review_target` canvas action. The returned navigation
+target contains only the canvas identity, pull request URL, and local thread
+ID—never the localhost server token. Files and directories with conversations
+display an explicit marker in the changed-file tree: filled for open conversations
+and outlined for resolved-only conversations.
+
 The renderer is a prebuilt React application using
 [`@pierre/diffs`](https://github.com/pierrecomputer/pierre). A small built-in
 Node HTTP server serves the bundled JavaScript and CSS over loopback, so source

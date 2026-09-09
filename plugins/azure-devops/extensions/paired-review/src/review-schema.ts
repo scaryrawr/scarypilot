@@ -53,6 +53,29 @@ export const LineAnchorSchema = Type.Object({
 });
 export type LineAnchor = Static<typeof LineAnchorSchema>;
 
+export const FindingAuthorSchema = Type.Union([
+  Type.Object({
+    kind: Type.Literal("review_pass"),
+    passId: Type.String({ minLength: 1 }),
+  }),
+  Type.Object({ kind: Type.Literal("chat") }),
+]);
+export type FindingAuthor = Static<typeof FindingAuthorSchema>;
+
+export const ReviewTargetSchema = Type.Union([
+  Type.Object({
+    kind: Type.Literal("thread"),
+    threadId: Type.String({ minLength: 1 }),
+  }),
+]);
+export type ReviewTarget = Static<typeof ReviewTargetSchema>;
+
+export const ReviewFocusSchema = Type.Object({
+  target: ReviewTargetSchema,
+  revision: Type.Integer({ minimum: 1 }),
+});
+export type ReviewFocus = Static<typeof ReviewFocusSchema>;
+
 const ThreadStateSchema = {
   id: Type.String(),
   anchor: LineAnchorSchema,
@@ -80,7 +103,7 @@ export const ReviewThreadSchema = Type.Union([
       ]),
       title: Type.String(),
       body: Type.String(),
-      createdByPass: Type.String(),
+      createdBy: FindingAuthorSchema,
       publication: Type.Union([
         Type.Object({ kind: Type.Literal("local") }),
         Type.Object({
@@ -174,6 +197,10 @@ export const ReplyToReviewThreadInputSchema = Type.Object({
 
 export const FixReviewThreadInputSchema = Type.Object({}, { additionalProperties: true });
 
+export const FocusReviewTargetInputSchema = Type.Object({
+  target: ReviewTargetSchema,
+});
+
 export const UpdateReviewThreadInputSchema = Type.Object({
   collapsed: Type.Optional(Type.Boolean()),
   resolved: Type.Optional(Type.Boolean()),
@@ -210,6 +237,7 @@ export const ReviewStateSchema = Type.Object({
   sourceBranch: Type.Optional(Type.String()),
   targetBranch: Type.Optional(Type.String()),
   activePath: Type.Optional(Type.String()),
+  focus: Type.Optional(ReviewFocusSchema),
   files: Type.Array(ReviewFileSchema),
   reviewPass: ReviewPassSchema,
   threads: Type.Array(ReviewThreadSchema),

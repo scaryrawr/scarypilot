@@ -2,20 +2,24 @@ import { createHash, randomUUID } from "node:crypto";
 import type {
   CreateReviewFindingInput,
   DiffSide,
+  FindingAuthor,
   LineAnchor,
   ReviewFile,
   ReviewPass,
   ReviewState,
+  ReviewTarget,
   ReviewThread,
 } from "./review-schema.ts";
 
 export type {
   CreateReviewFindingInput,
   DiffSide,
+  FindingAuthor,
   LineAnchor,
   ReviewFile,
   ReviewPass,
   ReviewState,
+  ReviewTarget,
   ReviewThread,
   ReviewThreadMessage,
 } from "./review-schema.ts";
@@ -183,7 +187,7 @@ export function failReviewPass(review: ReviewState, passId: string, error: strin
 export function insertReviewFinding(
   review: ReviewState,
   input: CreateReviewFindingInput,
-  createdByPass: string,
+  createdBy: FindingAuthor,
 ): FindingInsertion {
   const anchor = reviewAnchor(review, input, true);
   if (!anchor) throw new Error("finding range is not part of the changed review content");
@@ -213,7 +217,7 @@ export function insertReviewFinding(
       severity: input.severity,
       title: input.title.trim(),
       body: input.body.trim(),
-      createdByPass,
+      createdBy,
       publication: { kind: "local" },
     },
   };
@@ -228,6 +232,35 @@ export function insertReviewFinding(
     thread,
     inserted: true,
   };
+}
+
+export function focusReviewTarget(
+  review: ReviewState,
+  target: ReviewTarget,
+): { review: ReviewState; thread: ReviewThread } {
+  const thread = review.threads.find((candidate) => candidate.id === target.threadId);
+  if (!thread) throw new Error("review thread was not found");
+  const focus = nextReviewFocus(review, target);
+  const updated = updateReviewState(review, {
+    activePath: thread.anchor.path,
+    focus,
+    threads: review.threads.map((candidate) =>
+      candidate.id === thread.id ? { ...candidate, collapsed: false } : candidate
+    ),
+  });
+  const updatedThread = updated.threads.find((candidate) => candidate.id === thread.id);
+  if (!updatedThread) throw new Error("focused review thread disappeared");
+  return {
+    review: updated,
+    thread: updatedThread,
+  };
+}
+
+export function requestReviewFocus(
+  review: ReviewState,
+  target: ReviewTarget,
+): ReviewState {
+  return updateReviewState(review, { focus: nextReviewFocus(review, target) });
 }
 
 export function createQuestionThread(
@@ -378,6 +411,13 @@ function reviewAnchor(
 
 function reviewPassId(requestId: string): string {
   return `review-pass-${createHash("sha256").update(requestId).digest("hex").slice(0, 20)}`;
+}
+
+function nextReviewFocus(review: ReviewState, target: ReviewTarget) {
+  return {
+    target,
+    revision: (review.focus?.revision ?? 0) + 1,
+  };
 }
 
 function findingCount(review: ReviewState): number {
