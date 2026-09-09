@@ -275,7 +275,9 @@ function normalizeRepoPath(candidate: string, workingDirectory: string): string 
   const resolved = path.resolve(root, candidate);
   const relative = path.relative(root, resolved);
 
-  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+  if (!relative) return ".";
+
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
     return undefined;
   }
 

@@ -119,6 +119,31 @@ describe("TurnMonitor", () => {
     expect(monitor.claimReflection()).toBe(true);
   });
 
+  it.each([
+    { path: "." },
+    { path: "./" },
+    { cwd },
+    { workingDirectory: cwd },
+  ])("accepts an explicit repository-root target: %j", (targetArgs) => {
+    const monitor = new TurnMonitor();
+    monitor.start("Run the repository validation.");
+    monitor.recordFailure(
+      {
+        toolName: "bash",
+        toolArgs: { command: "npm test", ...targetArgs },
+        workingDirectory: cwd,
+      },
+      "npm: unknown command test",
+    );
+    monitor.recordSuccess({
+      toolName: "bash",
+      toolArgs: { command: "pnpm test", ...targetArgs },
+      workingDirectory: cwd,
+    });
+
+    expect(monitor.claimReflection()).toBe(true);
+  });
+
   it("does not trigger on a single generic failure and recovery", () => {
     const monitor = new TurnMonitor();
     monitor.start("Fix the test.");
