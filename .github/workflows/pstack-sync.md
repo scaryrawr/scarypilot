@@ -18,6 +18,7 @@ permissions:
   copilot-requests: write
 strict: true
 timeout-minutes: 45
+max-ai-credits: 2000
 checkout:
   - fetch-depth: 0
   - repository: cursor/plugins
