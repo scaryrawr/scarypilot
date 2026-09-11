@@ -90,7 +90,7 @@ test("rejects Cursor invocation guards in every shipped skill", () => {
         integratedCommit: "target-sha",
         contentCommit: "content-sha",
       },
-      localVersion: "0.15.1-copilot.7",
+      localVersion: "0.15.1-copilot.8",
       requiredSkills: ["how"],
       forbiddenSkillFrontmatter: ["disable-model-invocation"],
       forbiddenContent: [],
@@ -100,7 +100,7 @@ test("rejects Cursor invocation guards in every shipped skill", () => {
   writeFileSync(
     join(root, "plugin.json"),
     JSON.stringify({
-      version: "0.15.1-copilot.7",
+      version: "0.15.1-copilot.8",
       extensions: ["extensions"],
     }),
   );
@@ -135,7 +135,7 @@ test("rejects a notice with a stale reviewed boundary", () => {
         integratedCommit: "target-sha",
         contentCommit: "content-sha",
       },
-      localVersion: "0.15.1-copilot.7",
+      localVersion: "0.15.1-copilot.8",
       requiredSkills: ["how"],
       forbiddenSkillFrontmatter: [],
       forbiddenContent: [],
@@ -145,7 +145,7 @@ test("rejects a notice with a stale reviewed boundary", () => {
   writeFileSync(
     join(root, "plugin.json"),
     JSON.stringify({
-      version: "0.15.1-copilot.7",
+      version: "0.15.1-copilot.8",
       extensions: ["extensions"],
     }),
   );
