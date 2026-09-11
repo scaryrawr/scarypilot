@@ -35,8 +35,10 @@ function frontmatter(text) {
   const result = new Map();
   for (let index = 1; index < lines.length; index += 1) {
     if (lines[index] === "---") return result;
-    const match = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(lines[index]);
-    if (match) result.set(match[1], match[2]);
+    const match = /^(?:([A-Za-z0-9_-]+)|"([^"]+)"|'([^']+)'):\s*(.*)$/.exec(
+      lines[index],
+    );
+    if (match) result.set(match[1] ?? match[2] ?? match[3], match[4]);
   }
   return new Map();
 }
@@ -227,7 +229,6 @@ export function checkRepository(pluginRoot = DEFAULT_PLUGIN_ROOT) {
   for (const rule of policy.forbiddenContent) {
     for (const scope of rule.paths) {
       for (const path of listFiles(join(pluginRoot, scope))) {
-        if (!path.endsWith(".md")) continue;
         if (readFileSync(path, "utf8").includes(rule.pattern)) {
           findings.push(
             finding(
