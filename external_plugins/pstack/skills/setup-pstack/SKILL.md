@@ -48,7 +48,6 @@ judgment and prose: auto
 hardest tasks: auto
 how explorer: auto
 how explainer: auto
-how critics: auto
 why investigators: auto
 why synthesizer: auto
 reflect tooling: auto
