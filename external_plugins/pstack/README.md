@@ -7,7 +7,7 @@ planning, delegation, review, and verification.
 
 ## What this plugin provides
 
-- 46 Agent Skills, including `poteto-mode`, `how`, `why`, `architect`,
+- 48 Agent Skills, including `poteto-mode`, `how`, `why`, `architect`,
   `arena`, `swarm`, `interrogate`, `tdd`, `deslop`, `unslop`, and the pstack
   principles.
 - The `poteto-agent` and `comment-sicko` custom agents.
@@ -16,9 +16,12 @@ planning, delegation, review, and verification.
 - PR watching, orchestration, decision-log, and worktree-audit helpers used by
   advanced playbooks.
 - Verified multi-phase planning with an executable checklist checker.
-- Compatible upstream changes through pstack 0.14.7, with Cursor-only features
+- Compatible upstream changes through pstack 0.15.1, with Cursor-only features
   intentionally excluded.
 - User-level model configuration through `/setup-pstack`.
+
+The adapted [pstack guide](./docs/guide/README.md) walks through the workflow
+from setup and code understanding through verification and long-running work.
 
 ## Prerequisites
 
@@ -97,6 +100,26 @@ proves they are available.
 Cursor's `automations/benny` pack is not included because Copilot plugins do
 not provide the Cursor Automations runtime. See [`NOTICE.md`](./NOTICE.md) for
 the exact upstream revision and modification summary.
+
+Cursor's `disable-model-invocation` skill metadata is also intentionally
+removed. Copilot currently filters skills carrying that key from the
+model-facing skill tool, which breaks direct invocation and skill-to-skill
+orchestration.
+
+## Maintaining the adaptation
+
+The checked-in [`upstream-sync.json`](./upstream-sync.json) records the reviewed
+upstream boundary, exclusions, Copilot-owned paths, and skill-accessibility
+rules.
+
+```sh
+node external_plugins/pstack/tools/pstack-sync.mjs check
+node external_plugins/pstack/tools/pstack-sync.mjs plan --upstream /path/to/cursor-plugins
+```
+
+`check` validates the shipped inventory, provenance, links, extension
+registration, and Copilot-compatible skill metadata. `plan` produces a bounded,
+fail-closed classification of newer upstream changes.
 
 ## License and resources
 

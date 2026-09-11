@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "upstream": {
+    "repository": "https://github.com/cursor/plugins",
+    "subtree": "pstack",
+    "reviewedFromCommit": "23a56e2dac2efd54788056db8eced26e371d7b5e",
+    "integratedCommit": "7366ac128bdf95f45e6734f412b49a4031800169",
+    "contentCommit": "f8abeddd1862dc73704e3d719dd73df0d51b8c71",
+    "version": "0.15.1"
+  },
+  "localVersion": "0.15.1-copilot.9",
+  "requiredSkills": [
+    "how",
+    "why",
+    "unslop",
+    "typescript-best-practices",
+    "principle-attack-the-premise",
+    "principle-test-behavior-not-implementation"
+  ],
+  "forbiddenSkillFrontmatter": [
+    "disable-model-invocation"
+  ],
+  "forbiddenContent": [
+    {
+      "pattern": "/add-plugin",
+      "paths": [
+        "skills",
+        "docs/guide"
+      ]
+    },
+    {
+      "pattern": ".cursor/",
+      "paths": [
+        "skills",
+        "docs/guide"
+      ]
+    },
+    {
+      "pattern": "subagent_type",
+      "paths": [
+        "skills",
+        "docs/guide"
+      ]
+    },
+    {
+      "pattern": "AskQuestion",
+      "paths": [
+        "skills",
+        "docs/guide"
+      ]
+    }
+  ],
+  "mappedUpstreamPaths": [
+    {
+      "path": ".cursor-plugin/plugin.json",
+      "localPaths": [
+        "plugin.json"
+      ],
+      "reason": "Version, attribution, and descriptive metadata are mapped into the Copilot manifest."
+    },
+    {
+      "path": "agents",
+      "localPaths": [
+        "agents"
+      ],
+      "reason": "Upstream agent behavior is reviewed and mapped into Copilot .agent.md manifests."
+    }
+  ],
+  "excludedUpstreamPaths": [
+    {
+      "path": "automations/benny",
+      "reason": "Copilot plugins do not expose the Cursor Automations runtime."
+    },
+    {
+      "path": "skills/make-bot-ui",
+      "reason": "The skill depends on Cursor-only routines, secret-request cards, and UI behavior."
+    },
+    {
+      "path": "assets/logo.png",
+      "reason": "The image is Cursor marketplace metadata."
+    },
+    {
+      "path": ".gitignore",
+      "reason": "The upstream subtree ignore file is not part of the Copilot package."
+    }
+  ],
+  "copilotOwnedPaths": [
+    "contracts",
+    "extensions",
+    "skills/deslop",
+    "skills/pstack-schema-validate",
+    "NOTICE.md",
+    "plugin.json",
+    "upstream-sync.json",
+    "tools"
+  ]
+}

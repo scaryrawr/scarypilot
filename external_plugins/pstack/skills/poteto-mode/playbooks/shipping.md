@@ -1,6 +1,6 @@
 ### Shipping
 
-**You own what lands. Verify each PR independently, land only the verified run from the root, then keep your hands off the queue.** For "land the stack", "ship it", "enable merge when ready", or the second half of a stack that **Babysit** already drove to green.
+**You own what lands. Verify each PR independently, land only the verified run from the root, then keep your hands off the queue.**
 
 This is the half after `playbooks/babysit.md`. Babysit makes a stack mergeable. Shipping decides what is actually safe to merge and lets Graphite drain it. Green is not safe, and the gap between those two words is where this playbook lives.
 
