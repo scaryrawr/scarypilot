@@ -22,7 +22,11 @@ Open a todolist with one entry per phase before launching anything.
 2. Choose the shape. Partition into slices, race N workers on identical briefs, or mix both. For a race or mixed shape, declare `first pass`, `rank all`, or `best-of` before spawning.
 3. Set N from the user or derive it from the shape. N is total workers, not the Task concurrency limit.
 4. Pick the worker model from `swarm workers` in `instructions/pstack-models.instructions.md` in Copilot home (`$COPILOT_HOME`, or `$HOME/.copilot` when unset) when present. Otherwise omit `model`. For a model race, name each arm's model up front.
-5. Give each worker its own writable output when it writes.
+5. Give every writing worker an isolated workspace: a distinct worktree and
+   branch for repository changes, or a worker-specific directory under the
+   session artifact directory for scratch output. Separate filenames inside
+   one checkout are not isolation because workers would still share the
+   working tree and Git index.
 
 ## Phase B: Fan out
 

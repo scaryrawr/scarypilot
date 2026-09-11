@@ -86,10 +86,11 @@ test("rejects Cursor invocation guards in every shipped skill", () => {
     JSON.stringify({
       upstream: {
         version: "0.15.1",
+        reviewedFromCommit: "base-sha",
         integratedCommit: "target-sha",
         contentCommit: "content-sha",
       },
-      localVersion: "0.15.1-copilot.6",
+      localVersion: "0.15.1-copilot.7",
       requiredSkills: ["how"],
       forbiddenSkillFrontmatter: ["disable-model-invocation"],
       forbiddenContent: [],
@@ -99,13 +100,13 @@ test("rejects Cursor invocation guards in every shipped skill", () => {
   writeFileSync(
     join(root, "plugin.json"),
     JSON.stringify({
-      version: "0.15.1-copilot.6",
+      version: "0.15.1-copilot.7",
       extensions: ["extensions"],
     }),
   );
   writeFileSync(
     join(root, "NOTICE.md"),
-    "0.15.1 target-sha content-sha",
+    "0.15.1 base-sha target-sha content-sha",
   );
   writeFileSync(join(root, "README.md"), "- 1 Agent Skills\n");
 
@@ -114,5 +115,47 @@ test("rejects Cursor invocation guards in every shipped skill", () => {
       .filter(({ code }) => code === "forbidden-frontmatter")
       .map(({ path }) => path),
     ["skills/how/SKILL.md"],
+  );
+});
+
+test("rejects a notice with a stale reviewed boundary", () => {
+  const root = mkdtempSync(join(tmpdir(), "pstack-sync-"));
+  mkdirSync(join(root, "skills", "how"), { recursive: true });
+  mkdirSync(join(root, "extensions"), { recursive: true });
+  writeFileSync(
+    join(root, "skills", "how", "SKILL.md"),
+    "---\nname: how\ndescription: test\n---\n\n# How\n",
+  );
+  writeFileSync(
+    join(root, "upstream-sync.json"),
+    JSON.stringify({
+      upstream: {
+        version: "0.15.1",
+        reviewedFromCommit: "base-sha",
+        integratedCommit: "target-sha",
+        contentCommit: "content-sha",
+      },
+      localVersion: "0.15.1-copilot.7",
+      requiredSkills: ["how"],
+      forbiddenSkillFrontmatter: [],
+      forbiddenContent: [],
+      excludedUpstreamPaths: [],
+    }),
+  );
+  writeFileSync(
+    join(root, "plugin.json"),
+    JSON.stringify({
+      version: "0.15.1-copilot.7",
+      extensions: ["extensions"],
+    }),
+  );
+  writeFileSync(join(root, "NOTICE.md"), "0.15.1 target-sha content-sha");
+  writeFileSync(join(root, "README.md"), "- 1 Agent Skills\n");
+
+  assert.deepEqual(
+    checkRepository(root)
+      .filter(({ code }) => code === "provenance-drift")
+      .map(({ message }) => message),
+    ["NOTICE.md does not record base-sha"],
   );
 });

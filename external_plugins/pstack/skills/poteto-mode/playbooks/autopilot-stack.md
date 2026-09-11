@@ -11,6 +11,12 @@
 7. **Absorb drift at the root, then re-verify what moved.** The root fetches current trunk and rebases the chain from bottom to top. When a rebase surfaces conflicts in an owner's files, that owner fixes its own slice and the root pushes the result. A rebase rewrites every SHA above it and voids verdicts at the old SHAs. Compare the stable `git patch-id` for each PR's base-to-head diff at its verdict SHA against its new base-to-head diff. An unchanged patch-id preserves the code verdict. Any changed patch goes back through step 4 before delivery. Re-run mergeability and CI after every rewritten push even when the patch-id is unchanged.
 8. **Deliver the chain.** The deliverable is one linear chain of verified PRs, reviewable bottom-up in GitHub, every link carrying its verifier verdict in the PR body or a comment. The operator reviews and lands it.
 
+The handoff is topology-specific. Do not tell the operator to run
+`/poteto-mode land the stack`, because Shipping assumes a Graphite-tracked
+stack. Tell her to merge the GitHub base-branch chain bottom-up. After each
+merge, wait for GitHub to retarget the next PR to trunk, confirm its verdict
+still describes the current patch, and then merge the next link.
+
 **Choosing between the autopilots.** Autopilot-full when the PRs are independent and landing authority is granted. Autopilot-stack when the operator wants review before landing, the work is sequenced or coupled, or merge authority is withheld.
 
 **Reply:** links to the stack root and tip, a one-line verdict summary per link, and anything parked or excluded with the reason.

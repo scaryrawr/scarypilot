@@ -197,6 +197,7 @@ export function checkRepository(pluginRoot = DEFAULT_PLUGIN_ROOT) {
   const notice = readFileSync(join(pluginRoot, "NOTICE.md"), "utf8");
   for (const expected of [
     policy.upstream.version,
+    policy.upstream.reviewedFromCommit,
     policy.upstream.integratedCommit,
     policy.upstream.contentCommit,
   ]) {
