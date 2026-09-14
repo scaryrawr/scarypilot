@@ -26,9 +26,8 @@ It does **not** authorize:
 - weakening tests, checks, coverage, or policy configuration to get green;
 - completing with `--status completed` while required conditions are unresolved.
 
-Ask the user before choosing a merge strategy when repository guidance and the PR
-do not already establish one. Otherwise preserve the PR's existing squash,
-source-branch deletion, and work-item transition settings.
+Auto-complete must use squash merge. Preserve the PR's existing source-branch
+deletion and work-item transition settings.
 
 ## Where to work
 
@@ -159,17 +158,19 @@ requires it, push, and refresh PR state.
 ### 6. Hand off completion safely
 
 When the PR is active, non-draft, conflict-free, and all work the agent can perform
-is complete, enable Azure DevOps auto-complete:
+is complete, enable Azure DevOps auto-complete with squash merge:
 
 ```text
-az repos pr update --id {prId} --auto-complete true --detect true --output json
+az repos pr update --id {prId} --auto-complete true --squash true --detect true --output json
 ```
 
 Auto-complete preserves required policies and lets Azure DevOps merge only after
-remaining server-side requirements pass. Never combine it with policy bypass.
+remaining server-side requirements pass. Squash merge keeps the target branch to
+one commit for the PR. Never combine it with policy bypass.
 
-If auto-complete is already enabled, leave it enabled. If permissions or project
-settings reject auto-complete, surface the error verbatim. If all required
+If auto-complete is already enabled, verify its completion options use squash and
+run the update command when they do not. If permissions or project settings reject
+auto-complete or squash merge, surface the error verbatim. If all required
 conditions are already satisfied and auto-complete immediately completes the PR,
 report that result.
 
@@ -229,5 +230,5 @@ Keep the final update short:
 - review-thread status;
 - required-policy status;
 - mergeability status;
-- whether auto-complete is enabled;
+- whether squash auto-complete is enabled;
 - whether recurring monitoring is attached, cleared, or blocked.
