@@ -41,6 +41,7 @@ const fixture = [
     timestamp: 3,
     segment: 0,
     confidence: null,
+    asi: { revisits_run: 1 },
   }),
 ].join("\n");
 
@@ -64,6 +65,11 @@ describe("buildDashboardHtml", () => {
   it("renders the secondary metric column", () => {
     const html = buildDashboardHtml(fixture);
     expect(html).toContain(">compile_µs<");
+  });
+
+  it("renders revisit metadata", () => {
+    const html = buildDashboardHtml(fixture);
+    expect(html).toContain("↻ Revisiting #1");
   });
 
   it("escapes HTML in user-controlled fields", () => {

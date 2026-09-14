@@ -154,6 +154,16 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
       const runNumber = before.results.length + 1;
       const segment = before.currentSegment;
       const timestamp = Date.now();
+      const revisitsRun = args.asi?.revisits_run;
+      if (
+        revisitsRun !== undefined &&
+        (typeof revisitsRun !== "number" ||
+          !Number.isInteger(revisitsRun) ||
+          revisitsRun <= 0 ||
+          revisitsRun >= runNumber)
+      ) {
+        return `❌ asi.revisits_run must be a positive integer referencing an earlier run; the current run is #${runNumber}.`;
+      }
 
       const newRun: ReconstructedRun = {
         run: runNumber,
@@ -177,8 +187,7 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
 
       const lines: string[] = [];
       lines.push(`Logged #${runNumber}: ${args.status} — ${args.description}`);
-      const revisitsRun = validRevisitsRun(newRun.asi, runNumber);
-      if (revisitsRun !== null) {
+      if (typeof revisitsRun === "number") {
         lines.push(`↻ Revisiting #${revisitsRun}`);
       }
       if (baseline !== null) {
@@ -314,26 +323,6 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
       return lines.join("\n");
     },
   };
-}
-
-/**
- * Validates `asi.revisits_run`: must be a positive integer referencing an
- * earlier run. Returns null for new ideas and verification reruns.
- */
-function validRevisitsRun(
-  asi: Record<string, unknown> | undefined,
-  runNumber: number,
-): number | null {
-  const value = asi?.revisits_run;
-  if (
-    typeof value === "number" &&
-    Number.isInteger(value) &&
-    value > 0 &&
-    value < runNumber
-  ) {
-    return value;
-  }
-  return null;
 }
 
 function safeRead(p: string): string {

@@ -23,4 +23,50 @@ describe("buildRehydrationSummary", () => {
       rmSync(directory, { recursive: true });
     }
   });
+
+  it("includes revisit metadata in recent runs", () => {
+    const directory = mkdtempSync(join(tmpdir(), "autoresearch-prompt-"));
+    const autoDirectory = join(directory, ".auto");
+    mkdirSync(autoDirectory);
+    writeFileSync(
+      join(autoDirectory, "log.jsonl"),
+      [
+        JSON.stringify({
+          type: "config",
+          name: "test",
+          metricName: "time",
+          bestDirection: "lower",
+        }),
+        JSON.stringify({
+          run: 1,
+          commit: "aaaaaaa",
+          metric: 10,
+          metrics: {},
+          status: "discard",
+          description: "first attempt",
+          timestamp: 1,
+          segment: 0,
+          confidence: null,
+        }),
+        JSON.stringify({
+          run: 2,
+          commit: "bbbbbbb",
+          metric: 9,
+          metrics: {},
+          status: "keep",
+          description: "retry with changed assumptions",
+          timestamp: 2,
+          segment: 0,
+          confidence: null,
+          asi: { revisits_run: 1 },
+        }),
+      ].join("\n"),
+    );
+
+    try {
+      expect(buildRehydrationSummary(directory)).toContain("revisits: #1");
+    } finally {
+      rmSync(directory, { recursive: true });
+    }
+  });
 });
