@@ -172,6 +172,10 @@ function formatRunLine(run: ReconstructedRun, baseline: number | null): string {
   const head = `#${run.run} ${padStatus(run.status)} ${run.metric}${formatDelta(run.metric, baseline)}`;
   const parts = [head];
   if (run.description) parts.push(`desc: ${run.description}`);
+  const revisitsRun = run.asi?.revisits_run;
+  if (typeof revisitsRun === "number" && Number.isInteger(revisitsRun) && revisitsRun > 0) {
+    parts.push(`↻ Revisiting #${revisitsRun}`);
+  }
   if (run.asi) {
     for (const [key, label] of [
       ["hypothesis", "hyp"],

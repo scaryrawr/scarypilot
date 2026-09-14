@@ -103,6 +103,128 @@ describe("tool mode guards", () => {
   });
 });
 
+describe("log_experiment revisits_run", () => {
+  it("renders a badge and next-step nudge for a valid earlier run", async () => {
+    const cwd = mkTmp();
+    const runtime = defaultRuntimeState();
+    runtime.autoresearchMode = true;
+    try {
+      const tool = createLogTool({
+        cwdRef: createCwdRef(cwd),
+        runtime,
+        log: () => {},
+        onLogged: () => {},
+      });
+      if (!tool.handler) throw new Error("log_experiment must define a handler");
+
+      await tool.handler(
+        {
+          commit: "0000000",
+          metric: 10,
+          status: "discard",
+          description: "first attempt",
+          asi: { hypothesis: "test" },
+        },
+        invocation,
+      );
+      const result = await tool.handler(
+        {
+          commit: "0000000",
+          metric: 9,
+          status: "discard",
+          description: "retry after assumption changed",
+          asi: { hypothesis: "test", revisits_run: 1 },
+        },
+        invocation,
+      );
+
+      expect(result).toContain("↻ Revisiting #1");
+      expect(result).toContain("consider whether this result invalidates a previous discard");
+    } finally {
+      rmSync(cwd, { recursive: true });
+    }
+  });
+
+  it("rejects revisit references that do not identify an earlier run", async () => {
+    const cwd = mkTmp();
+    const runtime = defaultRuntimeState();
+    runtime.autoresearchMode = true;
+    try {
+      const tool = createLogTool({
+        cwdRef: createCwdRef(cwd),
+        runtime,
+        log: () => {},
+        onLogged: () => {},
+      });
+      if (!tool.handler) throw new Error("log_experiment must define a handler");
+
+      for (const revisitsRun of [0, 1, 1.5, "1"]) {
+        const result = await tool.handler(
+          {
+            commit: "0000000",
+            metric: 1,
+            status: "discard",
+            description: "invalid revisit",
+            asi: { hypothesis: "test", revisits_run: revisitsRun },
+          },
+          invocation,
+        );
+        expect(result).toContain(
+          "asi.revisits_run must be a positive integer referencing an earlier run",
+        );
+      }
+    } finally {
+      rmSync(cwd, { recursive: true });
+    }
+  });
+
+  it("rejects a missing run number even when earlier entries exist", async () => {
+    const cwd = mkTmp();
+    const runtime = defaultRuntimeState();
+    runtime.autoresearchMode = true;
+    try {
+      const logPath = autoresearchJsonlPath(cwd);
+      ensureParentDir(logPath);
+      writeFileSync(
+        logPath,
+        JSON.stringify({
+          run: 99,
+          commit: "0000000",
+          metric: 10,
+          metrics: {},
+          status: "discard",
+          description: "non-contiguous imported run",
+          segment: 0,
+        }),
+      );
+      const tool = createLogTool({
+        cwdRef: createCwdRef(cwd),
+        runtime,
+        log: () => {},
+        onLogged: () => {},
+      });
+      if (!tool.handler) throw new Error("log_experiment must define a handler");
+
+      const result = await tool.handler(
+        {
+          commit: "0000000",
+          metric: 9,
+          status: "discard",
+          description: "missing referenced run",
+          asi: { hypothesis: "test", revisits_run: 1 },
+        },
+        invocation,
+      );
+
+      expect(result).toContain(
+        "asi.revisits_run must be a positive integer referencing an earlier run",
+      );
+    } finally {
+      rmSync(cwd, { recursive: true });
+    }
+  });
+});
+
 describe("restoredMode", () => {
   it("honors explicit persisted decisions", () => {
     expect(restoredMode(false, true, false)).toBe(false);
