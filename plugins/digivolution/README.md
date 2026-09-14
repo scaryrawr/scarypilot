@@ -55,11 +55,11 @@ The extension registers typed session hooks through `@github/copilot-sdk`:
 1. `onUserPromptSubmitted` starts a fresh in-memory turn and detects only explicit, repository-specific corrections.
 2. `onPostToolUseFailure` records minimized operation fingerprints and failure categories.
 3. `onPostToolUse` correlates a changed successful operation with prior repo-local failures.
-4. `onAgentStop` requests one digivolution continuation when the current turn has qualifying evidence.
+4. `onAgentStop` requests one self-contained digivolution continuation when the current turn has qualifying evidence.
 
 Every handler requires the event's session ID to match the extension's joined primary session ID. Subagent events are ignored, and `onAgentStop` is additionally documented by the SDK as a top-level-agent event.
 
-The continuation is loop-safe: the extension claims the reflection before blocking, ignores its own continuation prompt, and allows any stop where `stopHookActive` is set. If hook processing is uncertain or fails, the turn ends normally.
+The continuation includes the reflection rules directly instead of asking the continuation turn to resolve and invoke the installed skill again. This avoids skill lookup failures in the stop-hook lifecycle. It is loop-safe: the extension claims the reflection before blocking, ignores its own continuation prompt, and allows any stop where `stopHookActive` is set. If hook processing is uncertain or fails, the turn ends normally.
 
 ## Resources
 
