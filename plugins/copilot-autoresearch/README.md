@@ -108,9 +108,18 @@ After 3+ experiments, the extension computes
 1.0–2.0× is above noise but marginal, <1.0× is within noise — re-run to
 confirm before keeping. Advisory only; never auto-discards.
 
+## Revisiting discards
+
+After each logged experiment, `log_experiment` reminds the agent to consider
+whether the latest result invalidates a previous discard's rollback reason.
+When retrying a discarded idea because an assumption changed, the agent sets
+`asi.revisits_run` to the earlier run number; the tool result and the live
+dashboard then show a `↻ Revisiting #N` badge. Verification reruns to resolve
+measurement noise are a separate case and don't set this field.
+
 ## Differences vs pi-autoresearch
 
-Parity is tracked against pi-autoresearch 1.7.0. The `.auto/` contract,
+Parity is tracked against pi-autoresearch 1.8.1. The `.auto/` contract,
 experiment lifecycle, benchmark and checks gates, iteration limits,
 failure guard, finalization workflow, and live browser reporting are preserved
 where Copilot exposes an equivalent extension API.

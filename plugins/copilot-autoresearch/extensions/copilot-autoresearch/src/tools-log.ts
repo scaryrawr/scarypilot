@@ -54,7 +54,7 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
   return {
     name: "log_experiment",
     description:
-      "Record an experiment result. On 'keep' it auto-runs `git add -A && git commit`. On 'discard'/'crash'/'checks_failed' it auto-reverts code changes (`.auto/**` and legacy autoresearch files are preserved). Computes a session confidence score after 3+ runs (best improvement / median absolute deviation). Always include the asi parameter — at minimum {\"hypothesis\": \"what you tried\"}; on discard/crash also rollback_reason and next_action_hint.",
+      "Record an experiment result. On 'keep' it auto-runs `git add -A && git commit`. On 'discard'/'crash'/'checks_failed' it auto-reverts code changes (`.auto/**` and legacy autoresearch files are preserved). Computes a session confidence score after 3+ runs (best improvement / median absolute deviation). Always include the asi parameter — at minimum {\"hypothesis\": \"what you tried\"}; on discard/crash also rollback_reason and next_action_hint. When retrying a previously discarded idea after its assumptions changed, set asi.revisits_run to that earlier run number and explain what changed in description.",
     parameters: {
       type: "object",
       properties: {
@@ -93,7 +93,7 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
           type: "object",
           additionalProperties: true,
           description:
-            "Actionable Side Information — free-form structured diagnostics. At minimum: hypothesis. On discard/crash: also rollback_reason and next_action_hint.",
+            "Actionable Side Information — free-form structured diagnostics. At minimum: hypothesis. On discard/crash: also rollback_reason and next_action_hint. Set revisits_run to the earlier run number (a positive integer) when this run retries a previously discarded idea after its assumptions changed; omit it for new ideas and verification reruns.",
         },
       },
       required: ["commit", "metric", "status", "description"],
@@ -177,6 +177,10 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
 
       const lines: string[] = [];
       lines.push(`Logged #${runNumber}: ${args.status} — ${args.description}`);
+      const revisitsRun = validRevisitsRun(newRun.asi, runNumber);
+      if (revisitsRun !== null) {
+        lines.push(`↻ Revisiting #${revisitsRun}`);
+      }
       if (baseline !== null) {
         let baselineLine = `Baseline ${before.metricName}: ${formatNum(baseline, before.metricUnit)}`;
         if (segCount > 1 && args.status === "keep" && args.metric > 0) {
@@ -297,6 +301,11 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
           `🛑 Maximum experiments reached (${maxIterations}). STOP the loop now.`,
         );
         ctx.runtime.autoresearchMode = false;
+      } else if (ctx.runtime.autoresearchMode) {
+        lines.push(
+          "",
+          "Before choosing the next experiment, consider whether this result invalidates a previous discard's rollback reason. If so, name what changed and weigh a targeted retry (set asi.revisits_run) against other candidates. Otherwise, move on — don't revive a discarded idea without a changed assumption. Verification reruns to resolve measurement noise are separate.",
+        );
       }
       savePersistedRuntime(workDir, invocation.sessionId, ctx.runtime);
 
@@ -307,6 +316,25 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
   };
 }
 
+/**
+ * Validates `asi.revisits_run`: must be a positive integer referencing an
+ * earlier run. Returns null for new ideas and verification reruns.
+ */
+function validRevisitsRun(
+  asi: Record<string, unknown> | undefined,
+  runNumber: number,
+): number | null {
+  const value = asi?.revisits_run;
+  if (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value > 0 &&
+    value < runNumber
+  ) {
+    return value;
+  }
+  return null;
+}
 
 function safeRead(p: string): string {
   try {
