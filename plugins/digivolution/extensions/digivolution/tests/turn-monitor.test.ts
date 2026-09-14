@@ -46,6 +46,17 @@ describe("isRepositoryCorrection", () => {
 });
 
 describe("TurnMonitor", () => {
+  it("provides a self-contained reflection prompt", () => {
+    expect(REFLECTION_PROMPT.toLowerCase()).not.toContain("digivolution");
+    expect(REFLECTION_PROMPT.toLowerCase()).not.toContain("skill");
+    expect(REFLECTION_PROMPT).toContain("Check existing guidance before editing");
+    expect(REFLECTION_PROMPT).toContain("use the narrowest relevant instruction surface");
+    expect(REFLECTION_PROMPT).toContain(
+      "Do not add generic advice, one-off task details, secrets, private data, or speculative preferences",
+    );
+    expect(REFLECTION_PROMPT).toContain("Make no change when there is no durable improvement");
+  });
+
   it("allows an ordinary turn", () => {
     const monitor = new TurnMonitor();
     monitor.start("Fix the typo in README.md.");

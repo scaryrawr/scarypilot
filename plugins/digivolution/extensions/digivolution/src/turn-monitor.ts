@@ -2,13 +2,16 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 
 export const REFLECTION_PROMPT =
-  "Run one digivolution review before finishing. Observable events in this turn " +
-  "may have revealed a durable repository-specific setup, validation, workflow, " +
-  "safety, convention, or instruction correction. Use the digivolution skill. " +
-  "Make a guidance change only when the fact is verified and useful to future " +
-  "agents; otherwise finish silently. Do not acknowledge this hook.";
+  "Run one repository-guidance review before finishing. Review whether this turn revealed " +
+  "a verified, durable repository-specific setup, validation, workflow, safety, " +
+  "convention, or instruction correction that would help future agents. Check " +
+  "existing guidance before editing, prefer correcting it over duplicating text, " +
+  "and use the narrowest relevant instruction surface. Do not add generic advice, " +
+  "one-off task details, secrets, private data, or speculative preferences. Make " +
+  "no change when there is no durable improvement; in that case finish silently. " +
+  "Do not acknowledge this hook.";
 
-const REFLECTION_PROMPT_PREFIX = "Run one digivolution review before finishing.";
+const REFLECTION_PROMPT_PREFIX = "Run one repository-guidance review before finishing.";
 const MAX_INSPECTED_TEXT = 8_192;
 
 const CORRECTION_PATTERNS = [
