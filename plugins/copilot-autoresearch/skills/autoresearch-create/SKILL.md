@@ -43,6 +43,9 @@ and report the median.
 - Keep primary-metric improvements; discard regressions or equal results.
 - Include useful `asi` on every run. On discard or crash, preserve the failed
   hypothesis, rollback reason, and next action because the code will disappear.
+  When retrying a discarded idea after its assumptions changed, set
+  `asi.revisits_run` to the earlier run number and explain what changed —
+  don't revive a discarded idea without a changed assumption.
 - Append deferred ideas to `.auto/ideas.md`.
 - Update `.auto/prompt.md` as durable knowledge accumulates.
 - Treat confidence as advisory: re-run improvements inside the noise floor.

@@ -58,6 +58,7 @@ export function buildDashboardHtml(
   .status-crash, .status-checks_failed { color: #cf222e; font-weight: 600; }
   .delta-good { color: #1f883d; }
   .delta-bad { color: #cf222e; }
+  .revisit-badge { color: #2f81f7; font-weight: 600; margin-top: 4px; }
   .chart { width: 100%; height: 220px; margin: 8px 0 24px; overflow: visible; }
   .chart .axis { stroke: color-mix(in srgb, currentColor 18%, transparent); }
   .chart .series { fill: none; stroke: #2f81f7; stroke-width: 2.5; }
@@ -165,13 +166,18 @@ function renderRunRow(
   const asi = run.asi
     ? `<details><summary>ASI</summary><pre>${escapeHtml(JSON.stringify(run.asi, null, 2))}</pre></details>`
     : "";
+  const revisitsRun = run.asi?.revisits_run;
+  const revisitBadge =
+    typeof revisitsRun === "number" && Number.isInteger(revisitsRun) && revisitsRun > 0
+      ? `<div class="revisit-badge">↻ Revisiting #${revisitsRun}</div>`
+      : "";
   return `<tr>
     <td>${run.run}</td>
     <td class="status-${escapeHtml(run.status)}">${escapeHtml(run.status)}</td>
     <td>${escapeHtml(formatNum(run.metric, state.metricUnit))}</td>
     <td class="${deltaClass}">${escapeHtml(delta.trim())}</td>
     ${secondaryCells}
-    <td>${escapeHtml(run.description)}${asi}</td>
+    <td>${escapeHtml(run.description)}${revisitBadge}${asi}</td>
     <td><code>${escapeHtml(run.commit)}</code></td>
   </tr>`;
 }

@@ -40,7 +40,8 @@ Legacy flat `autoresearch.*` files remain readable, but never create new ones.
 <Tests, types, output equivalence, dependency policy, and resource limits.>
 
 ## What's Been Tried
-<Wins, dead ends, measurements, and architectural conclusions.>
+<Wins, architectural insights, and discarded ideas: why they failed and what
+would justify revisiting them.>
 ```
 
 Update "What's Been Tried" when a result changes the search strategy. Record
