@@ -59,7 +59,7 @@ The extension registers typed session hooks through `@github/copilot-sdk`:
 
 Every handler requires the event's session ID to match the extension's joined primary session ID. Subagent events are ignored, and `onAgentStop` is additionally documented by the SDK as a top-level-agent event.
 
-The continuation includes the reflection rules directly instead of asking the continuation turn to resolve and invoke the installed skill again. This avoids skill lookup failures in the stop-hook lifecycle. It is loop-safe: the extension claims the reflection before blocking, ignores its own continuation prompt, and allows any stop where `stopHookActive` is set. If hook processing is uncertain or fails, the turn ends normally.
+The continuation includes the reflection rules directly and avoids the skill name and routing language instead of asking the continuation turn to resolve and invoke the installed skill again. This avoids skill lookup failures in the stop-hook lifecycle. It is loop-safe: the extension claims the reflection before blocking, ignores its own continuation prompt, and allows any stop where `stopHookActive` is set. If hook processing is uncertain or fails, the turn ends normally.
 
 ## Resources
 
