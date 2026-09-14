@@ -177,6 +177,52 @@ describe("log_experiment revisits_run", () => {
       rmSync(cwd, { recursive: true });
     }
   });
+
+  it("rejects a missing run number even when earlier entries exist", async () => {
+    const cwd = mkTmp();
+    const runtime = defaultRuntimeState();
+    runtime.autoresearchMode = true;
+    try {
+      const logPath = autoresearchJsonlPath(cwd);
+      ensureParentDir(logPath);
+      writeFileSync(
+        logPath,
+        JSON.stringify({
+          run: 99,
+          commit: "0000000",
+          metric: 10,
+          metrics: {},
+          status: "discard",
+          description: "non-contiguous imported run",
+          segment: 0,
+        }),
+      );
+      const tool = createLogTool({
+        cwdRef: createCwdRef(cwd),
+        runtime,
+        log: () => {},
+        onLogged: () => {},
+      });
+      if (!tool.handler) throw new Error("log_experiment must define a handler");
+
+      const result = await tool.handler(
+        {
+          commit: "0000000",
+          metric: 9,
+          status: "discard",
+          description: "missing referenced run",
+          asi: { hypothesis: "test", revisits_run: 1 },
+        },
+        invocation,
+      );
+
+      expect(result).toContain(
+        "asi.revisits_run must be a positive integer referencing an earlier run",
+      );
+    } finally {
+      rmSync(cwd, { recursive: true });
+    }
+  });
 });
 
 describe("restoredMode", () => {

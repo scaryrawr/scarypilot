@@ -160,7 +160,8 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
         (typeof revisitsRun !== "number" ||
           !Number.isInteger(revisitsRun) ||
           revisitsRun <= 0 ||
-          revisitsRun >= runNumber)
+          revisitsRun >= runNumber ||
+          !before.results.some((run) => run.run === revisitsRun))
       ) {
         return `❌ asi.revisits_run must be a positive integer referencing an earlier run; the current run is #${runNumber}.`;
       }

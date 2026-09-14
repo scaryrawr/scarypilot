@@ -64,7 +64,7 @@ describe("buildRehydrationSummary", () => {
     );
 
     try {
-      expect(buildRehydrationSummary(directory)).toContain("revisits: #1");
+      expect(buildRehydrationSummary(directory)).toContain("↻ Revisiting #1");
     } finally {
       rmSync(directory, { recursive: true });
     }
