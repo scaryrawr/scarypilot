@@ -25,7 +25,7 @@ const publicFiles = await walk(publicDirectory);
 if (publicFiles.length > 4) {
   throw new Error(`Expected a compact frontend bundle, found ${publicFiles.length} files`);
 }
-if (!publicFiles.some((file) => file.endsWith("/assets/app.js"))) {
+if (!publicFiles.includes(path.join(publicDirectory, "assets", "app.js"))) {
   throw new Error("Frontend entry bundle is missing");
 }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  azureCliInvocation,
   loadAzurePullRequest,
   publishReviewFindings,
   type AzureCliRunner,
@@ -10,6 +11,33 @@ import {
   insertReviewFinding,
   updateReviewState,
 } from "../src/review-state.ts";
+
+describe("azureCliInvocation", () => {
+  it("runs the Azure CLI executable directly on macOS and Linux", () => {
+    const args = ["repos", "pr", "show"];
+
+    expect(azureCliInvocation(args, "darwin")).toEqual({ file: "az", args });
+    expect(azureCliInvocation(args, "linux")).toEqual({ file: "az", args });
+  });
+
+  it("runs the Azure CLI command shim through the Windows command interpreter", () => {
+    expect(azureCliInvocation(
+      ["repos", "pr", "show"],
+      "win32",
+      "C:\\Windows\\System32\\cmd.exe",
+    )).toEqual({
+      file: "C:\\Windows\\System32\\cmd.exe",
+      args: ["/d", "/s", "/c", "az", "repos", "pr", "show"],
+    });
+  });
+
+  it("uses cmd.exe when ComSpec is unavailable on Windows", () => {
+    expect(azureCliInvocation([], "win32", "")).toEqual({
+      file: "cmd.exe",
+      args: ["/d", "/s", "/c", "az"],
+    });
+  });
+});
 
 describe("loadAzurePullRequest", () => {
   it("loads changed contents and builds a unified patch", async () => {

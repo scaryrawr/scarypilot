@@ -529,8 +529,9 @@ async function runAzureCli(
   args: string[],
   maxBuffer = MAX_AZ_OUTPUT_BYTES,
 ): Promise<{ stdout: string; stderr: string }> {
+  const invocation = azureCliInvocation(args);
   try {
-    return await execFileAsync("az", args, {
+    return await execFileAsync(invocation.file, invocation.args, {
       encoding: "utf8",
       env: { ...process.env, AZURE_CORE_ONLY_SHOW_ERRORS: "1" },
       maxBuffer,
@@ -547,6 +548,18 @@ async function runAzureCli(
         : String(error);
     throw new Error(`Azure CLI request failed: ${message || "unknown error"}`);
   }
+}
+
+export function azureCliInvocation(
+  args: string[],
+  platform = process.platform,
+  commandInterpreter = process.env.ComSpec,
+): { file: string; args: string[] } {
+  if (platform !== "win32") return { file: "az", args };
+  return {
+    file: commandInterpreter || "cmd.exe",
+    args: ["/d", "/s", "/c", "az", ...args],
+  };
 }
 
 function parsePullRequestDetails(value: unknown): PullRequestDetails {
