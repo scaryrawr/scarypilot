@@ -13,7 +13,9 @@ There is no root build or broad test suite.
 - `python3 -m json.tool .github/plugin/marketplace.json >/dev/null` validates marketplace edits.
 - After editing an agentic workflow, run `gh aw compile --strict` without a workflow name. Targeted compilation can leave repository-level generated defaults, such as failure-issue expiry, inconsistent across lock files.
 - After editing `external_plugins/pstack/` skills, metadata, provenance, or sync policy, run `node external_plugins/pstack/tools/pstack-sync.mjs check` and `node --test external_plugins/pstack/tools/pstack-sync.test.mjs`.
-- In an extension package, run `npm test` and `npm run typecheck`; `copilot-local-llm` also provides `npm run lint` and `npm run format:check`.
+- In a changed extension package, run its `npm test` and typecheck scripts. For `ado-codespaces` and `copilot-local-llm`, also run `npm run lint` and `npm run format:check`.
+- For `plugins/azure-devops/extensions/paired-review`, run `npm run build`, `npm run typecheck`, `npm run typecheck:frontend`, `npm test`, `npm run smoke:bundle`, and `npm run check:bundle`; commit the generated `dist/`, `public/`, and `bundle-manifest.json` artifacts.
+- For `plugins/copilot-autoresearch`, also run `bash plugins/copilot-autoresearch/skills/autoresearch-finalize/tests/finalize-smoke.sh`.
 - npm 12 blocks URL dependencies by default. When an existing extension manifest fails with `EALLOWREMOTE`, install with `npm install --allow-remote=all --no-package-lock`; do not treat the security default as a missing-dependency blocker or change registry configuration.
 - For skill trigger evals, run the skill-creator `scripts/run_eval.py` with `--num-workers 1`; higher concurrency can starve parallel `copilot` processes and report false failures.
 
@@ -23,7 +25,7 @@ Each plugin needs a `README.md` covering purpose, prerequisites, installation, u
 
 Bump the affected plugin's `plugin.json` version for any change to shipped plugin behavior or bundled content so installed users can detect an update. Use SemVer: patch for fixes, minor for backward-compatible features, and major for breaking changes. Do not bump for repository-only docs, tests, or development tooling. When an extension package mirrors the plugin version, keep its `package.json` version synchronized; independent extension package versions need not match. Preserve upstream-derived version suffixes such as pstack's `-copilot.N`.
 
-Bundled Node scripts must use explicit `.mjs` or `.cjs` extensions because the host repository's `package.json#type` is unknown. Prefer `.mjs`. Plugin hooks must reference bundled files through `${PLUGIN_ROOT}`. Use cross-platform `command` hooks when the invocation is identical on every OS, and use `os.tmpdir()` instead of `/tmp`.
+Bundled Node scripts must use explicit `.mjs` or `.cjs` extensions because the repository has no root `package.json` declaring a module type. Prefer `.mjs`. Use `os.tmpdir()` instead of `/tmp`.
 
 ## Testing and Safety
 
