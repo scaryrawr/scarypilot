@@ -14,7 +14,7 @@ There is no root build or broad test suite.
 - After editing an agentic workflow, run `gh aw compile --strict` without a workflow name. Targeted compilation can leave repository-level generated defaults, such as failure-issue expiry, inconsistent across lock files.
 - After editing `external_plugins/pstack/` skills, metadata, provenance, or sync policy, run `node external_plugins/pstack/tools/pstack-sync.mjs check` and `node --test external_plugins/pstack/tools/pstack-sync.test.mjs`.
 - In a changed extension package, run its `npm test` and typecheck scripts. For `ado-codespaces` and `copilot-local-llm`, also run `npm run lint` and `npm run format:check`.
-- For `plugins/azure-devops/extensions/paired-review`, run `npm run build`, `npm run typecheck`, `npm run typecheck:frontend`, `npm test`, `npm run smoke:bundle`, and `npm run check:bundle`; commit the generated `dist/` and `public/` artifacts.
+- For `plugins/azure-devops/extensions/paired-review`, run `npm run build`, `npm run typecheck`, `npm run typecheck:frontend`, `npm test`, `npm run smoke:bundle`, and `npm run check:bundle`; commit the generated `dist/`, `public/`, and `bundle-manifest.json` artifacts.
 - For `plugins/copilot-autoresearch`, also run `bash plugins/copilot-autoresearch/skills/autoresearch-finalize/tests/finalize-smoke.sh`.
 - npm 12 blocks URL dependencies by default. When an existing extension manifest fails with `EALLOWREMOTE`, install with `npm install --allow-remote=all --no-package-lock`; do not treat the security default as a missing-dependency blocker or change registry configuration.
 - For skill trigger evals, run the skill-creator `scripts/run_eval.py` with `--num-workers 1`; higher concurrency can starve parallel `copilot` processes and report false failures.
