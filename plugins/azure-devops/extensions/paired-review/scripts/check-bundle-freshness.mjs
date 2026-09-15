@@ -53,7 +53,8 @@ async function digestFiles(files) {
   return Object.fromEntries(
     await Promise.all(
       entries.map(async ({ absolutePath, relativePath }) => {
-        const digest = createHash("sha256").update(await readFile(absolutePath)).digest("hex");
+        const content = (await readFile(absolutePath, "utf8")).replace(/\r\n/g, "\n");
+        const digest = createHash("sha256").update(content).digest("hex");
         return [relativePath, digest];
       }),
     ),
