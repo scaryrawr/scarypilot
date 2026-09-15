@@ -41,12 +41,20 @@ if (mode === "write") {
 }
 
 async function digestFiles(files) {
+  const entries = files.map((file) => {
+    const absolutePath = path.isAbsolute(file) ? file : path.join(root, file);
+    return {
+      absolutePath,
+      relativePath: path.relative(root, absolutePath).split(path.sep).join("/"),
+    };
+  }).sort((left, right) =>
+    left.relativePath === right.relativePath ? 0 : left.relativePath < right.relativePath ? -1 : 1
+  );
   return Object.fromEntries(
     await Promise.all(
-      files.sort().map(async (file) => {
-        const absolutePath = path.isAbsolute(file) ? file : path.join(root, file);
-        const relativePath = path.relative(root, absolutePath);
-        const digest = createHash("sha256").update(await readFile(absolutePath)).digest("hex");
+      entries.map(async ({ absolutePath, relativePath }) => {
+        const content = (await readFile(absolutePath, "utf8")).replace(/\r\n/g, "\n");
+        const digest = createHash("sha256").update(content).digest("hex");
         return [relativePath, digest];
       }),
     ),

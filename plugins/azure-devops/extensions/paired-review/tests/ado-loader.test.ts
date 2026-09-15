@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  azureCliInvocation,
   loadAzurePullRequest,
   publishReviewFindings,
   type AzureCliRunner,
@@ -10,6 +11,49 @@ import {
   insertReviewFinding,
   updateReviewState,
 } from "../src/review-state.ts";
+
+describe("azureCliInvocation", () => {
+  it("runs the Azure CLI executable directly on macOS and Linux", async () => {
+    const args = ["repos", "pr", "show"];
+
+    await expect(azureCliInvocation(args, "darwin")).resolves.toEqual({ file: "az", args });
+    await expect(azureCliInvocation(args, "linux")).resolves.toEqual({ file: "az", args });
+  });
+
+  it("executes a Windows Azure CLI executable without a shell", async () => {
+    const args = ["devops", "invoke", "project=example&echo unsafe", "path=/%PATH%|more"];
+
+    await expect(azureCliInvocation(
+      args,
+      "win32",
+      async () => ["C:\\Tools\\az.exe"],
+    )).resolves.toEqual({ file: "C:\\Tools\\az.exe", args });
+  });
+
+  it("executes the Python bundled with the official Windows command shim", async () => {
+    const args = ["repos", "pr", "show"];
+
+    await expect(azureCliInvocation(
+      args,
+      "win32",
+      async () => ["C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.cmd"],
+      async (filePath) =>
+        filePath === "C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe",
+    )).resolves.toEqual({
+      file: "C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe",
+      args: ["-IBm", "azure.cli", ...args],
+    });
+  });
+
+  it("rejects unsupported Windows command shims instead of shelling out", async () => {
+    await expect(azureCliInvocation(
+      [],
+      "win32",
+      async () => ["C:\\Tools\\az.cmd"],
+      async () => false,
+    )).rejects.toThrow("Azure CLI for Windows was not found in a supported installation");
+  });
+});
 
 describe("loadAzurePullRequest", () => {
   it("loads changed contents and builds a unified patch", async () => {

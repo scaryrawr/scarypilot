@@ -1,7 +1,8 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { win32 as windowsPath } from "node:path";
 import { promisify } from "node:util";
 import { createTwoFilesPatch } from "diff";
 import {
@@ -530,7 +531,8 @@ async function runAzureCli(
   maxBuffer = MAX_AZ_OUTPUT_BYTES,
 ): Promise<{ stdout: string; stderr: string }> {
   try {
-    return await execFileAsync("az", args, {
+    const invocation = await azureCliInvocation(args);
+    return await execFileAsync(invocation.file, invocation.args, {
       encoding: "utf8",
       env: { ...process.env, AZURE_CORE_ONLY_SHOW_ERRORS: "1" },
       maxBuffer,
@@ -546,6 +548,47 @@ async function runAzureCli(
         ? error.message
         : String(error);
     throw new Error(`Azure CLI request failed: ${message || "unknown error"}`);
+  }
+}
+
+export function azureCliInvocation(
+  args: string[],
+  platform = process.platform,
+  findWindowsCommands: () => Promise<string[]> = findWindowsAzureCliCommands,
+  fileExists: (filePath: string) => Promise<boolean> = pathExists,
+): Promise<{ file: string; args: string[] }> {
+  if (platform !== "win32") return Promise.resolve({ file: "az", args });
+  return findWindowsCommands().then(async (commands) => {
+    const executable = commands.find((command) => [".exe", ".com"].includes(
+      windowsPath.extname(command).toLowerCase(),
+    ));
+    if (executable) return { file: executable, args };
+
+    for (const command of commands) {
+      if (windowsPath.extname(command).toLowerCase() !== ".cmd") continue;
+      const python = windowsPath.resolve(windowsPath.dirname(command), "..", "python.exe");
+      if (await fileExists(python)) {
+        return { file: python, args: ["-IBm", "azure.cli", ...args] };
+      }
+    }
+    throw new Error("Azure CLI for Windows was not found in a supported installation");
+  });
+}
+
+async function findWindowsAzureCliCommands(): Promise<string[]> {
+  const { stdout } = await execFileAsync("where.exe", ["az"], {
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  return stdout.split(/\r?\n/).map((command) => command.trim()).filter(Boolean);
+}
+
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath);
+    return true;
+  } catch {
+    return false;
   }
 }
 
