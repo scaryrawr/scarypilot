@@ -31,8 +31,8 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 
 ### Arm the program
 
-- [ ] State the protocol and this plan to the operator, then stop. Start execution only on her explicit go.
-- [ ] On her go, persist a decision-trail entry with this exact text. "<The plan path, the PR ids in order, the verification rule, who merges, and the done condition.>"
+- [ ] State the protocol and this plan to the operator, then stop. Start execution only on the operator's explicit go.
+- [ ] On the operator's go, persist a decision-trail entry with this exact text. "<The plan path, the PR ids in order, the verification rule, who merges, and the done condition.>"
 - [ ] Read these from the installed pstack plugin at program start. Re-read them at every tick.
   - [ ] `pstack/skills/poteto-mode/playbooks/<execution playbook>.md`
   - [ ] `pstack/skills/swarm/SKILL.md`

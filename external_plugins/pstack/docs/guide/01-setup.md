@@ -21,7 +21,9 @@ Run:
 /setup-pstack
 ```
 
-[`/setup-pstack`](../../skills/setup-pstack/SKILL.md) detects the models you have access to, shows you each role (code delegates, judgment, the review panels), and asks what you want. Answer the questions. It writes `$COPILOT_HOME/instructions/pstack-models.instructions.md`, a small rule every pstack skill reads.
+[`/setup-pstack`](../../skills/setup-pstack/SKILL.md) detects the models you have access to, asks for a reasoning budget, shows you each role (code delegates, judgment, the review panels), and asks what you want. Answer the questions. It writes `$COPILOT_HOME/instructions/pstack-models.instructions.md`, a small rule every pstack skill reads.
+
+The reasoning budget is `unlimited`, `large`, `medium`, or `small`. `unlimited` leaves every subagent's `reasoning_effort` at its own default. `large`, `medium`, and `small` set `reasoning_effort` to `xhigh`, `high`, or `medium` for every role that names an explicit model. A role left at `auto` or `inherit-parent` is unaffected, because it already runs on the parent chat model's own effort.
 
 You only override what you care about. A role with no line in the rule keeps the skill's default. To restore a default later, delete that role's line, or just run `/setup-pstack` again.
 

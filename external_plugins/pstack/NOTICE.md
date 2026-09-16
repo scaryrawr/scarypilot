@@ -5,12 +5,12 @@ This plugin is adapted from
 The adaptation originally imported upstream commit
 `46125561306434d8a1d7745d540d8932ab0cd2a2` and had included the compatible
 changes through upstream repository commit
-`7366ac128bdf95f45e6734f412b49a4031800169` (pstack version `0.15.1`). The
+`c1c0a32802223f4be824112dd83d33ad29a8b26c` (pstack version `0.15.2`). The
 last commit in that range that changes the `pstack/` subtree is
-`f8abeddd1862dc73704e3d719dd73df0d51b8c71`.
+`5bf2b1544db739998121a306340631963c2ff3de`.
 
 The reviewed range starts after
-`23a56e2dac2efd54788056db8eced26e371d7b5e`, the last upstream content commit
+`7366ac128bdf95f45e6734f412b49a4031800169`, the last upstream content commit
 included by the previous Copilot adaptation. The machine-readable boundary,
 ownership rules, and exclusions live in [`upstream-sync.json`](./upstream-sync.json).
 
@@ -46,6 +46,12 @@ ScaryPilot changed the integration layer for GitHub Copilot:
 - Added an executable sync checker that validates upstream provenance,
   exclusions, inventory, links, extension registration, and model-callable
   skill metadata.
+- Ported upstream's operator-neutral pronoun cleanup across the autopilot and
+  multi-phase-plan playbooks.
+- Added a `/setup-pstack` reasoning-budget question that maps to the Task
+  `reasoning_effort` argument for roles with an explicit model, mirroring
+  upstream's model-effort budget without depending on Cursor's model-slug
+  suffix convention.
 
 The upstream guide is included with Copilot-specific installation, agent,
 automation, path, and verification instructions. Cursor-only screenshots and
