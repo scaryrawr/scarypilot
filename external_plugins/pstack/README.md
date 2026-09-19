@@ -92,10 +92,14 @@ Copilot Task agents, scoped session history, background completion
 notifications, `.github/skills/`, and available browser, computer-use,
 terminal, and project verification tools.
 
-The native extension centralizes capability detection and deterministic state
-access. Host-controlled surfaces such as Task agents, session history, browser
-automation, MCP tools, and App sidebar state remain conditional until the host
-proves they are available.
+The native extension centralizes capability detection, deterministic state
+access, and the experimental read-only `pstack-swarm` factory. The extension
+registers a non-invocable factory worker limited to read and search tools. The
+`swarm` skill keeps its existing Task-agent flow as a compatibility fallback
+and for all writing work, where separate worktrees remain mandatory.
+Host-controlled surfaces such as Task agents, factories, session history,
+browser automation, MCP tools, and App sidebar state remain conditional until
+the host proves they are available.
 
 Cursor's `automations/benny` pack is not included because Copilot plugins do
 not provide the Cursor Automations runtime. See [`NOTICE.md`](./NOTICE.md) for

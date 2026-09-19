@@ -1,6 +1,7 @@
 import { joinSession } from "@github/copilot-sdk/extension";
 import { createPstackCommand } from "./command.ts";
 import { createCwdRef } from "./extension-context.ts";
+import { pstackFactories, pstackFactoryAgents } from "./factories/index.ts";
 import { handoffAdditionalContext } from "./handoff.ts";
 import { createPstackService } from "./service.ts";
 import { createCapabilitiesTool } from "./tools/capabilities.ts";
@@ -53,5 +54,7 @@ const session = await joinSession({
     createHandoffTool(service),
   ],
   commands: [command],
+  customAgents: pstackFactoryAgents,
+  factories: pstackFactories,
 });
 sessionRef = session;
