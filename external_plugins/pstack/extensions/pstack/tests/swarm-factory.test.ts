@@ -101,18 +101,24 @@ describe("pstack-swarm factory", () => {
     );
   });
 
-  it("normalizes the auto model alias to host-selected routing", () => {
+  it("normalizes host-selected model aliases", () => {
     expect(
       parseSwarmArgs({
         ...args(),
         workers: [
           { id: "api", brief: "Inspect API callers.", model: "auto" },
-          { id: "tests", brief: "Inspect behavioral tests.", model: "gpt-5.4" },
+          {
+            id: "tests",
+            brief: "Inspect behavioral tests.",
+            model: "inherit-parent",
+          },
+          { id: "docs", brief: "Inspect documentation.", model: "gpt-5.4" },
         ],
       }).workers,
     ).toEqual([
       { id: "api", brief: "Inspect API callers." },
-      { id: "tests", brief: "Inspect behavioral tests.", model: "gpt-5.4" },
+      { id: "tests", brief: "Inspect behavioral tests." },
+      { id: "docs", brief: "Inspect documentation.", model: "gpt-5.4" },
     ]);
   });
 

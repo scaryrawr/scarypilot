@@ -136,7 +136,10 @@ export function parseSwarmArgs(value: JsonValue): SwarmArgs {
       worker.model === undefined
         ? undefined
         : requireNonEmptyString(worker.model, `workers[${index}].model`);
-    const model = requestedModel === "auto" ? undefined : requestedModel;
+    const model =
+      requestedModel === "auto" || requestedModel === "inherit-parent"
+        ? undefined
+        : requestedModel;
     return {
       id,
       brief: requireNonEmptyString(worker.brief, `workers[${index}].brief`),
