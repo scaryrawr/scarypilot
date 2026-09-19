@@ -2,7 +2,7 @@
   "version": 1,
   "inputs": {
     "index.html": "082572d9dc35ccb5e6f0e89bd379ba8565235822b465a26f9f701f04253abfa4",
-    "package.json": "87e7155a952b2fe4715c114c93e9f6f0643c27ff24cc8db22868178e8254d5cc",
+    "package.json": "59c6bd5bbb87f427c6cb113a67838d19995f085befa9583e4430a950ace7ea08",
     "src/ado-loader.ts": "41c96d1b9c8cc9aa0ff61275298e304e5b598a80ad7a34ff40a23667e8cb74b2",
     "src/client/ChangedFileTree.tsx": "aee516f53edc6f05b38f242732e4537816ac8f563a65d452630fc902a9c430d5",
     "src/client/file-tree-interaction.ts": "538ceb7cfced9e13e6f6c57e6a4b23564e7db127b64a3a1da8d5162b2d6aa24e",
@@ -21,7 +21,7 @@
   },
   "outputs": {
     "dist/extension.mjs": "581a4a0070508873facdbedbe05aaacc7514d07d01d77fbb0124bd7b1d61c501",
-    "public/assets/app.js": "9d48e50df479eb91a6bc9a9dec9e4bdd0d9166d0ce1a9261466c3a55593af3b2",
+    "public/assets/app.js": "7979f6868e39b9da4a6994a001fad5060a15a9bd31610c15230d08e46cd18834",
     "public/assets/index.css": "c8d2b32c4be48d4feb2595eb4c4705afbfb9e7482ae1c7b6a7b257652ed0181e",
     "public/index.html": "d31fab13763f3ac9a17295d810e9bf9f8df7f2a77f68896f6cb057b3e95c53ad"
   }

@@ -40,6 +40,10 @@
     "should_trigger": true
   },
   {
+    "query": "Let's review https://dev.azure.com/contoso/Platform/_git/api/pullrequest/4821. Do not leave comments without asking me first. Make a local table of issues and concerns so we can discuss whether to post anything or sign off.",
+    "should_trigger": true
+  },
+  {
     "query": "Find the active work items assigned to me in Azure Boards.",
     "should_trigger": true
   },

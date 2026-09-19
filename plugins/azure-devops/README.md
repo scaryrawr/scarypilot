@@ -70,6 +70,17 @@ Start the paired-review canvas with an Azure DevOps pull request URL:
 /paired-review https://dev.azure.com/example/project/_git/repo/pullrequest/4821
 ```
 
+You can also ask naturally for a private review:
+
+```text
+Let's review https://dev.azure.com/example/project/_git/repo/pullrequest/4821.
+Keep findings local and ask me before posting anything.
+```
+
+Private, conversational review prompts route to the paired-review canvas instead
+of the checkout-and-comment workflow. The agent inspects the canvas-loaded
+changes, keeps findings local, and summarizes concerns for discussion.
+
 The command opens a localhost-only canvas and the extension loads pull request
 metadata, changed paths, file contents, and existing inline review threads through
 the authenticated Azure CLI.

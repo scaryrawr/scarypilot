@@ -1,1 +1,2 @@
 .github/workflows/*.lock.yml linguist-generated=true
+plugins/azure-devops/extensions/paired-review/public/assets/app.js -whitespace linguist-generated=true

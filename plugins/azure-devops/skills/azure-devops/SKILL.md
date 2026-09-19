@@ -1,7 +1,10 @@
 ---
 name: azure-devops
-description: Use for performing Azure DevOps work — create, inspect, review, comment on, vote on, or manage pull requests; find, query, create, update, and link Azure Boards work items (including building WIQL queries); parse and route dev.azure.com or *.visualstudio.com URLs; and upload PNG/image/file attachments to pull requests. Triggers on Azure DevOps / ADO / Azure Boards links or action requests such as "make an ADO PR", "review this Azure DevOps PR", or "find work items assigned to me". Not for general conceptual explanations that do not act on a specific Azure DevOps resource, and not for GitHub, Jira, or other non-Azure-DevOps tools.
+description: Use for performing Azure DevOps work — privately pair-review or discuss pull requests in the local canvas; create, inspect, review, comment on, vote on, or manage pull requests; find, query, create, update, and link Azure Boards work items (including building WIQL queries); parse and route dev.azure.com or *.visualstudio.com URLs; and upload PNG/image/file attachments to pull requests. Triggers on Azure DevOps / ADO / Azure Boards links or action requests such as "make an ADO PR", "review this Azure DevOps PR without posting", or "find work items assigned to me". Not for general conceptual explanations that do not act on a specific Azure DevOps resource, and not for GitHub, Jira, or other non-Azure-DevOps tools.
 allowed-tools: >-
+  list_canvas_capabilities
+  open_canvas
+  invoke_canvas_action
   Bash(uv run ./scripts/ado-cli.py:*)
   Bash(uv run ./scripts/ado-pr.py:*)
   Bash(uv run ./scripts/review-pr.py:*)
@@ -16,6 +19,26 @@ One skill for every Azure DevOps task. This file is the router: read only the
 reference for the task at hand, then drive the matching helper script. Supported
 hosts are `dev.azure.com` and `*.visualstudio.com`.
 
+## Route private reviews to paired review
+
+When the user provides a full Azure DevOps pull request URL and asks to review,
+discuss, make a local issue table, keep findings private, avoid comments, or ask
+before posting, use the `azure-devops-paired-review` canvas before any helper or
+raw Azure CLI command:
+
+1. Inspect the canvas capabilities, then open it with the pull request URL and a
+   stable instance ID derived from the pull request ID.
+2. Use `list_review_files` and bounded `get_review_file_lines` calls to inspect
+   every changed file. Create local findings only for high-confidence defects.
+3. Summarize findings and concerns in chat for discussion. Keep them local.
+4. Never invoke `publish_review_findings` unless the user explicitly approves
+   the specific publication after reviewing the local findings.
+
+The canvas extension owns authenticated Azure DevOps loading for this route. Do
+not separately run eligibility, checkout, policy, thread, or other Azure CLI
+commands unless the canvas is unavailable or reports a load failure. If falling
+back, preserve the user's no-write constraint and surface the fallback clearly.
+
 ## Route by use case
 
 Match the user's intent to a row, read that reference **on demand**, then run its
@@ -25,7 +48,7 @@ helper. Do not read references you do not need.
 | --- | --- | --- |
 | Create a PR from current changes (incl. draft) | `references/make-pr.md` | `scripts/make-pr.py` |
 | Inspect or manage an existing PR (status, threads, votes, checkout) | `references/pr.md` | `scripts/ado-pr.py` |
-| Review a PR and post inline findings + labels | `references/review-pr.md` | `scripts/review-pr.py` |
+| Review a PR with permission to post inline findings + labels | `references/review-pr.md` | `scripts/review-pr.py` |
 | Find, query (WIQL), create, update, or link Azure Boards work items | `references/work-items.md` | `scripts/ado-work-items.py` |
 | Parse/route an ADO URL, or upload a PR attachment | (this file) | `scripts/ado-cli.py` |
 
