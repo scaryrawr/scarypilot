@@ -5,7 +5,9 @@ description: "Fan out N parallel workers, drain them, and return one report. Use
 
 # Swarm
 
-Fan out N parallel Task workers. They may cover separate slices, race the same brief, or mix both. The parent waits, aggregates, and returns one report.
+Fan out N parallel workers. Read-only swarms use the native `pstack-swarm`
+factory when `run_factory` is available. Writing swarms keep the isolated Task
+worker flow because factory concurrency does not provide workspace isolation.
 
 ## Start
 
@@ -30,7 +32,37 @@ Open a todolist with one entry per phase before launching anything.
 
 ## Phase B: Fan out
 
-Spawn all N workers in one message with `agent_type: "general-purpose"` and `mode: "background"`. Pass the configured model unless it is absent or set to `auto`.
+For a read-only swarm, call `run_factory` once with name `pstack-swarm` and:
+
+```json
+{
+  "schemaVersion": 1,
+  "objective": "the overall goal",
+  "donePredicate": "the exact completion condition",
+  "aggregation": "coverage",
+  "workers": [
+    { "id": "api", "brief": "inspect API behavior" },
+    { "id": "tests", "brief": "inspect behavioral coverage" }
+  ]
+}
+```
+
+The first factory contract supports read-only coverage swarms only. Races,
+mixed swarms, and all writing work use the legacy flow below. Include the
+configured model on each worker only when it is present and not `auto`. The
+factory accepts 2-8 workers. Its workers are read-only and must not invoke
+factories.
+
+If `run_factory` is unavailable, excluded by the active model, returns a
+failed run, or completes with `status: "blocked"`, use the legacy flow below
+from the beginning. Report a `partial` result with its explicit gaps instead
+of replaying completed workers. A read-only factory run may fall back once
+because it cannot leave partial repository writes.
+
+For a writing swarm, do not call the factory. Spawn all N workers in one
+message with `agent_type: "general-purpose"` and `mode: "background"`. Pass the
+configured model unless it is absent or set to `auto`. Never replay or
+automatically fall back after a writing worker may have changed files.
 
 Every brief stands alone. Include the goal, scope, exact slice or race arm, how to verify, and what to report. Reports use `PASS`, `ISSUES`, or `BLOCKED` with evidence.
 

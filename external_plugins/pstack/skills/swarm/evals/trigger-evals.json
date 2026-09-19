@@ -1,0 +1,26 @@
+[
+  {
+    "query": "Swarm this read-only audit across API, UI, tests, and documentation.",
+    "should_trigger": true
+  },
+  {
+    "query": "Use /swarm to have three workers inspect separate parts of this migration and consolidate the evidence.",
+    "should_trigger": true
+  },
+  {
+    "query": "Run several independent implementations in isolated worktrees and report the combined result.",
+    "should_trigger": true
+  },
+  {
+    "query": "Explain how this single function works.",
+    "should_trigger": false
+  },
+  {
+    "query": "Review this small diff yourself and list any bugs.",
+    "should_trigger": false
+  },
+  {
+    "query": "Generate one image from this prompt.",
+    "should_trigger": false
+  }
+]
