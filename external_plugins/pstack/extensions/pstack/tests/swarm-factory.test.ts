@@ -101,6 +101,21 @@ describe("pstack-swarm factory", () => {
     );
   });
 
+  it("normalizes the auto model alias to host-selected routing", () => {
+    expect(
+      parseSwarmArgs({
+        ...args(),
+        workers: [
+          { id: "api", brief: "Inspect API callers.", model: "auto" },
+          { id: "tests", brief: "Inspect behavioral tests.", model: "gpt-5.4" },
+        ],
+      }).workers,
+    ).toEqual([
+      { id: "api", brief: "Inspect API callers." },
+      { id: "tests", brief: "Inspect behavioral tests.", model: "gpt-5.4" },
+    ]);
+  });
+
   it("uses deterministic labels and versioned aggregate keys", () => {
     expect(workerLabel("api")).toBe("pstack-swarm:v1:api");
     expect(aggregateStepKey()).toBe("pstack-swarm/v1/aggregate");

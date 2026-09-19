@@ -132,10 +132,11 @@ export function parseSwarmArgs(value: JsonValue): SwarmArgs {
     if (seen.has(id)) throw new Error(`duplicate worker id: ${id}`);
     seen.add(id);
 
-    const model =
+    const requestedModel =
       worker.model === undefined
         ? undefined
         : requireNonEmptyString(worker.model, `workers[${index}].model`);
+    const model = requestedModel === "auto" ? undefined : requestedModel;
     return {
       id,
       brief: requireNonEmptyString(worker.brief, `workers[${index}].brief`),
