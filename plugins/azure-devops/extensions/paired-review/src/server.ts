@@ -349,7 +349,11 @@ async function readJsonBody(request: IncomingMessage): Promise<JsonValue> {
 
 class InvalidJsonError extends Error {}
 
-function respondJson<Value>(response: ServerResponse, status: number, value: Value): void {
+function respondJson<ResponseValue>(
+  response: ServerResponse,
+  status: number,
+  value: ResponseValue,
+): void {
   response.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",

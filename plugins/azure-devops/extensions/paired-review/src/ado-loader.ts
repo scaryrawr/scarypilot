@@ -645,14 +645,13 @@ async function runAzureCli(
       windowsHide: true,
     });
   } catch (error) {
-    if (
-      Value.Check(JsonObjectSchema, error) &&
-      error.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER"
-    ) {
+    const errorRecord = isObjectRecord(error) ? error : undefined;
+
+    if (errorRecord?.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") {
       throw new AzureResponseTooLargeError(maxBuffer);
     }
 
-    const stderr = Value.Check(JsonObjectSchema, error) ? stringAt(error, "stderr") : undefined;
+    const stderr = typeof errorRecord?.stderr === "string" ? errorRecord.stderr : undefined;
 
     const message = stderr
       ? stderr.trim()
@@ -904,6 +903,10 @@ function numberAt(value: JsonObject, key: string): number | undefined {
 
 function isRecord(value: JsonValue | undefined): value is JsonObject {
   return Value.Check(JsonObjectSchema, value);
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 function stripRef(value: string | undefined): string | undefined {
