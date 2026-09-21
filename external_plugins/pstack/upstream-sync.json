@@ -10,6 +10,7 @@
   },
   "localVersion": "0.15.1-copilot.13",
   "requiredSkills": [
+    "anti-slop",
     "how",
     "why",
     "unslop",
@@ -87,6 +88,7 @@
   "copilotOwnedPaths": [
     "contracts",
     "extensions",
+    "skills/anti-slop",
     "skills/deslop",
     "skills/pstack-schema-validate",
     "NOTICE.md",

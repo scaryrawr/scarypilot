@@ -7,9 +7,9 @@ planning, delegation, review, and verification.
 
 ## What this plugin provides
 
-- 48 Agent Skills, including `poteto-mode`, `how`, `why`, `architect`,
-  `arena`, `swarm`, `interrogate`, `tdd`, `deslop`, `unslop`, and the pstack
-  principles.
+- 49 Agent Skills, including `poteto-mode`, `how`, `why`, `architect`,
+  `arena`, `swarm`, `interrogate`, `tdd`, `anti-slop`, `deslop`, `unslop`,
+  and the pstack principles.
 - The `poteto-agent` and `comment-sicko` custom agents.
 - Native `pstack_status`, capability, plan-validation, verification-receipt,
   handoff, and worktree-inspection tools plus the `/pstack` command.
@@ -49,6 +49,7 @@ Invoke a focused skill:
 /how explain how authentication flows through this repository
 /architect design the boundary for this new cache
 /interrogate stress-test this diff
+/anti-slop repair the type boundaries in this module
 /unslop tighten this PR description
 ```
 

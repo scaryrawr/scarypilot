@@ -1,11 +1,15 @@
 ---
 name: deslop
-description: Remove AI-generated code slop and clean up code style
+description: Remove AI-generated code slop and clean up code style. Applies anti-slop to changed TypeScript and JavaScript as part of the same pass.
 ---
 
 # Remove AI code slop
 
 Check the diff against main and remove AI-generated slop introduced in the branch.
+
+For changed TypeScript and JavaScript files, run the **anti-slop** skill first.
+Carry its type-evidence and boundary findings into this cleanup pass rather
+than treating type precision as a separate review.
 
 ## Focus Areas
 

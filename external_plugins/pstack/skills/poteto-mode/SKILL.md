@@ -14,13 +14,14 @@ Remaining triggers:
 - Nontrivial change, architecture decision, or "are we sure?" → the **how** skill.
 - About to `ask_user` on a "which approach", "how should I", or "what should this do" fork → classify it before you ask. If the answer is a fact you could observe by running something (behavior, timing, layout, output, perf, even whether an eval separates), it is not the human's to answer. Sketch it via the Prototype playbook (`playbooks/prototype.md`) and let the result decide. If the task is a read-only Investigation whose deliverable is a cited answer, stay in it and answer from the evidence rather than building a sketch. Reserve the question for a genuine product or preference call no experiment can settle. The ask is the slow path. A throwaway probe usually answers faster, and it hands the human a result to react to instead of a decision to make.
 - Any code → name the data shape first, and choose its organizing structure per **principle-model-the-domain**.
+- TypeScript or JavaScript → apply the **anti-slop** skill to preserve type evidence and fix ambiguity at real boundaries.
 - Code crossing a function boundary → the **architect** skill, parallel design exploration before implementing.
 - Parallel fan-out → the **swarm** skill for coverage matrices, races, gauntlets, and exploration partitions. Use **arena** for design or code bakeoffs with base selection and grafting.
 - Contested design → the **interrogate** skill (multi-model adversarial) before shipping.
 - Nontrivial multi-step → write the throughput checkpoint (Feature step 3).
 - Any prose surface → the **unslop** skill. Your reply is a prose surface; write it per **Writing the reply**. Skill edits also follow the Authoring a skill playbook.
 - Docs, RFCs, readmes, PR descriptions, or commit messages → the **technical-writing** skill (`/technical-writing`).
-- Before commit → the **unslop** skill over prose and the repository's existing formatter or linter over code.
+- Before commit → the **deslop** skill over code, which includes **anti-slop** for TypeScript and JavaScript. Apply **unslop** to prose and run the repository's existing formatter or linter.
 - Before review → the **no-comments** skill (`/no-comments`).
 - Shipping UI / IDE / CLI → the project's verification skill or the available browser, computer-use, terminal, or shell tools. For bug fixes, reproduce first on the same surface yourself; hand to the user only under the narrow Bug fix step 1 exception.
 - Host-dependent workflow → call `pstack_capabilities` when available. Treat `unknown` as unavailable until the current Copilot host proves otherwise. Never infer Task agents, session history, browser automation, MCP tools, Graphite, or App sidebar state from another session.
