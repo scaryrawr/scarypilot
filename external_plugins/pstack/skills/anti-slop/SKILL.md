@@ -17,6 +17,9 @@ repository configuration unless the user asks for repository enforcement.
 For a quick read-only pass in a repository that has not installed Anti-Slop,
 run:
 
+Resolve `scripts/scan.mjs` relative to this skill directory while keeping the
+shell working directory at the repository being scanned.
+
 ```bash
 node scripts/scan.mjs [paths...]
 ```
