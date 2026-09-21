@@ -1,5 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
+import { Type } from "@sinclair/typebox";
+import { Value } from "@sinclair/typebox/value";
 import {
   openStore,
   type LedgerEntry,
@@ -22,6 +24,40 @@ export interface RecordReceiptInput {
   readonly evidence: readonly EvidenceItem[];
   readonly supersedesReceiptId?: string;
 }
+
+const EvidenceSchema = Type.Union([
+  Type.Object({
+    kind: Type.Literal("file"),
+    value: Type.String(),
+    digest: Type.Optional(Type.String()),
+  }),
+  Type.Object({
+    kind: Type.Literal("command"),
+    value: Type.String(),
+    digest: Type.Optional(Type.String()),
+  }),
+  Type.Object({ kind: Type.Literal("link"), value: Type.String() }),
+  Type.Object({ kind: Type.Literal("note"), value: Type.String() }),
+]);
+
+const VerificationReceiptSchema = Type.Object({
+  schemaVersion: Type.Literal(1),
+  receiptId: Type.String(),
+  pr: Type.Integer({ minimum: 1 }),
+  sha: Type.String(),
+  verdict: Type.Union([
+    Type.Literal("live-ui-verified"),
+    Type.Literal("unit-test-verified"),
+    Type.Literal("type-check-only"),
+    Type.Literal("verifier-blocked"),
+    Type.Literal("verifier-failed"),
+  ]),
+  verifier: Type.String(),
+  summary: Type.String(),
+  evidence: Type.Array(EvidenceSchema),
+  createdAt: Type.String(),
+  supersedesReceiptId: Type.Optional(Type.String()),
+});
 
 function receiptIdentity(input: RecordReceiptInput): string {
   return sha256(
@@ -49,36 +85,49 @@ export async function recordVerificationReceipt(
   input: RecordReceiptInput,
 ): Promise<{ readonly receipt: VerificationReceiptV1; readonly path: string; readonly ledger: LedgerEntry }> {
   if (!Number.isInteger(input.pr) || input.pr < 1) throw new Error("PR must be a positive integer");
+
   if (!input.sha.trim() || !input.verifier.trim() || !input.summary.trim()) {
     throw new Error("SHA, verifier, and summary are required");
   }
+
   if (input.evidence.length === 0 || input.evidence.some((item) => !item.value.trim())) {
     throw new Error("at least one non-empty evidence item is required");
   }
+
   if (
     input.supersedesReceiptId !== undefined &&
     !/^[a-f0-9]{20}$/.test(input.supersedesReceiptId)
   ) {
     throw new Error("supersedes receipt ID must be 20 lowercase hexadecimal characters");
   }
+
   const storeDir = resolve(input.storeDir);
   const receiptId = receiptIdentity(input);
   const path = join(storeDir, "receipts", String(input.pr), input.sha, `${receiptId}.json`);
+
   const current = (await readOrchStore(storeDir)).projection?.ledger.find(
     (entry) => entry.pr === String(input.pr) && entry.sha === input.sha,
   );
+
   const currentToken = current ? supersessionToken(current.evidence) : null;
+
   if (current && currentToken !== receiptId && input.supersedesReceiptId !== currentToken) {
     throw new Error(
       `PR ${input.pr} at ${input.sha} already has receipt ${currentToken}; pass supersedes_receipt_id to replace it`,
     );
   }
+
   let receipt: VerificationReceiptV1;
+
   try {
-    receipt = JSON.parse(await readFile(path, "utf8")) as VerificationReceiptV1;
+    receipt = Value.Parse(
+      VerificationReceiptSchema,
+      JSON.parse(await readFile(path, "utf8")),
+    );
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    receipt = {
+    if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
+
+    const created: VerificationReceiptV1 = {
       schemaVersion: 1,
       receiptId,
       pr: input.pr,
@@ -88,14 +137,20 @@ export async function recordVerificationReceipt(
       summary: input.summary.trim(),
       evidence: input.evidence,
       createdAt: new Date().toISOString(),
-      ...(input.supersedesReceiptId ? { supersedesReceiptId: input.supersedesReceiptId } : {}),
     };
+
+    receipt = input.supersedesReceiptId
+      ? { ...created, supersedesReceiptId: input.supersedesReceiptId }
+      : created;
+
     await writeJsonAtomic(path, receipt);
   }
 
   const store = openStore(storeDir);
+
   try {
     const evidence = relative(storeDir, path).split("\\").join("/");
+
     const ledger = await store.ledger.record({
       pr: input.pr,
       sha: input.sha,
@@ -104,6 +159,7 @@ export async function recordVerificationReceipt(
       verifier: input.verifier,
       expectedEvidence: current?.evidence ?? null,
     });
+
     return { receipt, path, ledger };
   } finally {
     await store.close();

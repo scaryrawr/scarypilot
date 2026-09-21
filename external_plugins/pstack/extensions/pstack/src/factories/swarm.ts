@@ -4,85 +4,99 @@ import {
   type FactoryJsonSchema,
   type JsonValue,
 } from "@github/copilot-sdk/extension";
+import { Type, type Static } from "@sinclair/typebox";
+import { Value } from "@sinclair/typebox/value";
 
 const CONTRACT_VERSION = 1;
+
 const MIN_WORKERS = 2;
+
 const MAX_WORKERS = 8;
+
 const SWARM_WORKER_AGENT = "pstack-swarm-worker";
 
-type SwarmAggregation = "coverage";
-type WorkerStatus = "PASS" | "ISSUES" | "BLOCKED";
+const JsonValueSchema = Type.Recursive((self) =>
+  Type.Union([
+    Type.Boolean(),
+    Type.Null(),
+    Type.Number(),
+    Type.String(),
+    Type.Array(self),
+    Type.Record(Type.String(), self),
+  ]),
+);
 
-type SwarmWorker = {
-  id: string;
-  brief: string;
-  model?: string;
-};
+const StringSchema = Type.String();
 
-export type SwarmArgs = {
-  schemaVersion: 1;
-  objective: string;
-  donePredicate: string;
-  aggregation: SwarmAggregation;
-  workers: SwarmWorker[];
-};
-
-type WorkerReport = {
-  status: WorkerStatus;
-  summary: string;
-  evidence: string[];
-};
-
-type SwarmWorkerResult = WorkerReport & {
-  id: string;
-};
-
-export type SwarmResult = {
-  schemaVersion: 1;
-  status: "complete" | "partial" | "blocked";
-  objective: string;
-  aggregation: SwarmAggregation;
-  workers: SwarmWorkerResult[];
-  gaps: string[];
-};
-
-const workerReportSchema: FactoryJsonSchema = {
-  type: "object",
-  required: ["status", "summary", "evidence"],
-  properties: {
-    status: { type: "string", enum: ["PASS", "ISSUES", "BLOCKED"] },
-    summary: { type: "string" },
-    evidence: { type: "array", items: { type: "string" } },
+const SwarmWorkerSchema = Type.Object(
+  {
+    id: Type.String(),
+    brief: Type.String(),
+    model: Type.Optional(Type.String()),
   },
-};
+  { additionalProperties: false },
+);
 
-const argsSchema: FactoryJsonSchema = {
-  type: "object",
-  required: ["schemaVersion", "objective", "donePredicate", "aggregation", "workers"],
-  properties: {
-    schemaVersion: { const: CONTRACT_VERSION },
-    objective: { type: "string" },
-    donePredicate: { type: "string" },
-    aggregation: { const: "coverage" },
-    workers: {
-      type: "array",
-      items: {
-        type: "object",
-        required: ["id", "brief"],
-        properties: {
-          id: { type: "string" },
-          brief: { type: "string" },
-          model: { type: "string" },
-        },
-      },
-    },
+const argsSchema = Type.Object(
+  {
+    schemaVersion: Type.Literal(CONTRACT_VERSION),
+    objective: Type.String(),
+    donePredicate: Type.String(),
+    aggregation: Type.Literal("coverage"),
+    workers: Type.Array(SwarmWorkerSchema),
   },
-};
+  { additionalProperties: false },
+) satisfies FactoryJsonSchema;
 
-function requireNonEmptyString(value: unknown, field: string): string {
-  if (typeof value !== "string" || value.trim() === "") {
+const workerReportSchema = Type.Object({
+  status: Type.Union([
+    Type.Literal("PASS"),
+    Type.Literal("ISSUES"),
+    Type.Literal("BLOCKED"),
+  ]),
+  summary: Type.String(),
+  evidence: Type.Array(Type.String()),
+}) satisfies FactoryJsonSchema;
+
+const SwarmWorkerResultSchema = Type.Object({
+  id: Type.String(),
+  status: Type.Union([
+    Type.Literal("PASS"),
+    Type.Literal("ISSUES"),
+    Type.Literal("BLOCKED"),
+  ]),
+  summary: Type.String(),
+  evidence: Type.Array(Type.String()),
+});
+
+const SwarmResultSchema = Type.Object({
+  schemaVersion: Type.Literal(CONTRACT_VERSION),
+  status: Type.Union([
+    Type.Literal("complete"),
+    Type.Literal("partial"),
+    Type.Literal("blocked"),
+  ]),
+  objective: Type.String(),
+  aggregation: Type.Literal("coverage"),
+  workers: Type.Array(SwarmWorkerResultSchema),
+  gaps: Type.Array(Type.String()),
+});
+
+type SwarmWorker = Static<typeof SwarmWorkerSchema>;
+
+type WorkerReport = Static<typeof workerReportSchema>;
+
+type SwarmWorkerResult = Static<typeof SwarmWorkerResultSchema>;
+
+export type SwarmArgs = Static<typeof argsSchema>;
+
+export type SwarmResult = Static<typeof SwarmResultSchema>;
+
+function requireNonEmptyString(value: JsonValue | undefined, field: string): string {
+  if (!Value.Check(StringSchema, value) || value.trim() === "") {
     throw new Error(`${field} must be a non-empty string`);
   }
+
   return value.trim();
 }
 
@@ -92,43 +106,53 @@ function rejectUnknownKeys(
   field: string,
 ): void {
   const unknown = Object.keys(value).find((key) => !allowed.includes(key));
+
   if (unknown) throw new Error(`${field}.${unknown} is not supported`);
 }
 
 export function parseSwarmArgs(value: JsonValue): SwarmArgs {
-  if (!value || Array.isArray(value) || typeof value !== "object") {
+  if (!Value.Check(Type.Record(Type.String(), JsonValueSchema), value)) {
     throw new Error("pstack-swarm args must be an object");
   }
+
   rejectUnknownKeys(
     value,
     ["schemaVersion", "objective", "donePredicate", "aggregation", "workers"],
     "args",
   );
+
   if (value.schemaVersion !== CONTRACT_VERSION) {
     throw new Error(`pstack-swarm requires schemaVersion ${CONTRACT_VERSION}`);
   }
 
   const aggregation = value.aggregation;
+
   if (aggregation !== "coverage") {
     throw new Error("aggregation must be coverage");
   }
+
   if (!Array.isArray(value.workers)) {
     throw new Error("workers must be an array");
   }
+
   if (value.workers.length < MIN_WORKERS || value.workers.length > MAX_WORKERS) {
     throw new Error(`workers must contain between ${MIN_WORKERS} and ${MAX_WORKERS} entries`);
   }
 
   const seen = new Set<string>();
+
   const workers = value.workers.map((worker, index): SwarmWorker => {
-    if (!worker || Array.isArray(worker) || typeof worker !== "object") {
+    if (!Value.Check(Type.Record(Type.String(), JsonValueSchema), worker)) {
       throw new Error(`workers[${index}] must be an object`);
     }
+
     rejectUnknownKeys(worker, ["id", "brief", "model"], `workers[${index}]`);
     const id = requireNonEmptyString(worker.id, `workers[${index}].id`);
+
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) {
       throw new Error(`workers[${index}].id must be kebab-case`);
     }
+
     if (seen.has(id)) throw new Error(`duplicate worker id: ${id}`);
     seen.add(id);
 
@@ -136,15 +160,20 @@ export function parseSwarmArgs(value: JsonValue): SwarmArgs {
       worker.model === undefined
         ? undefined
         : requireNonEmptyString(worker.model, `workers[${index}].model`);
+
     const model =
       requestedModel === "auto" || requestedModel === "inherit-parent"
         ? undefined
         : requestedModel;
-    return {
+
+    const parsedWorker: SwarmWorker = {
       id,
       brief: requireNonEmptyString(worker.brief, `workers[${index}].brief`),
-      ...(model ? { model } : {}),
     };
+
+    if (model) parsedWorker.model = model;
+
+    return parsedWorker;
   });
 
   return {
@@ -156,20 +185,13 @@ export function parseSwarmArgs(value: JsonValue): SwarmArgs {
   };
 }
 
-function parseWorkerReport(value: unknown): WorkerReport | null {
-  if (!value || Array.isArray(value) || typeof value !== "object") return null;
-  const report = value as Record<string, unknown>;
-  if (report.status !== "PASS" && report.status !== "ISSUES" && report.status !== "BLOCKED") {
-    return null;
-  }
-  if (typeof report.summary !== "string" || report.summary.trim() === "") return null;
-  if (!Array.isArray(report.evidence) || !report.evidence.every((item) => typeof item === "string")) {
-    return null;
-  }
+function parseWorkerReport(value: JsonValue): WorkerReport | null {
+  if (!Value.Check(workerReportSchema, value) || value.summary.trim() === "") return null;
+
   return {
-    status: report.status,
-    summary: report.summary.trim(),
-    evidence: report.evidence.map((item) => item.trim()).filter(Boolean),
+    status: value.status,
+    summary: value.summary.trim(),
+    evidence: value.evidence.map((item) => item.trim()).filter(Boolean),
   };
 }
 
@@ -196,6 +218,7 @@ function buildWorkerPrompt(args: SwarmArgs, worker: SwarmWorker): string {
 function aggregateResults(args: SwarmArgs, reports: Array<WorkerReport | null>): SwarmResult {
   const workers = args.workers.map((worker, index): SwarmWorkerResult => {
     const report = reports[index];
+
     return report
       ? { id: worker.id, ...report }
       : {
@@ -205,8 +228,10 @@ function aggregateResults(args: SwarmArgs, reports: Array<WorkerReport | null>):
           evidence: [],
         };
   });
+
   const gaps = workers.filter((worker) => worker.status === "BLOCKED").map((worker) => worker.id);
   const completed = workers.length - gaps.length;
+
   return {
     schemaVersion: CONTRACT_VERSION,
     status: completed === 0 ? "blocked" : gaps.length === 0 ? "complete" : "partial",
@@ -230,27 +255,37 @@ export async function runSwarmFactory(
   const rawReports = await ctx.parallel(
     args.workers.map((worker) => async () => {
       ctx.signal.throwIfAborted();
+
       const result = await ctx.agent(buildWorkerPrompt(args, worker), {
         agent: SWARM_WORKER_AGENT,
         label: workerLabel(worker.id),
         schema: workerReportSchema,
-        ...(worker.model ? { model: worker.model } : {}),
+        model: worker.model,
       });
+
       ctx.signal.throwIfAborted();
+
       return result;
     }),
   );
 
   ctx.phase("Aggregate");
-  const reports = rawReports.map(parseWorkerReport);
-  const result = (await ctx.step(aggregateStepKey(), () =>
-    aggregateResults(args, reports) as unknown as JsonValue,
-  )) as unknown as SwarmResult;
+
+  const reports = rawReports.map((value) =>
+    Value.Check(JsonValueSchema, value) ? parseWorkerReport(value) : null,
+  );
+
+  const result = Value.Parse(
+    SwarmResultSchema,
+    await ctx.step(aggregateStepKey(), () => aggregateResults(args, reports)),
+  );
+
   ctx.log(
     result.status === "complete"
       ? `All ${result.workers.length} workers completed.`
       : `${result.gaps.length} worker(s) were blocked: ${result.gaps.join(", ")}`,
   );
+
   return result;
 }
 

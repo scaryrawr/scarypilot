@@ -39,6 +39,7 @@ export function createHandoffTool(service: PstackService): Tool<HandoffArgs> {
     },
     handler: async (args, invocation) => {
       if (args.action === "read") return json(await service.readHandoff(args.path));
+
       return json(
         await service.writeHandoff(invocation.sessionId, {
           intent: requiredString(args.intent, "intent"),

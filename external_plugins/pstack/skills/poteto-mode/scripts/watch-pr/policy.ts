@@ -1,6 +1,7 @@
 import { WatcherQueryError, resolveChecks } from "./github.ts";
 import type * as T from "./types.ts";
 import { nonEmpty } from "./types.ts";
+
 export function assessGitHubMerge(args: {
   readonly mergeStateStatus: T.MergeStateStatus;
   readonly headRollupState: T.RollupState;
@@ -12,6 +13,7 @@ export function assessGitHubMerge(args: {
         mergeStateStatus: args.mergeStateStatus,
         headRollupState: args.headRollupState,
       };
+
     return {
       kind: "allowed",
       basis: "rollup",
@@ -19,6 +21,7 @@ export function assessGitHubMerge(args: {
       headRollupState: args.headRollupState,
     };
   }
+
   return {
     kind: "allowed",
     basis: "merge-state",
@@ -26,16 +29,19 @@ export function assessGitHubMerge(args: {
     headRollupState: args.headRollupState,
   };
 }
+
 async function mergeAssessment(
   reader: T.GitHubReader,
   facts: T.PullRequestFacts
 ) {
   const commits = await reader.commitRollups(facts.context);
+
   const headRollupState =
     facts.headRefOid === null
       ? null
       : (commits.find((commit) => commit.oid === facts.headRefOid)?.state ??
         null);
+
   return {
     hadPreviousPassingCi: commits.some(
       (commit) => commit.oid !== facts.headRefOid && commit.state === "SUCCESS"
@@ -46,12 +52,14 @@ async function mergeAssessment(
     }),
   };
 }
+
 const AUTOMATION_TOKENS = [
   "bugbot",
   "security review",
   "pr review automation",
   "review automation",
 ] as const;
+
 export async function readSnapshot(args: {
   readonly reader: T.GitHubReader;
   readonly context: T.PrContext;
@@ -59,23 +67,29 @@ export async function readSnapshot(args: {
   readonly allowDraft: boolean;
 }): Promise<T.PrSnapshot> {
   const facts = await args.reader.pullRequest(args.context);
+
   if (facts.state === "MERGED" || facts.mergedAt !== null)
     return { kind: "merged", context: args.context, facts };
+
   if (facts.state === "CLOSED")
     return { kind: "closed", context: args.context, facts };
   const threads = await args.reader.reviewThreads(args.context);
   const checks = await resolveChecks(args.reader, args.context);
+
   const failed = nonEmpty(
     checks.checks.filter(
       (check): check is T.FailedCheck => check.kind === "failed"
     )
   );
+
   const pending = nonEmpty(
     checks.checks.filter(
       (check): check is T.PendingCheck => check.kind === "pending"
     )
   );
+
   let ci: T.CiState;
+
   if (failed === null && pending !== null && args.pendingHistory === "omit")
     ci = {
       kind: "ci-pending",
@@ -87,11 +101,13 @@ export async function readSnapshot(args: {
     };
   else {
     const merge = await mergeAssessment(args.reader, facts);
+
     const base = {
       source: checks.source,
       all: checks.checks,
       hadPreviousPassingCi: merge.hadPreviousPassingCi,
     };
+
     if (failed !== null)
       ci = {
         ...base,
@@ -119,6 +135,7 @@ export async function readSnapshot(args: {
         github: merge.github,
       };
   }
+
   return {
     kind: "open",
     context: args.context,
@@ -134,6 +151,7 @@ export async function readSnapshot(args: {
     ),
   };
 }
+
 const conflictBlocker = (row: T.PrSnapshot): T.MergeBlocker | null =>
   row.kind === "open" &&
   (row.facts.mergeable === "CONFLICTING" ||
@@ -141,34 +159,43 @@ const conflictBlocker = (row: T.PrSnapshot): T.MergeBlocker | null =>
     row.facts.mergeStateStatus === "CONFLICTING")
     ? { kind: "merge-conflicts", pr: row.context, facts: row.facts }
     : null;
+
 function threadBlocker(row: T.PrSnapshot): T.MergeBlocker | null {
   if (row.kind !== "open") return null;
   const threads = nonEmpty(row.threads);
+
   return threads === null
     ? null
     : { kind: "review-threads", pr: row.context, threads };
 }
+
 const ciBlocker = (row: T.PrSnapshot): T.MergeBlocker | null =>
   row.kind === "open" &&
   (row.ci.kind === "ci-failing" || row.ci.kind === "ci-github-rejected")
     ? { kind: "failing-checks", pr: row.context, ci: row.ci }
     : null;
+
 function gateReason(
   row: T.PrSnapshot,
   allowDraft: boolean
 ): T.MergeGateReason | null {
   if (row.kind === "merged") return null;
+
   if (row.kind === "closed") return "closed-without-merge";
+
   if (row.facts.isDraft && !allowDraft) return "draft-pr";
+
   return row.facts.reviewDecision === "CHANGES_REQUESTED"
     ? "changes-requested"
     : null;
 }
+
 function gateBlocker(
   row: T.PrSnapshot,
   allowDraft: boolean
 ): T.MergeBlocker | null {
   const reason = gateReason(row, allowDraft);
+
   return reason === null ||
     (reason === "draft-pr" &&
       row.kind === "open" &&
@@ -176,6 +203,7 @@ function gateBlocker(
     ? null
     : { kind: "merge-gate", pr: row.context, reason };
 }
+
 function readyContribution(
   row: T.PrSnapshot,
   allowDraft: boolean
@@ -186,6 +214,7 @@ function readyContribution(
       context: row.context,
       mergedAt: row.facts.mergedAt,
     };
+
   if (
     row.kind !== "open" ||
     row.ci.kind !== "ci-clean" ||
@@ -195,7 +224,9 @@ function readyContribution(
   )
     return null;
   const reviewDecision = row.facts.reviewDecision;
+
   if (reviewDecision === "CHANGES_REQUESTED") return null;
+
   return {
     kind: "ready-pr",
     context: row.context,
@@ -211,6 +242,7 @@ function readyContribution(
     },
   };
 }
+
 export function classifyPr(
   row: T.PrSnapshot,
   allowDraft = false
@@ -222,14 +254,18 @@ export function classifyPr(
     gateBlocker(row, allowDraft),
   ])
     if (blocker !== null) return { kind: "blocker", blocker };
+
   if (row.kind === "open" && row.ci.kind === "ci-pending")
     return { kind: "waiting", frontier: row.context, pending: row.ci.pending };
   const ready = readyContribution(row, allowDraft);
+
   if (ready === null) throw new Error("snapshot has no classified decision");
+
   return ready.kind === "merged-pr"
     ? { kind: "merged", pr: ready }
     : { kind: "ready", pr: ready };
 }
+
 export function selectTierMajorStackDecision(
   rows: T.NonEmpty<T.PrSnapshot>,
   allowDraft = false
@@ -237,12 +273,16 @@ export function selectTierMajorStackDecision(
   for (const tier of [conflictBlocker, threadBlocker, ciBlocker])
     for (const row of rows) {
       const blocker = tier(row);
+
       if (blocker !== null) return { kind: "blocker", blocker };
     }
+
   for (const row of rows) {
     const blocker = gateBlocker(row, allowDraft);
+
     if (blocker !== null) return { kind: "blocker", blocker };
   }
+
   for (const row of rows)
     if (row.kind === "open" && row.ci.kind === "ci-pending")
       return {
@@ -250,29 +290,37 @@ export function selectTierMajorStackDecision(
         frontier: row.context,
         pending: row.ci.pending,
       };
+
   const prs = nonEmpty(
     rows
       .map((row) => readyContribution(row, allowDraft))
       .filter((row): row is T.ReadyPr | T.MergedPr => row !== null)
   );
+
   if (prs === null || prs.length !== rows.length)
     throw new Error("stack has no classified decision");
+
   return { kind: "clear", prs };
 }
+
 export const queryBackoffSeconds = (
   interval: number,
   failures: number
 ): number => Math.min(Math.max(interval, 60) * 2 ** (failures - 1), 300);
+
 interface Envelope<M extends T.WatchMode> {
   readonly schemaVersion: 1;
   readonly sequence: number;
   readonly observedAt: string;
   readonly mode: M;
 }
+
 type Payload<V> = V extends unknown
   ? Omit<V, keyof Envelope<T.WatchMode>>
   : never;
+
 type VerdictPayload = Payload<T.WatcherVerdict>;
+
 export interface VerdictStamp<M extends T.WatchMode = T.WatchMode> {
   <const P extends VerdictPayload>(payload: P): Envelope<M> & P;
   <const P extends VerdictPayload, M2 extends T.WatchMode>(
@@ -280,6 +328,7 @@ export interface VerdictStamp<M extends T.WatchMode = T.WatchMode> {
     mode: M2
   ): Envelope<M2> & P;
 }
+
 export function verdictFactory<M extends T.WatchMode>(
   clock: WatchClock,
   mode: M
@@ -302,8 +351,10 @@ export function verdictFactory<M extends T.WatchMode>(
       ...payload,
     };
   }
+
   return stamp;
 }
+
 function blockerVerdict(
   stamp: VerdictStamp,
   blocker: T.MergeBlocker
@@ -319,10 +370,12 @@ function blockerVerdict(
       return stamp({ kind: "BLOCKER", terminal: true, exitCode: 6, blocker });
     default: {
       const exhaustive: never = blocker;
+
       return exhaustive;
     }
   }
 }
+
 export function statusQueryVerdict(
   stamp: VerdictStamp,
   failures: number,
@@ -335,21 +388,25 @@ export function statusQueryVerdict(
     blocker: { kind: "status-query", failures, failure },
   });
 }
+
 export interface WatchClock {
   now(): number;
   observedAt(): string;
   sleep(seconds: number): Promise<void>;
 }
+
 export interface RunDependencies {
   readonly reader: T.GitHubReader;
   readonly clock: WatchClock;
   readonly emit: (verdict: T.ProgressVerdict) => void;
 }
+
 const deadlinePassed = (
   started: number,
   options: T.PollingOptions,
   now: number
 ): boolean => options.timeout > 0 && now - started >= options.timeout;
+
 type StepResult<V> =
   | { readonly kind: "terminal"; readonly verdict: V }
   | {
@@ -358,6 +415,7 @@ type StepResult<V> =
       readonly onDeadline?: () => V;
     }
   | { readonly kind: "continue" };
+
 async function pollUntilTerminal<V>(args: {
   readonly dependencies: RunDependencies;
   readonly options: T.PollingOptions;
@@ -366,20 +424,25 @@ async function pollUntilTerminal<V>(args: {
 }): Promise<V | T.BlockerVerdict | T.TimeoutVerdict> {
   let failures = 0;
   const started = args.dependencies.clock.now();
+
   while (true) {
     let result: StepResult<V>;
+
     try {
       result = await args.step();
       failures = 0;
     } catch (error) {
       if (!(error instanceof WatcherQueryError)) throw error;
       failures += 1;
+
       if (!error.failure.retryable || failures >= args.options.maxQueryErrors)
         return statusQueryVerdict(args.stamp, failures, error.failure);
+
       const retryInSeconds = queryBackoffSeconds(
         args.options.interval,
         failures
       );
+
       args.dependencies.emit(
         args.stamp({
           kind: "RETRY",
@@ -389,6 +452,7 @@ async function pollUntilTerminal<V>(args: {
           retryInSeconds,
         })
       );
+
       if (deadlinePassed(started, args.options, args.dependencies.clock.now()))
         return args.stamp({
           kind: "TIMEOUT",
@@ -399,7 +463,9 @@ async function pollUntilTerminal<V>(args: {
       await args.dependencies.clock.sleep(retryInSeconds);
       continue;
     }
+
     if (result.kind === "terminal") return result.verdict;
+
     if (result.kind === "sleep") {
       if (
         result.onDeadline !== undefined &&
@@ -410,6 +476,7 @@ async function pollUntilTerminal<V>(args: {
     }
   }
 }
+
 export async function runSimple(args: {
   readonly dependencies: RunDependencies;
   readonly contexts: T.NonEmpty<T.PrContext>;
@@ -418,8 +485,10 @@ export async function runSimple(args: {
   readonly options: T.PollingOptions;
 }): Promise<T.TerminalVerdict> {
   const stamp = verdictFactory(args.dependencies.clock, args.mode);
+
   const step = async (): Promise<StepResult<T.TerminalVerdict>> => {
     const rows: T.PrSnapshot[] = [];
+
     for (const context of args.contexts)
       rows.push(
         await readSnapshot({
@@ -430,7 +499,9 @@ export async function runSimple(args: {
         })
       );
     const complete = nonEmpty(rows);
+
     if (complete === null) throw new Error("watch context cannot be empty");
+
     if (args.statusOnly)
       return {
         kind: "terminal",
@@ -442,8 +513,10 @@ export async function runSimple(args: {
           rows: complete,
         }),
       };
+
     if (args.mode === "queued-stack")
       throw new Error("queued-stack requires status-only in the simple runner");
+
     if (args.mode === "stack")
       args.dependencies.emit(
         stamp(
@@ -451,15 +524,18 @@ export async function runSimple(args: {
           args.mode
         )
       );
+
     const decision =
       args.mode === "single"
         ? classifyPr(complete[0], args.options.allowDraft)
         : selectTierMajorStackDecision(complete, args.options.allowDraft);
+
     if (decision.kind === "blocker")
       return {
         kind: "terminal",
         verdict: blockerVerdict(stamp, decision.blocker),
       };
+
     if (decision.kind === "ready" || decision.kind === "merged")
       return {
         kind: "terminal",
@@ -473,6 +549,7 @@ export async function runSimple(args: {
           args.mode
         ),
       };
+
     if (decision.kind === "clear")
       return {
         kind: "terminal",
@@ -494,6 +571,7 @@ export async function runSimple(args: {
         reason: { kind: "pending-checks", pending: decision.pending },
       })
     );
+
     return {
       kind: "sleep",
       seconds: args.options.interval,
@@ -506,6 +584,7 @@ export async function runSimple(args: {
         }),
     };
   };
+
   return pollUntilTerminal({
     dependencies: args.dependencies,
     options: args.options,
@@ -513,12 +592,14 @@ export async function runSimple(args: {
     step,
   });
 }
+
 export type QueueWork =
   | {
       readonly kind: "whole-stack-sweep";
       readonly remaining: T.NonEmpty<T.PrContext>;
     }
   | { readonly kind: "frontier-poll"; readonly frontier: T.PrContext };
+
 export interface QueueState {
   readonly queue: T.NonEmpty<T.PrContext>;
   readonly snapshots: ReadonlyMap<T.PrNumber, T.PrSnapshot>;
@@ -528,6 +609,7 @@ export interface QueueState {
   readonly lastWaitKey: string | null;
   readonly startedAt: number;
 }
+
 export const createQueueState = (
   queue: T.NonEmpty<T.PrContext>,
   now: number
@@ -540,33 +622,43 @@ export const createQueueState = (
   lastWaitKey: null,
   startedAt: now,
 });
+
 const orderedRows = (state: QueueState): T.PrSnapshot[] =>
   state.queue.flatMap((context) => {
     const row = state.snapshots.get(context.number);
+
     return row === undefined ? [] : [row];
   });
+
 const activeRows = (state: QueueState): T.PrSnapshot[] =>
   orderedRows(state).filter((row) => row.kind !== "merged");
+
 export function planQueue(state: QueueState, now: number): QueueState {
   if (state.work !== null) return state;
+
   if (state.snapshots.size === 0 || now >= state.nextSweepAt) {
     const remaining = nonEmpty(
       state.queue.filter(
         (context) => state.snapshots.get(context.number)?.kind !== "merged"
       )
     );
+
     if (remaining !== null)
       return { ...state, work: { kind: "whole-stack-sweep", remaining } };
   }
+
   const frontier = activeRows(state)[0]?.context;
+
   return frontier === undefined
     ? state
     : { ...state, work: { kind: "frontier-poll", frontier } };
 }
+
 export interface QueueSnapshotResult {
   readonly state: QueueState;
   readonly completedSweepRows: T.NonEmpty<T.PrSnapshot> | null;
 }
+
 export function applyQueueSnapshot(
   state: QueueState,
   snapshot: T.PrSnapshot,
@@ -577,30 +669,38 @@ export function applyQueueSnapshot(
   const snapshots = new Map(state.snapshots);
   snapshots.set(snapshot.context.number, snapshot);
   const base = { ...state, snapshots };
+
   if (state.work.kind === "frontier-poll")
     return { state: { ...base, work: null }, completedSweepRows: null };
   const [head, ...tail] = state.work.remaining;
+
   if (head.number !== snapshot.context.number)
     throw new Error("snapshot does not match sweep head");
   const remaining = nonEmpty(tail);
+
   if (remaining !== null)
     return {
       state: { ...base, work: { kind: "whole-stack-sweep", remaining } },
       completedSweepRows: null,
     };
+
   const rows = nonEmpty(
     state.queue.flatMap((context) => {
       const row = snapshots.get(context.number);
+
       return row === undefined ? [] : [row];
     })
   );
+
   if (rows === null || rows.length !== state.queue.length)
     throw new Error("sweep completed without every snapshot");
+
   return {
     state: { ...base, work: null, nextSweepAt: now + options.sweepInterval },
     completedSweepRows: rows,
   };
 }
+
 export type QueueEvaluation =
   | {
       readonly kind: "complete";
@@ -637,12 +737,14 @@ export type QueueEvaluation =
         | { readonly kind: "merge-queue"; readonly unmergedCount: number };
       readonly emit: boolean;
     };
+
 export function evaluateQueue(
   state: QueueState,
   now: number,
   options: T.PollingOptions
 ): QueueEvaluation {
   const active = activeRows(state);
+
   if (active.length === 0) {
     const merged = nonEmpty(
       orderedRows(state).flatMap((row) =>
@@ -657,15 +759,21 @@ export function evaluateQueue(
           : []
       )
     );
+
     if (merged === null) throw new Error("empty queue cannot complete");
+
     return { kind: "complete", state, merged };
   }
+
   const rows = nonEmpty(active);
+
   if (rows === null) throw new Error("active queue cannot be empty");
   const decision = selectTierMajorStackDecision(rows, options.allowDraft);
+
   if (decision.kind === "blocker")
     return { kind: "blocker", state, blocker: decision.blocker };
   const frontier = rows[0].context;
+
   if (state.frontier !== null && state.frontier.number !== frontier.number)
     return {
       kind: "advance",
@@ -674,6 +782,7 @@ export function evaluateQueue(
       frontier,
       remaining: active.length,
     };
+
   if (deadlinePassed(state.startedAt, options, now))
     return {
       kind: "timeout",
@@ -682,16 +791,20 @@ export function evaluateQueue(
       unmergedCount: active.length,
     };
   const row = rows[0];
+
   const pending =
     row.kind === "open" && row.ci.kind === "ci-pending" ? row.ci.pending : null;
+
   const reason =
     pending === null
       ? ({ kind: "merge-queue", unmergedCount: active.length } as const)
       : ({ kind: "pending-checks", pending } as const);
+
   const key =
     reason.kind === "pending-checks"
       ? `pending:${frontier.number}:${reason.pending.length}`
       : `queue:${frontier.number}:${reason.unmergedCount}`;
+
   return {
     kind: "waiting",
     state: { ...state, frontier, lastWaitKey: key },
@@ -700,6 +813,7 @@ export function evaluateQueue(
     emit: state.lastWaitKey !== key,
   };
 }
+
 export async function runQueued(args: {
   readonly dependencies: RunDependencies;
   readonly contexts: T.NonEmpty<T.PrContext>;
@@ -710,16 +824,20 @@ export async function runQueued(args: {
   args.dependencies.emit(
     stamp({ kind: "QUEUE", terminal: false, queue: args.contexts })
   );
+
   const step = async (): Promise<StepResult<T.QueueTerminalVerdict>> => {
     state = planQueue(state, args.dependencies.clock.now());
+
     if (state.work === null) {
       const complete = evaluateQueue(
         state,
         args.dependencies.clock.now(),
         args.options
       );
+
       if (complete.kind !== "complete")
         throw new Error("queue has no work while active");
+
       return {
         kind: "terminal",
         verdict: stamp({
@@ -731,23 +849,28 @@ export async function runQueued(args: {
         }),
       };
     }
+
     const context =
       state.work.kind === "whole-stack-sweep"
         ? state.work.remaining[0]
         : state.work.frontier;
+
     const snapshot = await readSnapshot({
       reader: args.dependencies.reader,
       context,
       pendingHistory: "omit",
       allowDraft: args.options.allowDraft,
     });
+
     const applied = applyQueueSnapshot(
       state,
       snapshot,
       args.dependencies.clock.now(),
       args.options
     );
+
     state = applied.state;
+
     if (applied.completedSweepRows !== null)
       args.dependencies.emit(
         stamp({
@@ -757,13 +880,17 @@ export async function runQueued(args: {
           rows: applied.completedSweepRows,
         })
       );
+
     if (state.work !== null) return { kind: "continue" };
+
     const evaluation = evaluateQueue(
       state,
       args.dependencies.clock.now(),
       args.options
     );
+
     state = evaluation.state;
+
     switch (evaluation.kind) {
       case "complete":
         return {
@@ -791,6 +918,7 @@ export async function runQueued(args: {
             remaining: evaluation.remaining,
           })
         );
+
         return { kind: "continue" };
       case "timeout":
         return {
@@ -816,13 +944,16 @@ export async function runQueued(args: {
               reason: evaluation.reason,
             })
           );
+
         return { kind: "sleep", seconds: args.options.interval };
       default: {
         const exhaustive: never = evaluation;
+
         return exhaustive;
       }
     }
   };
+
   return pollUntilTerminal({
     dependencies: args.dependencies,
     options: args.options,

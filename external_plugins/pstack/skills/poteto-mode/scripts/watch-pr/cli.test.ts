@@ -7,13 +7,16 @@ import { parsePrNumber } from "./types.ts";
 
 const silentIo = { stdout: () => {}, stderr: () => {} };
 
-function testRuntime(reader: GitHubReader): {
+interface TestRuntime {
   readonly runtime: CliRuntime;
   readonly stdout: string[];
   readonly stderr: string[];
-} {
+}
+
+function testRuntime(reader: GitHubReader): TestRuntime {
   const stdout: string[] = [];
   const stderr: string[] = [];
+
   return {
     stdout,
     stderr,
@@ -71,6 +74,7 @@ describe("parseArgs", () => {
       ],
       silentIo
     );
+
     expect(parsed.mode).toBe("queued-stack");
     expect(parsed.stackPrs.map(Number)).toEqual([10, 11, 12]);
     expect(parsed.polling).toEqual({
@@ -94,6 +98,7 @@ describe("parseArgs", () => {
       ["--stack-prs", "1,2"],
       ["--queued-stack", "--stack-prs", "1,1"],
     ];
+
     for (const argv of invalid) {
       const harness = testRuntime(fakeReader());
       expect(await main(argv, harness.runtime)).toBe(64);
@@ -109,6 +114,7 @@ describe("rendering", () => {
     repo: "repo",
     number: parsePrNumber(1),
   };
+
   const status = {
     schemaVersion: 1,
     sequence: 1,
@@ -166,6 +172,7 @@ describe("main", () => {
   it("bypasses the queue machine for queued-stack status-only", async () => {
     const reader = fakeReader();
     const harness = testRuntime(reader);
+
     const code = await main(
       [
         "--owner",
@@ -179,6 +186,7 @@ describe("main", () => {
       ],
       harness.runtime
     );
+
     expect(code).toBe(0);
     expect(harness.stdout).toHaveLength(1);
     const verdict: unknown = JSON.parse(harness.stdout[0]);
@@ -197,11 +205,14 @@ describe("main", () => {
       fastPath: { kind: "checks", checks: [passingCheck()] },
       commitRollups: [{ oid: "head", state: "FAILURE" }],
     });
+
     const harness = testRuntime(reader);
+
     const code = await main(
       ["--owner", "owner", "--repo", "repo", "--pr", "1"],
       harness.runtime
     );
+
     expect(code).toBe(4);
     expect(harness.stdout).toHaveLength(1);
     expect(JSON.parse(harness.stdout[0])).toMatchObject({

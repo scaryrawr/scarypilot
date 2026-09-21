@@ -5,6 +5,7 @@ export interface CwdRef {
 
 export function createCwdRef(initial: string): CwdRef {
   let cwd = initial;
+
   return {
     get: () => cwd,
     set: (next) => {

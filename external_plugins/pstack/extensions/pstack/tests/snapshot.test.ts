@@ -37,6 +37,7 @@ describe("buildSnapshot", () => {
       handoff: null,
       sourceWarnings: [],
     } as const;
+
     const first = buildSnapshot(input);
     const second = buildSnapshot(input);
     expect(first).toEqual(second);
@@ -76,6 +77,7 @@ describe("buildSnapshot", () => {
       handoff: null,
       sourceWarnings: [],
     });
+
     expect(snapshot.now).toContainEqual({
       kind: "verify-head",
       unitId: "u1",

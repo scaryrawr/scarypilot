@@ -21,6 +21,7 @@ import {
 import { renderJson, renderPretty } from "./render.ts";
 import type * as T from "./types.ts";
 import { nonEmpty, parsePrNumber } from "./types.ts";
+
 export interface CliOptions {
   readonly owner: string | null;
   readonly repo: string | null;
@@ -31,24 +32,34 @@ export interface CliOptions {
   readonly pretty: boolean;
   readonly polling: T.PollingOptions;
 }
+
 function positiveNumber(value: string): number {
   const parsed = Number(value);
+
   if (!Number.isFinite(parsed) || parsed <= 0)
     throw new InvalidArgumentError("must be greater than zero");
+
   return parsed;
 }
+
 function nonNegativeNumber(value: string): number {
   const parsed = Number(value);
+
   if (!Number.isFinite(parsed) || parsed < 0)
     throw new InvalidArgumentError("must be zero or greater");
+
   return parsed;
 }
+
 function positiveInteger(value: string): number {
   const parsed = Number(value);
+
   if (!Number.isInteger(parsed) || parsed <= 0)
     throw new InvalidArgumentError("must be a positive integer");
+
   return parsed;
 }
+
 function prNumber(value: string): T.PrNumber {
   try {
     return parsePrNumber(Number(value.replace(/^#/, "")));
@@ -56,14 +67,19 @@ function prNumber(value: string): T.PrNumber {
     throw new InvalidArgumentError("must be a positive integer");
   }
 }
+
 function stackPrList(value: string): T.NonEmpty<T.PrNumber> {
   const numbers = value.split(",").map((part) => prNumber(part.trim()));
+
   if (new Set(numbers).size !== numbers.length)
     throw new InvalidArgumentError("contains a duplicate PR");
   const parsed = nonEmpty(numbers);
+
   if (parsed === null) throw new InvalidArgumentError("cannot be empty");
+
   return parsed;
 }
+
 interface RawOptions {
   readonly owner?: string;
   readonly repo?: string;
@@ -79,6 +95,7 @@ interface RawOptions {
   readonly allowDraft: boolean;
   readonly pretty: boolean;
 }
+
 export function parseArgs(
   argv: readonly string[],
   io: Pick<CliRuntime, "stdout" | "stderr">
@@ -129,10 +146,13 @@ export function parseArgs(
     .option("--status-only", "print one status table and exit 0", false)
     .option("--allow-draft", "do not treat a draft as a merge gate", false)
     .option("--pretty", "render human text instead of JSON", false);
+
   program.parse(argv, { from: "user" });
   const raw = program.opts<RawOptions>();
+
   if (raw.stackPrs !== undefined && !raw.queuedStack)
     program.error("error: --stack-prs requires --queued-stack");
+
   return {
     owner: raw.owner ?? null,
     repo: raw.repo ?? null,
@@ -150,12 +170,14 @@ export function parseArgs(
     },
   };
 }
+
 export interface CliRuntime {
   readonly reader: T.GitHubReader;
   readonly clock: WatchClock;
   readonly stdout: (value: string) => void;
   readonly stderr: (value: string) => void;
 }
+
 function realRuntime(): CliRuntime {
   return {
     reader: new GhGitHubReader(),
@@ -170,21 +192,28 @@ function realRuntime(): CliRuntime {
     stderr: (value) => process.stderr.write(value),
   };
 }
+
 export async function main(
   argv: readonly string[],
   runtime: CliRuntime = realRuntime()
 ): Promise<number> {
   let options: CliOptions;
+
   try {
     options = parseArgs(argv, runtime);
   } catch (error) {
     if (!(error instanceof CommanderError)) throw error;
+
     return error.exitCode === 0 ? 0 : 64;
   }
+
   const render = options.pretty ? renderPretty : renderJson;
+
   const emit = (verdict: T.ProgressVerdict): void =>
     runtime.stdout(render(verdict));
+
   let contexts: T.NonEmpty<T.PrContext>;
+
   try {
     const seed = await resolveContext({
       reader: runtime.reader,
@@ -192,6 +221,7 @@ export async function main(
       repo: options.repo,
       pr: options.pr ?? options.stackPrs[0] ?? null,
     });
+
     contexts =
       nonEmpty(options.stackPrs.map((number) => ({ ...seed, number }))) ??
       (options.mode === "single"
@@ -199,15 +229,20 @@ export async function main(
         : await discoverStack(runtime.reader, seed));
   } catch (error) {
     if (!(error instanceof WatcherQueryError)) throw error;
+
     const verdict = statusQueryVerdict(
       verdictFactory(runtime.clock, options.mode),
       1,
       error.failure
     );
+
     runtime.stdout(render(verdict));
+
     return verdict.exitCode;
   }
+
   const dependencies = { reader: runtime.reader, clock: runtime.clock, emit };
+
   const verdict =
     options.mode === "queued-stack" && !options.statusOnly
       ? await runQueued({ dependencies, contexts, options: options.polling })
@@ -218,6 +253,8 @@ export async function main(
           statusOnly: options.statusOnly,
           options: options.polling,
         });
+
   runtime.stdout(render(verdict));
+
   return verdict.exitCode;
 }

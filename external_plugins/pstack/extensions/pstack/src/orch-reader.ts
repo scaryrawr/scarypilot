@@ -1,5 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { Type, type Static } from "@sinclair/typebox";
+import { Value } from "@sinclair/typebox/value";
 import { sha256 } from "./io.ts";
 import type {
   FrontierSummary,
@@ -12,13 +14,40 @@ import type {
   VerificationVerdict,
 } from "./types.ts";
 
-const VERDICTS = new Set<VerificationVerdict>([
+const VERDICTS: ReadonlySet<string> = new Set([
   "live-ui-verified",
   "unit-test-verified",
   "type-check-only",
   "verifier-blocked",
   "verifier-failed",
 ]);
+
+const EmptyObjectSchema = Type.Object({}, { additionalProperties: false });
+const NonNegativeSafeIntegerSchema = Type.Integer({
+  minimum: 0,
+  maximum: Number.MAX_SAFE_INTEGER,
+});
+const PositiveSafeIntegerSchema = Type.Integer({
+  minimum: 1,
+  maximum: Number.MAX_SAFE_INTEGER,
+});
+
+const FrontierSchema = Type.Object({
+  generation: NonNegativeSafeIntegerSchema,
+  prs: Type.Array(Type.Object({
+    pr: PositiveSafeIntegerSchema,
+    branches: Type.String({ minLength: 1 }),
+    sha: Type.String({ minLength: 1 }),
+    state: Type.Union([
+      Type.Literal("OPEN"),
+      Type.Literal("MERGED"),
+      Type.Literal("CLOSED"),
+    ]),
+  })),
+  lowestUnmerged: Type.Union([Type.Null(), PositiveSafeIntegerSchema]),
+});
+
+type ParsedFrontier = Static<typeof FrontierSchema>;
 
 interface OrchReadResult {
   readonly projection: OrchProjection | null;
@@ -30,16 +59,18 @@ async function optionalFile(path: string): Promise<string | null> {
   try {
     return await readFile(path, "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return null;
     throw error;
   }
 }
 
 function rows(raw: string, expectedHeader: string): string[][] {
   const lines = raw.split(/\r?\n/).filter(Boolean);
+
   if (lines.shift() !== expectedHeader) {
     throw new Error(`expected header ${JSON.stringify(expectedHeader)}`);
   }
+
   return lines.map((line) => line.split("\t"));
 }
 
@@ -69,13 +100,14 @@ function parseUnits(raw: string): UnitSummary[] {
 function parseLedger(raw: string): LedgerSummary[] {
   return rows(raw, "pr\tsha\tverdict\tevidence\tverifier\tts").map(
     ([pr = "", sha = "", verdict = "", evidence = "", verifier = "", timestamp = ""]) => {
-      if (!VERDICTS.has(verdict as VerificationVerdict)) {
+      if (!isVerificationVerdict(verdict)) {
         throw new Error(`unknown ledger verdict ${JSON.stringify(verdict)}`);
       }
+
       return {
         pr,
         sha,
-        verdict: verdict as VerificationVerdict,
+        verdict,
         evidence,
         verifier,
         timestamp,
@@ -84,28 +116,40 @@ function parseLedger(raw: string): LedgerSummary[] {
   );
 }
 
+function isVerificationVerdict(value: string): value is VerificationVerdict {
+  return VERDICTS.has(value);
+}
+
 function parseGates(raw: string): GateSummary[] {
   const clean = raw.replace(/\r/g, "").trim();
+
   if (clean === "") return [];
   const prefix = "# Gates\n\n## ";
+
   if (!clean.startsWith(prefix)) throw new Error("gates.md has an invalid heading");
   const result: GateSummary[] = [];
+
   for (const block of clean.slice(prefix.length).split("\n\n## ")) {
     const lines = block.split("\n").filter(Boolean);
     const id = lines.shift() ?? "";
     const fields = new Map<string, string>();
+
     for (const line of lines) {
       const match = /^- ([^:]+): (.*)$/.exec(line);
+
       if (!match) throw new Error(`gates.md has a malformed gate ${id}`);
       fields.set(match[1] ?? "", match[2] ?? "");
     }
+
     const status = fields.get("Status");
     const question = fields.get("Question");
     const options = fields.get("Options");
     const defaultAnswer = fields.get("Default");
+
     if (!id || question === undefined || options === undefined || defaultAnswer === undefined) {
       throw new Error(`gates.md has a malformed gate ${id}`);
     }
+
     if (status === "open") {
       result.push({ id, question, options, defaultAnswer });
     } else if (status === "resolved" && fields.has("Answer")) {
@@ -114,48 +158,33 @@ function parseGates(raw: string): GateSummary[] {
       throw new Error(`gates.md has invalid status ${status ?? ""}`);
     }
   }
+
   if (new Set(result.map((gate) => gate.id)).size !== result.length) {
     throw new Error("gates.md has duplicate open gate ids");
   }
+
   return result;
 }
 
 function parseFrontier(raw: string): FrontierSummary {
-  const value = JSON.parse(raw) as Partial<FrontierSummary>;
-  if (Object.keys(value).length === 0) {
+  const value = JSON.parse(raw);
+
+  if (Value.Check(EmptyObjectSchema, value)) {
     return { generation: 0, prs: [], lowestUnmerged: null };
   }
-  if (
-    !Number.isSafeInteger(value.generation) ||
-    Number(value.generation) < 0 ||
-    !Array.isArray(value.prs) ||
-    !(
-      value.lowestUnmerged === null ||
-      (Number.isSafeInteger(value.lowestUnmerged) && Number(value.lowestUnmerged) > 0)
-    )
-  ) {
+
+  let frontier: ParsedFrontier;
+
+  try {
+    frontier = Value.Parse(FrontierSchema, value);
+  } catch {
     throw new Error("frontier.json has an unsupported shape");
   }
-  const prs = value.prs.map((row) => {
-    if (
-      row === null ||
-      typeof row !== "object" ||
-      !Number.isSafeInteger(row.pr) ||
-      row.pr < 1 ||
-      typeof row.branches !== "string" ||
-      row.branches.length === 0 ||
-      typeof row.sha !== "string" ||
-      row.sha.length === 0 ||
-      !["OPEN", "MERGED", "CLOSED"].includes(row.state)
-    ) {
-      throw new Error("frontier.json has an invalid PR row");
-    }
-    return row;
-  });
+
   return {
-    generation: value.generation as number,
-    prs,
-    lowestUnmerged: value.lowestUnmerged ?? null,
+    generation: frontier.generation,
+    prs: frontier.prs,
+    lowestUnmerged: frontier.lowestUnmerged,
   };
 }
 
@@ -164,31 +193,41 @@ export async function readOrchStore(storeDir?: string): Promise<OrchReadResult> 
   const directory = resolve(storeDir);
   const warnings: SourceWarning[] = [];
   const sources: SourceDigest[] = [];
+
   const read = async (name: string): Promise<string | null> => {
     const path = join(directory, name);
+
     try {
       const raw = await optionalFile(path);
+
       if (raw !== null) sources.push({ kind: "orch", path, digest: sha256(raw) });
+
       return raw;
     } catch (error) {
       warnings.push({ source: "orch", path, message: error instanceof Error ? error.message : String(error) });
+
       return null;
     }
   };
+
   const [unitsRaw, ledgerRaw, gatesRaw, frontierRaw] = await Promise.all([
     read("units.tsv"),
     read("ledger.tsv"),
     read("gates.md"),
     read("frontier.json"),
   ]);
+
   if (unitsRaw === null && ledgerRaw === null && gatesRaw === null && frontierRaw === null) {
     warnings.push({ source: "orch", path: directory, message: "orch store is missing or uninitialized" });
+
     return { projection: null, sources, warnings };
   }
+
   let units: UnitSummary[] = [];
   let ledger: LedgerSummary[] = [];
   let openGates: GateSummary[] = [];
   let frontier: FrontierSummary | null = null;
+
   for (const [name, parse] of [
     ["units.tsv", () => { if (unitsRaw !== null) units = parseUnits(unitsRaw); }],
     ["ledger.tsv", () => { if (ledgerRaw !== null) ledger = parseLedger(ledgerRaw); }],
@@ -205,6 +244,7 @@ export async function readOrchStore(storeDir?: string): Promise<OrchReadResult> 
       });
     }
   }
+
   return {
     projection: {
       storeDir: directory,

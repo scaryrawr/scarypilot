@@ -60,16 +60,19 @@ async function discoverStore(cwd: string, port: ProcessPort): Promise<{
 }> {
   const parent = await gitStatePath(cwd, "pstack/orchestrate", port);
   let entries;
+
   try {
     entries = (await readdir(parent, { withFileTypes: true }))
       .filter((entry) => entry.isDirectory())
       .map((entry) => join(parent, entry.name))
       .sort();
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return {};
     throw error;
   }
+
   if (entries.length === 1) return { storeDir: entries[0] };
+
   if (entries.length > 1) {
     return {
       warning: {
@@ -79,6 +82,7 @@ async function discoverStore(cwd: string, port: ProcessPort): Promise<{
       },
     };
   }
+
   return {};
 }
 
@@ -92,17 +96,22 @@ export function createPstackService(
   const status = async (input: StatusInput = {}): Promise<PstackSnapshot> => {
     const warnings: SourceWarning[] = [];
     const discovered = input.storeDir ? { storeDir: resolve(input.storeDir) } : await discoverStore(cwdRef.get(), port);
+
     if (discovered.warning) warnings.push(discovered.warning);
+
     const [caps, orch, watch, handoff] = await Promise.all([
       capabilities(),
       readOrchStore(discovered.storeDir),
       readWatchFiles(input.watchFiles ?? []),
       latestHandoff(cwdRef.get(), port).catch((error) => {
         warnings.push({ source: "handoff", message: errorMessage(error) });
+
         return { summary: null, source: null };
       }),
     ]);
+
     let worktreeProjection: WorktreeProjection | null = null;
+
     if (input.includeWorktrees) {
       try {
         worktreeProjection = await worktrees(input.baseRef);
@@ -110,6 +119,7 @@ export function createPstackService(
         warnings.push({ source: "worktrees", message: errorMessage(error) });
       }
     }
+
     return buildSnapshot({
       capabilities: caps,
       sources: [
@@ -133,13 +143,15 @@ export function createPstackService(
     capabilities,
     status,
     validatePlan: async (path, profile = "verified-stack") => {
-      if (!PLAN_PROFILES.includes(profile as (typeof PLAN_PROFILES)[number])) {
+      if (!isPlanProfile(profile)) {
         throw new Error(`profile must be one of ${PLAN_PROFILES.join(", ")}`);
       }
+
       return validatePlanText(await readFile(resolve(path), "utf8"), profile);
     },
     recordReceipt: async (input) => {
       const result = await recordVerificationReceipt(input);
+
       return { receipt: result.receipt, path: result.path };
     },
     inspectWorktrees: worktrees,
@@ -149,6 +161,7 @@ export function createPstackService(
         watchFiles: input.watchFiles,
         includeWorktrees: false,
       });
+
       return writeHandoff(
         cwdRef.get(),
         sessionId,
@@ -165,19 +178,27 @@ export function createPstackService(
     readHandoff: async (path) => {
       if (path) return readHandoff(isAbsolute(path) ? path : resolve(cwdRef.get(), path));
       const directory = await handoffDirectory(cwdRef.get(), port);
+
       const entries = (await readdir(directory, { withFileTypes: true }))
         .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
         .map((entry) => join(directory, entry.name));
+
       if (entries.length === 0) throw new Error("no pstack handoff found");
+
       const withTimes = await Promise.all(
         entries.map(async (entry) => ({
           entry,
           createdAt: (await readHandoff(entry)).createdAt,
         })),
       );
+
       return readHandoff(
         withTimes.sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0].entry,
       );
     },
   };
+}
+
+function isPlanProfile(value: string): value is (typeof PLAN_PROFILES)[number] {
+  return PLAN_PROFILES.some((profile) => profile === value);
 }

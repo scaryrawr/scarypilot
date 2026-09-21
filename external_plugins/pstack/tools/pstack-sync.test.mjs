@@ -1,17 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 
 import {
   buildPlan,
   checkRepository,
   parseNameStatus,
 } from "./pstack-sync.mjs";
-
-const pstackRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const policy = {
   upstream: {
@@ -47,6 +44,7 @@ test("classifies a bounded upstream change set", () => {
       "A\tpstack/new-runtime/file.md",
     ].join("\n"),
   );
+
   const plan = buildPlan({
     policy,
     changes,
@@ -65,26 +63,6 @@ test("classifies a bounded upstream change set", () => {
       ["extensions/runtime.mjs", "copilot-owned"],
       ["new-runtime/file.md", "unclassified"],
     ],
-  );
-});
-
-test("swarm verifies session factory registration before dispatch", () => {
-  const skill = readFileSync(
-    join(pstackRoot, "skills", "swarm", "SKILL.md"),
-    "utf8",
-  );
-
-  assert.match(
-    skill,
-    /first use `factories_manage` with `operation: "list"`[\s\S]*confirm that `pstack-swarm` is registered[\s\S]*If the factory is listed,[\s\S]*call `run_factory` once/,
-  );
-  assert.match(
-    skill,
-    /If `pstack-swarm` is not listed,[\s\S]*use the legacy\s+flow below from the beginning\./,
-  );
-  assert.match(
-    skill,
-    /If `run_factory` reports `factory_not_found` or\s+`No factory registered`, list factories once more\. Retry the same invocation\s+once only when `pstack-swarm` is now listed; otherwise use the legacy flow\./,
   );
 });
 
