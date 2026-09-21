@@ -16,7 +16,9 @@ export function conversationPresence(
   summary: Pick<ChangeSummary, "openThreads" | "resolvedThreads">,
 ): ConversationPresence {
   if (summary.openThreads > 0) return "open";
+
   if (summary.resolvedThreads > 0) return "resolved-only";
+
   return "none";
 }
 
@@ -75,8 +77,10 @@ export function buildFileTree(
   threads: readonly ReviewThread[],
 ): FileTreeModel {
   const threadSummaries = new Map<string, Pick<ChangeSummary, "openThreads" | "resolvedThreads">>();
+
   for (const thread of threads) {
     const summary = threadSummaries.get(thread.anchor.path) ?? { openThreads: 0, resolvedThreads: 0 };
+
     if (thread.resolved) summary.resolvedThreads++;
     else summary.openThreads++;
     threadSummaries.set(thread.anchor.path, summary);
@@ -100,6 +104,7 @@ export function buildFileTree(
     for (const segment of segments) {
       folderPath = folderPath ? `${folderPath}/${segment}` : segment;
       const folderId = `folder:${folderPath}` as const;
+
       if (!nodesById.has(folderId)) {
         const folder: MutableFolderTreeNode = {
           kind: "folder",
@@ -110,15 +115,18 @@ export function buildFileTree(
           children: [],
           summary: emptySummary(),
         };
+
         nodesById.set(folderId, folder);
         folderIds.add(folderId);
         appendChild(nodesById, rootIds, parentId, folderId);
       }
+
       parentId = folderId;
     }
 
     const fileId = `file:${file.path}` as const;
     const threadSummary = threadSummaries.get(file.path);
+
     const fileNode: FileTreeFileNode = {
       kind: "file",
       id: fileId,
@@ -134,12 +142,14 @@ export function buildFileTree(
         resolvedThreads: threadSummary?.resolvedThreads ?? 0,
       },
     };
+
     nodesById.set(fileId, fileNode);
     fileIdByPath.set(file.path, fileId);
     appendChild(nodesById, rootIds, parentId, fileId);
   }
 
   sortSiblings(nodesById, rootIds);
+
   for (const rootId of rootIds) aggregateSummary(nodesById, rootId);
 
   return { rootIds, nodesById, fileIdByPath, folderIds };
@@ -161,10 +171,13 @@ export function projectFileTree(
     const visibleIds = retainedIds ? ids.filter((id) => retainedIds.has(id)) : ids;
     visibleIds.forEach((id, index) => {
       const node = model.nodesById.get(id);
+
       if (!node) return;
+
       const expanded = node.kind === "folder"
         ? Boolean(normalizedQuery) || expandedIds.has(node.id)
         : undefined;
+
       rows.push({
         id,
         node,
@@ -178,11 +191,13 @@ export function projectFileTree(
           Boolean(normalizedQuery) &&
           node.fullPath.toLocaleLowerCase().includes(normalizedQuery),
       });
+
       if (node.kind === "folder" && expanded) visit(node.children, depth + 1);
     });
   };
 
   visit(model.rootIds, 1);
+
   return rows;
 }
 
@@ -192,10 +207,12 @@ export function ancestorIds(
 ): readonly FileTreeNodeId[] {
   const ancestors: FileTreeNodeId[] = [];
   let parentId = model.nodesById.get(id)?.parentId ?? null;
+
   while (parentId) {
     ancestors.unshift(parentId);
     parentId = model.nodesById.get(parentId)?.parentId ?? null;
   }
+
   return ancestors;
 }
 
@@ -207,12 +224,16 @@ function appendChild(
 ) {
   if (!parentId) {
     rootIds.push(childId);
+
     return;
   }
+
   const parent = nodesById.get(parentId);
+
   if (!parent || parent.kind !== "folder") {
     throw new Error(`Missing parent folder: ${parentId}`);
   }
+
   parent.children.push(childId);
 }
 
@@ -223,11 +244,15 @@ function sortSiblings(
   ids.sort((leftId, rightId) => {
     const left = nodesById.get(leftId)!;
     const right = nodesById.get(rightId)!;
+
     if (left.kind !== right.kind) return left.kind === "folder" ? -1 : 1;
+
     return pathCollator.compare(left.name, right.name) || left.name.localeCompare(right.name);
   });
+
   for (const id of ids) {
     const node = nodesById.get(id);
+
     if (node?.kind === "folder") sortSiblings(nodesById, node.children);
   }
 }
@@ -237,6 +262,7 @@ function aggregateSummary(
   id: FileTreeNodeId,
 ): ChangeSummary {
   const node = nodesById.get(id)!;
+
   if (node.kind === "file") return node.summary;
   node.summary = node.children.reduce((total, childId) => {
     const child = aggregateSummary(nodesById, childId);
@@ -245,8 +271,10 @@ function aggregateSummary(
     total.fileCount += child.fileCount;
     total.openThreads += child.openThreads;
     total.resolvedThreads += child.resolvedThreads;
+
     return total;
   }, emptySummary());
+
   return node.summary;
 }
 
@@ -255,11 +283,14 @@ function matchingNodeIds(
   normalizedQuery: string,
 ): ReadonlySet<FileTreeNodeId> {
   const retained = new Set<FileTreeNodeId>();
+
   for (const [path, fileId] of model.fileIdByPath) {
     if (!path.toLocaleLowerCase().includes(normalizedQuery)) continue;
     retained.add(fileId);
+
     for (const ancestorId of ancestorIds(model, fileId)) retained.add(ancestorId);
   }
+
   return retained;
 }
 

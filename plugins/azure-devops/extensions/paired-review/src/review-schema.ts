@@ -4,6 +4,7 @@ export const DiffSideSchema = Type.Union([
   Type.Literal("additions"),
   Type.Literal("deletions"),
 ]);
+
 export type DiffSide = Static<typeof DiffSideSchema>;
 
 export const LineRangeSchema = Type.Object({
@@ -29,6 +30,7 @@ export const ReviewFileSchema = Type.Object({
   changeTrackingId: Type.Optional(Type.Number()),
   iterationId: Type.Optional(Type.Number()),
 });
+
 export type ReviewFile = Static<typeof ReviewFileSchema>;
 
 export const ReviewThreadMessageSchema = Type.Object({
@@ -42,6 +44,7 @@ export const ReviewThreadMessageSchema = Type.Object({
   body: Type.String(),
   createdAt: Type.String(),
 });
+
 export type ReviewThreadMessage = Static<typeof ReviewThreadMessageSchema>;
 
 export const LineAnchorSchema = Type.Object({
@@ -51,6 +54,7 @@ export const LineAnchorSchema = Type.Object({
   lineEnd: Type.Integer({ minimum: 1 }),
   sourceDigest: Type.Optional(Type.String()),
 });
+
 export type LineAnchor = Static<typeof LineAnchorSchema>;
 
 export const FindingAuthorSchema = Type.Union([
@@ -60,6 +64,7 @@ export const FindingAuthorSchema = Type.Union([
   }),
   Type.Object({ kind: Type.Literal("chat") }),
 ]);
+
 export type FindingAuthor = Static<typeof FindingAuthorSchema>;
 
 export const ReviewTargetSchema = Type.Union([
@@ -68,12 +73,14 @@ export const ReviewTargetSchema = Type.Union([
     threadId: Type.String({ minLength: 1 }),
   }),
 ]);
+
 export type ReviewTarget = Static<typeof ReviewTargetSchema>;
 
 export const ReviewFocusSchema = Type.Object({
   target: ReviewTargetSchema,
   revision: Type.Integer({ minimum: 1 }),
 });
+
 export type ReviewFocus = Static<typeof ReviewFocusSchema>;
 
 const ThreadStateSchema = {
@@ -120,6 +127,7 @@ export const ReviewThreadSchema = Type.Union([
     remoteThreadId: Type.Integer({ minimum: 1 }),
   }),
 ]);
+
 export type ReviewThread = Static<typeof ReviewThreadSchema>;
 
 export const ReviewPassSchema = Type.Union([
@@ -149,6 +157,7 @@ export const ReviewPassSchema = Type.Union([
     error: Type.String(),
   }),
 ]);
+
 export type ReviewPass = Static<typeof ReviewPassSchema>;
 
 export const CreateReviewThreadInputSchema = Type.Object({
@@ -158,6 +167,7 @@ export const CreateReviewThreadInputSchema = Type.Object({
   lineEnd: Type.Integer({ minimum: 1 }),
   body: Type.String({ minLength: 1, maxLength: 8000 }),
 });
+
 export type CreateReviewThreadInput = Static<typeof CreateReviewThreadInputSchema>;
 
 export const CreateReviewFindingInputSchema = Type.Object({
@@ -173,6 +183,7 @@ export const CreateReviewFindingInputSchema = Type.Object({
   title: Type.String({ minLength: 1, maxLength: 500 }),
   body: Type.String({ minLength: 1, maxLength: 8000 }),
 });
+
 export type CreateReviewFindingInput = Static<typeof CreateReviewFindingInputSchema>;
 
 export const PublishReviewFindingsInputSchema = Type.Object({
@@ -184,11 +195,13 @@ export const PublishReviewFindingsInputSchema = Type.Object({
     Type.Object({ kind: Type.Literal("all_open") }),
   ]),
 });
+
 export type PublishReviewFindingsInput = Static<typeof PublishReviewFindingsInputSchema>;
 
 export const StartReviewPassInputSchema = Type.Object({
   requestId: Type.String({ minLength: 1, maxLength: 200 }),
 });
+
 export type StartReviewPassInput = Static<typeof StartReviewPassInputSchema>;
 
 export const ReplyToReviewThreadInputSchema = Type.Object({
@@ -205,6 +218,7 @@ export const UpdateReviewThreadInputSchema = Type.Object({
   collapsed: Type.Optional(Type.Boolean()),
   resolved: Type.Optional(Type.Boolean()),
 });
+
 export type UpdateReviewThreadInput = Static<typeof UpdateReviewThreadInputSchema>;
 
 export const FocusReviewFileInputSchema = Type.Object({
@@ -243,4 +257,5 @@ export const ReviewStateSchema = Type.Object({
   threads: Type.Array(ReviewThreadSchema),
   updatedAt: Type.String(),
 });
+
 export type ReviewState = Static<typeof ReviewStateSchema>;

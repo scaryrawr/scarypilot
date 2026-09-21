@@ -26,8 +26,11 @@ interface ChangedFileTreeProps {
 }
 
 const DEFAULT_SIDEBAR_RATIO = 0.24;
+
 const MIN_SIDEBAR_WIDTH = 240;
+
 const MAX_SIDEBAR_WIDTH = 720;
+
 const SIDEBAR_WIDTH_STORAGE_KEY = "azure-devops-paired-review:file-tree-width";
 
 export function ChangedFileTree({
@@ -38,12 +41,15 @@ export function ChangedFileTree({
 }: ChangedFileTreeProps) {
   const model = useMemo(() => buildFileTree(files, threads), [files, threads]);
   const [query, setQuery] = useState("");
+
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<FileTreeNodeId>>(
     () => initialExpandedIds(model, activePath),
   );
+
   const [focusedId, setFocusedId] = useState<FileTreeNodeId | null>(
     () => activePath ? model.fileIdByPath.get(activePath) ?? null : model.rootIds[0] ?? null,
   );
+
   const [sidebarWidth, setSidebarWidth] = useState(initialSidebarWidth);
   const [resizing, setResizing] = useState(false);
   const resizeStart = useRef({ pointerX: 0, width: 0 });
@@ -53,12 +59,15 @@ export function ChangedFileTree({
   useEffect(() => {
     setExpandedIds((current) => {
       const next = new Set([...current].filter((id) => model.folderIds.has(id)));
+
       if (activePath !== lastActivePath.current) {
         const activeId = model.fileIdByPath.get(activePath ?? "");
+
         if (activeId) {
           for (const id of ancestorIds(model, activeId)) next.add(id);
         }
       }
+
       return next;
     });
     lastActivePath.current = activePath;
@@ -91,6 +100,7 @@ export function ChangedFileTree({
   useEffect(() => {
     const clampWidth = () => setSidebarWidth((width) => constrainSidebarWidth(width));
     window.addEventListener("resize", clampWidth);
+
     return () => window.removeEventListener("resize", clampWidth);
   }, []);
 
@@ -105,35 +115,45 @@ export function ChangedFileTree({
   function toggleFolder(id: FileTreeNodeId) {
     setExpandedIds((current) => {
       const next = new Set(current);
+
       if (next.has(id)) next.delete(id);
       else next.add(id);
+
       return next;
     });
   }
 
   function activateNode(node: FileTreeNode) {
     setFocusedId(node.id);
+
     if (node.kind === "folder") {
       toggleFolder(node.id);
+
       return;
     }
+
     onActivate(node.file);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const action = handleFileTreeKey(event.key, focusedId, rows, model);
+
     if (action.focusedId === focusedId &&
         !action.toggleFolderId &&
         !action.activatePath &&
         !isTreeNavigationKey(event.key)) {
       return;
     }
+
     event.preventDefault();
     setFocusedId(action.focusedId);
+
     if (action.toggleFolderId) toggleFolder(action.toggleFolderId);
+
     if (action.activatePath) {
       const fileId = model.fileIdByPath.get(action.activatePath);
       const node = fileId ? model.nodesById.get(fileId) : undefined;
+
       if (node?.kind === "file") onActivate(node.file);
     }
   }
@@ -154,15 +174,21 @@ export function ChangedFileTree({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+
     setResizing(false);
   }
 
   function handleResizeKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     let nextWidth: number | undefined;
+
     if (event.key === "ArrowLeft") nextWidth = sidebarWidth + 16;
+
     if (event.key === "ArrowRight") nextWidth = sidebarWidth - 16;
+
     if (event.key === "Home") nextWidth = MIN_SIDEBAR_WIDTH;
+
     if (event.key === "End") nextWidth = maxSidebarWidth();
+
     if (nextWidth === undefined) return;
     event.preventDefault();
     setSidebarWidth(constrainSidebarWidth(nextWidth));
@@ -230,6 +256,7 @@ export function ChangedFileTree({
         >
           {rows.map((row) => {
             const presence = conversationPresence(row.node.summary);
+
             return (
               <div
               aria-expanded={row.expanded}
@@ -248,7 +275,7 @@ export function ChangedFileTree({
               key={row.id}
               onClick={() => activateNode(row.node)}
               role="treeitem"
-              style={{ "--tree-depth": row.depth - 1 } as CSSProperties}
+              style={treeRowStyle(row.depth)}
               title={row.node.fullPath}
             >
               {row.node.kind === "folder" ? (
@@ -277,6 +304,14 @@ export function ChangedFileTree({
   );
 }
 
+interface TreeRowStyle extends CSSProperties {
+  "--tree-depth": number;
+}
+
+function treeRowStyle(depth: number): TreeRowStyle {
+  return { "--tree-depth": depth - 1 };
+}
+
 function initialExpandedIds(
   model: ReturnType<typeof buildFileTree>,
   activePath: string | null,
@@ -284,10 +319,13 @@ function initialExpandedIds(
   const expanded = new Set(
     model.rootIds.filter((id) => model.nodesById.get(id)?.kind === "folder"),
   );
+
   const activeId = activePath ? model.fileIdByPath.get(activePath) : undefined;
+
   if (activeId) {
     for (const id of ancestorIds(model, activeId)) expanded.add(id);
   }
+
   return expanded;
 }
 
@@ -297,14 +335,18 @@ function compactSummary(node: FileTreeNode): string {
       ? `${node.summary.fileCount} · ${node.summary.openThreads} open`
       : `${node.summary.fileCount}`;
   }
+
   if (node.summary.openThreads) return `${node.summary.openThreads} open`;
+
   if (node.summary.resolvedThreads) return `${node.summary.resolvedThreads} resolved`;
+
   return `+${node.summary.additions} −${node.summary.deletions}`;
 }
 
 function accessibleSummary(node: FileTreeNode): string {
   const summary = node.summary;
   const fileCount = node.kind === "folder" ? `${summary.fileCount} files; ` : "";
+
   return `${fileCount}${summary.additions} additions; ${summary.deletions} deletions; ` +
     `${summary.openThreads} open threads; ${summary.resolvedThreads} resolved threads`;
 }
@@ -328,6 +370,7 @@ function isTreeNavigationKey(key: string): boolean {
 
 function initialSidebarWidth(): number {
   const storedWidth = Number(window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
+
   return constrainSidebarWidth(
     Number.isFinite(storedWidth) && storedWidth > 0 ? storedWidth : defaultSidebarWidth(),
   );
