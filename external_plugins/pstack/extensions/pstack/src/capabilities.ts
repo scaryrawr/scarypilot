@@ -9,17 +9,21 @@ function executableState(command: string, pathValue = process.env.PATH ?? ""): C
     process.platform === "win32"
       ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";")
       : [""];
+
   const candidates = pathValue.split(delimiter).flatMap((directory) =>
     extensions.map((extension) => join(directory, `${command}${extension}`)),
   );
+
   const detail = candidates.find((candidate) => {
     try {
       accessSync(candidate, constants.X_OK);
+
       return true;
     } catch {
       return false;
     }
   });
+
   return detail
     ? { kind: "available", detail }
     : { kind: "unavailable", reason: `${command} is not on PATH` };
@@ -31,10 +35,13 @@ async function usableExecutable(
   port: ProcessPort,
 ): Promise<CapabilityState> {
   const installed = executableState(command);
+
   if (installed.kind !== "available") return installed;
+
   try {
     const result = await port.run(command, args, { timeoutMs: 3_000 });
     const detail = result.stdout.trim().split(/\r?\n/, 1)[0] || installed.detail;
+
     return { kind: "available", detail };
   } catch {
     return { kind: "available", detail: installed.detail };
@@ -50,10 +57,12 @@ export async function detectCapabilities(
     usableExecutable("gt", ["--version"], port),
     usableExecutable("bun", ["--version"], port),
   ]);
+
   const hostUnknown = (surface: string): CapabilityState => ({
     kind: "unknown",
     reason: `${surface} availability is controlled by the Copilot host and is not exposed to extensions`,
   });
+
   return {
     git,
     githubCli,

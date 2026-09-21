@@ -21,7 +21,9 @@ import {
 } from "./store.ts";
 
 const SCRIPT = join(import.meta.dir, "orch.ts");
+
 const directories: string[] = [];
+
 const handles: Store[] = [];
 
 interface RunResult {
@@ -33,6 +35,7 @@ interface RunResult {
 async function makeDirectory(): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "orch-test-"));
   directories.push(directory);
+
   return directory;
 }
 
@@ -42,6 +45,7 @@ function useStore(
 ): Store {
   const store = openStore(directory, options);
   handles.push(store);
+
   return store;
 }
 
@@ -52,6 +56,7 @@ async function initializedStore(): Promise<{
   const directory = await makeDirectory();
   const store = useStore(directory);
   await store.init();
+
   return { directory, store };
 }
 
@@ -63,11 +68,13 @@ function git({
   repo: string;
 }): string {
   const result = Bun.spawnSync(["git", "-C", repo, ...args]);
+
   if (result.exitCode !== 0) {
     throw new Error(
       `git ${args.join(" ")} failed: ${result.stderr.toString()}`
     );
   }
+
   return result.stdout.toString().trim();
 }
 
@@ -87,6 +94,7 @@ async function makeGitStack(directory: string): Promise<{
   git({ repo, args: ["commit", "-m", "main"] });
 
   const branches = ["stack/merged", "stack/closed", "stack/open"];
+
   for (const [index, branch] of branches.entries()) {
     git({ repo, args: ["checkout", "-b", branch] });
     await writeFile(join(repo, `stack-${index}.txt`), `${branch}\n`);
@@ -148,6 +156,7 @@ esac
 
   const originalPath = process.env.PATH;
   process.env.PATH = `${bin}:${originalPath ?? ""}`;
+
   try {
     return await operation(outputPath);
   } finally {
@@ -164,6 +173,7 @@ function runCli(
   env: Readonly<Record<string, string | undefined>> = process.env
 ): RunResult {
   const result = Bun.spawnSync([process.execPath, SCRIPT, ...args], { env });
+
   return {
     code: result.exitCode,
     stdout: result.stdout.toString(),
@@ -175,6 +185,7 @@ afterEach(async () => {
   for (const store of handles.splice(0).reverse()) {
     await store.close();
   }
+
   for (const directory of directories.splice(0)) {
     await rm(directory, { recursive: true, force: true });
   }
@@ -187,6 +198,7 @@ describe("Store", () => {
 
     expect(await store.init()).toEqual({ store: directory });
     const firstUnits = await readFile(join(directory, "units.tsv"), "utf8");
+
     const firstLedger = await readFile(
       join(directory, "ledger.tsv"),
       "utf8"
@@ -234,6 +246,7 @@ describe("Store", () => {
       pr: 184530,
       sha: "abc123",
     });
+
     expect(updated).toEqual({
       id: "u1",
       track: "build",
@@ -264,6 +277,7 @@ describe("Store", () => {
       throw new Error("expected ledger check to fail");
     } catch (error) {
       expect(error).toBeInstanceOf(NotFoundError);
+
       if (error instanceof NotFoundError) {
         expect(error.output).toEqual({
           compact: "NOT-VERIFIED",
@@ -275,6 +289,7 @@ describe("Store", () => {
         });
       }
     }
+
     expect(() => parseVerdict("looks-good")).toThrow("verdict must be");
 
     const recorded = await store.ledger.record({
@@ -284,6 +299,7 @@ describe("Store", () => {
       evidence: "reports/verify.md",
       verifier: "sol",
     });
+
     expect(await store.ledger.check({ pr: 184530, sha: "abc123" })).toEqual(
       recorded
     );
@@ -311,6 +327,7 @@ describe("Store", () => {
       status: "done",
       report: "reports/u1.md",
     });
+
     expect(first.pointer).toMatchObject({ unit: "u1", status: "done" });
     expect(first.filename).toEndWith(".tsv");
     await store.inbox.push({
@@ -339,9 +356,11 @@ describe("Store", () => {
     await writeFile(join(directory, ".orch.lock"), `${exited.pid}\n`);
 
     const stale: string[] = [];
+
     const recovered = useStore(directory, {
       onStaleLock: (holder) => stale.push(holder),
     });
+
     expect(
       await recovered.units.add({ id: "u1", track: "build" })
     ).toMatchObject({ id: "u1" });
@@ -361,10 +380,12 @@ describe("Store", () => {
     ).rejects.toThrow(`store lock held by pid ${process.pid}`);
 
     const stolen: string[] = [];
+
     const forced = useStore(directory, {
       force: true,
       onLockStolen: (holder) => stolen.push(holder),
     });
+
     expect(
       await forced.units.add({ id: "u1", track: "build" })
     ).toMatchObject({ id: "u1" });
@@ -409,6 +430,7 @@ describe("Store", () => {
   it("resolves the ordered Graphite frontier and validates an optional pin", async () => {
     const { directory, store } = await initializedStore();
     const stack = await makeGitStack(directory);
+
     const output = `◯ main
 ◯ stack/merged
 ◯ stack/closed
@@ -565,6 +587,7 @@ describe("orch CLI", () => {
       ["unit", "add", "u1", "--track", "build", "--json"],
       env
     );
+
     expect(added.code).toBe(0);
     expect(JSON.parse(added.stdout)).toEqual({
       id: "u1",
@@ -587,6 +610,7 @@ describe("orch CLI", () => {
       "frontier",
       "set",
     ]);
+
     expect(missingRepo.code).toBe(1);
     expect(missingRepo.stderr).toContain(
       "set --repo <dir> or ORCH_REPO"
@@ -601,6 +625,7 @@ describe("orch CLI", () => {
       "--track",
       "build",
     ]);
+
     expect(userError.code).toBe(1);
     expect(userError.stderr).toContain("unit id must not be empty");
 
@@ -611,6 +636,7 @@ describe("orch CLI", () => {
       "get",
       "missing",
     ]);
+
     expect(missingUnit.code).toBe(2);
     expect(missingUnit.stderr).toContain("unit missing not found");
 
@@ -623,6 +649,7 @@ describe("orch CLI", () => {
       "184530",
       "abc123",
     ]);
+
     expect(missingLedger.code).toBe(2);
     expect(JSON.parse(missingLedger.stdout)).toEqual({
       pr: "184530",

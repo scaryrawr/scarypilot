@@ -20,7 +20,14 @@ const LOCAL_PROVIDER_DISCOVERERS = {
 } as const;
 
 export type LocalProviderName = keyof typeof LOCAL_PROVIDER_DISCOVERERS;
-export const LOCAL_PROVIDER_NAMES = Object.keys(LOCAL_PROVIDER_DISCOVERERS) as LocalProviderName[];
+
+export const LOCAL_PROVIDER_NAMES = [
+  OLLAMA_PROVIDER_NAME,
+  LMSTUDIO_PROVIDER_NAME,
+  OMLX_PROVIDER_NAME,
+  OSAURUS_PROVIDER_NAME,
+  GENIEX_PROVIDER_NAME,
+] satisfies LocalProviderName[];
 
 export async function discoverLocalProviders(
   environment: NodeJS.ProcessEnv = process.env,

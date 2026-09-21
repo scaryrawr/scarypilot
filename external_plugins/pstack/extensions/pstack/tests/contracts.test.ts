@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { buildSnapshot } from "../src/snapshot.ts";
 
 const execFileAsync = promisify(execFile);
+
 const directories: string[] = [];
 
 afterEach(async () => {
@@ -19,6 +20,7 @@ describe("contract validator", () => {
     directories.push(directory);
     const path = join(directory, "snapshot.json");
     const unknown = { kind: "unknown" as const, reason: "host" };
+
     const snapshot = buildSnapshot({
       capabilities: {
         git: unknown,
@@ -38,11 +40,14 @@ describe("contract validator", () => {
       handoff: null,
       sourceWarnings: [],
     });
+
     await writeFile(path, JSON.stringify(snapshot));
+
     const script = resolve(
       import.meta.dirname,
       "../../../skills/pstack-schema-validate/scripts/validate.mjs",
     );
+
     const result = await execFileAsync(process.execPath, [script, "snapshot", path]);
     expect(result.stdout).toContain("snapshot contract valid");
   });
@@ -67,10 +72,12 @@ describe("contract validator", () => {
         unexpected: true,
       }),
     );
+
     const script = resolve(
       import.meta.dirname,
       "../../../skills/pstack-schema-validate/scripts/validate.mjs",
     );
+
     await expect(execFileAsync(process.execPath, [script, "snapshot", path])).rejects.toMatchObject({
       code: 1,
       stderr: expect.stringContaining("$.unexpected: unexpected property"),
@@ -95,10 +102,12 @@ describe("contract validator", () => {
         createdAt: "2026-01-01",
       }),
     );
+
     const script = resolve(
       import.meta.dirname,
       "../../../skills/pstack-schema-validate/scripts/validate.mjs",
     );
+
     await expect(execFileAsync(process.execPath, [script, "receipt", path])).rejects.toMatchObject({
       code: 1,
       stderr: expect.stringContaining("$.evidence[0].digest: expected string"),

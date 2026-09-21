@@ -69,9 +69,11 @@ export function createOmlxImageTool(): Tool<OmlxImageArgs> {
       try {
         const result = await executeImage(args);
         const files = result.files.map((file) => `- ${file}`).join("\n");
+
         return `Saved ${result.files.length} ${result.operation === "edit" ? "edited" : "generated"} image${result.files.length === 1 ? "" : "s"} with ${result.model}:\n${files}`;
       } catch (error) {
         if (error instanceof ImageToolError) return `❌ ${error.code}: ${error.message}`;
+
         return `❌ IMAGE_FAILED: ${error instanceof Error ? error.message : String(error)}`;
       }
     },

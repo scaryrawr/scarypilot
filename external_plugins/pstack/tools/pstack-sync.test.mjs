@@ -44,6 +44,7 @@ test("classifies a bounded upstream change set", () => {
       "A\tpstack/new-runtime/file.md",
     ].join("\n"),
   );
+
   const plan = buildPlan({
     policy,
     changes,

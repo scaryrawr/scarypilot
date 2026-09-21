@@ -63,9 +63,11 @@ describe("reviewInstanceId", () => {
     const first = reviewInstanceId(
       "https://dev.azure.com/example/project/_git/one/pullrequest/42",
     );
+
     const second = reviewInstanceId(
       "https://dev.azure.com/example/project/_git/two/pullrequest/42",
     );
+
     expect(first).not.toBe(second);
   });
 
@@ -78,9 +80,11 @@ describe("reviewInstanceId", () => {
 describe("updateReviewState", () => {
   it("preserves files when only the status changes", () => {
     const initial = createReviewState("review-1", "https://dev.azure.com/o/p/_git/r/pullrequest/1");
+
     const withFiles = updateReviewState(initial, {
       files: [{ path: "src/index.ts", diff: "+hello" }],
     });
+
     const updated = updateReviewState(withFiles, { status: "Ready" });
     expect(updated.files).toEqual(withFiles.files);
     expect(updated.status).toBe("Ready");
@@ -110,6 +114,7 @@ describe("review pass lifecycle", () => {
     expect(queued.scheduled).toBe(true);
     expect(queueReviewPass(queued.review, "request-1").scheduled).toBe(false);
     expect(queueReviewPass(queued.review, "request-2").scheduled).toBe(false);
+
     if (queued.pass.kind !== "queued") throw new Error("expected queued pass");
 
     const running = startQueuedReviewPass(queued.review, queued.pass.id);
@@ -138,10 +143,12 @@ describe("Copilot findings", () => {
       kind: "review_pass",
       passId: "pass-1",
     });
+
     const second = insertReviewFinding(first.review, { ...input, severity: "blocking" }, {
       kind: "review_pass",
       passId: "pass-2",
     });
+
     expect(first.thread.messages[0]?.role).toBe("assistant");
     expect(first.thread.finding.createdBy).toEqual({ kind: "review_pass", passId: "pass-1" });
     expect(second.inserted).toBe(false);
@@ -154,6 +161,7 @@ describe("Copilot findings", () => {
 
   it("updates the running pass finding count", () => {
     const queued = queueReviewPass(changedReview(), "request-1");
+
     if (queued.pass.kind !== "queued") throw new Error("expected queued pass");
     const running = startQueuedReviewPass(queued.review, queued.pass.id);
 
@@ -170,6 +178,7 @@ describe("Copilot findings", () => {
       const ranges = changedLineRanges(
         "@@ -1,2 +1,2 @@\n----\n++++\n-old\n+new\n",
       );
+
       expect(ranges).toEqual({
         additions: [{ start: 1, end: 2 }],
         deletions: [{ start: 1, end: 2 }],
@@ -188,13 +197,16 @@ describe("Copilot findings", () => {
 
   it("focuses, expands, and refreshes an existing finding", () => {
     const inserted = insertReviewFinding(changedReview(), input, { kind: "chat" });
+
     const collapsed = updateReviewState(inserted.review, {
       threads: inserted.review.threads.map((thread) => ({ ...thread, collapsed: true })),
     });
+
     const first = focusReviewTarget(collapsed, {
       kind: "thread",
       threadId: inserted.thread.id,
     });
+
     const second = focusReviewTarget(first.review, {
       kind: "thread",
       threadId: inserted.thread.id,
@@ -232,6 +244,7 @@ describe("Copilot findings", () => {
       3,
       "How does this context affect the change?",
     );
+
     expect(created.thread.anchor).toMatchObject({ lineStart: 3, lineEnd: 3 });
   });
 });

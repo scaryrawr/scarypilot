@@ -27,13 +27,16 @@ import { stopLiveDashboard } from "./dashboard.ts";
  * state is per-session by construction.
  */
 const cwdRef = createCwdRef(process.cwd());
+
 const runtime = defaultRuntimeState();
+
 let lastLoggedRun = 0;
 
 // Forward references so the slash command (constructed before `joinSession`
 // resolves so it can be passed via `commands: [...]`) and the `onSessionEnd`
 // hook can reach the session and auto-resume scheduler once those are ready.
 let sessionRef: import("@github/copilot-sdk").CopilotSession | null = null;
+
 let autoResumeRef: ReturnType<typeof createAutoResumeScheduler> | null = null;
 
 function refreshFromDisk(
@@ -41,14 +44,18 @@ function refreshFromDisk(
 ): { ok: true; workDir: string } | { ok: false; error: string } {
   const cwd = cwdRef.get();
   const workDirError = validateWorkDir(cwd);
+
   if (workDirError) {
     runtime.autoresearchMode = false;
     runtime.lastRunChecks = null;
     runtime.lastRunDurationSeconds = null;
     lastLoggedRun = 0;
+
     return { ok: false, error: workDirError };
   }
+
   let workDir: string;
+
   try {
     workDir = resolveWorkDir(cwd);
   } catch (error) {
@@ -56,13 +63,16 @@ function refreshFromDisk(
     runtime.lastRunChecks = null;
     runtime.lastRunDurationSeconds = null;
     lastLoggedRun = 0;
+
     return {
       ok: false,
       error: error instanceof Error ? error.message : String(error),
     };
   }
+
   const jsonlPath = autoresearchJsonlPath(workDir);
   const persisted = loadPersistedRuntime(workDir, sessionId);
+
   if (!fs.existsSync(jsonlPath)) {
     runtime.autoresearchMode = restoredMode(
       persisted?.autoresearchMode,
@@ -72,8 +82,10 @@ function refreshFromDisk(
     runtime.lastRunChecks = persisted?.lastRunChecks ?? null;
     runtime.lastRunDurationSeconds = persisted?.lastRunDurationSeconds ?? null;
     lastLoggedRun = 0;
+
     return { ok: true, workDir };
   }
+
   try {
     const state = reconstructJsonlState(fs.readFileSync(jsonlPath, "utf-8"));
     lastLoggedRun = state.results.length;
@@ -85,21 +97,26 @@ function refreshFromDisk(
   } catch {
     // ignore
   }
+
   if (persisted) {
     if (typeof persisted.autoresearchMode === "boolean") {
       runtime.autoresearchMode = persisted.autoresearchMode;
     }
+
     if (persisted.lastRunChecks !== undefined) {
       runtime.lastRunChecks = persisted.lastRunChecks;
     }
+
     if (persisted.lastRunDurationSeconds !== undefined) {
       runtime.lastRunDurationSeconds = persisted.lastRunDurationSeconds;
     }
   }
+
   return { ok: true, workDir };
 }
 
 const extensionSessionId = process.env.SESSION_ID;
+
 if (extensionSessionId) refreshFromDisk(extensionSessionId);
 
 const autoresearchCommand = createAutoresearchCommand({
@@ -107,6 +124,7 @@ const autoresearchCommand = createAutoresearchCommand({
   runtime,
   getSession: () => {
     if (!sessionRef) throw new Error("autoresearch command invoked before session is ready");
+
     return sessionRef;
   },
   resetAutoResume: () => autoResumeRef?.reset(),
@@ -118,31 +136,40 @@ const session = await joinSession({
       cwdRef.set(input.workingDirectory);
       const refreshed = refreshFromDisk(invocation.sessionId);
       autoResumeRef?.syncToCurrentRun();
+
       if (!refreshed.ok) {
         await session.log(`/autoresearch: ${refreshed.error}`, { level: "error" });
+
         return undefined;
       }
+
       await session.log(
         `copilot-autoresearch loaded${runtime.autoresearchMode ? " — autoresearch mode ACTIVE" : ""}`,
         { ephemeral: true },
       );
+
       // First-turn context: only mention active mode when resuming an existing session.
       if (runtime.autoresearchMode && input.source === "resume") {
         return {
           additionalContext: buildAutoresearchAdditionalContext(refreshed.workDir),
         };
       }
+
       return undefined;
     },
     onUserPromptSubmitted: async (input, invocation) => {
       cwdRef.set(input.workingDirectory);
       const refreshed = refreshFromDisk(invocation.sessionId);
       autoResumeRef?.syncToCurrentRun();
+
       if (!refreshed.ok) {
         await session.log(`/autoresearch: ${refreshed.error}`, { level: "error" });
+
         return;
       }
+
       if (!runtime.autoresearchMode) return;
+
       return {
         additionalContext: buildAutoresearchAdditionalContext(refreshed.workDir),
       };
@@ -178,6 +205,7 @@ const session = await joinSession({
   ],
   commands: [autoresearchCommand],
 });
+
 sessionRef = session;
 
 const autoResume = createAutoResumeScheduler({
@@ -186,6 +214,7 @@ const autoResume = createAutoResumeScheduler({
   session,
   getLastLoggedRun: () => lastLoggedRun,
 });
+
 autoResumeRef = autoResume;
 
 session.on("session.idle", () => autoResume.onIdle());

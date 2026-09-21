@@ -1,4 +1,5 @@
 import { runShell } from "./spawn.ts";
+import type { JsonlEntry } from "./jsonl.ts";
 
 export interface CommitResult {
   committed: boolean;
@@ -16,10 +17,11 @@ export interface CommitResult {
 export async function gitAutoCommit(
   workDir: string,
   description: string,
-  resultData: Record<string, unknown>,
+  resultData: JsonlEntry,
 ): Promise<CommitResult> {
   try {
     const add = await runShell("git add -A", { cwd: workDir, timeoutMs: 10_000 });
+
     if (add.exitCode !== 0) {
       return {
         committed: false,
@@ -33,15 +35,18 @@ export async function gitAutoCommit(
       cwd: workDir,
       timeoutMs: 5_000,
     });
+
     if (diff.exitCode === 0) {
       return { committed: false, sha: null, message: "nothing to commit", error: null };
     }
 
     const commitMsg = `${description}\n\nResult: ${JSON.stringify(resultData)}`;
+
     const commit = await runShell(`git commit -m ${shellQuote(commitMsg)}`, {
       cwd: workDir,
       timeoutMs: 10_000,
     });
+
     if (commit.exitCode !== 0) {
       return {
         committed: false,
@@ -53,16 +58,20 @@ export async function gitAutoCommit(
 
     const firstLine = commit.combined.split("\n")[0] ?? "";
     let sha: string | null = null;
+
     try {
       const rev = await runShell("git rev-parse --short=7 HEAD", {
         cwd: workDir,
         timeoutMs: 5_000,
       });
+
       const out = rev.stdout.trim();
+
       if (rev.exitCode === 0 && out.length >= 7) sha = out;
     } catch {
       // keep sha null
     }
+
     return { committed: true, sha, message: firstLine, error: null };
   } catch (e) {
     return {
@@ -85,10 +94,13 @@ export async function gitRevertNonAutoresearch(workDir: string): Promise<{ ok: b
       git checkout -- . ':(exclude,glob)**/.auto' ':(exclude,glob)**/.auto/**' ':(exclude,glob)**/autoresearch.*' ':(exclude,glob)**/autoresearch.*/**'
       git clean -fd -e '.auto' -e '**/.auto/**' -e 'autoresearch.*' -e '**/autoresearch.*/**' >/dev/null 2>&1 || true
     `;
+
     const result = await runShell(script, { cwd: workDir, timeoutMs: 10_000 });
+
     if (result.exitCode !== 0) {
       return { ok: false, error: `git revert failed (exit ${result.exitCode}): ${result.combined.slice(0, 200)}` };
     }
+
     return { ok: true, error: null };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };

@@ -61,8 +61,10 @@ export function createInitTool(ctx: InitContext): Tool<InitArgs> {
       if (!ctx.runtime.autoresearchMode) {
         return "❌ Autoresearch mode is off. Start it with `/autoresearch <goal>`.";
       }
+
       const cwd = ctx.cwdRef.get();
       const workDirError = validateWorkDir(cwd);
+
       if (workDirError) return `❌ ${workDirError}`;
       const workDir = resolveWorkDir(cwd);
 
@@ -82,6 +84,7 @@ export function createInitTool(ctx: InitContext): Tool<InitArgs> {
       try {
         ensureParentDir(jsonlPath);
         const line = JSON.stringify(configEntry) + "\n";
+
         if (jsonlExists) fs.appendFileSync(jsonlPath, line);
         else fs.writeFileSync(jsonlPath, line);
       } catch (e) {
@@ -89,6 +92,7 @@ export function createInitTool(ctx: InitContext): Tool<InitArgs> {
           e instanceof Error ? e.message : String(e)
         }`;
       }
+
       broadcastDashboardUpdate(workDir);
 
       ctx.runtime.lastRunChecks = null;
@@ -97,9 +101,11 @@ export function createInitTool(ctx: InitContext): Tool<InitArgs> {
 
       const maxIterations = readMaxIterations(cwd);
       const limitNote = maxIterations !== null ? `\nMax iterations: ${maxIterations}` : "";
+
       const reinitNote = jsonlExists
         ? " (re-initialized — previous results archived in earlier segment)"
         : "";
+
       const workDirNote = workDir !== cwd ? `\nWorking directory: ${workDir}` : "";
 
       ctx.log(`Autoresearch initialized: ${args.name}`);

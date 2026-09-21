@@ -10,13 +10,16 @@ afterEach(async () => {
 
 async function createServer() {
   const createThread = vi.fn(async () => "thread-1");
+
   const startReviewPass = vi.fn(async () => ({
     pass: { kind: "queued" as const, id: "pass-1", requestId: "request-1" },
     scheduled: true,
   }));
+
   const replyToThread = vi.fn(async () => {});
   const fixThread = vi.fn(async () => {});
   const updateThread = vi.fn(async () => {});
+
   const server = await startReviewServer({
     getState: () => updateReviewState(
       createReviewState("review-1", "https://dev.azure.com/o/p/_git/r/pullrequest/1"),
@@ -29,24 +32,30 @@ async function createServer() {
     updateThread,
     setActivePath: vi.fn(),
   });
+
   servers.push(server);
   const canvasUrl = new URL(server.urlFor("review-1"));
+
   const apiUrl = (pathname: string) => {
     const url = new URL(canvasUrl);
     url.pathname = pathname;
+
     return url;
   };
+
   return { apiUrl, createThread, fixThread, replyToThread, startReviewPass, updateThread };
 }
 
 describe("review thread API", () => {
   it("validates and starts an idempotent review pass without exposing publication", async () => {
     const { apiUrl, startReviewPass } = await createServer();
+
     const invalid = await fetch(apiUrl("/api/review-passes"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ requestId: "" }),
     });
+
     expect(invalid.status).toBe(400);
 
     const malformed = await fetch(apiUrl("/api/review-passes"), {
@@ -54,6 +63,7 @@ describe("review thread API", () => {
       headers: { "content-type": "application/json" },
       body: "{",
     });
+
     expect(malformed.status).toBe(400);
     expect(await malformed.json()).toEqual({ error: "request body must contain valid JSON" });
 
@@ -62,6 +72,7 @@ describe("review thread API", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ requestId: "request-1" }),
     });
+
     expect(started.status).toBe(202);
     expect(startReviewPass).toHaveBeenCalledWith("review-1", "request-1");
 
@@ -71,6 +82,7 @@ describe("review thread API", () => {
 
   it("validates and creates an inline thread", async () => {
     const { apiUrl, createThread } = await createServer();
+
     const response = await fetch(apiUrl("/api/threads"), {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -97,11 +109,13 @@ describe("review thread API", () => {
 
   it("updates collapsed and resolved thread state", async () => {
     const { apiUrl, updateThread } = await createServer();
+
     const response = await fetch(apiUrl("/api/threads/thread-1"), {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ collapsed: true, resolved: true }),
     });
+
     expect(response.status).toBe(200);
     expect(updateThread).toHaveBeenCalledWith("review-1", "thread-1", {
       collapsed: true,
@@ -111,6 +125,7 @@ describe("review thread API", () => {
 
   it("rejects invalid ranges and forwards valid replies", async () => {
     const { apiUrl, createThread, replyToThread } = await createServer();
+
     const invalid = await fetch(apiUrl("/api/threads"), {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -122,6 +137,7 @@ describe("review thread API", () => {
         body: "Question",
       }),
     });
+
     expect(invalid.status).toBe(400);
     expect(createThread).not.toHaveBeenCalled();
 
@@ -130,12 +146,14 @@ describe("review thread API", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ body: "  Follow up  " }),
     });
+
     expect(reply.status).toBe(202);
     expect(replyToThread).toHaveBeenCalledWith("review-1", "thread-1", "Follow up");
   });
 
   it("starts a workspace-only Copilot fix for a thread", async () => {
     const { apiUrl, fixThread } = await createServer();
+
     const response = await fetch(apiUrl("/api/threads/thread-1/fix"), {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -148,6 +166,7 @@ describe("review thread API", () => {
 
   it("allows future fix options in the request object", async () => {
     const { apiUrl, fixThread } = await createServer();
+
     const response = await fetch(apiUrl("/api/threads/thread-1/fix"), {
       method: "POST",
       headers: { "content-type": "application/json" },

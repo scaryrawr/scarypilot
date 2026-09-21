@@ -1,6 +1,6 @@
 {
   "name": "@scarypilot/pstack-extension",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Native GitHub Copilot extension for deterministic pstack state and verification tools.",
   "type": "module",
@@ -9,7 +9,8 @@
     "typecheck": "tsgo -p tsconfig.json"
   },
   "dependencies": {
-    "@github/copilot-sdk": "1.0.14"
+    "@github/copilot-sdk": "1.0.14",
+    "@sinclair/typebox": "^0.34.41"
   },
   "devDependencies": {
     "@types/node": "^24.12.2",

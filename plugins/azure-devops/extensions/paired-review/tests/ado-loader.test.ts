@@ -4,6 +4,7 @@ import {
   loadAzurePullRequest,
   publishReviewFindings,
   type AzureCliRunner,
+  type JsonValue,
 } from "../src/ado-loader.ts";
 import {
   changedLineRanges,
@@ -59,9 +60,11 @@ describe("loadAzurePullRequest", () => {
   it("loads changed contents and builds a unified patch", async () => {
     const jsonCalls: string[][] = [];
     const fileCalls: string[][] = [];
+
     const runner: AzureCliRunner = {
-      async json(args) {
+      async json(args): Promise<JsonValue> {
         jsonCalls.push(args);
+
         if (args.includes("show")) {
           return {
             title: "Update greeting",
@@ -70,6 +73,7 @@ describe("loadAzurePullRequest", () => {
             repository: { id: "repo-id" },
           };
         }
+
         if (args.includes("pullRequestIterations")) {
           return {
             value: [{
@@ -79,6 +83,7 @@ describe("loadAzurePullRequest", () => {
             }],
           };
         }
+
         if (args.includes("pullRequestThreads")) {
           return {
             value: [{
@@ -98,10 +103,12 @@ describe("loadAzurePullRequest", () => {
             }],
           };
         }
+
         return { changeEntries: [{ changeType: "edit", item: { path: "/src/greeting.ts" } }] };
       },
       async file(args) {
         fileCalls.push(args);
+
         return Buffer.from(args.includes("versionDescriptor.version=source-sha")
           ? 'export const greeting = "hello";\n'
           : 'export const greeting = "hi";\n');
@@ -174,6 +181,7 @@ function reviewWithFindings(changeTrackingId = 17, iterationId = 3) {
       }],
     },
   );
+
   const first = insertReviewFinding(review, {
     path: "src/example.ts",
     side: "additions",
@@ -183,6 +191,7 @@ function reviewWithFindings(changeTrackingId = 17, iterationId = 3) {
     title: "First finding",
     body: "First body",
   }, { kind: "review_pass", passId: "pass-1" });
+
   return insertReviewFinding(first.review, {
     path: "src/example.ts",
     side: "deletions",
@@ -195,30 +204,38 @@ function reviewWithFindings(changeTrackingId = 17, iterationId = 3) {
 }
 
 function publicationRunner(
-  listResponses: unknown[],
-  create: (call: number) => unknown | Error = (call) => ({ id: 100 + call }),
+  listResponses: JsonValue[],
+  create: (call: number) => JsonValue | Error = (call) => ({ id: 100 + call }),
 ) {
-  const calls: Array<{ args: string[]; body: unknown }> = [];
+  const calls: Array<{ args: string[]; body: Parameters<AzureCliRunner["json"]>[1] }> = [];
   let listIndex = 0;
   let createIndex = 0;
+
   const runner: AzureCliRunner = {
     async json(args, body) {
       calls.push({ args, body });
+
       if (args.includes("show")) return { repository: { id: "repo-id" } };
+
       if (args.includes("pullRequestThreads") && !args.includes("--http-method")) {
         return listResponses[listIndex++] ?? { value: [] };
       }
+
       if (args.includes("--http-method")) {
         const result = create(createIndex++);
+
         if (result instanceof Error) throw result;
+
         return result;
       }
+
       throw new Error(`Unexpected Azure CLI call: ${args.join(" ")}`);
     },
     async file() {
       throw new Error("Publication does not read file content");
     },
   };
+
   return { calls, runner };
 }
 
@@ -244,6 +261,7 @@ describe("publishReviewFindings", () => {
 
   it("lists remote threads before each write and skips exact duplicates", async () => {
     const review = reviewWithFindings();
+
     const { calls, runner } = publicationRunner([
       {
         value: [{
@@ -283,10 +301,12 @@ describe("publishReviewFindings", () => {
 
   it("continues after one Azure create fails and uses right-side anchors", async () => {
     const review = reviewWithFindings();
+
     const { calls, runner } = publicationRunner(
       [{ value: [] }, { value: [] }],
       (call) => call === 0 ? new Error("Azure rejected the finding") : { id: 77 },
     );
+
     const results = await publishReviewFindings(
       review,
       { kind: "finding_ids", findingIds: review.threads.map((thread) => thread.id) },
@@ -305,6 +325,7 @@ describe("publishReviewFindings", () => {
 
   it("does not treat a different first comment as a duplicate", async () => {
     const review = reviewWithFindings();
+
     const { calls, runner } = publicationRunner([{
       value: [{
         id: 31,
@@ -329,6 +350,7 @@ describe("publishReviewFindings", () => {
 
   it("does not collapse meaningful whitespace when matching legacy comments", async () => {
     const review = reviewWithFindings();
+
     const { calls, runner } = publicationRunner([{
       value: [{
         id: 31,
@@ -354,22 +376,24 @@ describe("publishReviewFindings", () => {
   it("serializes concurrent publication for the same pull request", async () => {
     const review = reviewWithFindings();
     const finding = review.threads[0]!;
-    const remote: unknown[] = [];
+    const remote: JsonValue[] = [];
     let creates = 0;
+
     const runner: AzureCliRunner = {
-      async json(args, body) {
+      async json(args, body): Promise<JsonValue> {
         if (args.includes("show")) return { repository: { id: "repo-id" } };
+
         if (!args.includes("--http-method")) return { value: remote };
         creates++;
-        const payload = body as {
-          comments: Array<{ content: string }>;
-          threadContext: unknown;
-        };
+
+        if (!body) throw new Error("Expected a thread creation payload.");
+
         remote.push({
           id: 44,
-          comments: payload.comments,
-          threadContext: payload.threadContext,
+          comments: body.comments,
+          threadContext: body.threadContext,
         });
+
         return { id: 44 };
       },
       async file() {
@@ -378,6 +402,7 @@ describe("publishReviewFindings", () => {
     };
 
     const selection = { kind: "finding_ids" as const, findingIds: [finding.id] };
+
     const [first, second] = await Promise.all([
       publishReviewFindings(review, selection, runner),
       publishReviewFindings(review, selection, runner),

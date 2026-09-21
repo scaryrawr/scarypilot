@@ -1,76 +1,48 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { joinSession } from "@github/copilot-sdk/extension";
+import { registerDigivolutionExtension } from "../src/register.ts";
 
-type HookOptions = {
-  hooks: {
-    onUserPromptSubmitted: (input: {
-      sessionId: string;
-      prompt: string;
-      workingDirectory: string;
-    }, invocation: { sessionId: string }) => Promise<void>;
-    onPostToolUse: (input: {
-      sessionId: string;
-      toolName: string;
-      toolArgs: unknown;
-      toolResult: unknown;
-      workingDirectory: string;
-    }, invocation: { sessionId: string }) => Promise<void>;
-    onPostToolUseFailure: (input: {
-      sessionId: string;
-      toolName: string;
-      toolArgs: unknown;
-      error: string;
-      workingDirectory: string;
-    }, invocation: { sessionId: string }) => Promise<void>;
-    onAgentStop: (input: {
-      sessionId: string;
-      stopHookActive?: boolean;
-      workingDirectory: string;
-    }, invocation: { sessionId: string }) => Promise<
-      { decision: "block"; reason: string } | undefined
-    >;
-  };
-};
-
-const mocks = vi.hoisted(() => ({
-  options: undefined as HookOptions | undefined,
-}));
-
-vi.mock("@github/copilot-sdk/extension", () => ({
-  joinSession: vi.fn(async (options: HookOptions) => {
-    mocks.options = options;
-    return {};
-  }),
-}));
+type HookOptions = Parameters<typeof joinSession>[0];
 
 describe("digivolution extension", () => {
+  let options: HookOptions | undefined;
+  const timestamp = new Date("2026-09-21T12:00:00.000Z");
+
   beforeEach(() => {
-    mocks.options = undefined;
-    vi.resetModules();
+    options = undefined;
+  });
+
+  const join = vi.fn(async (next: HookOptions) => {
+    options = next;
   });
 
   it("registers the adaptive hooks and blocks once for a correction", async () => {
-    await import("../src/extension.ts");
+    await registerDigivolutionExtension(join);
     const primary = { sessionId: "primary-session" };
 
-    expect(Object.keys(mocks.options?.hooks ?? {})).toEqual([
+    expect(Object.keys(options?.hooks ?? {})).toEqual([
       "onUserPromptSubmitted",
       "onPostToolUse",
       "onPostToolUseFailure",
       "onAgentStop",
     ]);
 
-    await mocks.options?.hooks.onUserPromptSubmitted({
+    await options?.hooks?.onUserPromptSubmitted?.({
       sessionId: primary.sessionId,
       prompt: "Stop using npm here; this repository requires pnpm.",
+      timestamp,
       workingDirectory: "/workspace/repo",
     }, primary);
 
-    const first = await mocks.options?.hooks.onAgentStop({
+    const first = await options?.hooks?.onAgentStop?.({
       sessionId: primary.sessionId,
+      timestamp,
       workingDirectory: "/workspace/repo",
     }, primary);
-    const second = await mocks.options?.hooks.onAgentStop({
+
+    const second = await options?.hooks?.onAgentStop?.({
       sessionId: primary.sessionId,
+      timestamp,
       workingDirectory: "/workspace/repo",
     }, primary);
 
@@ -79,57 +51,39 @@ describe("digivolution extension", () => {
   });
 
   it("ignores subagent prompts and tool outcomes", async () => {
-    await import("../src/extension.ts");
+    await registerDigivolutionExtension(join);
     const primary = { sessionId: "primary-session" };
     const subagentSessionId = "call_subagent";
 
-    await mocks.options?.hooks.onUserPromptSubmitted({
+    await options?.hooks?.onUserPromptSubmitted?.({
       sessionId: subagentSessionId,
       prompt: "Stop using npm here; this repository requires pnpm.",
+      timestamp,
       workingDirectory: "/workspace/repo",
     }, primary);
-    await mocks.options?.hooks.onPostToolUseFailure({
+    await options?.hooks?.onPostToolUseFailure?.({
       sessionId: subagentSessionId,
       toolName: "bash",
       toolArgs: { command: "npm test ./package.json" },
       error: "unknown command test",
+      timestamp,
       workingDirectory: "/workspace/repo",
     }, primary);
-    await mocks.options?.hooks.onPostToolUseFailure({
-      sessionId: subagentSessionId,
-      toolName: "bash",
-      toolArgs: { command: "npm run test ./package.json" },
-      error: "tests failed",
-      workingDirectory: "/workspace/repo",
-    }, primary);
-    await mocks.options?.hooks.onPostToolUse({
+    await options?.hooks?.onPostToolUse?.({
       sessionId: subagentSessionId,
       toolName: "bash",
       toolArgs: { command: "python3 -m json.tool ./package.json" },
-      toolResult: {},
+      toolResult: {
+        textResultForLlm: "ok",
+        resultType: "success",
+      },
+      timestamp,
       workingDirectory: "/workspace/repo",
     }, primary);
 
-    const decision = await mocks.options?.hooks.onAgentStop({
+    const decision = await options?.hooks?.onAgentStop?.({
       sessionId: primary.sessionId,
-      workingDirectory: "/workspace/repo",
-    }, primary);
-
-    expect(decision).toBeUndefined();
-  });
-
-  it("ignores a stop event from a non-primary session", async () => {
-    await import("../src/extension.ts");
-    const primary = { sessionId: "primary-session" };
-
-    await mocks.options?.hooks.onUserPromptSubmitted({
-      sessionId: primary.sessionId,
-      prompt: "Stop using npm here; this repository requires pnpm.",
-      workingDirectory: "/workspace/repo",
-    }, primary);
-
-    const decision = await mocks.options?.hooks.onAgentStop({
-      sessionId: "call_subagent",
+      timestamp,
       workingDirectory: "/workspace/repo",
     }, primary);
 

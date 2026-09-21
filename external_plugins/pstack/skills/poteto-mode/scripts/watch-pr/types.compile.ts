@@ -14,6 +14,7 @@ const context = {
   repo: "hello-world",
   number: parsePrNumber(123),
 } satisfies PrContext;
+
 const cleanCi = {
   kind: "ci-clean",
   source: "gh-pr-checks",
@@ -37,6 +38,7 @@ const cleanCi = {
     headRollupState: "SUCCESS",
   },
 } satisfies CiClean;
+
 const readyPr = {
   kind: "ready-pr",
   context,
@@ -51,6 +53,7 @@ const readyPr = {
     },
   },
 } satisfies ReadyPr;
+
 const ready = {
   schemaVersion: 1,
   sequence: 1,
@@ -88,6 +91,9 @@ const unprovenPr = { kind: "ready-pr", context } as const;
 const readyWithoutProof: ReadyPr = unprovenPr;
 
 void refusalIsNotAllowed;
+
 void refusalIsNotClean;
+
 void readyWithBlockerExit;
+
 void readyWithoutProof;

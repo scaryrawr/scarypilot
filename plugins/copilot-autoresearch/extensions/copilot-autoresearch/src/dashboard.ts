@@ -23,6 +23,7 @@ export function buildDashboardHtml(
   const state = reconstructJsonlState(jsonlContent);
   const baseline = findBaselineMetric(state.results, state.currentSegment);
   const best = findBestMetric(state.results, state.currentSegment, state.bestDirection);
+
   const confidence = computeConfidence(
     state.results,
     state.currentSegment,
@@ -30,6 +31,7 @@ export function buildDashboardHtml(
   );
 
   const cur = currentResults(state.results, state.currentSegment);
+
   const counts = {
     keep: cur.filter((r) => r.status === "keep").length,
     discard: cur.filter((r) => r.status === "discard").length,
@@ -95,6 +97,7 @@ ${options.liveUpdates ? `<script>
 
 function renderChart(state: ReconstructedJsonlState): string {
   const runs = currentResults(state.results, state.currentSegment);
+
   if (runs.length < 2) return "";
 
   const width = 900;
@@ -104,11 +107,15 @@ function renderChart(state: ReconstructedJsonlState): string {
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || 1;
+
   const x = (index: number) =>
     padding + (index / Math.max(1, runs.length - 1)) * (width - padding * 2);
+
   const y = (value: number) =>
     padding + ((max - value) / span) * (height - padding * 2);
+
   const points = runs.map((run, index) => `${x(index)},${y(run.metric)}`).join(" ");
+
   const dots = runs
     .map(
       (run, index) =>
@@ -128,9 +135,11 @@ function renderRunsTable(state: ReconstructedJsonlState): string {
   if (state.results.length === 0) {
     return "<p>No experiments yet.</p>";
   }
+
   const baseline = findBaselineMetric(state.results, state.currentSegment);
   const rows = [...state.results].reverse().map((r) => renderRunRow(r, baseline, state));
   const secondary = state.secondaryMetrics.map((m) => `<th>${escapeHtml(m.name)}</th>`).join("");
+
   return `
 <h2>Runs</h2>
 <table>
@@ -152,25 +161,32 @@ function renderRunRow(
   state: ReconstructedJsonlState,
 ): string {
   const delta = formatDelta(run.metric, baseline);
+
   const deltaClass = run.metric === (baseline ?? run.metric)
     ? ""
     : isImprovement(run.metric, baseline, state.bestDirection)
       ? "delta-good"
       : "delta-bad";
+
   const secondaryCells = state.secondaryMetrics
     .map((m) => {
       const v = run.metrics[m.name];
+
       return `<td>${v === undefined ? "—" : escapeHtml(formatNum(v, m.unit))}</td>`;
     })
     .join("");
+
   const asi = run.asi
     ? `<details><summary>ASI</summary><pre>${escapeHtml(JSON.stringify(run.asi, null, 2))}</pre></details>`
     : "";
+
   const revisitsRun = run.asi?.revisits_run;
+
   const revisitBadge =
     typeof revisitsRun === "number" && Number.isInteger(revisitsRun) && revisitsRun > 0
       ? `<div class="revisit-badge">↻ Revisiting #${revisitsRun}</div>`
       : "";
+
   return `<tr>
     <td>${run.run}</td>
     <td class="status-${escapeHtml(run.status)}">${escapeHtml(run.status)}</td>
@@ -184,13 +200,17 @@ function renderRunRow(
 
 function isImprovement(value: number, baseline: number | null, direction: "lower" | "higher"): boolean {
   if (baseline === null) return false;
+
   return direction === "lower" ? value < baseline : value > baseline;
 }
 
 function confidenceDescription(c: number | null): string {
   if (c === null) return "needs ≥3 runs";
+
   if (c >= 2.0) return "likely real";
+
   if (c >= 1.0) return "above noise but marginal";
+
   return "within noise";
 }
 
@@ -203,8 +223,15 @@ function escapeHtml(text: string): string {
     .replace(/'/g, "&#39;");
 }
 
-export function exportDashboard(workDir: string): { path: string; ok: boolean; error: string | null } {
+export interface DashboardExportResult {
+  path: string;
+  ok: boolean;
+  error: string | null;
+}
+
+export function exportDashboard(workDir: string): DashboardExportResult {
   const jsonlPath = autoresearchJsonlPath(workDir);
+
   if (!fs.existsSync(jsonlPath)) {
     return {
       path: autoresearchHtmlPath(workDir),
@@ -219,6 +246,7 @@ export function exportDashboard(workDir: string): { path: string; ok: boolean; e
     const out = autoresearchHtmlPath(workDir);
     ensureParentDir(out);
     fs.writeFileSync(out, html);
+
     return { path: out, ok: true, error: null };
   } catch (e) {
     return {
@@ -230,14 +258,18 @@ export function exportDashboard(workDir: string): { path: string; ok: boolean; e
 }
 
 let dashboardServer: http.Server | null = null;
+
 let dashboardPort: number | null = null;
+
 let dashboardWorkDir: string | null = null;
+
 const dashboardClients = new Set<http.ServerResponse>();
 
 export async function openLiveDashboard(
   workDir: string,
 ): Promise<{ url: string | null; error: string | null }> {
   const jsonlPath = autoresearchJsonlPath(workDir);
+
   if (!fs.existsSync(jsonlPath)) {
     return { url: null, error: "No autoresearch session log found — run some experiments first." };
   }
@@ -246,6 +278,7 @@ export async function openLiveDashboard(
     const port = await startDashboardServer(workDir);
     const url = `http://127.0.0.1:${port}`;
     openInBrowser(url);
+
     return { url, error: null };
   } catch (error) {
     return {
@@ -258,6 +291,7 @@ export async function openLiveDashboard(
 export async function stopLiveDashboard(): Promise<void> {
   for (const client of dashboardClients) client.end();
   dashboardClients.clear();
+
   if (!dashboardServer) return;
   const server = dashboardServer;
   dashboardServer = null;
@@ -270,10 +304,12 @@ async function startDashboardServer(workDir: string): Promise<number> {
   if (dashboardServer && dashboardPort && dashboardWorkDir === workDir) {
     return dashboardPort;
   }
+
   await stopLiveDashboard();
 
   const server = http.createServer((_request, response) => {
     const requestUrl = new URL(_request.url ?? "/", "http://127.0.0.1");
+
     if (requestUrl.pathname === "/events") {
       response.writeHead(200, {
         "Cache-Control": "no-cache",
@@ -283,12 +319,16 @@ async function startDashboardServer(workDir: string): Promise<number> {
       response.write("retry: 1000\n\n");
       dashboardClients.add(response);
       response.on("close", () => dashboardClients.delete(response));
+
       return;
     }
+
     if (requestUrl.pathname !== "/") {
       response.writeHead(404).end();
+
       return;
     }
+
     try {
       const content = fs.readFileSync(autoresearchJsonlPath(workDir), "utf-8");
       response.writeHead(200, {
@@ -315,18 +355,22 @@ async function startDashboardServer(workDir: string): Promise<number> {
   });
 
   const address = server.address();
+
   if (!address || typeof address === "string") {
     server.close();
     throw new Error("Failed to bind dashboard server");
   }
+
   dashboardServer = server;
   dashboardPort = address.port;
   dashboardWorkDir = workDir;
+
   return address.port;
 }
 
 export function broadcastDashboardUpdate(workDir: string): void {
   if (!dashboardServer || dashboardWorkDir !== workDir) return;
+
   for (const client of dashboardClients) {
     try {
       client.write(`event: jsonl-updated\ndata: ${Date.now()}\n\n`);
@@ -348,6 +392,7 @@ function openInBrowser(url: string): void {
           detached: true,
           stdio: "ignore",
         });
+
   child.on("error", () => {});
   child.unref();
 }

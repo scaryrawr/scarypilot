@@ -6,18 +6,23 @@
  * Rejects prototype-pollution keys.
  */
 const METRIC_LINE_REGEX = /^METRIC\s+([\w.µ]+)=(\S+)\s*$/gm;
+
 const DENIED_METRIC_NAMES = new Set(["__proto__", "constructor", "prototype"]);
 
 export function parseMetricLines(output: string): Map<string, number> {
   const metrics = new Map<string, number>();
   METRIC_LINE_REGEX.lastIndex = 0;
   let match: RegExpExecArray | null;
+
   while ((match = METRIC_LINE_REGEX.exec(output)) !== null) {
     const name = match[1];
+
     if (DENIED_METRIC_NAMES.has(name)) continue;
     const value = Number(match[2]);
+
     if (Number.isFinite(value)) metrics.set(name, value);
   }
+
   return metrics;
 }
 
@@ -39,6 +44,7 @@ export function isAutoresearchShCommand(command: string): boolean {
 
   // Strip wrappers env/time/nice/nohup with optional flags
   let prev: string;
+
   do {
     prev = cmd;
     cmd = cmd.replace(/^(?:env|time|nice|nohup)(?:\s+-\S+(?:\s+\d+)?)*\s+/, "");
@@ -48,6 +54,7 @@ export function isAutoresearchShCommand(command: string): boolean {
     /^(?:(?:bash|sh|source)\s+(?:-\w+\s+)*)?(?:\/|\.{1,2}\/|[\w.-]+\/)*(?:autoresearch\.sh|\.auto\/measure\.sh)(?:\s|$)/.test(
       cmd,
     );
+
   if (!startsWithScript) return false;
 
   // Reject anything after the benchmark path that introduces a second command.

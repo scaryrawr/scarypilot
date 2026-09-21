@@ -11,4 +11,5 @@ export interface PlanValidation {
 }
 
 export const PLAN_PROFILES: readonly ["basic", "verified-stack"];
+
 export function validatePlanText(rawText: string, profile?: string): PlanValidation;

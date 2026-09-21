@@ -28,6 +28,7 @@ describe("recordVerificationReceipt", () => {
       summary: "Targeted tests passed.",
       evidence: [{ kind: "command" as const, value: "npm test", digest: "sha256:test" }],
     };
+
     const first = await recordVerificationReceipt(input);
     const second = await recordVerificationReceipt(input);
     expect(second.receipt.receiptId).toBe(first.receipt.receiptId);
@@ -64,12 +65,21 @@ describe("recordVerificationReceipt", () => {
       summary: "Targeted tests passed.",
       evidence: [{ kind: "command" as const, value: "npm test" }],
     };
+
     await expect(recordVerificationReceipt(input)).rejects.toThrow(
       /already has receipt [a-f0-9]{20}/,
     );
-    const token = (await recordVerificationReceipt(input).catch((error: unknown) =>
-      String(error).match(/receipt ([a-f0-9]{20})/)?.[1],
-    )) as string;
+
+    let token: string | undefined;
+
+    try {
+      await recordVerificationReceipt(input);
+    } catch (error) {
+      token = String(error).match(/receipt ([a-f0-9]{20})/)?.[1];
+    }
+
+    if (!token) throw new Error("Expected duplicate receipt error to include its receipt ID.");
+
     await expect(
       recordVerificationReceipt({ ...input, supersedesReceiptId: token }),
     ).resolves.toMatchObject({ receipt: { verdict: "unit-test-verified" } });

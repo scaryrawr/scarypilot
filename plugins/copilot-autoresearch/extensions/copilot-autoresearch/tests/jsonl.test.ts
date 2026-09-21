@@ -7,9 +7,10 @@ import {
   isAutoresearchRunEntry,
   parseJsonlEntry,
   reconstructJsonlState,
+  type JsonlEntry,
 } from "../src/jsonl.ts";
 
-const config = (extra: Record<string, unknown> = {}) =>
+const config = (extra: JsonlEntry = {}) =>
   JSON.stringify({
     type: "config",
     name: "Speed up tests",
@@ -19,7 +20,7 @@ const config = (extra: Record<string, unknown> = {}) =>
     ...extra,
   });
 
-const run = (n: number, extra: Record<string, unknown> = {}) =>
+const run = (n: number, extra: JsonlEntry = {}) =>
   JSON.stringify({
     run: n,
     commit: `abc${n.toString().padStart(4, "0")}`,
@@ -103,6 +104,7 @@ describe("reconstructJsonlState", () => {
       run(1, { metrics: { compile_µs: 200, render_µs: 300 } }),
       run(2, { metrics: { compile_µs: 195, render_µs: 290 } }),
     ].join("\n");
+
     const state = reconstructJsonlState(content);
     expect(state.results).toHaveLength(2);
     expect(state.secondaryMetrics.map((m) => m.name)).toEqual([
@@ -119,6 +121,7 @@ describe("reconstructJsonlState", () => {
       config({ name: "Phase 2", metricName: "wall_s", metricUnit: "s" }),
       run(2, { metric: 12, metrics: { mem_mb: 100 }, segment: 1 }),
     ].join("\n");
+
     const state = reconstructJsonlState(content);
     expect(state.currentSegment).toBe(1);
     expect(state.name).toBe("Phase 2");
@@ -140,5 +143,34 @@ describe("reconstructJsonlState", () => {
     const content = [config(), run(1, { status: "bogus" })].join("\n");
     const state = reconstructJsonlState(content);
     expect(state.results[0].status).toBe("keep");
+  });
+
+  it("defaults malformed optional fields without discarding the run", () => {
+    const content = [
+      config({ name: 42, metricName: false }),
+      run(1, {
+        commit: 42,
+        metric: "100",
+        metrics: { valid: 1, invalid: "2" },
+        description: null,
+        timestamp: "1700",
+        confidence: "high",
+        asi: [],
+      }),
+    ].join("\n");
+
+    const state = reconstructJsonlState(content);
+
+    expect(state.name).toBeNull();
+    expect(state.metricName).toBe("metric");
+    expect(state.results[0]).toMatchObject({
+      commit: "",
+      metric: 0,
+      metrics: { valid: 1 },
+      description: "",
+      timestamp: 0,
+      confidence: null,
+    });
+    expect(state.results[0].asi).toBeUndefined();
   });
 });

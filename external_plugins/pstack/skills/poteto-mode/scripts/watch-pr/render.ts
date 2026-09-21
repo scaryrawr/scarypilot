@@ -1,9 +1,12 @@
 import type * as T from "./types.ts";
+
 export const renderJson = (verdict: T.WatcherVerdict): string =>
   `${JSON.stringify(verdict)}\n`;
+
 function ciCell(row: T.PrSnapshot): string {
   if (row.kind !== "open") return "\u2014";
   const was = row.ci.hadPreviousPassingCi ? ", was ✅" : "";
+
   switch (row.ci.kind) {
     case "ci-clean":
       return "✅";
@@ -15,13 +18,16 @@ function ciCell(row: T.PrSnapshot): string {
       return `❌ GitHub reports failing checks${was}`;
     default: {
       const exhaustive: never = row.ci;
+
       return exhaustive;
     }
   }
 }
+
 function reviewCell(row: T.PrSnapshot): string {
   if (row.kind !== "open") return "\u2014";
   const open = row.threads.length;
+
   return row.reviewAutomationRunning
     ? open
       ? `🤖 running, ${open} open`
@@ -30,30 +36,40 @@ function reviewCell(row: T.PrSnapshot): string {
       ? `📝 ${open} open`
       : "✅";
 }
+
 function mergeCell(row: T.PrSnapshot): string {
   if (row.kind === "merged") return "✅ merged";
+
   if (row.kind === "closed") return "❌ closed";
+
   if (row.facts.isDraft) return "⏸ draft";
+
   if (row.facts.reviewDecision === "CHANGES_REQUESTED")
     return "⚠️ changes requested";
+
   return row.facts.mergeable === "CONFLICTING" ||
     row.facts.mergeStateStatus === "DIRTY" ||
     row.facts.mergeStateStatus === "CONFLICTING"
     ? "⚠️ conflict"
     : "✅";
 }
+
 export function renderStatusTable(rows: T.NonEmpty<T.PrSnapshot>): string {
   const lines = ["| PR | CI | Review | Merge |", "| --- | --- | --- | --- |"];
+
   for (const row of rows) {
     const url = `https://github.com/${row.context.owner}/${row.context.repo}/pull/${row.context.number}`;
     lines.push(
       `| [#${row.context.number}](${url}) | ${ciCell(row)} | ${reviewCell(row)} | ${mergeCell(row)} |`
     );
   }
+
   return `${lines.join("\n")}\n`;
 }
+
 function threadLine(thread: T.ReviewThread): string {
   const comment = thread.firstComment;
+
   return [
     thread.id,
     comment?.path ?? "None",
@@ -64,11 +80,13 @@ function threadLine(thread: T.ReviewThread): string {
     (comment?.body ?? "").split(/\r?\n/, 1)[0]?.slice(0, 180) ?? "",
   ].join(" ");
 }
+
 type StatusQueryBlocker = {
   readonly kind: "status-query";
   readonly failures: number;
   readonly failure: { readonly detail: string };
 };
+
 function renderBlocker(blocker: T.MergeBlocker | StatusQueryBlocker): string {
   switch (blocker.kind) {
     case "merge-conflicts":
@@ -88,15 +106,18 @@ function renderBlocker(blocker: T.MergeBlocker | StatusQueryBlocker): string {
       ].join("\n");
     case "failing-checks": {
       const failed = blocker.ci.kind === "ci-failing" ? blocker.ci.failed : [];
+
       const details = failed.map(
         (check) =>
           `${check.name} ${check.reportedState} ${check.description} ${check.link}`
       );
+
       if (blocker.ci.kind === "ci-github-rejected")
         details.push(
           `mergeStateStatus=${blocker.ci.github.mergeStateStatus}`,
           `headRollupState=${blocker.ci.github.headRollupState}`
         );
+
       return [
         "BLOCKER: failing-checks",
         `pr=${blocker.pr.number}`,
@@ -104,6 +125,7 @@ function renderBlocker(blocker: T.MergeBlocker | StatusQueryBlocker): string {
         ...details,
       ].join("\n");
     }
+
     case "merge-gate": {
       const action =
         blocker.reason === "closed-without-merge"
@@ -111,12 +133,14 @@ function renderBlocker(blocker: T.MergeBlocker | StatusQueryBlocker): string {
           : blocker.reason === "draft-pr"
             ? "mark the PR ready for review before waiting for the merge queue"
             : "resolve the changes-requested review before waiting for the merge queue";
+
       return [
         `BLOCKER: ${blocker.reason}`,
         `pr=${blocker.pr.number}`,
         `action=${action}`,
       ].join("\n");
     }
+
     case "status-query":
       return [
         "BLOCKER: status-query",
@@ -126,10 +150,12 @@ function renderBlocker(blocker: T.MergeBlocker | StatusQueryBlocker): string {
       ].join("\n");
     default: {
       const exhaustive: never = blocker;
+
       return exhaustive;
     }
   }
 }
+
 export function renderPretty(verdict: T.WatcherVerdict): string {
   switch (verdict.kind) {
     case "QUEUE":
@@ -151,18 +177,23 @@ export function renderPretty(verdict: T.WatcherVerdict): string {
         verdict.scope.kind === "single" && verdict.scope.pr.kind === "ready-pr"
           ? `\nmergeStateStatus=${verdict.scope.pr.proof.ci.github.mergeStateStatus}\nreviewDecision=${verdict.scope.pr.proof.gate.reviewDecision}\nisDraft=${verdict.scope.pr.proof.gate.draft === "draft-allowed"}${verdict.scope.pr.proof.gate.draft === "draft-allowed" ? "\nnote=draft allowed (--allow-draft); leave draft \u2014 do not mark ready" : ""}`
           : "";
+
       return `READY: no merge conflicts, no unresolved review threads, no failing or pending checks${detail}\n`;
     }
+
     case "COMPLETE":
       return `COMPLETE: queued stack merged (${verdict.queue.length} PR${verdict.queue.length === 1 ? "" : "s"})\n`;
     case "TIMEOUT":
       if (verdict.reason.kind === "pending-checks")
         return "TIMEOUT: checks still pending\n";
+
       if (verdict.reason.kind === "status-unavailable")
         return "TIMEOUT: GitHub status remained unavailable\n";
+
       return `TIMEOUT: queued stack still has ${verdict.reason.unmergedCount} PR${verdict.reason.unmergedCount === 1 ? "" : "s"} unmerged; frontier=#${verdict.reason.frontier.number}\n`;
     default: {
       const exhaustive: never = verdict;
+
       return exhaustive;
     }
   }

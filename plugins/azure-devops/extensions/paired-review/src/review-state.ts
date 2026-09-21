@@ -4,7 +4,6 @@ import type {
   DiffSide,
   FindingAuthor,
   LineAnchor,
-  ReviewFile,
   ReviewPass,
   ReviewState,
   ReviewTarget,
@@ -36,6 +35,21 @@ export interface ReviewLineRange {
   end: number;
 }
 
+export interface FocusReviewResult {
+  review: ReviewState;
+  thread: ReviewThread;
+}
+
+export interface CreateQuestionThreadResult {
+  review: ReviewState;
+  thread: Extract<ReviewThread, { kind: "question" }>;
+}
+
+export interface ChangedLineRanges {
+  additions: ReviewLineRange[];
+  deletions: ReviewLineRange[];
+}
+
 export interface FindingInsertion {
   review: ReviewState;
   thread: Extract<ReviewThread, { kind: "finding" }>;
@@ -53,6 +67,7 @@ const FINDING_VERSION = "paired-review-finding-v1";
 export function isAzurePullRequestUrl(value: string): boolean {
   try {
     parseAzurePullRequestUrl(value);
+
     return true;
   } catch {
     return false;
@@ -61,21 +76,26 @@ export function isAzurePullRequestUrl(value: string): boolean {
 
 export function parseAzurePullRequestUrl(value: string): AzurePullRequestLocation {
   const url = new URL(value);
+
   if (url.protocol !== "https:") throw new Error("Azure DevOps pull request URLs must use HTTPS.");
 
   const parts = url.pathname.split("/").filter(Boolean).map(decodeURIComponent);
   const pullRequestIndex = parts.findIndex((part) => part.toLowerCase() === "pullrequest");
   const gitIndex = parts.findIndex((part) => part.toLowerCase() === "_git");
+
   if (gitIndex < 1 || pullRequestIndex !== gitIndex + 2) {
     throw new Error("URL is not an Azure DevOps pull request.");
   }
+
   const pullRequestId = Number(parts[pullRequestIndex + 1]);
+
   if (!Number.isSafeInteger(pullRequestId) || pullRequestId < 1) {
     throw new Error("URL does not contain a valid pull request ID.");
   }
 
   if (url.hostname === "dev.azure.com") {
     if (gitIndex < 2) throw new Error("URL does not contain an organization and project.");
+
     return {
       organizationUrl: `https://dev.azure.com/${encodeURIComponent(parts[0])}`,
       project: parts[1],
@@ -86,7 +106,9 @@ export function parseAzurePullRequestUrl(value: string): AzurePullRequestLocatio
 
   if (url.hostname.endsWith(".visualstudio.com")) {
     const organization = url.hostname.slice(0, -".visualstudio.com".length);
+
     if (!organization) throw new Error("URL does not contain an organization.");
+
     return {
       organizationUrl: `https://${organization}.visualstudio.com`,
       project: parts[0],
@@ -104,6 +126,7 @@ export function reviewInstanceId(prUrl: string): string {
   const prId = match?.[1] ?? "review";
   const identity = `${url.origin.toLowerCase()}${url.pathname.replace(/\/$/, "").toLowerCase()}`;
   const suffix = createHash("sha256").update(identity).digest("hex").slice(0, 10);
+
   return `ado-pr-${prId}-${suffix}`;
 }
 
@@ -137,17 +160,20 @@ export function updateReviewState(
 
 export function queueReviewPass(review: ReviewState, requestId: string): ReviewPassQueueResult {
   const current = review.reviewPass;
+
   if (
     current.kind !== "idle" &&
     (current.requestId === requestId || current.kind === "queued" || current.kind === "running")
   ) {
     return { review, pass: current, scheduled: false };
   }
+
   const pass: ReviewPass = {
     kind: "queued",
     id: reviewPassId(requestId),
     requestId,
   };
+
   return {
     review: updateReviewState(review, { reviewPass: pass }),
     pass,
@@ -157,7 +183,9 @@ export function queueReviewPass(review: ReviewState, requestId: string): ReviewP
 
 export function startQueuedReviewPass(review: ReviewState, passId: string): ReviewState {
   const pass = review.reviewPass;
+
   if (pass.kind !== "queued" || pass.id !== passId) return review;
+
   return updateReviewState(review, {
     reviewPass: { ...pass, kind: "running", findingCount: findingCount(review) },
   });
@@ -165,7 +193,9 @@ export function startQueuedReviewPass(review: ReviewState, passId: string): Revi
 
 export function completeReviewPass(review: ReviewState, passId: string): ReviewState {
   const pass = review.reviewPass;
+
   if (pass.kind !== "running" || pass.id !== passId) return review;
+
   return updateReviewState(review, {
     reviewPass: { ...pass, kind: "completed", findingCount: findingCount(review) },
   });
@@ -173,7 +203,9 @@ export function completeReviewPass(review: ReviewState, passId: string): ReviewS
 
 export function failReviewPass(review: ReviewState, passId: string, error: string): ReviewState {
   const pass = review.reviewPass;
+
   if (pass.kind !== "running" || pass.id !== passId) return review;
+
   return updateReviewState(review, {
     reviewPass: {
       ...pass,
@@ -190,12 +222,15 @@ export function insertReviewFinding(
   createdBy: FindingAuthor,
 ): FindingInsertion {
   const anchor = reviewAnchor(review, input, true);
+
   if (!anchor) throw new Error("finding range is not part of the changed review content");
   const id = findingId(anchor, input.title, input.body);
+
   const existing = review.threads.find(
     (thread): thread is Extract<ReviewThread, { kind: "finding" }> =>
       thread.kind === "finding" && thread.finding.id === id,
   );
+
   if (existing) return { review, thread: existing, inserted: false };
 
   const thread: Extract<ReviewThread, { kind: "finding" }> = {
@@ -221,12 +256,15 @@ export function insertReviewFinding(
       publication: { kind: "local" },
     },
   };
+
   const next = updateReviewState(review, { threads: [...review.threads, thread] });
+
   const updated = next.reviewPass.kind === "running"
     ? updateReviewState(next, {
         reviewPass: { ...next.reviewPass, findingCount: findingCount(next) },
       })
     : next;
+
   return {
     review: updated,
     thread,
@@ -237,10 +275,12 @@ export function insertReviewFinding(
 export function focusReviewTarget(
   review: ReviewState,
   target: ReviewTarget,
-): { review: ReviewState; thread: ReviewThread } {
+): FocusReviewResult {
   const thread = review.threads.find((candidate) => candidate.id === target.threadId);
+
   if (!thread) throw new Error("review thread was not found");
   const focus = nextReviewFocus(review, target);
+
   const updated = updateReviewState(review, {
     activePath: thread.anchor.path,
     focus,
@@ -248,8 +288,11 @@ export function focusReviewTarget(
       candidate.id === thread.id ? { ...candidate, collapsed: false } : candidate
     ),
   });
+
   const updatedThread = updated.threads.find((candidate) => candidate.id === thread.id);
+
   if (!updatedThread) throw new Error("focused review thread disappeared");
+
   return {
     review: updated,
     thread: updatedThread,
@@ -270,9 +313,11 @@ export function createQuestionThread(
   lineStart: number,
   lineEnd: number,
   body: string,
-): { review: ReviewState; thread: Extract<ReviewThread, { kind: "question" }> } {
+): CreateQuestionThreadResult {
   const anchor = reviewAnchor(review, { path, side, lineStart, lineEnd }, false);
+
   if (!anchor) throw new Error("selected range is not part of the changed review content");
+
   const thread: Extract<ReviewThread, { kind: "question" }> = {
     kind: "question",
     id: randomUUID(),
@@ -288,6 +333,7 @@ export function createQuestionThread(
       createdAt: new Date().toISOString(),
     }],
   };
+
   return {
     review: updateReviewState(review, { threads: [...review.threads, thread] }),
     thread,
@@ -304,37 +350,45 @@ export function findingId(anchor: LineAnchor, title: string, body: string): stri
     normalizeReviewText(title),
     normalizeReviewText(body),
   ];
+
   return `finding-${createHash("sha256").update(JSON.stringify(fingerprint)).digest("hex").slice(0, 24)}`;
 }
 
-export function changedLineRanges(diff: string): { additions: ReviewLineRange[]; deletions: ReviewLineRange[] } {
+export function changedLineRanges(diff: string): ChangedLineRanges {
   const additions: ReviewLineRange[] = [];
   const deletions: ReviewLineRange[] = [];
   let additionLine = 0;
   let deletionLine = 0;
+
   for (const line of diff.split("\n")) {
     const header = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+
     if (header) {
       deletionLine = Number(header[1]);
       additionLine = Number(header[2]);
       continue;
     }
+
     if (!additionLine && !deletionLine) continue;
+
     if (line.startsWith("+")) {
       appendRange(additions, additionLine);
       additionLine++;
       continue;
     }
+
     if (line.startsWith("-")) {
       appendRange(deletions, deletionLine);
       deletionLine++;
       continue;
     }
+
     if (line.startsWith(" ")) {
       additionLine++;
       deletionLine++;
     }
   }
+
   return { additions, deletions };
 }
 
@@ -343,6 +397,7 @@ export function findingThreads(
   selection: { kind: "finding_ids"; findingIds: string[] } | { kind: "all_open" },
 ): Extract<ReviewThread, { kind: "finding" }>[] {
   const requested = selection.kind === "finding_ids" ? new Set(selection.findingIds) : null;
+
   return review.threads.filter(
     (thread): thread is Extract<ReviewThread, { kind: "finding" }> =>
       thread.kind === "finding" &&
@@ -394,15 +449,21 @@ function reviewAnchor(
 ): LineAnchor | null {
   if (input.lineEnd < input.lineStart) return null;
   const file = review.files.find((candidate) => candidate.path === input.path);
+
   if (!file) return null;
   const content = input.side === "additions" ? file.newContent : file.oldContent;
+
   if (content === undefined || input.lineEnd > lineCount(content)) return null;
+
   if (requireChangedLines) {
     const ranges = file.changedLineRanges ?? changedLineRanges(file.diff);
     const sideRanges = input.side === "additions" ? ranges.additions : ranges.deletions;
+
     if (!sideRanges.some((range) => input.lineStart >= range.start && input.lineEnd <= range.end)) return null;
   }
+
   const selected = content.split(/\r?\n/).slice(input.lineStart - 1, input.lineEnd).join("\n");
+
   return {
     ...input,
     sourceDigest: createHash("sha256").update(selected).digest("hex"),
@@ -430,9 +491,12 @@ export function lineCount(content: string): number {
 
 function appendRange(ranges: ReviewLineRange[], line: number): void {
   const previous = ranges.at(-1);
+
   if (previous && previous.end + 1 === line) {
     previous.end = line;
+
     return;
   }
+
   ranges.push({ start: line, end: line });
 }

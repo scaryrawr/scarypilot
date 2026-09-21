@@ -93,6 +93,7 @@ describe("buildDashboardHtml", () => {
         confidence: null,
       }),
     ].join("\n");
+
     const html = buildDashboardHtml(evil);
     // Tag opening characters must be escaped so the browser sees inert text.
     expect(html).not.toContain("<script>alert(1)</script>");

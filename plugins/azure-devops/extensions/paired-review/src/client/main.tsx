@@ -24,16 +24,20 @@ import { ChangedFileTree } from "./ChangedFileTree.tsx";
 import "./styles.css";
 
 type HostTheme = "light" | "dark";
+
 type ThreadAnnotation =
   | { kind: "thread"; thread: ReviewThread }
   | { kind: "composer"; range: SelectedLineRange };
 
 const params = new URLSearchParams(window.location.search);
+
 const instanceId = params.get("instance") ?? "";
+
 const token = params.get("token") ?? "";
 
 function api(path: string): string {
   const query = new URLSearchParams({ instance: instanceId, token });
+
   return `${path}?${query}`;
 }
 
@@ -50,6 +54,7 @@ function App() {
 
   const load = useCallback(async () => {
     const response = await fetch(api("/api/state"), { cache: "no-store" });
+
     if (!response.ok) return;
     const next = Value.Parse(ReviewStateSchema, await response.json());
     setReview(next);
@@ -59,6 +64,7 @@ function App() {
   useEffect(() => {
     void load();
     const timer = window.setInterval(() => void load(), 1000);
+
     return () => window.clearInterval(timer);
   }, [load]);
 
@@ -66,6 +72,7 @@ function App() {
     () => review?.files.find((file) => file.path === activePath) ?? review?.files[0],
     [activePath, review],
   );
+
   const activeThreads = useMemo(
     () => review?.threads.filter((thread) => thread.anchor.path === activeFile?.path) ?? [],
     [activeFile?.path, review?.threads],
@@ -73,8 +80,10 @@ function App() {
 
   useEffect(() => {
     const focus = review?.focus;
+
     if (!focus || focus.revision <= appliedFocusRevision.current) return;
     const thread = review.threads.find((candidate) => candidate.id === focus.target.threadId);
+
     if (!thread) return;
     appliedFocusRevision.current = focus.revision;
     setActiveFocus(focus);
@@ -95,26 +104,33 @@ function App() {
 
   async function startReview() {
     if (!review?.loaded || startingReview) return;
+
     const requestId = review.reviewPass.kind === "completed" || review.reviewPass.kind === "failed"
       ? crypto.randomUUID()
       : reviewRequestId.current ?? crypto.randomUUID();
+
     reviewRequestId.current = requestId;
     setStartingReview(true);
     setReviewError(null);
+
     try {
       const response = await fetch(api("/api/review-passes"), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ requestId }),
       });
+
       if (!response.ok) {
         const body: unknown = await response.json();
+
         const message = typeof body === "object" && body !== null &&
           "error" in body && typeof body.error === "string" && body.error.trim()
           ? body.error
           : "Could not start Copilot review";
+
         throw new Error(message);
       }
+
       await load();
     } catch (error) {
       setReviewError(error instanceof Error ? error.message : "Could not start Copilot review");
@@ -223,7 +239,9 @@ function PierreDiff({
       lineNumber: thread.anchor.lineEnd,
       metadata: { kind: "thread" as const, thread },
     }));
+
     if (!selection) return existing;
+
     return [
       ...existing,
       {
@@ -271,6 +289,7 @@ function PierreDiff({
       }}
       renderAnnotation={(annotation) => {
         const metadata = annotation.metadata;
+
         if (metadata.kind === "composer") {
           return (
             <NewThreadComposer
@@ -281,6 +300,7 @@ function PierreDiff({
             />
           );
         }
+
         return (
           <ReviewThreadCard
             focusRevision={focus?.target.threadId === metadata.thread.id ? focus.revision : undefined}
@@ -311,8 +331,10 @@ function NewThreadComposer({
   async function submit(event: FormEvent) {
     event.preventDefault();
     const message = body.trim();
+
     if (!message) return;
     setSending(true);
+
     try {
       const response = await fetch(api("/api/threads"), {
         method: "POST",
@@ -325,6 +347,7 @@ function NewThreadComposer({
           body: message,
         }),
       });
+
       if (!response.ok) throw new Error("Could not create review thread");
       onCreated();
     } finally {
@@ -372,25 +395,30 @@ function ReviewThreadCard({
 
   useEffect(() => {
     if (focusRevision === undefined) return;
+
     const frame = window.requestAnimationFrame(() => {
       cardRef.current?.scrollIntoView({ block: "center", inline: "nearest" });
       cardRef.current?.focus({ preventScroll: true });
     });
+
     return () => window.cancelAnimationFrame(frame);
   }, [focusRevision]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     const body = reply.trim();
+
     if (!body || busy) return;
     setSending(true);
     setActionError(null);
+
     try {
       const response = await fetch(api(`/api/threads/${encodeURIComponent(thread.id)}/messages`), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ body }),
       });
+
       if (!response.ok) throw new Error("Could not reply to review thread");
       setReply("");
       onUpdated();
@@ -404,12 +432,14 @@ function ReviewThreadCard({
   async function updateThread(input: { collapsed?: boolean; resolved?: boolean }) {
     setUpdating(true);
     setActionError(null);
+
     try {
       const response = await fetch(api(`/api/threads/${encodeURIComponent(thread.id)}`), {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(input),
       });
+
       if (!response.ok) throw new Error("Could not update review thread");
       onUpdated();
     } catch (error) {
@@ -423,12 +453,14 @@ function ReviewThreadCard({
     if (busy) return;
     setFixing(true);
     setActionError(null);
+
     try {
       const response = await fetch(api(`/api/threads/${encodeURIComponent(thread.id)}/fix`), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({}),
       });
+
       if (!response.ok) throw new Error(await responseError(response, "Could not start Copilot fix"));
       onUpdated();
     } catch (error) {
@@ -540,6 +572,7 @@ function ReviewThreadCard({
 
 async function responseError(response: Response, fallback: string): Promise<string> {
   const body: unknown = await response.json().catch(() => null);
+
   return typeof body === "object" && body !== null &&
       "error" in body && typeof body.error === "string" && body.error.trim()
     ? body.error
@@ -570,9 +603,12 @@ function useHostTheme(): HostTheme {
     const mode =
       document.documentElement.dataset.colorMode ??
       document.body.dataset.colorMode;
+
     if (mode === "light" || mode === "dark") return mode;
+
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   }, []);
+
   const [theme, setTheme] = useState<HostTheme>(detect);
 
   useEffect(() => {
@@ -581,6 +617,7 @@ function useHostTheme(): HostTheme {
       document.documentElement.dataset.pairedReviewTheme = next;
       setTheme(next);
     };
+
     const observer = new MutationObserver(update);
     const options = { attributes: true, attributeFilter: ["data-color-mode"] };
     observer.observe(document.documentElement, options);
@@ -588,6 +625,7 @@ function useHostTheme(): HostTheme {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     media.addEventListener("change", update);
     update();
+
     return () => {
       observer.disconnect();
       media.removeEventListener("change", update);
