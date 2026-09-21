@@ -4,6 +4,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = path.resolve(import.meta.dirname, "..");
+
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "paired-review-bundle-"));
 
 try {
@@ -20,6 +21,7 @@ try {
     "@github",
     "copilot-sdk",
   );
+
   await mkdir(sdkDirectory, { recursive: true });
   await writeFile(
     path.join(sdkDirectory, "package.json"),
@@ -52,7 +54,9 @@ try {
   await import(`${pathToFileURL(path.join(temporaryRoot, "extension.mjs")).href}?smoke=1`);
   const canvas = globalThis.__pairedReviewCanvas;
   const sessionOptions = globalThis.__pairedReviewSessionOptions;
+
   if (!canvas || !sessionOptions) throw new Error("Bundled extension did not register");
+
   if ("hooks" in sessionOptions) throw new Error("Bundled extension unexpectedly registered hooks");
 
   const opened = await canvas.open({
@@ -61,12 +65,16 @@ try {
       prUrl: "https://dev.azure.com/example/project/_git/repo/pullrequest/42",
     },
   });
+
   const response = await fetch(opened.url);
   const html = await response.text();
+
   if (!response.ok || !html.includes("/app/assets/app.js")) {
     throw new Error("Bundled canvas did not serve the production frontend");
   }
+
   const shutdown = globalThis.__pairedReviewListeners.get("session.shutdown");
+
   if (!shutdown) throw new Error("Bundled extension did not register shutdown cleanup");
   await shutdown({ type: "session.shutdown", data: { shutdownType: "routine" } });
   console.log("Bundle runs without installed runtime dependencies");

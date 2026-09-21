@@ -87,7 +87,7 @@ describe("file tree model", () => {
 describe("file tree keyboard interaction", () => {
   it("opens folders, moves to children, and activates only files", () => {
     const model = buildFileTree(files, threads);
-    const srcId = "folder:src" as FileTreeNodeId;
+    const srcId: FileTreeNodeId = "folder:src";
     const closedRows = projectFileTree(model, new Set(), "", null);
     expect(handleFileTreeKey("Enter", srcId, closedRows, model)).toEqual({
       focusedId: srcId,
@@ -98,7 +98,7 @@ describe("file tree keyboard interaction", () => {
     expect(handleFileTreeKey("ArrowRight", srcId, openRows, model).focusedId)
       .toBe("folder:src/client");
 
-    const readmeId = "file:README.md" as FileTreeNodeId;
+    const readmeId: FileTreeNodeId = "file:README.md";
     expect(handleFileTreeKey("Enter", readmeId, openRows, model)).toEqual({
       focusedId: readmeId,
       activatePath: "README.md",

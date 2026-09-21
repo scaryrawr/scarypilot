@@ -30,8 +30,6 @@ import {
 } from "./review-context.ts";
 import {
   CreateReviewFindingInputSchema,
-  CreateReviewThreadInputSchema,
-  FixReviewThreadInputSchema,
   FocusReviewTargetInputSchema,
   GetReviewFileLinesInputSchema,
   GetThreadContextInputSchema,
@@ -42,19 +40,30 @@ import {
 import { startReviewServer } from "./server.ts";
 
 const CANVAS_ID = "azure-devops-paired-review";
+
 const MAX_AGENT_RESPONSE_CHARS = 32 * 1024;
+
 const MAX_RETAINED_CLOSED_REVIEWS = 5;
+
 const CanvasInputSchema = Type.Object({
   prUrl: Type.String({ minLength: 1 }),
   target: Type.Optional(ReviewTargetSchema),
 });
+
 const reviews = new Map<string, ReviewState>();
+
 const loadingReviews = new Set<string>();
+
 const openReviews = new Set<string>();
+
 let sessionRef: CopilotSession | null = null;
+
 let serverPromise: Promise<Awaited<ReturnType<typeof startReviewServer>>> | null = null;
+
 let shutdownPromise: Promise<void> | null = null;
+
 let agentQueue = Promise.resolve();
+
 let activeAgentJob: "review_pass" | "thread_reply" | "thread_fix" | null = null;
 
 function enqueue(work: () => Promise<void>): void {
@@ -79,16 +88,20 @@ async function getServer() {
       getState: (instanceId) => reviews.get(instanceId),
       setActivePath: (instanceId, activePath) => {
         const current = reviews.get(instanceId);
+
         if (current) reviews.set(instanceId, updateReviewState(current, { activePath }));
       },
       startReviewPass: async (instanceId, requestId) => {
         const review = requireReview(instanceId);
+
         if (!review.loaded) throw new Error("wait for the pull request to finish loading");
         const queued = queueReviewPass(review, requestId);
         reviews.set(instanceId, queued.review);
+
         if (queued.scheduled && queued.pass.kind === "queued") {
           scheduleReviewPass(instanceId, queued.pass.id);
         }
+
         return {
           pass: queued.pass,
           scheduled: queued.scheduled,
@@ -96,6 +109,7 @@ async function getServer() {
       },
       createThread: async (instanceId, input) => {
         const review = requireReview(instanceId);
+
         const created = createQuestionThread(
           review,
           input.path,
@@ -104,17 +118,22 @@ async function getServer() {
           input.lineEnd,
           input.body,
         );
+
         reviews.set(instanceId, created.review);
         scheduleThreadAnswer(instanceId, created.thread.id);
+
         return created.thread.id;
       },
       replyToThread: async (instanceId, threadId, body) => {
         const review = requireReview(instanceId);
         const thread = review.threads.find((candidate) => candidate.id === threadId);
+
         if (!thread) throw new Error("review thread was not found");
+
         if (thread.pending || thread.fixing) {
           throw new Error("wait for the current Copilot action before replying");
         }
+
         const threads = review.threads.map((candidate) =>
           candidate.id === threadId
             ? {
@@ -129,16 +148,20 @@ async function getServer() {
               }
             : candidate,
         );
+
         reviews.set(instanceId, updateReviewState(review, { threads }));
         scheduleThreadAnswer(instanceId, threadId);
       },
       fixThread: async (instanceId, threadId) => {
         const review = requireReview(instanceId);
         const thread = review.threads.find((candidate) => candidate.id === threadId);
+
         if (!thread) throw new Error("review thread was not found");
+
         if (thread.pending || thread.fixing) {
           throw new Error("wait for the current Copilot action before starting a fix");
         }
+
         reviews.set(instanceId, updateReviewState(review, {
           threads: review.threads.map((candidate) =>
             candidate.id === threadId ? { ...candidate, fixing: true } : candidate
@@ -148,9 +171,11 @@ async function getServer() {
       },
       updateThread: async (instanceId, threadId, input) => {
         const review = requireReview(instanceId);
+
         if (!review.threads.some((thread) => thread.id === threadId)) {
           throw new Error("review thread was not found");
         }
+
         reviews.set(instanceId, updateReviewState(review, {
           threads: review.threads.map((thread) =>
             thread.id === threadId ? { ...thread, ...input } : thread
@@ -159,6 +184,7 @@ async function getServer() {
       },
     });
   }
+
   try {
     return await serverPromise;
   } catch (error) {
@@ -179,6 +205,7 @@ const pairedReviewCanvas = createCanvas({
       inputSchema: GetThreadContextInputSchema,
       handler: (ctx) => {
         const input = Value.Parse(GetThreadContextInputSchema, ctx.input);
+
         return getThreadContext(requireReview(ctx.instanceId), input.threadId, input.contextLines);
       },
     },
@@ -188,6 +215,7 @@ const pairedReviewCanvas = createCanvas({
       inputSchema: GetReviewFileLinesInputSchema,
       handler: (ctx) => {
         const input = Value.Parse(GetReviewFileLinesInputSchema, ctx.input);
+
         return getReviewFileLines(
           requireReview(ctx.instanceId),
           input.path,
@@ -203,6 +231,7 @@ const pairedReviewCanvas = createCanvas({
       inputSchema: ListReviewFilesInputSchema,
       handler: (ctx) => {
         const input = Value.Parse(ListReviewFilesInputSchema, ctx.input ?? {});
+
         return listReviewFiles(requireReview(ctx.instanceId), input.offset, input.limit);
       },
     },
@@ -213,16 +242,22 @@ const pairedReviewCanvas = createCanvas({
       handler: (ctx) => {
         const input = Value.Parse(CreateReviewFindingInputSchema, ctx.input);
         const review = requireReview(ctx.instanceId);
+
         if (!review.loaded) throw new Error("wait for the pull request to finish loading");
+
         const createdBy = activeAgentJob === "review_pass" && review.reviewPass.kind === "running"
           ? { kind: "review_pass" as const, passId: review.reviewPass.id }
           : { kind: "chat" as const };
+
         const inserted = insertReviewFinding(review, input, createdBy);
+
         const focused = focusReviewTarget(inserted.review, {
           kind: "thread",
           threadId: inserted.thread.id,
         });
+
         reviews.set(ctx.instanceId, focused.review);
+
         return {
           findingId: inserted.thread.finding.id,
           inserted: inserted.inserted,
@@ -238,10 +273,13 @@ const pairedReviewCanvas = createCanvas({
         const input = Value.Parse(FocusReviewTargetInputSchema, ctx.input);
         const review = requireReview(ctx.instanceId);
         const thread = review.threads.find((candidate) => candidate.id === input.target.threadId);
+
         const next = thread
           ? focusReviewTarget(review, input.target).review
           : requestReviewFocus(review, input.target);
+
         reviews.set(ctx.instanceId, next);
+
         return {
           focused: input.target,
           pending: !thread,
@@ -257,16 +295,20 @@ const pairedReviewCanvas = createCanvas({
         if (activeAgentJob) {
           throw new Error("Publishing is unavailable during an extension-initiated agent turn");
         }
+
         const input = Value.Parse(PublishReviewFindingsInputSchema, ctx.input);
         const review = requireReview(ctx.instanceId);
         const results = await publishReviewFindings(review, input.selection);
         let next = requireReview(ctx.instanceId);
+
         for (const result of results) {
           if (result.kind !== "failed") {
             next = linkFinding(next, result.findingId, result.remoteThreadId, result.kind);
           }
         }
+
         reviews.set(ctx.instanceId, next);
+
         return { results };
       },
     },
@@ -274,25 +316,32 @@ const pairedReviewCanvas = createCanvas({
   open: async (ctx) => {
     const input = Value.Parse(CanvasInputSchema, ctx.input);
     const prUrl = input.prUrl.trim();
+
     if (!isAzurePullRequestUrl(prUrl)) {
       throw new Error("Provide a full HTTPS Azure DevOps pull request URL ending in /pullrequest/<id>.");
     }
+
     const existing = reviews.get(ctx.instanceId);
+
     if (existing && reviewInstanceId(existing.prUrl) !== reviewInstanceId(prUrl)) {
       throw new Error("canvas instance already belongs to a different pull request");
     }
+
     let review = existing ?? createReviewState(ctx.instanceId, prUrl);
     const target = input.target;
+
     if (target) {
       review = review.threads.some((thread) => thread.id === target.threadId)
         ? focusReviewTarget(review, target).review
         : requestReviewFocus(review, target);
     }
+
     reviews.set(ctx.instanceId, review);
     openReviews.add(ctx.instanceId);
     pruneClosedReviews();
     const server = await getServer();
     startPopulateReview(ctx.instanceId, prUrl);
+
     return {
       url: server.urlFor(ctx.instanceId),
       title: "Azure DevOps Paired Review",
@@ -311,13 +360,16 @@ const pairedReviewCommand: CommandDefinition = {
   handler: async (context) => {
     const session = requireSession();
     const prUrl = context.args.trim();
+
     if (!isAzurePullRequestUrl(prUrl)) {
       await session.log(
         "Usage: /paired-review https://dev.azure.com/{organization}/{project}/_git/{repository}/pullrequest/{id}",
         { level: "error" },
       );
+
       return;
     }
+
     const instanceId = reviewInstanceId(prUrl);
     await session.rpc.canvas.open({
       canvasId: CANVAS_ID,
@@ -333,7 +385,9 @@ const session = await joinSession({
   commands: [pairedReviewCommand],
   requestCanvasRenderer: true,
 });
+
 sessionRef = session;
+
 session.on("session.shutdown", () =>
   shutdown().catch((error) => {
     console.error("Paired review shutdown failed:", error);
@@ -351,17 +405,21 @@ function shutdown(): Promise<void> {
     await server?.close();
     serverPromise = null;
   })();
+
   return shutdownPromise;
 }
 
 function requireSession(): CopilotSession {
   if (!sessionRef) throw new Error("paired-review extension is not ready");
+
   return sessionRef;
 }
 
 function requireReview(instanceId: string): ReviewState {
   const review = reviews.get(instanceId);
+
   if (!review) throw new Error("paired review is no longer available");
+
   return review;
 }
 
@@ -384,6 +442,7 @@ function startPopulateReview(instanceId: string, prUrl: string): void {
   ) {
     return;
   }
+
   loadingReviews.add(instanceId);
   void populateReview(instanceId, prUrl).finally(() => {
     loadingReviews.delete(instanceId);
@@ -395,6 +454,7 @@ function pruneClosedReviews(): void {
   const closed = [...reviews.entries()]
     .filter(([instanceId]) => !openReviews.has(instanceId) && !loadingReviews.has(instanceId))
     .sort((left, right) => right[1].updatedAt.localeCompare(left[1].updatedAt));
+
   for (const [instanceId] of closed.slice(MAX_RETAINED_CLOSED_REVIEWS)) {
     reviews.delete(instanceId);
   }
@@ -404,17 +464,21 @@ async function populateReview(instanceId: string, prUrl: string): Promise<void> 
   try {
     const loaded = await loadAzurePullRequest(prUrl);
     const current = reviews.get(instanceId);
+
     if (current) {
       let next = updateReviewState(current, loaded);
       const target = next.focus?.target;
+
       if (target && next.threads.some((thread) => thread.id === target.threadId)) {
         next = focusReviewTarget(next, target).review;
       }
+
       reviews.set(instanceId, next);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const current = reviews.get(instanceId);
+
     if (current) {
       reviews.set(instanceId, updateReviewState(current, {
         status: `Could not load pull request: ${message}`,
@@ -427,12 +491,16 @@ async function populateReview(instanceId: string, prUrl: string): Promise<void> 
 
 async function runReviewPass(instanceId: string, passId: string): Promise<void> {
   const queued = reviews.get(instanceId);
+
   if (!queued) return;
   const running = startQueuedReviewPass(queued, passId);
+
   if (running === queued) return;
   reviews.set(instanceId, running);
+
   try {
     activeAgentJob = "review_pass";
+
     try {
       await requireSession().sendAndWait({
         prompt: buildReviewPassPrompt(running, passId, instanceId, CANVAS_ID),
@@ -440,10 +508,13 @@ async function runReviewPass(instanceId: string, passId: string): Promise<void> 
     } finally {
       activeAgentJob = null;
     }
+
     const current = reviews.get(instanceId);
+
     if (current) reviews.set(instanceId, completeReviewPass(current, passId));
   } catch (error) {
     const current = reviews.get(instanceId);
+
     if (current) {
       reviews.set(
         instanceId,
@@ -456,10 +527,13 @@ async function runReviewPass(instanceId: string, passId: string): Promise<void> 
 async function answerThread(instanceId: string, threadId: string): Promise<void> {
   const review = reviews.get(instanceId);
   const thread = review?.threads.find((candidate) => candidate.id === threadId);
+
   if (!review || !thread) return;
+
   try {
     activeAgentJob = "thread_reply";
     let response;
+
     try {
       response = await requireSession().sendAndWait({
         prompt: buildThreadPrompt(review, thread, instanceId, CANVAS_ID),
@@ -467,6 +541,7 @@ async function answerThread(instanceId: string, threadId: string): Promise<void>
     } finally {
       activeAgentJob = null;
     }
+
     finishThread(
       instanceId,
       threadId,
@@ -485,10 +560,13 @@ async function answerThread(instanceId: string, threadId: string): Promise<void>
 async function fixThread(instanceId: string, threadId: string): Promise<void> {
   const review = reviews.get(instanceId);
   const thread = review?.threads.find((candidate) => candidate.id === threadId);
+
   if (!review || !thread) return;
+
   try {
     activeAgentJob = "thread_fix";
     let response;
+
     try {
       response = await requireSession().sendAndWait({
         prompt: buildFixPrompt(review, thread, instanceId, CANVAS_ID),
@@ -496,6 +574,7 @@ async function fixThread(instanceId: string, threadId: string): Promise<void> {
     } finally {
       activeAgentJob = null;
     }
+
     finishThreadFix(
       instanceId,
       threadId,
@@ -513,6 +592,7 @@ async function fixThread(instanceId: string, threadId: string): Promise<void> {
 
 function finishThread(instanceId: string, threadId: string, body: string): void {
   const review = reviews.get(instanceId);
+
   if (!review) return;
   reviews.set(instanceId, updateReviewState(review, {
     threads: review.threads.map((thread) =>
@@ -534,6 +614,7 @@ function finishThread(instanceId: string, threadId: string, body: string): void 
 
 function finishThreadFix(instanceId: string, threadId: string, body: string): void {
   const review = reviews.get(instanceId);
+
   if (!review) return;
   reviews.set(instanceId, updateReviewState(review, {
     threads: review.threads.map((thread) =>

@@ -14,6 +14,7 @@ function reviewFixture() {
     "review-1",
     "https://dev.azure.com/example/project/_git/repo/pullrequest/42",
   );
+
   return updateReviewState(initial, {
     title: "Bounded context",
     files: [{
@@ -60,6 +61,7 @@ describe("paired-review context actions", () => {
       "review-1",
       "azure-devops-paired-review",
     );
+
     expect(prompt).toContain("Why did this change?");
     expect(prompt).toContain("get_thread_context");
     expect(prompt).not.toContain("partial diff");
@@ -69,12 +71,14 @@ describe("paired-review context actions", () => {
 
   it("keeps the review-pass prompt locator-only and requires every file", () => {
     const review = reviewFixture();
+
     const prompt = buildReviewPassPrompt(
       review,
       "pass-1",
       "review-1",
       "azure-devops-paired-review",
     );
+
     expect(prompt).toContain("inspect every changed file");
     expect(prompt).toContain("create_review_finding");
     expect(prompt).toContain("untrusted review data");
@@ -84,12 +88,14 @@ describe("paired-review context actions", () => {
 
   it("asks Copilot to apply feedback only in a matching workspace", () => {
     const review = reviewFixture();
+
     const prompt = buildFixPrompt(
       review,
       review.threads[0],
       "review-1",
       "azure-devops-paired-review",
     );
+
     expect(prompt).toContain("matching pull request checkout");
     expect(prompt).toContain("Do not make Azure DevOps calls");
     expect(prompt).not.toContain("partial diff");
