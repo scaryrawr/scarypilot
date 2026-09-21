@@ -3,6 +3,9 @@ import type {
   JsonValue,
   joinSession,
 } from "@github/copilot-sdk/extension";
+import { execFile } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { describe, expect, it, vi } from "vitest";
 import { runSwarmFactory, type SwarmArgs } from "../src/factories/swarm.ts";
 import {
@@ -11,6 +14,8 @@ import {
 } from "../src/register.ts";
 
 type SessionOptions = NonNullable<Parameters<typeof joinSession>[0]>;
+
+const execFileAsync = promisify(execFile);
 
 describe("pstack extension", () => {
   it("registers the native tools and read-only swarm factory", () => {
@@ -35,7 +40,20 @@ describe("pstack extension", () => {
     ]);
   });
 
-  it("imports the entrypoint and dispatches the registered worker agent", async () => {
+  it("loads the shipped entrypoint through the extension host boundary", async () => {
+    const { SESSION_ID: _sessionId, ...env } = process.env;
+    const entrypoint = fileURLToPath(new URL("../extension.mjs", import.meta.url));
+
+    await expect(
+      execFileAsync(process.execPath, [entrypoint], { env }),
+    ).rejects.toMatchObject({
+      stderr: expect.stringContaining(
+        "joinSession() is intended for extensions running as child processes",
+      ),
+    });
+  });
+
+  it("registers and dispatches the worker agent", async () => {
     let options: SessionOptions | undefined;
 
     await registerPstackExtension(async (registeredOptions) => {
