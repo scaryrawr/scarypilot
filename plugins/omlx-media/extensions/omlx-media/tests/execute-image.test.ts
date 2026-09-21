@@ -10,6 +10,7 @@ const workspaces: string[] = [];
 async function workspace(): Promise<string> {
   const directory = await mkdtemp(path.join(tmpdir(), "omlx-media-test-"));
   workspaces.push(directory);
+
   return directory;
 }
 
@@ -17,8 +18,8 @@ afterEach(async () => {
   await Promise.all(workspaces.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
 });
 
-async function rejectsWithCode(promise: Promise<unknown>, code: string): Promise<void> {
-  await assert.rejects(promise, (error: unknown) => {
+async function rejectsWithCode<Result>(promise: Promise<Result>, code: string): Promise<void> {
+  await assert.rejects(promise, (error: Error) => {
     return error instanceof Error && "code" in error && error.code === code;
   });
 }
@@ -27,8 +28,10 @@ describe("executeImage", () => {
   it("discovers a generation model and saves base64 image data", async () => {
     const root = await workspace();
     const image = Buffer.from("generated-image");
+
     const fetchImplementation = async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
+
       if (url.endsWith("/v1/models/status")) {
         return Response.json({
           models: [
@@ -37,7 +40,10 @@ describe("executeImage", () => {
           ],
         });
       }
+
       assert.match(url, /\/v1\/images\/generations$/);
+      // SAFETY: The image client always supplies request headers for generation calls.
+      // eslint-disable-next-line no-unsafe-optional-chaining -- Generation requests require headers.
       assert.equal((init?.headers as Record<string, string>).Authorization, "Bearer secret");
       assert.deepEqual(JSON.parse(String(init?.body)), {
         prompt: "a fox",
@@ -48,6 +54,7 @@ describe("executeImage", () => {
         quality: "standard",
         style: "vivid",
       });
+
       return Response.json({ data: [{ b64_json: image.toString("base64") }] });
     };
 
@@ -71,8 +78,10 @@ describe("executeImage", () => {
     const root = await workspace();
     await writeFile(path.join(root, "source.png"), Buffer.from("source"));
     await writeFile(path.join(root, "mask.png"), Buffer.from("mask"));
+
     const fetchImplementation = async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
+
       if (url.endsWith("/v1/models/status")) {
         return Response.json({
           models: [
@@ -81,12 +90,14 @@ describe("executeImage", () => {
           ],
         });
       }
+
       const body = JSON.parse(String(init?.body));
       assert.match(url, /\/v1\/images\/edits$/);
       assert.equal(body.model, "mage-flow");
       assert.match(body.images[0].image_url, /^data:image\/png;base64,/);
       assert.match(body.mask.image_url, /^data:image\/png;base64,/);
       assert.equal(body.image_strength, 0.4);
+
       return Response.json({ data: [{ b64_json: Buffer.from("edited").toString("base64") }] });
     };
 
@@ -111,10 +122,12 @@ describe("executeImage", () => {
 
   it("uses an explicit model when model discovery is unavailable", async () => {
     const root = await workspace();
+
     const fetchImplementation = async (input: string | URL | Request) => {
       if (String(input).endsWith("/v1/models/status")) {
         return new Response("not found", { status: 404, statusText: "Not Found" });
       }
+
       return Response.json({ data: [{ b64_json: Buffer.from("image").toString("base64") }] });
     };
 
@@ -128,6 +141,50 @@ describe("executeImage", () => {
 
     assert.equal(result.model, "known-image-model");
     assert.equal(await readFile(path.join(root, "fox.png"), "utf8"), "image");
+  });
+
+  it("rejects malformed model discovery payloads without an explicit model", async () => {
+    const root = await workspace();
+
+    await rejectsWithCode(
+      executeImage(
+        { prompt: "a fox", output: path.join(root, "fox.png") },
+        {
+          environment: { OMLX_BASE_URL: "http://omlx.test" },
+          fetchImplementation: async () => Response.json({ models: "invalid" }),
+        },
+      ),
+      "INVALID_MODEL_STATUS",
+    );
+  });
+
+  it("rejects image responses without decodable image data", async () => {
+    const root = await workspace();
+
+    await rejectsWithCode(
+      executeImage(
+        { prompt: "a fox", model: "image-model", output: path.join(root, "fox.png") },
+        {
+          environment: { OMLX_BASE_URL: "http://omlx.test" },
+          fetchImplementation: async (input: string | URL | Request) => {
+            if (String(input).endsWith("/v1/models/status")) {
+              return Response.json({
+                models: [
+                  {
+                    id: "image-model",
+                    model_type: "image",
+                    capabilities: ["generation"],
+                  },
+                ],
+              });
+            }
+
+            return Response.json({ data: [{}] });
+          },
+        },
+      ),
+      "INVALID_RESPONSE",
+    );
   });
 
   it("does not bypass authentication failures for an explicit model", async () => {
@@ -150,8 +207,10 @@ describe("executeImage", () => {
     const root = await workspace();
     await writeFile(path.join(root, "existing.png"), "existing");
     let fetchCalled = false;
+
     const unusedFetch = async () => {
       fetchCalled = true;
+
       return Response.json({});
     };
 
@@ -175,14 +234,17 @@ describe("executeImage", () => {
 
   it("renders identical prompts again when given a new output", async () => {
     const root = await workspace();
+
     const fetchImplementation = async (input: string | URL | Request) => {
       if (String(input).endsWith("/v1/models/status")) {
         return Response.json({
           models: [{ id: "image-model", model_type: "image", capabilities: ["generation"] }],
         });
       }
+
       return Response.json({ data: [{ b64_json: Buffer.from("image").toString("base64") }] });
     };
+
     const dependencies = {
       environment: { OMLX_BASE_URL: "http://omlx.test" },
       fetchImplementation,
@@ -192,6 +254,7 @@ describe("executeImage", () => {
       { prompt: "same prompt", output: path.join(root, "first.png") },
       dependencies,
     );
+
     const second = await executeImage(
       { prompt: "same prompt", output: path.join(root, "second.png") },
       dependencies,

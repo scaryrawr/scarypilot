@@ -1,4 +1,5 @@
 export type ImageOperation = "generate" | "edit";
+
 export type ImageSize =
   | "auto"
   | "square"
