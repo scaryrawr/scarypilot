@@ -32,7 +32,11 @@ Open a todolist with one entry per phase before launching anything.
 
 ## Phase B: Fan out
 
-For a read-only swarm, call `run_factory` once with name `pstack-swarm` and:
+For a read-only swarm, first use `factories_manage` with `operation: "list"` to
+confirm that `pstack-swarm` is registered in the current session. The global
+`run_factory` tool can exist before a plugin-contributed factory has registered,
+so tool availability alone is not a readiness check. If the factory is listed,
+call `run_factory` once with name `pstack-swarm` and:
 
 ```json
 {
@@ -53,11 +57,18 @@ configured model on each worker only when it is present and not `auto`. The
 factory accepts 2-8 workers. Its workers are read-only and must not invoke
 factories.
 
-If `run_factory` is unavailable, excluded by the active model, returns a
-failed run, or completes with `status: "blocked"`, use the legacy flow below
-from the beginning. Report a `partial` result with its explicit gaps instead
-of replaying completed workers. A read-only factory run may fall back once
-because it cannot leave partial repository writes.
+If `pstack-swarm` is not listed, `factories_manage` is unavailable, or
+`run_factory` is unavailable or excluded by the active model, use the legacy
+flow below from the beginning. If `run_factory` reports `factory_not_found` or
+`No factory registered`, list factories once more. Retry the same invocation
+once only when `pstack-swarm` is now listed; otherwise use the legacy flow.
+This registration failure is a readiness race, not a failed swarm run.
+
+If a registered factory returns a failed run or completes with
+`status: "blocked"`, use the legacy flow below from the beginning. Report a
+`partial` result with its explicit gaps instead of replaying completed workers.
+A read-only factory run may fall back once because it cannot leave partial
+repository writes.
 
 For a writing swarm, do not call the factory. Spawn all N workers in one
 message with `agent_type: "general-purpose"` and `mode: "background"`. Pass the

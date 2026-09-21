@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   buildPlan,
   checkRepository,
   parseNameStatus,
 } from "./pstack-sync.mjs";
+
+const pstackRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const policy = {
   upstream: {
@@ -62,6 +65,21 @@ test("classifies a bounded upstream change set", () => {
       ["extensions/runtime.mjs", "copilot-owned"],
       ["new-runtime/file.md", "unclassified"],
     ],
+  );
+});
+
+test("swarm verifies session factory registration before dispatch", () => {
+  const skill = readFileSync(
+    join(pstackRoot, "skills", "swarm", "SKILL.md"),
+    "utf8",
+  );
+
+  assert.match(skill, /factories_manage.*operation: "list"/s);
+  assert.match(skill, /tool availability alone is not a readiness check/);
+  assert.match(skill, /factory_not_found/);
+  assert.match(
+    skill,
+    /Retry the same invocation\s+once only when `pstack-swarm` is now listed/,
   );
 });
 

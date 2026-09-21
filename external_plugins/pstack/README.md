@@ -95,8 +95,10 @@ terminal, and project verification tools.
 The native extension centralizes capability detection, deterministic state
 access, and the experimental read-only `pstack-swarm` factory. The extension
 registers a non-invocable factory worker limited to read and search tools. The
-`swarm` skill keeps its existing Task-agent flow as a compatibility fallback
-and for all writing work, where separate worktrees remain mandatory.
+`swarm` skill verifies session-local factory registration before dispatching,
+retries one transient registration race, and keeps its existing Task-agent flow
+as a compatibility fallback and for all writing work, where separate worktrees
+remain mandatory.
 Host-controlled surfaces such as Task agents, factories, session history,
 browser automation, MCP tools, and App sidebar state remain conditional until
 the host proves they are available.
