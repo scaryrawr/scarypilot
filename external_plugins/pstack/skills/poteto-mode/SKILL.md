@@ -21,7 +21,7 @@ Remaining triggers:
 - Nontrivial multi-step → write the throughput checkpoint (Feature step 3).
 - Any prose surface → the **unslop** skill. Your reply is a prose surface; write it per **Writing the reply**. Skill edits also follow the Authoring a skill playbook.
 - Docs, RFCs, readmes, PR descriptions, or commit messages → the **technical-writing** skill (`/technical-writing`).
-- Before commit → the **unslop** skill over prose and the repository's existing formatter or linter over code.
+- Before commit → the **deslop** skill over code, which includes **anti-slop** for TypeScript and JavaScript. Apply **unslop** to prose and run the repository's existing formatter or linter.
 - Before review → the **no-comments** skill (`/no-comments`).
 - Shipping UI / IDE / CLI → the project's verification skill or the available browser, computer-use, terminal, or shell tools. For bug fixes, reproduce first on the same surface yourself; hand to the user only under the narrow Bug fix step 1 exception.
 - Host-dependent workflow → call `pstack_capabilities` when available. Treat `unknown` as unavailable until the current Copilot host proves otherwise. Never infer Task agents, session history, browser automation, MCP tools, Graphite, or App sidebar state from another session.
