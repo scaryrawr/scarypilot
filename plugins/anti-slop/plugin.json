@@ -1,0 +1,19 @@
+{
+  "name": "anti-slop",
+  "description": "Advisory guidance for writing precise TypeScript and JavaScript without low-evidence lint workarounds.",
+  "version": "0.1.1",
+  "author": {
+    "name": "Mike Wallio"
+  },
+  "license": "MIT",
+  "keywords": [
+    "copilot",
+    "typescript",
+    "javascript",
+    "lint",
+    "code-quality"
+  ],
+  "skills": [
+    "skills/"
+  ]
+}

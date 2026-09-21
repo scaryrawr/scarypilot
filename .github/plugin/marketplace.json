@@ -29,6 +29,14 @@
       "source": "./plugins/better-init"
     },
     {
+      "name": "anti-slop",
+      "description": "Advisory guidance for precise TypeScript and JavaScript without lint-shaped workarounds.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/anti-slop"
+    },
+    {
       "name": "digivolution",
       "description": "Adaptive post-task reflection for keeping repo instructions and in-repo skills accurate.",
       "author": {
