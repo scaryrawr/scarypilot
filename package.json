@@ -1,0 +1,13 @@
+{
+  "name": "scarypilot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix --allow all --deny anti-slop/require-readable-spacing ."
+  },
+  "devDependencies": {
+    "@oxlint/plugins": "1.83.0",
+    "oxlint": "1.83.0"
+  }
+}

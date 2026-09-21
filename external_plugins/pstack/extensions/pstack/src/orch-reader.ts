@@ -23,10 +23,12 @@ const VERDICTS: ReadonlySet<string> = new Set([
 ]);
 
 const EmptyObjectSchema = Type.Object({}, { additionalProperties: false });
+
 const NonNegativeSafeIntegerSchema = Type.Integer({
   minimum: 0,
   maximum: Number.MAX_SAFE_INTEGER,
 });
+
 const PositiveSafeIntegerSchema = Type.Integer({
   minimum: 1,
   maximum: Number.MAX_SAFE_INTEGER,

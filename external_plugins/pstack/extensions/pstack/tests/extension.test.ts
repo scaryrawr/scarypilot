@@ -1,38 +1,23 @@
-import type { CopilotSession } from "@github/copilot-sdk";
 import type {
   FactoryContext,
   JsonValue,
   joinSession,
 } from "@github/copilot-sdk/extension";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { execFile } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+import { describe, expect, it, vi } from "vitest";
 import { runSwarmFactory, type SwarmArgs } from "../src/factories/swarm.ts";
-import { createPstackExtensionRegistration } from "../src/register.ts";
+import {
+  createPstackExtensionRegistration,
+  registerPstackExtension,
+} from "../src/register.ts";
 
 type SessionOptions = NonNullable<Parameters<typeof joinSession>[0]>;
 
-const mocks = vi.hoisted(() => ({
-  options: undefined as SessionOptions | undefined,
-}));
-
-vi.mock("@github/copilot-sdk/extension", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@github/copilot-sdk/extension")>();
-
-  return {
-    ...actual,
-    joinSession: vi.fn(async (options: SessionOptions) => {
-      mocks.options = options;
-
-      return { log: vi.fn() } as unknown as CopilotSession;
-    }),
-  };
-});
+const execFileAsync = promisify(execFile);
 
 describe("pstack extension", () => {
-  beforeEach(() => {
-    mocks.options = undefined;
-    vi.resetModules();
-  });
-
   it("registers the native tools and read-only swarm factory", () => {
     const { options } = createPstackExtensionRegistration();
 
@@ -55,11 +40,32 @@ describe("pstack extension", () => {
     ]);
   });
 
-  it("imports the entrypoint and dispatches the registered worker agent", async () => {
-    await import("../src/extension.ts");
-    const workerAgent = mocks.options?.customAgents?.find(
+  it("loads the shipped entrypoint through the extension host boundary", async () => {
+    const { SESSION_ID: _sessionId, ...env } = process.env;
+    const entrypoint = fileURLToPath(new URL("../extension.mjs", import.meta.url));
+
+    await expect(
+      execFileAsync(process.execPath, [entrypoint], { env }),
+    ).rejects.toMatchObject({
+      stderr: expect.stringContaining(
+        "joinSession() is intended for extensions running as child processes",
+      ),
+    });
+  });
+
+  it("registers and dispatches the worker agent", async () => {
+    let options: SessionOptions | undefined;
+
+    await registerPstackExtension(async (registeredOptions) => {
+      options = registeredOptions;
+
+      return { log: vi.fn() };
+    });
+
+    const workerAgent = options?.customAgents?.find(
       (agent) => agent.name === "pstack-swarm-worker",
     );
+
     const agent = vi.fn(async (
       _prompt: string,
       _options?: { agent?: string },
@@ -68,6 +74,7 @@ describe("pstack extension", () => {
       summary: "Registered worker completed.",
       evidence: ["registration-smoke"],
     }));
+
     const args: SwarmArgs = {
       schemaVersion: 1,
       objective: "Verify host registration.",
@@ -78,6 +85,7 @@ describe("pstack extension", () => {
         { id: "second", brief: "Run the second registered worker." },
       ],
     };
+
     const context: Pick<
       FactoryContext<SwarmArgs>,
       "agent" | "args" | "log" | "parallel" | "phase" | "signal" | "step"
@@ -91,10 +99,11 @@ describe("pstack extension", () => {
       phase: vi.fn(),
       signal: new AbortController().signal,
       step: vi.fn(async (_key: string, producer: () => JsonValue | Promise<JsonValue>) =>
-        producer()),
+        producer()
+      ),
     };
 
-    expect(mocks.options?.factories?.map((factory) => factory.meta.name)).toContain(
+    expect(options?.factories?.map((factory) => factory.meta.name)).toContain(
       "pstack-swarm",
     );
     expect(workerAgent).toMatchObject({ tools: ["read", "search"] });
@@ -103,6 +112,7 @@ describe("pstack extension", () => {
       status: "complete",
       gaps: [],
     });
+
     expect(agent).toHaveBeenCalledTimes(2);
 
     for (const [, options] of agent.mock.calls) {

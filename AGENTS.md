@@ -10,6 +10,7 @@ Prefer the repository's declarative plugin patterns: skills in `skills/*/SKILL.m
 
 There is no root build or broad test suite.
 
+- `npm run lint` runs the repository-wide Oxlint configuration, including the vendored anti-slop rules.
 - `python3 -m json.tool .github/plugin/marketplace.json >/dev/null` validates marketplace edits.
 - After editing an agentic workflow, run `gh aw compile --strict` without a workflow name. Targeted compilation can leave repository-level generated defaults, such as failure-issue expiry, inconsistent across lock files.
 - After editing `external_plugins/pstack/` skills, metadata, provenance, or sync policy, run `node external_plugins/pstack/tools/pstack-sync.mjs check` and `node --test external_plugins/pstack/tools/pstack-sync.test.mjs`.
@@ -26,7 +27,9 @@ Each plugin needs a `README.md` covering purpose, prerequisites, installation, u
 
 Bump the affected plugin's `plugin.json` version for any change to shipped plugin behavior or bundled content so installed users can detect an update. Use SemVer: patch for fixes, minor for backward-compatible features, and major for breaking changes. Do not bump for repository-only docs, tests, or development tooling. When an extension package mirrors the plugin version, keep its `package.json` version synchronized; independent extension package versions need not match. Preserve upstream-derived version suffixes such as pstack's `-copilot.N`.
 
-Bundled Node scripts must use explicit `.mjs` or `.cjs` extensions because the repository has no root `package.json` declaring a module type. Prefer `.mjs`. Use `os.tmpdir()` instead of `/tmp`.
+Bundled Node scripts must use explicit `.mjs` or `.cjs` extensions even though the root package declares ESM, so their module mode remains explicit when copied or invoked outside the root package. Prefer `.mjs`. Use `os.tmpdir()` instead of `/tmp`.
+
+For extension I/O boundaries, prefer TypeBox schemas with `Static`-derived types and `Value.Check` or `Value.Parse`. Parse external payloads once into concrete domain types; do not add one-line type-guard wrappers merely to hide `typeof` checks.
 
 ## Testing and Safety
 

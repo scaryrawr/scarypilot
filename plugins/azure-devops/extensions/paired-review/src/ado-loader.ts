@@ -52,6 +52,11 @@ const StringSchema = Type.String();
 
 const NumberSchema = Type.Number();
 
+const ChildProcessErrorSchema = Type.Object({
+  code: Type.Optional(Type.Union([Type.String(), Type.Number()])),
+  stderr: Type.Optional(Type.String()),
+});
+
 export type JsonValue = Static<typeof JsonValueSchema>;
 
 type JsonObject = Static<typeof JsonObjectSchema>;
@@ -645,13 +650,13 @@ async function runAzureCli(
       windowsHide: true,
     });
   } catch (error) {
-    const errorRecord = isObjectRecord(error) ? error : undefined;
+    const errorRecord = Value.Check(ChildProcessErrorSchema, error) ? error : undefined;
 
     if (errorRecord?.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") {
       throw new AzureResponseTooLargeError(maxBuffer);
     }
 
-    const stderr = typeof errorRecord?.stderr === "string" ? errorRecord.stderr : undefined;
+    const stderr = errorRecord?.stderr;
 
     const message = stderr
       ? stderr.trim()
@@ -903,10 +908,6 @@ function numberAt(value: JsonObject, key: string): number | undefined {
 
 function isRecord(value: JsonValue | undefined): value is JsonObject {
   return Value.Check(JsonObjectSchema, value);
-}
-
-function isObjectRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 function stripRef(value: string | undefined): string | undefined {
