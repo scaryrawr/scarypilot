@@ -1,6 +1,6 @@
 {
   "name": "azure-devops-paired-review",
-  "version": "0.10.4",
+  "version": "0.10.5",
   "private": true,
   "description": "Local paired-review canvas for Azure DevOps pull requests.",
   "type": "module",

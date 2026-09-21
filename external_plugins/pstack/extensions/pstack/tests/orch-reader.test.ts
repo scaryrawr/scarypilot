@@ -45,4 +45,23 @@ describe("readOrchStore", () => {
       message: "gates.md has invalid status opne",
     });
   });
+
+  it.each([
+    '{"generation":9007199254740992,"prs":[],"lowestUnmerged":null}\n',
+    '{"generation":1,"prs":[{"pr":9007199254740992,"branches":"topic","sha":"abc","state":"OPEN"}],"lowestUnmerged":null}\n',
+    '{"generation":1,"prs":[],"lowestUnmerged":9007199254740992}\n',
+  ])("rejects unsafe frontier integers", async (frontier) => {
+    const directory = await mkdtemp(join(tmpdir(), "pstack-orch-unsafe-integer-"));
+    directories.push(directory);
+    await writeFile(join(directory, "frontier.json"), frontier);
+
+    const result = await readOrchStore(directory);
+
+    expect(result.projection?.frontier).toBeNull();
+    expect(result.warnings).toContainEqual({
+      source: "orch",
+      path: join(directory, "frontier.json"),
+      message: "frontier.json has an unsupported shape",
+    });
+  });
 });

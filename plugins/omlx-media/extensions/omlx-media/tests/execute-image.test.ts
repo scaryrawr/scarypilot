@@ -36,7 +36,14 @@ describe("executeImage", () => {
         return Response.json({
           models: [
             { id: "text-model", model_type: "llm", loaded: true },
-            { id: "image-model", model_type: "image", loaded: true, capabilities: ["generation"] },
+            {
+              id: "image-model",
+              model_type: "image",
+              loaded: true,
+              capabilities: ["generation"],
+              display_name: "Image Model",
+              limits: { max_width: 2048 },
+            },
           ],
         });
       }

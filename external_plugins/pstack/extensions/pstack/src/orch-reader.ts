@@ -24,10 +24,20 @@ const VERDICTS: ReadonlySet<string> = new Set([
 
 const EmptyObjectSchema = Type.Object({}, { additionalProperties: false });
 
+const NonNegativeSafeIntegerSchema = Type.Integer({
+  minimum: 0,
+  maximum: Number.MAX_SAFE_INTEGER,
+});
+
+const PositiveSafeIntegerSchema = Type.Integer({
+  minimum: 1,
+  maximum: Number.MAX_SAFE_INTEGER,
+});
+
 const FrontierSchema = Type.Object({
-  generation: Type.Integer({ minimum: 0 }),
+  generation: NonNegativeSafeIntegerSchema,
   prs: Type.Array(Type.Object({
-    pr: Type.Integer({ minimum: 1 }),
+    pr: PositiveSafeIntegerSchema,
     branches: Type.String({ minLength: 1 }),
     sha: Type.String({ minLength: 1 }),
     state: Type.Union([
@@ -36,7 +46,7 @@ const FrontierSchema = Type.Object({
       Type.Literal("CLOSED"),
     ]),
   })),
-  lowestUnmerged: Type.Union([Type.Null(), Type.Integer({ minimum: 1 })]),
+  lowestUnmerged: Type.Union([Type.Null(), PositiveSafeIntegerSchema]),
 });
 
 type ParsedFrontier = Static<typeof FrontierSchema>;

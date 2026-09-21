@@ -17,6 +17,7 @@ const config = (extra: JsonlEntry = {}) =>
     metricName: "total_µs",
     metricUnit: "µs",
     bestDirection: "lower",
+    timestamp: 1700_000_000_000,
     ...extra,
   });
 
@@ -50,7 +51,11 @@ describe("parseJsonlEntry", () => {
 describe("classifiers", () => {
   it("identifies config and run entries", () => {
     expect(isAutoresearchConfigEntry({ type: "config" })).toBe(true);
+    expect(isAutoresearchConfigEntry(JSON.parse(config()))).toBe(true);
+    expect(reconstructJsonlState(config()).name).toBe("Speed up tests");
     expect(isAutoresearchRunEntry({ run: 1 })).toBe(true);
+    expect(isAutoresearchRunEntry(JSON.parse(run(1)))).toBe(true);
+    expect(reconstructJsonlState(run(1)).results).toHaveLength(1);
     expect(isAutoresearchRunEntry({ run: "1" })).toBe(false);
   });
 });

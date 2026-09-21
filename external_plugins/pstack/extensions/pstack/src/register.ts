@@ -1,5 +1,5 @@
 import type { CopilotSession } from "@github/copilot-sdk";
-import type { joinSession } from "@github/copilot-sdk/extension";
+import { joinSession } from "@github/copilot-sdk/extension";
 import { createPstackCommand } from "./command.ts";
 import { createCwdRef } from "./extension-context.ts";
 import { pstackFactories, pstackFactoryAgents } from "./factories/index.ts";
@@ -14,15 +14,21 @@ import { createValidatePlanTool } from "./tools/validate-plan.ts";
 
 type SessionOptions = NonNullable<Parameters<typeof joinSession>[0]>;
 
+type PstackSession = Pick<CopilotSession, "log">;
+
+type JoinPstackSession = (options: SessionOptions) => Promise<PstackSession>;
+
 interface PstackExtensionRegistration {
   options: SessionOptions;
-  attachSession: (session: CopilotSession) => void;
+  attachSession: (session: PstackSession) => void;
 }
+
+const defaultJoinSession: JoinPstackSession = async (options) => joinSession(options);
 
 export function createPstackExtensionRegistration(): PstackExtensionRegistration {
   const cwdRef = createCwdRef(process.cwd());
   const service = createPstackService(cwdRef);
-  let sessionRef: CopilotSession | null = null;
+  let sessionRef: PstackSession | null = null;
 
   const command = createPstackCommand(service, () => {
     if (!sessionRef) throw new Error("pstack command invoked before the session is ready");
@@ -79,4 +85,15 @@ export function createPstackExtensionRegistration(): PstackExtensionRegistration
       sessionRef = session;
     },
   };
+}
+
+export async function registerPstackExtension(
+  join: JoinPstackSession = defaultJoinSession,
+): Promise<PstackExtensionRegistration> {
+  const registration = createPstackExtensionRegistration();
+  const session = await join(registration.options);
+
+  registration.attachSession(session);
+
+  return registration;
 }
