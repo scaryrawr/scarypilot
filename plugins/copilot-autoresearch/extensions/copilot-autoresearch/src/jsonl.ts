@@ -29,6 +29,7 @@ const AutoresearchConfigEntrySchema = Type.Object({
   metricName: Type.Optional(JsonValueSchema),
   metricUnit: Type.Optional(JsonValueSchema),
   bestDirection: Type.Optional(JsonValueSchema),
+  timestamp: Type.Optional(JsonValueSchema),
 });
 
 const AutoresearchRunEntrySchema = Type.Object({
