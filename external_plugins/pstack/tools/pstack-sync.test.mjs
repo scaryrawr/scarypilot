@@ -74,12 +74,17 @@ test("swarm verifies session factory registration before dispatch", () => {
     "utf8",
   );
 
-  assert.match(skill, /factories_manage.*operation: "list"/s);
-  assert.match(skill, /tool availability alone is not a readiness check/);
-  assert.match(skill, /factory_not_found/);
   assert.match(
     skill,
-    /Retry the same invocation\s+once only when `pstack-swarm` is now listed/,
+    /first use `factories_manage` with `operation: "list"`[\s\S]*confirm that `pstack-swarm` is registered[\s\S]*If the factory is listed,[\s\S]*call `run_factory` once/,
+  );
+  assert.match(
+    skill,
+    /If `pstack-swarm` is not listed,[\s\S]*use the legacy\s+flow below from the beginning\./,
+  );
+  assert.match(
+    skill,
+    /If `run_factory` reports `factory_not_found` or\s+`No factory registered`, list factories once more\. Retry the same invocation\s+once only when `pstack-swarm` is now listed; otherwise use the legacy flow\./,
   );
 });
 
