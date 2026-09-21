@@ -30,6 +30,7 @@ export function createValidatePlanTool(service: PstackService): Tool<ValidatePla
         requiredString(args.plan_path, "plan_path"),
         args.profile,
       );
+
       return json({ ok: result.findings.length === 0, ...result });
     },
   };

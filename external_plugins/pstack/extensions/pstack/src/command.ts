@@ -21,18 +21,25 @@ export function createPstackCommand(
     handler: async (context) => {
       const [subcommand = "", ...rest] = (context.args ?? "").trim().split(/\s+/);
       const session = getSession();
+
       if (!subcommand) {
         await session.log(HELP);
+
         return;
       }
+
       if (subcommand === "status") {
         await session.log(JSON.stringify(await service.status(), null, 2));
+
         return;
       }
+
       if (subcommand === "capabilities") {
         await session.log(JSON.stringify(await service.capabilities(), null, 2));
+
         return;
       }
+
       if (subcommand === "resume") {
         const handoff = await service.readHandoff(rest[0]);
         await session.log(
@@ -44,8 +51,10 @@ export function createPstackCommand(
             `Snapshot: ${handoff.snapshot.snapshotHash}`,
           ].join("\n"),
         );
+
         return;
       }
+
       await session.log(HELP, { level: "error" });
     },
   };

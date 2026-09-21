@@ -18,12 +18,14 @@ import {
 } from "./store.ts";
 
 ensureDependenciesInstalled();
+
 const {
   Command: CommanderCommand,
   CommanderError,
   InvalidArgumentError,
   Option,
 } = await import("commander");
+
 type Command = InstanceType<typeof CommanderCommand>;
 
 const DISPLAY_LIMIT = 4;
@@ -90,22 +92,27 @@ function message(error: unknown): string {
 
 function positiveInteger(value: string): number {
   const parsed = Number(value);
+
   if (!/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(parsed)) {
     throw new InvalidArgumentError("must be a positive integer");
   }
+
   return parsed;
 }
 
 function prList(value: string): readonly number[] {
   const parts = value.split(",");
+
   if (parts.some((part) => part.length === 0)) {
     throw new InvalidArgumentError("requires a comma-separated PR list");
   }
+
   return parts.map(positiveInteger);
 }
 
 function countLine(value: Counts): string {
   const entries = Object.entries(value);
+
   return entries.length === 0
     ? "none"
     : entries.map(([name, count]) => `${name}=${count}`).join(", ");
@@ -151,11 +158,14 @@ function compactRows<T>(
   if (rows.length === 0) {
     return empty;
   }
+
   const visible = limit === null ? rows : rows.slice(0, limit);
   const lines = visible.map(format);
+
   if (limit !== null && rows.length > limit) {
     lines.push(`... ${rows.length - limit} more; use --json`);
   }
+
   return lines.join("\n");
 }
 
@@ -169,15 +179,18 @@ function frontierLine(value: Frontier): string {
               `${row.branches}#${row.pr}@${row.sha}:${row.state}`
           )
           .join(",");
+
   return `generation=${value.generation} prs=${prs} lowest-unmerged=${value.lowestUnmerged ?? "none"}`;
 }
 
 function statusLines(report: StatusReport): string {
   const visible = report.summary.openGateIds.slice(0, DISPLAY_LIMIT);
+
   const more =
     report.summary.openGateIds.length > DISPLAY_LIMIT
       ? `,+${report.summary.openGateIds.length - DISPLAY_LIMIT} more`
       : "";
+
   return [
     `counts: units=${report.units.length}; states=${countLine(report.summary.unitStates)}; ledger=${countLine(report.summary.ledgerVerdicts)}`,
     `changed: ${report.changed}`,
@@ -197,22 +210,27 @@ function emit<T>(
   const rendered = json
     ? JSON.stringify(jsonValue(value), null, 2)
     : compact(value);
+
   io.stdout(rendered.endsWith("\n") ? rendered : `${rendered}\n`);
 }
 
 function storeDirectory(program: Command): string {
   const value = program.opts<GlobalOptions>().store;
+
   if (value === undefined || value.trim().length === 0) {
     throw new UsageError("set --store <dir> or ORCH_STORE");
   }
+
   return value;
 }
 
 function frontierRepo(options: FrontierSetOptions): string {
   const value = options.repo;
+
   if (value === undefined || value.trim().length === 0) {
     throw new UsageError("set --repo <dir> or ORCH_REPO");
   }
+
   return value;
 }
 
@@ -224,6 +242,7 @@ async function runStore<T>(
   jsonValue?: (result: T) => unknown
 ): Promise<void> {
   const options = program.opts<GlobalOptions>();
+
   const store = openStore(storeDirectory(program), {
     force: options.force,
     onLockStolen: (holder) =>
@@ -231,6 +250,7 @@ async function runStore<T>(
     onStaleLock: (holder) =>
       io.stderr(`replacing stale store lock (pid ${holder} is dead)\n`),
   });
+
   try {
     const result = await operation(store);
     emit(io, options.json, result, compact, jsonValue);
@@ -280,6 +300,7 @@ function createProgram(io: Io): Command {
     .command("unit")
     .description("manage work units")
     .action(() => requireSubcommand(program));
+
   leaf(unit, "add <id>", "add a unit")
     .requiredOption("--track <track>", "unit track")
     .option("--brief <path>", "brief path")
@@ -338,6 +359,7 @@ function createProgram(io: Io): Command {
     .command("ledger")
     .description("manage verification records")
     .action(() => requireSubcommand(program));
+
   leaf(ledger, "record", "record a verification verdict")
     .argument("<pr>", "pull request number", positiveInteger)
     .argument("<sha>", "commit SHA")
@@ -384,6 +406,7 @@ function createProgram(io: Io): Command {
     .command("inbox")
     .description("manage agent pointers")
     .action(() => requireSubcommand(program));
+
   leaf(inbox, "push <agent> <unit> <status>", "push an inbox pointer")
     .option("--report <path>", "report path")
     .action(
@@ -433,6 +456,7 @@ function createProgram(io: Io): Command {
     .command("gate")
     .description("manage decision gates")
     .action(() => requireSubcommand(program));
+
   leaf(gate, "park <id>", "park a decision gate")
     .requiredOption("--question <question>", "gate question")
     .requiredOption("--options <options>", "gate options")
@@ -474,6 +498,7 @@ function createProgram(io: Io): Command {
     .command("frontier")
     .description("manage the Graphite stack frontier")
     .action(() => requireSubcommand(program));
+
   leaf(frontier, "set", "discover the Graphite stack and set the frontier")
     .addOption(
       new Option(
@@ -510,6 +535,7 @@ function createProgram(io: Io): Command {
     .command("standing")
     .description("manage standing orders")
     .action(() => requireSubcommand(program));
+
   leaf(standing, "show", "show standing orders").action(() =>
     runStore(
       program,
@@ -533,6 +559,7 @@ function createProgram(io: Io): Command {
   );
 
   program.action(() => requireSubcommand(program));
+
   return program;
 }
 
@@ -540,20 +567,27 @@ function handleError(error: unknown, program: Command, io: Io): number {
   if (error instanceof CommanderError) {
     return error.exitCode === 0 ? 0 : 1;
   }
+
   const json = program.opts<GlobalOptions>().json;
+
   if (error instanceof NotFoundError) {
     const output = error.output;
+
     if (output === undefined) {
       io.stderr(`error: ${error.message}\n`);
     } else {
       emit(io, json, output.json, () => output.compact);
     }
+
     return 2;
   }
+
   io.stderr(`error: ${message(error)}\n`);
+
   if (error instanceof UsageError) {
     io.stderr(program.helpInformation());
   }
+
   return 1;
 }
 
@@ -565,8 +599,10 @@ export async function main(
   }
 ): Promise<number> {
   const program = createProgram(io);
+
   try {
     await program.parseAsync(argv, { from: "user" });
+
     return 0;
   } catch (error) {
     return handleError(error, program, io);

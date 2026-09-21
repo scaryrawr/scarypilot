@@ -3,12 +3,15 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const scriptsDirectory = import.meta.dir;
+
 const nodeModulesDirectory = join(scriptsDirectory, "node_modules");
+
 const commanderPackagePath = join(
   nodeModulesDirectory,
   "commander",
   "package.json"
 );
+
 const installKeyPath = join(
   nodeModulesDirectory,
   ".poteto-mode-tools-install-key"
@@ -24,6 +27,7 @@ function currentInstallKey(): string {
 
 export function ensureDependenciesInstalled(): void {
   const installKey = currentInstallKey();
+
   if (
     existsSync(commanderPackagePath) &&
     existsSync(installKeyPath) &&
@@ -36,6 +40,7 @@ export function ensureDependenciesInstalled(): void {
     [process.execPath, "install", "--frozen-lockfile"],
     { cwd: scriptsDirectory }
   );
+
   if (result.exitCode !== 0) {
     process.stdout.write(result.stdout);
     process.stderr.write(result.stderr);
@@ -43,6 +48,7 @@ export function ensureDependenciesInstalled(): void {
       `bun install --frozen-lockfile exited with status ${result.exitCode}`
     );
   }
+
   if (!existsSync(commanderPackagePath)) {
     throw new Error(
       "bun install --frozen-lockfile completed without installing commander"
@@ -58,5 +64,6 @@ export function ensureDependenciesInstalled(): void {
     stdout: "inherit",
     stderr: "inherit",
   });
+
   process.exit(restarted.exitCode ?? 1);
 }

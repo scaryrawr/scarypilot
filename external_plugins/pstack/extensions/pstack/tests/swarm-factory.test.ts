@@ -33,21 +33,28 @@ function context(
   const phases: string[] = [];
   const logs: string[] = [];
   let outputIndex = 0;
-  const ctx = {
+
+  const parallel = async <Result>(
+    thunks: Array<() => Result | Promise<Result>>,
+  ): Promise<Array<Result | null>> => Promise.all(thunks.map((thunk) => thunk()));
+
+  const ctx: Pick<
+    FactoryContext<SwarmArgs>,
+    "agent" | "args" | "log" | "parallel" | "phase" | "signal" | "step"
+  > = {
     args: input,
     signal,
     agent: vi.fn(async (_prompt: string, options?: { label?: string }) => {
       if (options?.label) labels.push(options.label);
+
       return outputs[outputIndex++] ?? null;
     }),
-    parallel: vi.fn(async (thunks: Array<() => Promise<unknown>>) => Promise.all(thunks.map((thunk) => thunk()))),
+    parallel,
     phase: vi.fn((phase: string) => phases.push(phase)),
     log: vi.fn((message: string) => logs.push(message)),
     step: vi.fn(async (_key: string, producer: () => JsonValue | Promise<JsonValue>) => producer()),
-  } as unknown as Pick<
-    FactoryContext<SwarmArgs>,
-    "agent" | "args" | "log" | "parallel" | "phase" | "signal" | "step"
-  >;
+  };
+
   return { ctx, labels, phases, logs };
 }
 
@@ -139,6 +146,7 @@ describe("pstack-swarm factory", () => {
     expect(result.gaps).toEqual([]);
     expect(labels).toEqual(["pstack-swarm:v1:api", "pstack-swarm:v1:tests"]);
     expect(phases).toEqual(["Fan out", "Aggregate"]);
+
     for (const [, options] of vi.mocked(ctx.agent).mock.calls) {
       expect(options).toMatchObject({ agent: "pstack-swarm-worker" });
     }

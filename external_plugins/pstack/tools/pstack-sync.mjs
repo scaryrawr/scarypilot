@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const TOOL_DIR = dirname(fileURLToPath(import.meta.url));
+
 const DEFAULT_PLUGIN_ROOT = resolve(TOOL_DIR, "..");
+
 const IGNORED_DIRECTORIES = new Set([".git", "node_modules"]);
 
 function toPosix(path) {
@@ -20,31 +22,43 @@ function readJson(path) {
 function listFiles(root) {
   if (!existsSync(root)) return [];
   const files = [];
+
   for (const entry of readdirSync(root, { withFileTypes: true })) {
     if (entry.isDirectory() && IGNORED_DIRECTORIES.has(entry.name)) continue;
     const path = join(root, entry.name);
+
     if (entry.isDirectory()) files.push(...listFiles(path));
     else if (entry.isFile()) files.push(path);
   }
+
   return files;
 }
 
 function frontmatter(text) {
   const lines = text.split(/\r?\n/);
+
   if (lines[0] !== "---") return new Map();
   const result = new Map();
+
   for (let index = 1; index < lines.length; index += 1) {
     if (lines[index] === "---") return result;
+
     const match = /^(?:([A-Za-z0-9_-]+)|"([^"]+)"|'([^']+)'):\s*(.*)$/.exec(
       lines[index],
     );
+
     if (match) result.set(match[1] ?? match[2] ?? match[3], match[4]);
   }
+
   return new Map();
 }
 
 function finding(code, message, path) {
-  return { code, message, ...(path ? { path } : {}) };
+  const result = { code, message };
+
+  if (path) result.path = path;
+
+  return result;
 }
 
 function pathMatches(path, prefix) {
@@ -55,6 +69,7 @@ function classifyUpstreamPath(path, policy) {
   const mapped = policy.mappedUpstreamPaths.find((rule) =>
     pathMatches(path, rule.path),
   );
+
   if (mapped) {
     return {
       disposition: "mapped",
@@ -62,22 +77,28 @@ function classifyUpstreamPath(path, policy) {
       reason: mapped.reason,
     };
   }
+
   const copilotOwned = policy.copilotOwnedPaths.find((prefix) =>
     pathMatches(path, prefix),
   );
+
   if (copilotOwned) {
     return { disposition: "copilot-owned" };
   }
+
   const excluded = policy.excludedUpstreamPaths.find((rule) =>
     pathMatches(path, rule.path),
   );
+
   if (excluded) {
     return { disposition: "excluded", reason: excluded.reason };
   }
+
   if (path === "README.md" || path.startsWith("skills/") ||
       path.startsWith("docs/guide/") || path.startsWith("agents/")) {
     return { disposition: "adapted" };
   }
+
   return { disposition: "unclassified" };
 }
 
@@ -85,10 +106,13 @@ function markdownLinkFindings(pluginRoot) {
   const findings = [];
   const markdownFiles = listFiles(pluginRoot).filter((path) => path.endsWith(".md"));
   const linkPattern = /\[[^\]]*]\(([^)]+)\)/g;
+
   for (const path of markdownFiles) {
     const text = readFileSync(path, "utf8").replace(/```[\s\S]*?```/g, "");
+
     for (const match of text.matchAll(linkPattern)) {
       const rawTarget = match[1].trim().replace(/^<|>$/g, "");
+
       if (
         rawTarget === "" ||
         rawTarget === "url" ||
@@ -97,7 +121,9 @@ function markdownLinkFindings(pluginRoot) {
       ) {
         continue;
       }
+
       const target = decodeURIComponent(rawTarget.split("#", 1)[0]);
+
       if (!existsSync(resolve(dirname(path), target))) {
         findings.push(
           finding(
@@ -109,6 +135,7 @@ function markdownLinkFindings(pluginRoot) {
       }
     }
   }
+
   return findings;
 }
 
@@ -116,22 +143,27 @@ export function checkRepository(pluginRoot = DEFAULT_PLUGIN_ROOT) {
   const policy = readJson(join(pluginRoot, "upstream-sync.json"));
   const findings = [];
   const skillsRoot = join(pluginRoot, "skills");
+
   const skillDirectories = readdirSync(skillsRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
+
   const names = new Map();
 
   for (const directory of skillDirectories) {
     const skillPath = join(skillsRoot, directory, "SKILL.md");
+
     if (!existsSync(skillPath)) {
       findings.push(
         finding("missing-skill", "Skill directory has no SKILL.md", `skills/${directory}`),
       );
       continue;
     }
+
     const metadata = frontmatter(readFileSync(skillPath, "utf8"));
     const name = metadata.get("name")?.replace(/^["']|["']$/g, "");
+
     if (name !== directory) {
       findings.push(
         finding(
@@ -141,8 +173,10 @@ export function checkRepository(pluginRoot = DEFAULT_PLUGIN_ROOT) {
         ),
       );
     }
+
     if (name) {
       const previous = names.get(name);
+
       if (previous) {
         findings.push(
           finding(
@@ -155,6 +189,7 @@ export function checkRepository(pluginRoot = DEFAULT_PLUGIN_ROOT) {
         names.set(name, `skills/${directory}/SKILL.md`);
       }
     }
+
     for (const key of policy.forbiddenSkillFrontmatter) {
       if (metadata.has(key)) {
         findings.push(
@@ -177,6 +212,7 @@ export function checkRepository(pluginRoot = DEFAULT_PLUGIN_ROOT) {
   }
 
   const plugin = readJson(join(pluginRoot, "plugin.json"));
+
   if (plugin.version !== policy.localVersion) {
     findings.push(
       finding(
@@ -186,6 +222,7 @@ export function checkRepository(pluginRoot = DEFAULT_PLUGIN_ROOT) {
       ),
     );
   }
+
   if (!Array.isArray(plugin.extensions) || !plugin.extensions.includes("extensions")) {
     findings.push(
       finding(
@@ -197,6 +234,7 @@ export function checkRepository(pluginRoot = DEFAULT_PLUGIN_ROOT) {
   }
 
   const notice = readFileSync(join(pluginRoot, "NOTICE.md"), "utf8");
+
   for (const expected of [
     policy.upstream.version,
     policy.upstream.reviewedFromCommit,
@@ -217,8 +255,10 @@ export function checkRepository(pluginRoot = DEFAULT_PLUGIN_ROOT) {
           finding("excluded-path-present", rule.reason, ".cursor-plugin"),
         );
       }
+
       continue;
     }
+
     if (existsSync(join(pluginRoot, rule.path))) {
       findings.push(
         finding("excluded-path-present", rule.reason, rule.path),
@@ -244,6 +284,7 @@ export function checkRepository(pluginRoot = DEFAULT_PLUGIN_ROOT) {
 
   const readme = readFileSync(join(pluginRoot, "README.md"), "utf8");
   const documentedCount = /- (\d+) Agent Skills\b/.exec(readme);
+
   if (!documentedCount || Number(documentedCount[1]) !== names.size) {
     findings.push(
       finding(
@@ -255,6 +296,7 @@ export function checkRepository(pluginRoot = DEFAULT_PLUGIN_ROOT) {
   }
 
   findings.push(...markdownLinkFindings(pluginRoot));
+
   return findings;
 }
 
@@ -262,33 +304,43 @@ function git(repoRoot, args) {
   const result = spawnSync("git", ["-C", repoRoot, ...args], {
     encoding: "utf8",
   });
+
   if (result.status !== 0) {
     throw new Error(result.stderr.trim() || `git ${args.join(" ")} failed`);
   }
+
   return result.stdout.trim();
 }
 
 function resolveUpstream(path) {
   const absolute = resolve(path);
+
   if (existsSync(join(absolute, "pstack", ".cursor-plugin", "plugin.json"))) {
     return { repoRoot: absolute, subtree: "pstack" };
   }
+
   if (existsSync(join(absolute, ".cursor-plugin", "plugin.json"))) {
     return { repoRoot: resolve(absolute, ".."), subtree: "pstack" };
   }
+
   throw new Error(`No upstream pstack checkout found at ${absolute}`);
 }
 
 export function parseNameStatus(output) {
   if (output.trim() === "") return [];
+
   return output.split(/\r?\n/).map((line) => {
     const [status, first, second] = line.split("\t");
     const path = (second ?? first).replace(/^pstack\//, "");
-    return {
+
+    const change = {
       status,
       path,
-      ...(second ? { previousPath: first.replace(/^pstack\//, "") } : {}),
     };
+
+    if (second) change.previousPath = first.replace(/^pstack\//, "");
+
+    return change;
   });
 }
 
@@ -309,9 +361,11 @@ export function buildPlan({ policy, changes, from, to, targetVersion }) {
 
 function planCommand(pluginRoot, args) {
   const upstreamArg = args[args.indexOf("--upstream") + 1];
+
   if (!upstreamArg || upstreamArg.startsWith("--")) {
     throw new Error("plan requires --upstream <checkout>");
   }
+
   const policy = readJson(join(pluginRoot, "upstream-sync.json"));
   const upstream = resolveUpstream(upstreamArg);
   const fromIndex = args.indexOf("--from");
@@ -320,9 +374,11 @@ function planCommand(pluginRoot, args) {
   const requestedTo = toIndex >= 0 ? args[toIndex + 1] : "HEAD";
   const to = git(upstream.repoRoot, ["rev-parse", requestedTo]);
   git(upstream.repoRoot, ["merge-base", "--is-ancestor", from, to]);
+
   const manifest = JSON.parse(
     git(upstream.repoRoot, ["show", `${to}:pstack/.cursor-plugin/plugin.json`]),
   );
+
   const changes = parseNameStatus(
     git(upstream.repoRoot, [
       "diff",
@@ -332,6 +388,7 @@ function planCommand(pluginRoot, args) {
       upstream.subtree,
     ]),
   );
+
   const plan = buildPlan({
     policy,
     changes,
@@ -339,7 +396,9 @@ function planCommand(pluginRoot, args) {
     to,
     targetVersion: manifest.version,
   });
+
   process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+
   return plan.changes.some((change) => change.disposition === "unclassified") ? 1 : 0;
 }
 
@@ -353,16 +412,21 @@ function printFindings(findings) {
 export function main(argv = process.argv.slice(2)) {
   const command = argv[0] ?? "check";
   const rootIndex = argv.indexOf("--root");
+
   const pluginRoot =
     rootIndex >= 0 ? resolve(argv[rootIndex + 1]) : DEFAULT_PLUGIN_ROOT;
+
   if (command === "check") {
     const findings = checkRepository(pluginRoot);
     printFindings(findings);
+
     if (findings.length === 0) {
       process.stdout.write("pstack integration checks passed\n");
     }
+
     return findings.length === 0 ? 0 : 1;
   }
+
   if (command === "plan") return planCommand(pluginRoot, argv.slice(1));
   throw new Error(`Unknown command: ${command}`);
 }

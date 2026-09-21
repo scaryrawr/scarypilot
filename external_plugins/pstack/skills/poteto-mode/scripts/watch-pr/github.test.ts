@@ -28,6 +28,7 @@ describe("checks fallback chain", () => {
     const reader = fakeReader({
       fastPath: { kind: "checks", checks: [passingCheck("fast")] },
     });
+
     const read = await resolveChecks(reader, context);
     expect(read.source).toBe("gh-pr-checks");
     expect(read.checks.map((check) => check.name)).toEqual(["fast"]);
@@ -42,6 +43,7 @@ describe("checks fallback chain", () => {
         { checks: [failedCheck("second")], endCursor: null },
       ],
     });
+
     const read = await resolveChecks(reader, context);
     expect(read.source).toBe("graphql-rollup");
     expect(read.checks.map((check) => check.name)).toEqual(["first", "second"]);
@@ -57,6 +59,7 @@ describe("checks fallback chain", () => {
       fastPath: { kind: "checks", checks: [] },
       rollupPages: [{ checks: [pendingCheck("fallback")], endCursor: null }],
     });
+
     expect((await resolveChecks(reader, context)).checks[0].name).toBe(
       "fallback"
     );
@@ -71,6 +74,7 @@ describe("checks fallback chain", () => {
         stderr: "credential cannot read checks",
       },
     });
+
     await expect(resolveChecks(reader, context)).rejects.toBeInstanceOf(
       ChecksUnavailable
     );
@@ -89,6 +93,7 @@ describe("rollup node mapping", () => {
       ["COMPLETED", "TIMED_OUT", "failed", "FAILURE"],
       ["COMPLETED", "FUTURE_VALUE", "failed", "FAILURE"],
     ] as const;
+
     for (const [status, conclusion, kind, reportedState] of cases) {
       expect(
         mapRollupNode({
@@ -182,6 +187,7 @@ describe("closed enum parsing", () => {
       throw new Error("expected parser to throw");
     } catch (error) {
       expect(error).toBeInstanceOf(WatcherQueryError);
+
       if (!(error instanceof WatcherQueryError)) throw error;
       expect(error.failure).toMatchObject({
         kind: "missing-key",
@@ -250,6 +256,7 @@ it("annotates Bugbot threads with distinct review-pass counts", () => {
       },
     },
   };
+
   const threads = parseReviewThreads(response);
   expect(threads).toHaveLength(2);
   expect(threads.map((thread) => thread.isBugbot)).toEqual([true, true]);
@@ -301,6 +308,7 @@ describe("context and stack discovery", () => {
         baseRefName: "feature",
       },
     ]);
+
     expect(ordered.map((item) => Number(item.number))).toEqual([41, 42, 43]);
   });
 });

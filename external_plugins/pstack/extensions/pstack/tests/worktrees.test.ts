@@ -7,7 +7,9 @@ describe("inspectWorktrees", () => {
     const port: ProcessPort = {
       run: async (command, args) => {
         const key = [command, ...args].join(" ");
+
         if (key.includes("rev-parse --show-toplevel")) return { stdout: "/repo\n", stderr: "" };
+
         if (key.includes("worktree list --porcelain")) {
           return {
             stdout:
@@ -15,16 +17,22 @@ describe("inspectWorktrees", () => {
             stderr: "",
           };
         }
+
         if (key.includes("symbolic-ref --quiet --short refs/remotes/origin/HEAD")) {
           return { stdout: "origin/main\n", stderr: "" };
         }
+
         if (command === "gh") return { stdout: '[{"number":7,"state":"OPEN","headRefName":"topic"}]', stderr: "" };
+
         if (key.includes("status --porcelain")) return { stdout: "", stderr: "" };
+
         if (key.includes("@{upstream}")) throw new Error("no upstream");
+
         if (key.includes("merge-base --is-ancestor")) throw new Error("not merged");
         throw new Error(`unexpected command: ${key}`);
       },
     };
+
     const result = await inspectWorktrees("/repo", undefined, port);
     const topic = result.worktrees.find((worktree) => worktree.branch === "topic");
     expect(result.baseRef).toBe("origin/main");

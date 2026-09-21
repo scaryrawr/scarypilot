@@ -28,6 +28,7 @@ export const processPort: ProcessPort = {
       timeout: options.timeoutMs ?? 10_000,
       windowsHide: true,
     });
+
     return { stdout: result.stdout, stderr: result.stderr };
   },
 };
@@ -36,23 +37,27 @@ export function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-export function stableJson(value: unknown): string {
+export function stableJson<Value>(value: Value): string {
   if (Array.isArray(value)) {
     return `[${value.map(stableJson).join(",")}]`;
   }
+
   if (value !== null && typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>)
+    const entries = Object.entries(value)
       .filter(([, item]) => item !== undefined)
       .sort(([left], [right]) => left.localeCompare(right));
+
     return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`).join(",")}}`;
   }
+
   return JSON.stringify(value);
 }
 
-export async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
+export async function writeJsonAtomic<Value>(path: string, value: Value): Promise<void> {
   const target = resolve(path);
   await mkdir(dirname(target), { recursive: true });
   const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`;
+
   try {
     await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
     await rename(temporary, target);
@@ -61,6 +66,6 @@ export async function writeJsonAtomic(path: string, value: unknown): Promise<voi
   }
 }
 
-export function errorMessage(error: unknown): string {
+export function errorMessage<Value>(error: Value): string {
   return error instanceof Error ? error.message : String(error);
 }
