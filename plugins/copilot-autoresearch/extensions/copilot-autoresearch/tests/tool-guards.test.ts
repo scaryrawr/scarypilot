@@ -26,10 +26,12 @@ describe("tool mode guards", () => {
     const cwd = mkTmp();
     const runtime = defaultRuntimeState();
     const cwdRef = createCwdRef(cwd);
+
     try {
       const init = createInitTool({ cwdRef, runtime, log: () => {} });
       const run = createRunTool({ cwdRef, runtime, log: () => {} });
       const log = createLogTool({ cwdRef, runtime, log: () => {}, onLogged: () => {} });
+
       if (!init.handler || !run.handler || !log.handler) {
         throw new Error("autoresearch tools must define handlers");
       }
@@ -61,6 +63,7 @@ describe("tool mode guards", () => {
     const cwd = mkTmp();
     const runtime = defaultRuntimeState();
     runtime.autoresearchMode = true;
+
     try {
       const configPath = autoresearchConfigPath(cwd);
       ensureParentDir(configPath);
@@ -86,11 +89,13 @@ describe("tool mode guards", () => {
           }),
         ].join("\n"),
       );
+
       const tool = createRunTool({
         cwdRef: createCwdRef(cwd),
         runtime,
         log: () => {},
       });
+
       if (!tool.handler) throw new Error("run_experiment must define a handler");
 
       const result = await tool.handler({ command: "exit 99" }, invocation);
@@ -108,6 +113,7 @@ describe("log_experiment revisits_run", () => {
     const cwd = mkTmp();
     const runtime = defaultRuntimeState();
     runtime.autoresearchMode = true;
+
     try {
       const tool = createLogTool({
         cwdRef: createCwdRef(cwd),
@@ -115,6 +121,7 @@ describe("log_experiment revisits_run", () => {
         log: () => {},
         onLogged: () => {},
       });
+
       if (!tool.handler) throw new Error("log_experiment must define a handler");
 
       await tool.handler(
@@ -127,6 +134,7 @@ describe("log_experiment revisits_run", () => {
         },
         invocation,
       );
+
       const result = await tool.handler(
         {
           commit: "0000000",
@@ -149,6 +157,7 @@ describe("log_experiment revisits_run", () => {
     const cwd = mkTmp();
     const runtime = defaultRuntimeState();
     runtime.autoresearchMode = true;
+
     try {
       const tool = createLogTool({
         cwdRef: createCwdRef(cwd),
@@ -156,6 +165,7 @@ describe("log_experiment revisits_run", () => {
         log: () => {},
         onLogged: () => {},
       });
+
       if (!tool.handler) throw new Error("log_experiment must define a handler");
 
       for (const revisitsRun of [0, 1, 1.5, "1"]) {
@@ -169,6 +179,7 @@ describe("log_experiment revisits_run", () => {
           },
           invocation,
         );
+
         expect(result).toContain(
           "asi.revisits_run must be a positive integer referencing an earlier run",
         );
@@ -182,6 +193,7 @@ describe("log_experiment revisits_run", () => {
     const cwd = mkTmp();
     const runtime = defaultRuntimeState();
     runtime.autoresearchMode = true;
+
     try {
       const logPath = autoresearchJsonlPath(cwd);
       ensureParentDir(logPath);
@@ -197,12 +209,14 @@ describe("log_experiment revisits_run", () => {
           segment: 0,
         }),
       );
+
       const tool = createLogTool({
         cwdRef: createCwdRef(cwd),
         runtime,
         log: () => {},
         onLogged: () => {},
       });
+
       if (!tool.handler) throw new Error("log_experiment must define a handler");
 
       const result = await tool.handler(

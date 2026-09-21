@@ -1,7 +1,6 @@
 import * as fs from "node:fs";
 import type { CommandDefinition, CopilotSession } from "@github/copilot-sdk";
 import {
-  autoresearchJsonlPath,
   autoresearchMdPath,
   resolveWorkDir,
   sessionFileCandidates,
@@ -58,14 +57,18 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
       const sub = args.toLowerCase();
       const cwd = deps.cwdRef.get();
       const workDirError = validateWorkDir(cwd);
+
       if (workDirError) {
         await session.log(`/autoresearch: ${workDirError}`, { level: "error" });
+
         return;
       }
+
       const workDir = resolveWorkDir(cwd);
 
       if (!args) {
         await session.log(HELP);
+
         return;
       }
 
@@ -78,22 +81,28 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
         savePersistedRuntime(workDir, cmdCtx.sessionId, deps.runtime);
         await abortActiveTurn(session);
         await session.log("Autoresearch mode OFF (state files preserved).");
+
         return;
       }
 
       if (sub === "export") {
         const result = await openLiveDashboard(workDir);
+
         if (result.error) {
           await session.log(`Export failed: ${result.error}`, { level: "error" });
+
           return;
         }
+
         await session.log(`Dashboard at ${result.url} (live updates).`);
+
         return;
       }
 
       if (sub === "status") {
         const summary = buildRehydrationSummary(workDir);
         await session.log(summary);
+
         return;
       }
 
@@ -107,6 +116,7 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
         await abortActiveTurn(session);
         const jsonlPaths = sessionFileCandidates(workDir, "log");
         const existing = [...new Set(Object.values(jsonlPaths))].filter((p) => fs.existsSync(p));
+
         if (existing.length > 0) {
           try {
             for (const jsonlPath of existing) fs.unlinkSync(jsonlPath);
@@ -122,6 +132,7 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
         } else {
           await session.log("No session log found. Autoresearch mode OFF.");
         }
+
         return;
       }
 
@@ -130,6 +141,7 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
         await session.log(
           "Autoresearch already active — use '/autoresearch off' first to start a fresh kickoff.",
         );
+
         return;
       }
 

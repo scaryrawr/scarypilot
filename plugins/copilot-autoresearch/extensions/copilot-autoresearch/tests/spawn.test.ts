@@ -8,6 +8,7 @@ describe("runShellStreaming", () => {
       "printf 'line-1\\nline-2\\nline-3\\nline-4\\n'",
       { maxBytes: 12, maxLines: 2 },
     );
+
     try {
       expect(result.truncated).toBe(true);
       expect(result.tail).toContain("line-4");
@@ -24,6 +25,7 @@ describe("runShellStreaming", () => {
       maxLines: 1,
       maxOutputFileBytes: 10,
     });
+
     try {
       expect(result.fullOutputTruncated).toBe(true);
       expect(statSync(result.fullOutputPath!).size).toBe(10);

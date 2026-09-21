@@ -11,6 +11,7 @@ export interface CwdRef {
 
 export function createCwdRef(initial: string): CwdRef {
   let current = initial;
+
   return {
     get: () => current,
     set: (cwd: string) => {

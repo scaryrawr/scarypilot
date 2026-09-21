@@ -46,8 +46,10 @@ export function runShell(
 ): Promise<SpawnResult> {
   const args = typeof command === "string" ? ["-c", command] : [command.script];
   const t0 = Date.now();
+
   return new Promise((resolve, reject) => {
     let timedOut = false;
+
     const child = spawn("bash", args, {
       cwd: opts.cwd,
       detached: true,
@@ -63,6 +65,7 @@ export function runShell(
       opts.timeoutMs && opts.timeoutMs > 0
         ? setTimeout(() => {
             timedOut = true;
+
             if (child.pid) killTree(child.pid);
           }, opts.timeoutMs)
         : null;
@@ -71,6 +74,7 @@ export function runShell(
       if (child.pid) killTree(child.pid);
       else child.kill();
     };
+
     if (opts.signal) {
       if (opts.signal.aborted) onAbort();
       else opts.signal.addEventListener("abort", onAbort, { once: true });
@@ -78,12 +82,14 @@ export function runShell(
 
     child.on("error", (err) => {
       if (timer) clearTimeout(timer);
+
       if (opts.signal) opts.signal.removeEventListener("abort", onAbort);
       reject(err);
     });
 
     child.on("close", (code) => {
       if (timer) clearTimeout(timer);
+
       if (opts.signal) opts.signal.removeEventListener("abort", onAbort);
       const stdout = Buffer.concat(stdoutChunks).toString("utf-8");
       const stderr = Buffer.concat(stderrChunks).toString("utf-8");
@@ -130,8 +136,10 @@ export function runShellStreaming(
   opts: StreamingRunOptions,
 ): Promise<StreamingRunResult> {
   const t0 = Date.now();
+
   return new Promise((resolve, reject) => {
     let timedOut = false;
+
     const child = spawn("bash", ["-c", command], {
       cwd: opts.cwd,
       detached: true,
@@ -152,22 +160,29 @@ export function runShellStreaming(
     const writeRetainedOutput = (data: Buffer) => {
       if (fullOutputFd === undefined) return;
       const remaining = maxOutputFileBytes - retainedOutputBytes;
+
       if (remaining <= 0) {
         fullOutputTruncated = true;
+
         return;
       }
+
       const output = data.length > remaining ? data.subarray(0, remaining) : data;
+
       try {
         writeSync(fullOutputFd, output);
         retainedOutputBytes += output.length;
+
         if (output.length < data.length) fullOutputTruncated = true;
       } catch {
         try {
           closeSync(fullOutputFd);
+
           if (fullOutputPath) unlinkSync(fullOutputPath);
         } catch {
           // The original write error is reflected by omitting the output path.
         }
+
         fullOutputFd = undefined;
         fullOutputPath = undefined;
       }
@@ -175,34 +190,43 @@ export function runShellStreaming(
 
     const handleData = (data: Buffer) => {
       totalBytes += data.length;
+
       for (const byte of data) {
         if (byte === 0x0a) lineBreaks++;
       }
+
       if (data.length > 0) lastByteWasNewline = data[data.length - 1] === 0x0a;
+
       if (totalBytes > opts.maxBytes && fullOutputFd === undefined && !fullOutputPath) {
         fullOutputPath = path.join(
           tmpdir(),
           `copilot-autoresearch-${crypto.randomBytes(8).toString("hex")}.log`,
         );
+
         try {
           fullOutputFd = openSync(fullOutputPath, "wx");
+
           for (const chunk of chunks) writeRetainedOutput(chunk);
         } catch {
           fullOutputFd = undefined;
           fullOutputPath = undefined;
         }
       }
+
       writeRetainedOutput(data);
       chunks.push(data);
 
       let bytes = chunks.reduce((acc, c) => acc + c.length, 0);
+
       while (bytes > maxKept && chunks.length > 1) {
         const removed = chunks.shift()!;
         bytes -= removed.length;
       }
+
       if (chunks.length > 0 && bytes > maxKept) {
         const buf = chunks[0];
         const nl = buf.indexOf(0x0a);
+
         if (nl !== -1 && nl < buf.length - 1) {
           chunks[0] = buf.subarray(nl + 1);
         }
@@ -222,6 +246,7 @@ export function runShellStreaming(
       opts.timeoutMs && opts.timeoutMs > 0
         ? setTimeout(() => {
             timedOut = true;
+
             if (child.pid) killTree(child.pid);
           }, opts.timeoutMs)
         : null;
@@ -230,6 +255,7 @@ export function runShellStreaming(
       if (child.pid) killTree(child.pid);
       else child.kill();
     };
+
     if (opts.signal) {
       if (opts.signal.aborted) onAbort();
       else opts.signal.addEventListener("abort", onAbort, { once: true });
@@ -237,8 +263,11 @@ export function runShellStreaming(
 
     child.on("error", (err) => {
       if (tick) clearInterval(tick);
+
       if (timer) clearTimeout(timer);
+
       if (opts.signal) opts.signal.removeEventListener("abort", onAbort);
+
       if (fullOutputFd !== undefined) {
         try {
           closeSync(fullOutputFd);
@@ -246,23 +275,30 @@ export function runShellStreaming(
           // Preserve the spawn error as the failure reported to the caller.
         }
       }
+
       reject(err);
     });
 
     child.on("close", (code) => {
       if (tick) clearInterval(tick);
+
       if (timer) clearTimeout(timer);
+
       if (opts.signal) opts.signal.removeEventListener("abort", onAbort);
 
       const fullText = Buffer.concat(chunks).toString("utf-8");
       const allLines = fullText.split("\n");
+
       const totalLines =
         totalBytes === 0 ? 0 : lineBreaks + (lastByteWasNewline ? 0 : 1);
+
       const lastLines = allLines.slice(-opts.maxLines);
       let tail = lastLines.join("\n");
+
       if (tail.length > opts.maxBytes) {
         tail = tail.slice(tail.length - opts.maxBytes);
         const nlIdx = tail.indexOf("\n");
+
         if (nlIdx !== -1) tail = tail.slice(nlIdx + 1);
       }
 
@@ -282,6 +318,7 @@ export function runShellStreaming(
           fullOutputTruncated,
         });
       };
+
       if (fullOutputFd !== undefined) {
         try {
           closeSync(fullOutputFd);
@@ -289,6 +326,7 @@ export function runShellStreaming(
           fullOutputPath = undefined;
         }
       }
+
       finish();
     });
   });

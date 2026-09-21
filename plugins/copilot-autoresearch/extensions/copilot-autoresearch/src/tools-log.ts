@@ -9,6 +9,7 @@ import {
 } from "./paths.ts";
 import {
   reconstructJsonlState,
+  type JsonlEntry,
   type ReconstructedRun,
 } from "./jsonl.ts";
 import {
@@ -36,7 +37,7 @@ export interface LogArgs {
   description: string;
   metrics?: Record<string, number>;
   force?: boolean;
-  asi?: Record<string, unknown>;
+  asi?: JsonlEntry;
 }
 
 export interface LogContext {
@@ -103,8 +104,10 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
       if (!ctx.runtime.autoresearchMode) {
         return "❌ Autoresearch mode is off. Start it with `/autoresearch <goal>`.";
       }
+
       const cwd = ctx.cwdRef.get();
       const workDirError = validateWorkDir(cwd);
+
       if (workDirError) return `❌ ${workDirError}`;
       const workDir = resolveWorkDir(cwd);
 
@@ -115,6 +118,7 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
         !ctx.runtime.lastRunChecks.pass
       ) {
         const tail = ctx.runtime.lastRunChecks.output.slice(-500);
+
         return [
           "❌ Cannot keep — .auto/checks.sh failed on the previous run_experiment.",
           "",
@@ -131,8 +135,10 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
       const provided = args.metrics ?? {};
       const knownNames = new Set(before.secondaryMetrics.map((m) => m.name));
       const providedNames = new Set(Object.keys(provided));
+
       if (knownNames.size > 0) {
         const missing = [...knownNames].filter((n) => !providedNames.has(n));
+
         if (missing.length > 0) {
           return (
             `❌ Missing secondary metrics: ${missing.join(", ")}\n\n` +
@@ -140,7 +146,9 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
             `Expected: ${[...knownNames].join(", ")}\nGot: ${[...providedNames].join(", ") || "(none)"}.`
           );
         }
+
         const newMetrics = [...providedNames].filter((n) => !knownNames.has(n));
+
         if (newMetrics.length > 0 && !args.force) {
           return (
             `❌ New secondary metric${newMetrics.length > 1 ? "s" : ""} not previously tracked: ${newMetrics.join(", ")}\n\n` +
@@ -155,6 +163,7 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
       const segment = before.currentSegment;
       const timestamp = Date.now();
       const revisitsRun = args.asi?.revisits_run;
+
       if (
         revisitsRun !== undefined &&
         (typeof revisitsRun !== "number" ||
@@ -188,44 +197,55 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
 
       const lines: string[] = [];
       lines.push(`Logged #${runNumber}: ${args.status} — ${args.description}`);
+
       if (typeof revisitsRun === "number") {
         lines.push(`↻ Revisiting #${revisitsRun}`);
       }
+
       if (baseline !== null) {
         let baselineLine = `Baseline ${before.metricName}: ${formatNum(baseline, before.metricUnit)}`;
+
         if (segCount > 1 && args.status === "keep" && args.metric > 0) {
           baselineLine += ` | this: ${formatNum(args.metric, before.metricUnit)}${formatDelta(args.metric, baseline)}`;
         }
+
         lines.push(baselineLine);
       }
 
       if (Object.keys(provided).length > 0) {
         const baselineSec = findBaselineSecondary(allResults, segment, before.secondaryMetrics);
         const parts: string[] = [];
+
         for (const [name, value] of Object.entries(provided)) {
           const def = before.secondaryMetrics.find((m) => m.name === name);
           const unit = def?.unit ?? inferMetricUnit(name);
           let part = `${name}: ${formatNum(value, unit)}`;
           const bv = baselineSec[name];
+
           if (bv !== undefined && bv !== 0 && bv !== value) {
             part += `${formatDelta(value, bv)}`;
           }
+
           parts.push(part);
         }
+
         lines.push(`Secondary: ${parts.join("  ")}`);
       }
 
       if (newRun.asi) {
         const asiParts: string[] = [];
+
         for (const [k, v] of Object.entries(newRun.asi)) {
           const s = typeof v === "string" ? v : JSON.stringify(v);
           asiParts.push(`${k}: ${s.length > 80 ? s.slice(0, 77) + "…" : s}`);
         }
+
         if (asiParts.length > 0) lines.push(`📋 ASI: ${asiParts.join(" | ")}`);
       }
 
       if (confidence !== null) {
         const confStr = confidence.toFixed(2);
+
         if (confidence >= 2.0) {
           lines.push(`📊 Confidence: ${confStr}× noise floor — improvement is likely real`);
         } else if (confidence >= 1.0) {
@@ -246,24 +266,27 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
 
       // Auto-commit on keep
       if (args.status === "keep" && (await isGitRepo(workDir))) {
-        const resultData: Record<string, unknown> = {
+        const resultData: JsonlEntry = {
           status: args.status,
           [before.metricName || "metric"]: args.metric,
           ...provided,
         };
+
         const commitResult = await gitAutoCommit(workDir, args.description, resultData);
+
         if (commitResult.error) {
           lines.push(`⚠️ Git commit error: ${commitResult.error}`);
         } else if (!commitResult.committed) {
           lines.push(`📝 Git: nothing to commit (working tree clean)`);
         } else {
           lines.push(`📝 Git: committed — ${commitResult.message}`);
+
           if (commitResult.sha) newRun.commit = commitResult.sha;
         }
       }
 
       // Append jsonl entry
-      const jsonlEntry: Record<string, unknown> = {
+      const jsonlEntry: JsonlEntry = {
         run: runNumber,
         commit: newRun.commit,
         metric: newRun.metric,
@@ -274,6 +297,7 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
         segment: newRun.segment,
         confidence: newRun.confidence,
       };
+
       if (newRun.asi) jsonlEntry.asi = newRun.asi;
 
       try {
@@ -289,6 +313,7 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
       // Auto-revert non-autoresearch files for non-keep
       if (args.status !== "keep" && (await isGitRepo(workDir))) {
         const revert = await gitRevertNonAutoresearch(workDir);
+
         if (revert.error) {
           lines.push(`⚠️ Git revert failed: ${revert.error}`);
         } else {
@@ -317,6 +342,7 @@ export function createLogTool(ctx: LogContext): Tool<LogArgs> {
           "Before choosing the next experiment, consider whether this result invalidates a previous discard's rollback reason. If so, name what changed and weigh a targeted retry (set asi.revisits_run) against other candidates. Otherwise, move on — don't revive a discarded idea without a changed assumption. Verification reruns to resolve measurement noise are separate.",
         );
       }
+
       savePersistedRuntime(workDir, invocation.sessionId, ctx.runtime);
 
       ctx.log(`Logged ${args.status} #${runNumber}: ${args.description}`);

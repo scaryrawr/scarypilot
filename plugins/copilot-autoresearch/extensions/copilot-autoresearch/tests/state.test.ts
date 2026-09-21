@@ -16,6 +16,7 @@ function mkTmp(): string {
 describe("persisted runtime state", () => {
   it("isolates activation decisions by Copilot session", () => {
     const workDir = mkTmp();
+
     try {
       const sessionA = defaultRuntimeState();
       const sessionB = defaultRuntimeState();
@@ -35,6 +36,7 @@ describe("persisted runtime state", () => {
 
   it("does not inherit the pre-fix shared runtime sidecar", () => {
     const workDir = mkTmp();
+
     try {
       const legacyRuntime = path.join(workDir, ".auto", "runtime.json");
       ensureParentDir(legacyRuntime);

@@ -43,6 +43,7 @@ describe("findBaselineMetric / findBestMetric", () => {
       run({ run: 2, metric: 90, status: "keep" }),
       run({ run: 3, metric: 95, status: "discard" }),
     ];
+
     expect(findBaselineMetric(results, 0)).toBe(100);
     expect(findBestMetric(results, 0, "lower")).toBe(90);
   });
@@ -63,6 +64,7 @@ describe("computeConfidence", () => {
       run({ run: 2, metric: 100, status: "keep" }),
       run({ run: 3, metric: 100, status: "keep" }),
     ];
+
     expect(computeConfidence(results, 0, "lower")).toBeNull();
   });
   it("returns improvement / MAD when there's a kept improvement", () => {
@@ -72,6 +74,7 @@ describe("computeConfidence", () => {
       run({ run: 3, metric: 90, status: "keep" }),
       run({ run: 4, metric: 80, status: "keep" }),
     ];
+
     // values [100, 95, 90, 80]; median 92.5; deviations [7.5, 2.5, 2.5, 12.5]; MAD = 5
     // baseline=100; bestKept=80; delta=20; confidence=20/5 = 4
     expect(computeConfidence(results, 0, "lower")).toBeCloseTo(4, 3);
@@ -84,6 +87,7 @@ describe("findBaselineSecondary", () => {
       run({ run: 1, metrics: { compile_µs: 200, render_µs: 300 } }),
       run({ run: 2, metrics: { compile_µs: 195, render_µs: 290 } }),
     ];
+
     expect(findBaselineSecondary(results, 0)).toEqual({ compile_µs: 200, render_µs: 300 });
   });
 
@@ -93,10 +97,12 @@ describe("findBaselineSecondary", () => {
       run({ run: 2, metrics: { compile_µs: 195, mem_mb: 50 } }),
       run({ run: 3, metrics: { compile_µs: 190, mem_mb: 48 } }),
     ];
+
     const baseline = findBaselineSecondary(results, 0, [
       { name: "compile_µs" },
       { name: "mem_mb" },
     ]);
+
     expect(baseline.compile_µs).toBe(200);
     expect(baseline.mem_mb).toBe(50);
   });
@@ -106,10 +112,12 @@ describe("findBaselineSecondary", () => {
       run({ run: 1, segment: 0, metrics: { compile_µs: 200 } }),
       run({ run: 2, segment: 1, metrics: { compile_µs: 100, mem_mb: 999 } }),
     ];
+
     const baseline = findBaselineSecondary(results, 0, [
       { name: "compile_µs" },
       { name: "mem_mb" },
     ]);
+
     expect(baseline.compile_µs).toBe(200);
     expect(baseline.mem_mb).toBeUndefined();
   });
