@@ -51,6 +51,8 @@ describe("classifiers", () => {
   it("identifies config and run entries", () => {
     expect(isAutoresearchConfigEntry({ type: "config" })).toBe(true);
     expect(isAutoresearchRunEntry({ run: 1 })).toBe(true);
+    expect(isAutoresearchRunEntry(JSON.parse(run(1)))).toBe(true);
+    expect(reconstructJsonlState(run(1)).results).toHaveLength(1);
     expect(isAutoresearchRunEntry({ run: "1" })).toBe(false);
   });
 });

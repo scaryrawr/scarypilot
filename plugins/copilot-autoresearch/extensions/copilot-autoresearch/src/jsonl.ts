@@ -39,6 +39,7 @@ const AutoresearchRunEntrySchema = Type.Object({
   status: Type.Optional(JsonValueSchema),
   description: Type.Optional(JsonValueSchema),
   timestamp: Type.Optional(JsonValueSchema),
+  segment: Type.Optional(JsonValueSchema),
   confidence: Type.Optional(JsonValueSchema),
   asi: Type.Optional(JsonValueSchema),
 });
