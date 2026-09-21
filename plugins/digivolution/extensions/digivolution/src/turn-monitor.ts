@@ -1,5 +1,24 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
+import { Type, type Static } from "@sinclair/typebox";
+import { Value } from "@sinclair/typebox/value";
+
+const JsonValueSchema = Type.Recursive((self) =>
+  Type.Union([
+    Type.Boolean(),
+    Type.Null(),
+    Type.Number(),
+    Type.String(),
+    Type.Array(self),
+    Type.Record(Type.String(), self),
+  ]),
+);
+
+const JsonObjectSchema = Type.Record(Type.String(), JsonValueSchema);
+
+const StringSchema = Type.String();
+
+type JsonValue = Static<typeof JsonValueSchema>;
 
 export const REFLECTION_PROMPT =
   "Run one repository-guidance review before finishing. Review whether this turn revealed " +
@@ -12,6 +31,7 @@ export const REFLECTION_PROMPT =
   "Do not acknowledge this hook.";
 
 const REFLECTION_PROMPT_PREFIX = "Run one repository-guidance review before finishing.";
+
 const MAX_INSPECTED_TEXT = 8_192;
 
 const CORRECTION_PATTERNS = [
@@ -95,6 +115,7 @@ export class TurnMonitor {
     if (!this.turn || !LOCAL_COMMAND_TOOLS.has(input.toolName)) return;
 
     const operation = normalizeCommandOperation(input);
+
     if (!operation) return;
 
     this.turn.failures.push({
@@ -110,9 +131,11 @@ export class TurnMonitor {
     if (!this.turn || !LOCAL_COMMAND_TOOLS.has(input.toolName)) return;
 
     const operation = normalizeCommandOperation(input);
+
     if (!operation) return;
 
     const argsDigest = digest(operation.command);
+
     const related = this.turn.failures.filter(
       (failure) =>
         failure.toolName === input.toolName &&
@@ -144,12 +167,14 @@ export class TurnMonitor {
     }
 
     this.turn.reflectionIssued = true;
+
     return true;
   }
 }
 
 export function isRepositoryCorrection(prompt: string): boolean {
   const inspected = prompt.slice(0, MAX_INSPECTED_TEXT);
+
   return (
     CORRECTION_PATTERNS.some((pattern) => pattern.test(inspected)) &&
     REPO_SURFACE_PATTERN.test(inspected)
@@ -160,12 +185,15 @@ function isReflectionPrompt(prompt: string): boolean {
   return prompt.trimStart().startsWith(REFLECTION_PROMPT_PREFIX);
 }
 
-function digest(value: unknown): string {
+function digest(value: JsonValue): string {
   return createHash("sha256").update(stableSerialize(value)).digest("hex");
 }
 
-function stableSerialize(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
+function stableSerialize(value: JsonValue): string {
+  if (!Value.Check(JsonObjectSchema, value) && !Array.isArray(value)) {
+    return JSON.stringify(value);
+  }
+
   if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
 
   return `{${Object.entries(value)
@@ -181,17 +209,22 @@ interface CommandOperation {
 }
 
 function normalizeCommandOperation(input: OperationInput): CommandOperation | undefined {
+  if (!Value.Check(JsonValueSchema, input.toolArgs)) return undefined;
+
   const command = commandText(input.toolArgs);
+
   if (!command) return undefined;
 
   const candidates = [
     ...explicitPathCandidates(input.toolArgs),
     ...shellPathCandidates(command),
   ];
+
   if (candidates.some(isUrlLike)) return undefined;
 
   for (const candidate of candidates) {
     const normalized = normalizeRepoPath(candidate, input.workingDirectory);
+
     if (normalized) {
       return {
         command: normalizeCommand(command),
@@ -210,13 +243,14 @@ function normalizeCommandOperation(input: OperationInput): CommandOperation | un
   };
 }
 
-function commandText(value: unknown): string | undefined {
-  if (typeof value === "string") return value.slice(0, MAX_INSPECTED_TEXT);
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+function commandText(value: JsonValue): string | undefined {
+  if (Value.Check(StringSchema, value)) return value.slice(0, MAX_INSPECTED_TEXT);
+
+  if (!Value.Check(JsonObjectSchema, value)) return undefined;
 
   for (const [key, item] of Object.entries(value)) {
     if (
-      typeof item === "string" &&
+      Value.Check(StringSchema, item) &&
       ["command", "script", "code"].includes(key.toLowerCase())
     ) {
       return item.slice(0, MAX_INSPECTED_TEXT);
@@ -226,12 +260,14 @@ function commandText(value: unknown): string | undefined {
   return undefined;
 }
 
-function explicitPathCandidates(value: unknown): string[] {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+function explicitPathCandidates(value: JsonValue): string[] {
+  if (!Value.Check(JsonObjectSchema, value)) return [];
 
-  return Object.entries(value)
-    .filter(([key, item]) => PATH_KEYS.has(key.toLowerCase()) && typeof item === "string")
-    .map(([, item]) => item as string);
+  return Object.entries(value).flatMap(([key, item]) =>
+    PATH_KEYS.has(key.toLowerCase()) && Value.Check(StringSchema, item)
+      ? [item]
+      : [],
+  );
 }
 
 function normalizeCommand(command: string): string {
@@ -240,6 +276,7 @@ function normalizeCommand(command: string): string {
 
 function isValidationCommand(command: string): boolean {
   const normalized = normalizeCommand(command);
+
   return (
     /\b(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:test|lint|typecheck|check|build)\b/i.test(
       normalized,

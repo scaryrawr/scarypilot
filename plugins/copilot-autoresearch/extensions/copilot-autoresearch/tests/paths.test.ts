@@ -17,7 +17,15 @@ function mkTmp(): string {
   return mkdtempSync(path.join(tmpdir(), "autoresearch-test-"));
 }
 
-function writeConfig(dir: string, value: unknown): void {
+type JsonValue =
+  | boolean
+  | null
+  | number
+  | string
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+function writeConfig(dir: string, value: JsonValue): void {
   const configPath = autoresearchConfigPath(dir);
   ensureParentDir(configPath);
   writeFileSync(configPath, JSON.stringify(value));
@@ -26,6 +34,7 @@ function writeConfig(dir: string, value: unknown): void {
 describe("readConfig", () => {
   it("returns empty object when no config file", () => {
     const dir = mkTmp();
+
     try {
       expect(readConfig(dir)).toEqual({});
     } finally {
@@ -35,6 +44,7 @@ describe("readConfig", () => {
 
   it("parses a valid config", () => {
     const dir = mkTmp();
+
     try {
       writeConfig(dir, { workingDir: "src", maxIterations: 10 });
       expect(readConfig(dir)).toEqual({ workingDir: "src", maxIterations: 10 });
@@ -45,6 +55,7 @@ describe("readConfig", () => {
 
   it("returns empty object on malformed JSON", () => {
     const dir = mkTmp();
+
     try {
       const configPath = autoresearchConfigPath(dir);
       ensureParentDir(configPath);
@@ -59,6 +70,7 @@ describe("readConfig", () => {
 describe("readMaxIterations", () => {
   it("returns null when not set", () => {
     const dir = mkTmp();
+
     try {
       expect(readMaxIterations(dir)).toBeNull();
     } finally {
@@ -67,6 +79,7 @@ describe("readMaxIterations", () => {
   });
   it("returns floored positive integer", () => {
     const dir = mkTmp();
+
     try {
       writeConfig(dir, { maxIterations: 3.9 });
       expect(readMaxIterations(dir)).toBe(3);
@@ -76,6 +89,7 @@ describe("readMaxIterations", () => {
   });
   it("returns null for non-positive values", () => {
     const dir = mkTmp();
+
     try {
       writeConfig(dir, { maxIterations: 0 });
       expect(readMaxIterations(dir)).toBeNull();
@@ -88,6 +102,7 @@ describe("readMaxIterations", () => {
 describe("resolveWorkDir", () => {
   it("returns cwd when no workingDir set", () => {
     const dir = mkTmp();
+
     try {
       expect(resolveWorkDir(dir)).toBe(dir);
     } finally {
@@ -97,6 +112,7 @@ describe("resolveWorkDir", () => {
 
   it("resolves relative workingDir against cwd", () => {
     const dir = mkTmp();
+
     try {
       writeConfig(dir, { workingDir: "sub" });
       expect(resolveWorkDir(dir)).toBe(path.resolve(dir, "sub"));
@@ -108,6 +124,7 @@ describe("resolveWorkDir", () => {
   it("rejects an absolute workingDir outside the workspace", () => {
     const dir = mkTmp();
     const target = mkTmp();
+
     try {
       writeConfig(dir, { workingDir: target });
       expect(() => resolveWorkDir(dir)).toThrow(/must stay within the active workspace/);
@@ -121,6 +138,7 @@ describe("resolveWorkDir", () => {
     const dir = mkTmp();
     const target = path.join(dir, "sub");
     mkdirSync(target);
+
     try {
       writeConfig(dir, { workingDir: target });
       expect(resolveWorkDir(dir)).toBe(target);
@@ -133,6 +151,7 @@ describe("resolveWorkDir", () => {
 describe("validateWorkDir", () => {
   it("returns null when workingDir is the cwd", () => {
     const dir = mkTmp();
+
     try {
       expect(validateWorkDir(dir)).toBeNull();
     } finally {
@@ -142,6 +161,7 @@ describe("validateWorkDir", () => {
 
   it("returns error when workingDir does not exist", () => {
     const dir = mkTmp();
+
     try {
       writeConfig(dir, { workingDir: "missing" });
       expect(validateWorkDir(dir)).toMatch(/does not exist/);
@@ -154,6 +174,7 @@ describe("validateWorkDir", () => {
     const dir = mkTmp();
     const sub = path.join(dir, "sub");
     mkdirSync(sub);
+
     try {
       writeConfig(dir, { workingDir: "sub" });
       expect(validateWorkDir(dir)).toBeNull();
@@ -169,6 +190,7 @@ describe("validateWorkDir", () => {
       const target = mkTmp();
       const link = path.join(dir, "linked");
       symlinkSync(target, link);
+
       try {
         writeConfig(dir, { workingDir: "linked" });
         expect(() => resolveWorkDir(dir)).toThrow(/resolves outside the active workspace/);
@@ -184,6 +206,7 @@ describe("validateWorkDir", () => {
 describe("session layout", () => {
   it("uses .auto for a new session", () => {
     const dir = mkTmp();
+
     try {
       expect(autoresearchJsonlPath(dir)).toBe(path.join(dir, ".auto", "log.jsonl"));
     } finally {
@@ -193,6 +216,7 @@ describe("session layout", () => {
 
   it("falls back to a legacy flat session", () => {
     const dir = mkTmp();
+
     try {
       const legacy = path.join(dir, "autoresearch.jsonl");
       writeFileSync(legacy, "");
@@ -204,6 +228,7 @@ describe("session layout", () => {
 
   it("keeps a legacy log active when the internal runtime sidecar is current", () => {
     const dir = mkTmp();
+
     try {
       const legacy = path.join(dir, "autoresearch.jsonl");
       writeFileSync(legacy, "");
@@ -218,6 +243,7 @@ describe("session layout", () => {
 
   it("prefers .auto consistently when both layouts exist", () => {
     const dir = mkTmp();
+
     try {
       writeFileSync(path.join(dir, "autoresearch.jsonl"), "");
       mkdirSync(path.join(dir, ".auto"));

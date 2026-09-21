@@ -9,6 +9,7 @@ METRIC total_µs=15200
 METRIC compile_µs=4200
 end
 `;
+
     const m = parseMetricLines(out);
     expect(m.size).toBe(2);
     expect(m.get("total_µs")).toBe(15200);

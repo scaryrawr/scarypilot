@@ -27,6 +27,7 @@ describe("/autoresearch lifecycle commands", () => {
     it(`${subcommand} aborts the active agent turn`, async () => {
       const cwd = mkTmp();
       let abortCount = 0;
+
       const session: TestSession = {
         abort: async () => {
           abortCount += 1;
@@ -34,6 +35,7 @@ describe("/autoresearch lifecycle commands", () => {
         log: async () => {},
         send: async () => "message-id",
       };
+
       const command = createAutoresearchCommand({
         cwdRef: createCwdRef(cwd),
         runtime: defaultRuntimeState(),

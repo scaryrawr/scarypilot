@@ -1,4 +1,6 @@
 import * as fs from "node:fs";
+import { Type } from "@sinclair/typebox";
+import { Value } from "@sinclair/typebox/value";
 import { runShell } from "./spawn.ts";
 import {
   autoresearchRuntimePath,
@@ -44,6 +46,7 @@ export function restoredMode(
   usesRedirectedWorkDir: boolean,
 ): boolean {
   if (persistedMode !== undefined) return persistedMode;
+
   return hasSessionLog && !usesRedirectedWorkDir;
 }
 
@@ -52,6 +55,19 @@ interface PersistedRuntime {
   lastRunChecks?: RuntimeState["lastRunChecks"];
   lastRunDurationSeconds?: number | null;
 }
+
+const PersistedRuntimeSchema = Type.Object({
+  autoresearchMode: Type.Optional(Type.Boolean()),
+  lastRunChecks: Type.Optional(Type.Union([
+    Type.Null(),
+    Type.Object({
+      pass: Type.Boolean(),
+      output: Type.String(),
+      durationSeconds: Type.Number(),
+    }),
+  ])),
+  lastRunDurationSeconds: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+});
 
 /**
  * Persist a small subset of runtime state to disk so that `log_experiment`'s
@@ -65,10 +81,11 @@ export function loadPersistedRuntime(
 ): PersistedRuntime | null {
   try {
     const p = autoresearchRuntimePath(workDir, sessionId);
+
     if (!fs.existsSync(p)) return null;
     const parsed = JSON.parse(fs.readFileSync(p, "utf-8"));
-    if (typeof parsed !== "object" || parsed === null) return null;
-    return parsed as PersistedRuntime;
+
+    return Value.Check(PersistedRuntimeSchema, parsed) ? parsed : null;
   } catch {
     return null;
   }
@@ -82,11 +99,13 @@ export function savePersistedRuntime(
   try {
     const runtimePath = autoresearchRuntimePath(workDir, sessionId);
     ensureParentDir(runtimePath);
+
     const data: PersistedRuntime = {
       autoresearchMode: runtime.autoresearchMode,
       lastRunChecks: runtime.lastRunChecks,
       lastRunDurationSeconds: runtime.lastRunDurationSeconds,
     };
+
     fs.writeFileSync(runtimePath, JSON.stringify(data));
   } catch {
     // best-effort; never throw from persistence
@@ -95,6 +114,7 @@ export function savePersistedRuntime(
 
 export function clearPersistedRuntime(workDir: string, sessionId: string): void {
   const legacyPaths = Object.values(sessionFileCandidates(workDir, "runtime"));
+
   for (const runtimePath of [
     autoresearchRuntimePath(workDir, sessionId),
     ...legacyPaths,
@@ -114,6 +134,7 @@ export async function isGitRepo(workDir: string): Promise<boolean> {
       cwd: workDir,
       timeoutMs: 5_000,
     });
+
     return result.exitCode === 0 && result.stdout.trim() === "true";
   } catch {
     return false;

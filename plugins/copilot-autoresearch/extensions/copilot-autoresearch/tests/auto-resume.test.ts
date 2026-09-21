@@ -44,6 +44,7 @@ describe("auto-resume guards", () => {
       run(4, "crash"),
       run(5, "checks_failed"),
     ];
+
     expect(countConsecutiveFailures(results, 0)).toBe(0);
     results.pop();
     expect(countConsecutiveFailures(results, 0)).toBe(2);
@@ -55,6 +56,7 @@ describe("auto-resume guards", () => {
       run(2, "crash", 0),
       run(3, "discard", 1),
     ];
+
     expect(countConsecutiveFailures(results, 1)).toBe(1);
   });
 
@@ -64,6 +66,7 @@ describe("auto-resume guards", () => {
     runtime.autoresearchMode = true;
     const send = vi.fn(async () => "message-id");
     let lastLoggedRun = 3;
+
     const scheduler = createAutoResumeScheduler({
       cwdRef: { get: () => process.cwd(), set: () => undefined },
       runtime,
@@ -90,6 +93,7 @@ describe("auto-resume guards", () => {
     runtime.autoresearchMode = true;
     const send = vi.fn(async () => "message-id");
     let lastLoggedRun = 1;
+
     const scheduler = createAutoResumeScheduler({
       cwdRef: { get: () => process.cwd(), set: () => undefined },
       runtime,

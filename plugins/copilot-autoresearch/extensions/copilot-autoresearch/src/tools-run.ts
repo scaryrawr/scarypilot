@@ -20,10 +20,15 @@ import { savePersistedRuntime, type RuntimeState } from "./state.ts";
 import type { CwdRef } from "./extension-context.ts";
 
 const MAX_LINES = 10;
+
 const MAX_BYTES = 4 * 1024;
+
 const STREAM_MAX_BYTES = 32 * 1024;
+
 const STREAM_MAX_LINES = 200;
+
 const DEFAULT_TIMEOUT_S = 600;
+
 const DEFAULT_CHECKS_TIMEOUT_S = 300;
 
 export interface RunArgs {
@@ -68,23 +73,29 @@ export function createRunTool(ctx: RunContext): Tool<RunArgs> {
       if (!ctx.runtime.autoresearchMode) {
         return "❌ Autoresearch mode is off. Start it with `/autoresearch <goal>`.";
       }
+
       const cwd = ctx.cwdRef.get();
       const workDirError = validateWorkDir(cwd);
+
       if (workDirError) return `❌ ${workDirError}`;
       const workDir = resolveWorkDir(cwd);
       const state = reconstructJsonlState(safeRead(autoresearchJsonlPath(workDir)));
       const maxIterations = readMaxIterations(cwd);
+
       const segmentRuns = state.results.filter(
         (run) => run.segment === state.currentSegment,
       ).length;
+
       if (maxIterations !== null && segmentRuns >= maxIterations) {
         ctx.runtime.autoresearchMode = false;
         savePersistedRuntime(workDir, invocation.sessionId, ctx.runtime);
+
         return `🛑 Maximum experiments reached (${maxIterations}). Start a new segment with init_experiment before running again.`;
       }
 
       // Benchmark-script gate — when present, the agent MUST invoke it.
       const scriptPath = autoresearchScriptPath(workDir);
+
       if (fs.existsSync(scriptPath) && !isAutoresearchShCommand(args.command)) {
         return [
           `❌ ${scriptPath} exists — you must run it instead of a custom command.`,
@@ -103,6 +114,7 @@ export function createRunTool(ctx: RunContext): Tool<RunArgs> {
       ctx.progress?.(`Autoresearch · running 0s · ${args.command}`);
 
       let result;
+
       try {
         result = await runShellStreaming(args.command, {
           cwd: workDir,
@@ -132,13 +144,16 @@ export function createRunTool(ctx: RunContext): Tool<RunArgs> {
       let checksOutput = "";
       let checksDurationSeconds = 0;
       const checksPath = autoresearchChecksPath(workDir);
+
       if (benchmarkPassed && fs.existsSync(checksPath)) {
         const checksTimeoutMs = (args.checks_timeout_seconds ?? DEFAULT_CHECKS_TIMEOUT_S) * 1000;
+
         try {
           const checksResult = await runShell({ script: checksPath }, {
             cwd: workDir,
             timeoutMs: checksTimeoutMs,
           });
+
           checksDurationSeconds = checksResult.durationMs / 1000;
           checksTimedOut = checksResult.killed;
           checksPass = checksResult.exitCode === 0 && !checksResult.killed;
@@ -163,6 +178,7 @@ export function createRunTool(ctx: RunContext): Tool<RunArgs> {
       const secondary = [...parsed.entries()].filter(([k]) => k !== state.metricName);
 
       let header: string;
+
       if (result.killed) {
         header = `⏰ TIMEOUT after ${durationSeconds.toFixed(1)}s`;
       } else if (!benchmarkPassed) {
@@ -186,13 +202,16 @@ export function createRunTool(ctx: RunContext): Tool<RunArgs> {
       if (parsed.size > 0) {
         lines.push("");
         const summary: string[] = [];
+
         if (parsedPrimary !== null) {
           summary.push(`★ ${state.metricName}=${formatNum(parsedPrimary, state.metricUnit)}`);
         }
+
         for (const [name, value] of secondary) {
           const def = state.secondaryMetrics.find((m) => m.name === name);
           summary.push(`${name}=${formatNum(value, def?.unit ?? "")}`);
         }
+
         lines.push(`📐 Parsed metrics: ${summary.join("  ")}`);
         const secondaryJson = secondary.map(([k, v]) => `"${k}": ${v}`).join(", ");
         lines.push(
@@ -213,6 +232,7 @@ export function createRunTool(ctx: RunContext): Tool<RunArgs> {
         const tail = checksOutput.split("\n").slice(-80).join("\n");
         lines.push("", "── Checks output (last 80 lines) ──", tail);
       }
+
       ctx.log(`Experiment ${benchmarkPassed ? "passed" : "failed"} in ${formatElapsed(result.durationMs)}`);
 
       return lines.join("\n");
@@ -222,11 +242,13 @@ export function createRunTool(ctx: RunContext): Tool<RunArgs> {
 
 export function clearLastOutput(runtime: RuntimeState): void {
   if (!runtime.lastOutputPath) return;
+
   try {
     fs.unlinkSync(runtime.lastOutputPath);
   } catch {
     // Temporary output may already have been removed by the OS or user.
   }
+
   runtime.lastOutputPath = null;
 }
 
@@ -241,17 +263,22 @@ function safeRead(p: string): string {
 function llmTail(output: string): string {
   const allLines = output.split("\n");
   let tail = allLines.slice(-MAX_LINES).join("\n");
+
   if (Buffer.byteLength(tail, "utf-8") > MAX_BYTES) {
     tail = tail.slice(tail.length - MAX_BYTES);
     const nl = tail.indexOf("\n");
+
     if (nl !== -1) tail = tail.slice(nl + 1);
   }
+
   return tail;
 }
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
+
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
@@ -261,6 +288,7 @@ function latestOutputLine(output: string): string {
     .map((candidate) => candidate.trim())
     .filter(Boolean)
     .at(-1) ?? "";
+
   return line.length > 120 ? `${line.slice(0, 117)}…` : line;
 }
 
@@ -268,13 +296,17 @@ function ensureFullOutput(
   result: Awaited<ReturnType<typeof runShellStreaming>>,
 ): string | undefined {
   if (result.fullOutputPath) return result.fullOutputPath;
+
   if (result.totalLines <= MAX_LINES && result.totalBytes <= MAX_BYTES) return undefined;
+
   try {
     const outputPath = path.join(
       tmpdir(),
       `copilot-autoresearch-${crypto.randomBytes(8).toString("hex")}.log`,
     );
+
     fs.writeFileSync(outputPath, result.stdout);
+
     return outputPath;
   } catch {
     return undefined;
