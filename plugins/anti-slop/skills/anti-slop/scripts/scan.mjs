@@ -227,7 +227,7 @@ function shouldIgnoreDirectory(directory, cwd, ignoredDirectories) {
     return true;
   }
 
-  return normalized.endsWith("/public/assets");
+  return normalized === "public/assets" || normalized.endsWith("/public/assets");
 }
 
 function normalizeIgnoredDirectories(directories, cwd) {

@@ -76,6 +76,10 @@ This guidance is adapted from the rule set and remediation philosophy in
 (c) 2026 Dillon Mulroy and licensed under the MIT License. See
 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 
+This plugin was imported into this branch from the ScaryPilot source snapshot
+`be2124bd00fd82a9b8274fdc4a1429d6e7034d34`; that repository revision is
+distinct from the upstream Anti-Slop revision above.
+
 ## Resources
 
 - [Upstream Anti-Slop project](https://github.com/dmmulroy/anti-slop)

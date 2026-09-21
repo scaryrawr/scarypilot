@@ -50,6 +50,7 @@ describe("anti-slop heuristic scanner", () => {
 
     await mkdir(path.join(directory, "src"), { recursive: true });
     await mkdir(path.join(directory, "dist"), { recursive: true });
+    await mkdir(path.join(directory, "public", "assets"), { recursive: true });
     await writeFile(
       path.join(directory, "src", "index.ts"),
       "function parse(value: unknown) { return value; }\n",
@@ -60,6 +61,10 @@ describe("anti-slop heuristic scanner", () => {
     );
     await writeFile(
       path.join(directory, "dist", "bundle.js"),
+      "type Json = unknown;\n",
+    );
+    await writeFile(
+      path.join(directory, "public", "assets", "bundle.js"),
       "type Json = unknown;\n",
     );
 
