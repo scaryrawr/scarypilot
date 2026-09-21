@@ -8,6 +8,7 @@ describe("discoverLocalProviders", () => {
       if (url === "http://localhost:11434/api/tags") {
         return jsonResponse({ models: [{ name: "qwen3:8b", model: "Qwen 3 8B" }] });
       }
+
       if (url === "http://localhost:1234/api/v1/models") {
         return jsonResponse({
           models: [
@@ -19,6 +20,7 @@ describe("discoverLocalProviders", () => {
           ],
         });
       }
+
       if (url === "http://localhost:8000/v1/models/status") {
         return jsonResponse({
           models: [
@@ -41,9 +43,11 @@ describe("discoverLocalProviders", () => {
           ],
         });
       }
+
       if (url === "http://localhost:1337/api/tags") {
         return jsonResponse({ models: [{ name: "osaurus-model" }] });
       }
+
       if (url === "http://127.0.0.1:18181/v1/models") {
         return jsonResponse({
           object: "list",
@@ -159,6 +163,7 @@ describe("discoverLocalProviders", () => {
 
   it("skips unavailable local servers without preventing the extension from joining", async () => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
     const fetchImplementation = vi.fn(async (_url: string, _init?: RequestInit) => {
       throw new Error("Connection refused");
     });
@@ -173,6 +178,7 @@ describe("discoverLocalProviders", () => {
   it("normalizes GenieX overrides and ignores malformed model entries", async () => {
     const fetchImplementation = vi.fn(async (url: string, _init?: RequestInit) => {
       expect(url).toBe("http://geniex.local:18182/v1/models");
+
       return jsonResponse({
         data: [{ id: "valid-model" }, { id: 123 }, null],
       });
@@ -201,9 +207,39 @@ describe("discoverLocalProviders", () => {
       ],
     });
   });
+
+  it("ignores malformed provider payloads and model fields", async () => {
+    const fetchImplementation = vi.fn(async (url: string, _init?: RequestInit) => {
+      if (url.includes("11434")) {
+        return jsonResponse({ models: [{ name: "valid", model: 42 }, { name: 42 }] });
+      }
+
+      return jsonResponse({ models: "invalid" });
+    });
+
+    const configuration = await discoverLocalProviders({}, fetchImplementation);
+
+    expect(configuration.providers).toEqual([
+      {
+        name: "ollama",
+        baseUrl: "http://localhost:11434/v1",
+        apiKey: "ollama",
+        wireApi: "completions",
+      },
+    ]);
+    expect(configuration.models).toMatchObject([
+      {
+        id: "valid",
+        provider: "ollama",
+        name: "valid",
+      },
+    ]);
+  });
 });
 
-function jsonResponse(body: unknown) {
+type JsonValue = boolean | null | number | string | JsonValue[] | { [key: string]: JsonValue };
+
+function jsonResponse(body: JsonValue) {
   return new Response(JSON.stringify(body), {
     headers: { "Content-Type": "application/json" },
   });

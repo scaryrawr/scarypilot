@@ -1,8 +1,13 @@
+import { Type } from "@sinclair/typebox";
+import { Value } from "@sinclair/typebox/value";
+
 import {
   DEFAULT_CONTEXT_WINDOW_TOKENS,
+  JsonValueSchema,
+  ModelListSchema,
+  StringSchema,
   baseUrl,
   fetchJson,
-  isRecord,
   maxOutputTokens,
   modelConfig,
   positiveInteger,
@@ -12,6 +17,11 @@ import {
 
 export const OLLAMA_PROVIDER_NAME = "ollama";
 
+const OllamaModelSchema = Type.Object({
+  name: Type.String(),
+  model: Type.Optional(JsonValueSchema),
+});
+
 export async function discoverOllama(
   environment: NodeJS.ProcessEnv,
   fetchImplementation: FetchImplementation,
@@ -20,17 +30,20 @@ export async function discoverOllama(
   const endpoint = baseUrl(environment.OLLAMA_BASE_URL, "http://localhost:11434");
   const apiKey = environment.OLLAMA_API_KEY ?? "ollama";
   const payload = await fetchJson("Ollama", `${endpoint}/api/tags`, apiKey, fetchImplementation);
-  if (!isRecord(payload) || !Array.isArray(payload.models)) return undefined;
+
+  if (!Value.Check(ModelListSchema, payload)) return undefined;
 
   const contextWindow =
     positiveInteger(environment.OLLAMA_CONTEXT_LENGTH) ?? DEFAULT_CONTEXT_WINDOW_TOKENS;
+
   const models = payload.models.flatMap((model) => {
-    if (!isRecord(model) || typeof model.name !== "string") return [];
+    if (!Value.Check(OllamaModelSchema, model)) return [];
+
     return [
       modelConfig(
         name,
         model.name,
-        typeof model.model === "string" ? model.model : model.name,
+        Value.Check(StringSchema, model.model) ? model.model : model.name,
         contextWindow,
         maxOutputTokens(contextWindow),
       ),
