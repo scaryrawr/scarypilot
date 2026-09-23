@@ -1,11 +1,11 @@
 ### Autopilot-stack
 
-**You own the stack, never the landing. Build and verify the queue with full autonomy, then hand the operator one linear base-branch stack she reviews and lands herself.** The sibling of **Autopilot-full**.
+**You own the stack, never the landing. Build and verify the queue with full autonomy, then hand the operator one linear base-branch stack to review and land.** The sibling of **Autopilot-full**.
 
 1. **Run the owner loop unchanged.** GitHub CLI (`gh`) is the default. One background Copilot agent per PR owns its change end to end: build, first push, a ready PR opened before self-proof, self-proof (gates, CI, receipts), skeptical Bugbot triage per `../references/bugbot-triage.md`, a slop-strip through `/unslop`, `/no-comments`, and babysit to green per `playbooks/babysit.md`. Owners parallelize when the work is self-contained. Every owner keeps a `decisions.tsv` trail per the **show-me-your-work** skill, never committed, returned in its report.
 2. **Audit on the wake chain.** Process owner completion notifications as queue events. For long quiet periods, use one bounded background timer rather than polling. At each audit, re-read this playbook and the persisted objective. Probe running owners with `read_agent`. Count only side effects as progress: commits, pushes, PR or check deltas, and store reports. Treat a lane that passes its expected runtime without a side effect as stuck. Stop it and dispatch a replacement.
-3. **Hold the operator gates.** State-then-wait, so a request to state the plan is not a go. On her explicit go, persist the full program objective in the decision trail. Re-read it until the chain is done. On her stop, every owner takes an immediate zero-writes hold.
-4. **Verify at STACK-READY.** The owner reports STACK-READY with the exact head SHA. The root swarm-verifies that SHA, fan-out per the **swarm** skill: parallel independent verifiers re-running the gates at that SHA, a live runtime floor over the load-bearing behavior, and a receipts-and-diff audit that distrusts the PR body. The swarm aggregates to one verdict. Findings go back to the owner, and nothing enters the stack unverified.
+3. **Hold the operator gates.** State-then-wait, so a request to state the plan is not a go. On the operator's explicit go, persist the full program objective in the decision trail. Re-read it until the chain is done. On the operator's stop, every owner takes an immediate zero-writes hold.
+4. **Verify each round.** The owner reports its code-ready head SHA once the shipped code is final, and STACK-READY with the exact head SHA when its loop is green. The root verifies each round per Autopilot-full step 4, with STACK-READY in place of merge-ready. Nothing enters the stack unverified.
 5. **Append on a clean verdict, never ship.** No owner merges, arms auto-merge, or closes. A clean verdict appends the PR to the one linear base-branch stack, in verified order or an order the operator specified.
 6. **Single writer on topology, parallel writers on builds.** Owners push only their own branches and report the tip, current base, and intended parent. The root is the only topology writer. To append a PR, fetch the intended parent, rebase the child branch onto that exact parent tip, push with `--force-with-lease` only after an `ls-remote` check, and set the PR base to the parent branch with `gh pr create --base <parent-branch>` or `gh pr edit <pr> --base <parent-branch>`. Only the root PR targets trunk.
 7. **Absorb drift at the root, then re-verify what moved.** The root fetches current trunk and rebases the chain from bottom to top. When a rebase surfaces conflicts in an owner's files, that owner fixes its own slice and the root pushes the result. A rebase rewrites every SHA above it and voids verdicts at the old SHAs. Compare the stable `git patch-id` for each PR's base-to-head diff at its verdict SHA against its new base-to-head diff. An unchanged patch-id preserves the code verdict. Any changed patch goes back through step 4 before delivery. Re-run mergeability and CI after every rewritten push even when the patch-id is unchanged.
@@ -13,7 +13,7 @@
 
 The handoff is topology-specific. Do not tell the operator to run
 `/poteto-mode land the stack`, because Shipping assumes a Graphite-tracked
-stack. Tell her to merge the GitHub base-branch chain bottom-up. After each
+stack. Tell the operator to merge the GitHub base-branch chain bottom-up. After each
 merge, wait for GitHub to retarget the next PR to trunk, confirm its verdict
 still describes the current patch, and then merge the next link.
 

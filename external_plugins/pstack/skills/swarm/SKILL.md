@@ -28,7 +28,10 @@ Open a todolist with one entry per phase before launching anything.
    branch for repository changes, or a worker-specific directory under the
    session artifact directory for scratch output. Separate filenames inside
    one checkout are not isolation because workers would still share the
-   working tree and Git index.
+   working tree and Git index. When workers verify or measure commits, each
+   brief names the exact SHAs. A measurement brief also names the method
+   (sample count, what one sample is, order). The worker records both in its
+   result.
 
 ## Phase B: Fan out
 
@@ -64,13 +67,13 @@ message with `agent_type: "general-purpose"` and `mode: "background"`. Pass the
 configured model unless it is absent or set to `auto`. Never replay or
 automatically fall back after a writing worker may have changed files.
 
-Every brief stands alone. Include the goal, scope, exact slice or race arm, how to verify, and what to report. Reports use `PASS`, `ISSUES`, or `BLOCKED` with evidence.
+Every brief stands alone. Include the goal, scope, exact slice or race arm, how to verify, and what to report. Reports use `PASS`, `ISSUES`, or `BLOCKED` with evidence. A worker that can prove a defect reports `ISSUES` and lists every issue it can prove, not only the first.
 
 If a worker drops out, proceed with N-1 and note it.
 
 ## Phase C: Aggregate
 
-Read the terminal results. For coverage, every required slice needs a result. For a race, apply the selection rule declared up front. Use first pass, rank all, or best-of. Do not paste raw worker dumps.
+Read the terminal results. Drop a result that does not record the SHAs and method its brief names, and rerun that worker once. After a second miss, record a gap. A gap does not count as a pass. For coverage, every required slice needs a result. For a race, apply the selection rule declared up front. Use first pass, rank all, or best-of. Do not paste raw worker dumps.
 
 Keep a compact result table, one-line evidenced issues, and explicit gaps or dropouts.
 
