@@ -56,9 +56,11 @@ ScaryPilot changed the integration layer for GitHub Copilot:
 - Ported the `0.15.2`-`0.15.4` operator-neutral pronoun fix, the swarm skill's
   requirement that workers record verification SHAs and measurement methods
   with a one-retry rule for missing records and an explicit caller-side
-  evidence check before accepting native factory results, the autopilot playbooks' split
-  between a code-ready verification round and the merge-ready gate, and the
-  shipping playbook's noise-vs-signal patch-id diff check. Excluded the
+  evidence check before accepting native factory results, the autopilot
+  playbooks' split between a code-ready verification round and a final
+  merge-ready receipt audit, and the shipping playbook's noise-vs-signal
+  patch-id diff check applied consistently across both autopilot modes.
+  Excluded the
   accompanying Grok 4.7/Opus 5.5 model-slug renames, the reasoning-budget
   addition to `/setup-pstack`, and the Opus-5.5-tuned instruction trims,
   because Copilot's model catalog and defaults already differ from Cursor's

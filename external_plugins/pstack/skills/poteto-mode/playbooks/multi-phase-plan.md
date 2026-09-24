@@ -62,8 +62,9 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 
 ### Verdict and merge, for every PR
 
-- [ ] At the code-ready head SHA and at each later push that changes the patch, run the swarm per `pstack/skills/swarm/SKILL.md`. Include gate lanes, the live lanes from the PR's **Verify, live** block, the perf lane from its **Verify, perf** block, and one audit lane that reads the diff and the receipts and distrusts the PR body.
-- [ ] Clean only when every lane is `PASS`. Findings go back to the owner. A new head gets a fresh swarm and a fresh verdict, except for lane results that stay valid under the patch-id rule in `playbooks/shipping.md`.
+- [ ] At the code-ready head SHA and at each later push that changes the patch, run the swarm per `pstack/skills/swarm/SKILL.md`. Include gate lanes, the live lanes from the PR's **Verify, live** block, the perf lane from its **Verify, perf** block, and one early audit lane that reads only the diff and distrusts the PR body. Keep these results provisional until the final receipt audit passes.
+- [ ] After the owner reports merge-ready, or STACK-READY in stack mode, the root separately audits that report and its final self-proof, CI, and babysit receipts against the reported head SHA and required pass predicates. Missing, stale, or failed evidence blocks acceptance. Repeat this audit for every updated ready report after a rewritten head.
+- [ ] Clean only when every required lane is `PASS` and the root's final receipt audit passes. Findings go back to the owner. A new head gets a fresh swarm and a fresh receipt audit, except for lane results that stay valid under the patch-id rule in `playbooks/shipping.md`.
 - [ ] <The merge or append rule from the execution playbook, with the patch-id rule from `playbooks/shipping.md`.>
 
 ### Boot recipe, for every live lane
@@ -117,8 +118,9 @@ Each live lane runs in an isolated worktree or session at the PR head. Drive thr
 **Merge.**
 
 - [ ] Root's clean verdict at the exact head SHA.
+- [ ] Root's audit of the final merge-ready or STACK-READY receipts passes for that head.
 - [ ] Bugbot triage done.
-- [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
+- [ ] Rebased onto the current trunk or intended stack parent per the execution playbook. Revalidate lane results under `playbooks/shipping.md` step 3, rerun invalidated lanes, and refresh mergeability, CI, and the final receipt audit before accepting the verdict for the rewritten head.
 - [ ] <The owner merges its own PR, or the root appends the PR to the stack and the operator lands it.>
 
 ## Close the program
