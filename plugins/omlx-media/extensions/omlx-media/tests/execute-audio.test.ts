@@ -129,6 +129,91 @@ describe("OMLX audio tools", () => {
     assert.equal(result.model, "parakeet");
   });
 
+  it("recognizes TTS model configuration metadata when primary types are generic", async () => {
+    const root = await workspace();
+
+    const result = await executeSpeech(
+      { input: "Hello", output: path.join(root, "voice.wav") },
+      {
+        fetchImplementation: async (url: string | URL | Request, init?: RequestInit) => {
+          if (String(url).endsWith("/status")) {
+            return Response.json({ models: [
+              { id: "generic", model_type: "audio", config_model_type: "Kokoro_TTS", loaded: false },
+            ] });
+          }
+
+          assert.equal(JSON.parse(String(init?.body)).model, "generic");
+
+          return new Response("audio", { headers: { "content-type": "audio/wav" } });
+        },
+      },
+    );
+
+    assert.equal(result.model, "generic");
+  });
+
+  it("uses explicit models when discovery is missing or malformed, but not on auth errors", async () => {
+    const root = await workspace();
+    const input = path.join(root, "audio.wav");
+    await writeFile(input, "audio");
+
+    let requests = 0;
+
+    const missingDiscovery = async (url: string | URL | Request, init?: RequestInit) => {
+      requests++;
+
+      if (String(url).endsWith("/status")) return new Response(null, { status: 404 });
+
+      assert.equal(JSON.parse(String(init?.body)).model, "named-tts");
+
+      return new Response("audio", { headers: { "content-type": "audio/wav" } });
+    };
+
+    const speech = await executeSpeech(
+      { input: "Hello", output: path.join(root, "speech.wav"), model: "named-tts" },
+      { fetchImplementation: missingDiscovery },
+    );
+
+    assert.equal(speech.model, "named-tts");
+    assert.equal(requests, 2);
+
+    const malformedDiscovery = async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).endsWith("/status")) return Response.json({ models: "invalid" });
+
+      const form = init?.body;
+
+      assert.ok(form instanceof FormData);
+      assert.equal(form.get("model"), "named-asr");
+
+      return Response.json({ text: "Hello." });
+    };
+
+    const transcription = await executeTranscription(
+      { input, output: path.join(root, "transcript.txt"), model: "named-asr" },
+      { fetchImplementation: malformedDiscovery },
+    );
+
+    assert.equal(transcription.text, "Hello.");
+
+    const authFailure = async () => Response.json({ detail: "Unauthorized" }, { status: 401 });
+
+    await rejectsWithCode(
+      executeSpeech(
+        { input: "Hello", output: path.join(root, "other.wav"), model: "named-tts" },
+        { fetchImplementation: authFailure },
+      ),
+      "AUTHENTICATION_FAILED",
+    );
+
+    await rejectsWithCode(
+      executeSpeech(
+        { input: "Hello", output: path.join(root, "other.wav"), model: " " },
+        { fetchImplementation: async () => { throw new Error("Discovery must not run"); } },
+      ),
+      "INVALID_MODEL",
+    );
+  });
+
   it("rejects invalid paths, existing output, and unsupported formats before making requests", async () => {
     const root = await workspace();
     const existing = path.join(root, "existing.wav");

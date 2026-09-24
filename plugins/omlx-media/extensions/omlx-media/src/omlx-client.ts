@@ -35,6 +35,7 @@ const ModelPayloadSchema = Type.Object({
   status: Type.Optional(Type.String()),
   engine_type: Type.Optional(Type.String()),
   model_type: Type.Optional(Type.String()),
+  config_model_type: Type.Optional(Type.String()),
   capabilities: Type.Optional(JsonValueSchema),
   tasks: Type.Optional(JsonValueSchema),
 });
@@ -93,6 +94,7 @@ interface ModelInfo {
   capabilities: Set<string>;
   modelType?: string;
   engineType?: string;
+  configModelType?: string;
 }
 
 interface ImageRequestBody {
@@ -152,6 +154,7 @@ function parseModel(value: JsonValue): ModelInfo | null {
     capabilities,
     modelType: value.model_type?.toLowerCase(),
     engineType: value.engine_type?.toLowerCase(),
+    configModelType: value.config_model_type?.toLowerCase(),
   };
 }
 
@@ -336,17 +339,38 @@ export class OmlxClient {
   }
 
   async selectAudioModel(operation: AudioOperation, requestedModel?: string): Promise<string> {
-    const models = await this.models();
     const requested = requestedModel?.trim();
 
     if (requestedModel !== undefined && !requested) {
       throw new OmlxToolError("INVALID_MODEL", "Audio model must not be empty");
     }
 
+    let models: ModelInfo[];
+
+    try {
+      models = await this.models();
+    } catch (error) {
+      if (
+        requested &&
+        error instanceof OmlxToolError &&
+        ["INVALID_MODEL_STATUS", "OMLX_REQUEST_FAILED"].includes(error.code)
+      ) {
+        return requested;
+      }
+
+      throw error;
+    }
+
     const matches = (model: ModelInfo) => {
       const kind = operation === "speech" ? "audio_tts" : "audio_stt";
 
-      return model.modelType === kind || model.engineType === kind;
+      return model.modelType === kind ||
+        model.engineType === kind ||
+        (operation === "speech"
+          ? model.configModelType?.includes("tts") === true
+          : model.configModelType?.includes("asr") === true ||
+            model.configModelType?.includes("stt") === true ||
+            model.configModelType?.includes("whisper") === true);
     };
 
     if (requested) {

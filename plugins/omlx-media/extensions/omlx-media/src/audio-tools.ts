@@ -9,7 +9,7 @@ import { executeSpeech, executeTranscription } from "./execute-audio.ts";
 export function createOmlxSpeechTool(): Tool<OmlxSpeechArgs> {
   return {
     name: "omlx_speech",
-    description: "Generate speech with a local OMLX TTS model and save the audio file in the workspace. Returns the file path only.",
+    description: "Generate speech with a local OMLX TTS model and save the audio file in the workspace. Returns the selected model and file path.",
     parameters: {
       type: "object",
       properties: {
