@@ -56,6 +56,12 @@ configured model on each worker only when it is present and not `auto`. The
 factory accepts 2-8 workers. Its workers are read-only and must not invoke
 factories.
 
+For verification or measurement slices, put the exact SHAs and any required
+measurement method in each worker's `brief`, and explicitly require the worker
+to record them in its report's `evidence` strings. The factory's schema and
+aggregate `status` do not validate these requirements; Phase C is mandatory
+before accepting any factory result, including `status: "complete"`.
+
 If `run_factory` is unavailable, excluded by the active model, returns a
 failed run, or completes with `status: "blocked"`, use the legacy flow below
 from the beginning. Report a `partial` result with its explicit gaps instead
@@ -73,7 +79,9 @@ If a worker drops out, proceed with N-1 and note it.
 
 ## Phase C: Aggregate
 
-Read the terminal results. Drop a result that does not record the SHAs and method its brief names. For a read-only factory result, rerun that slice once as a standalone background `general-purpose` worker with the same brief and configured model; do not invoke the 2-8-worker factory for this retry. For a read-only legacy result, rerun that worker once. Never replay a writing worker; record its missing evidence as a gap. After a second read-only miss, record a gap. A gap does not count as a pass. For coverage, every required slice needs a result. For a race, apply the selection rule declared up front. Use first pass, rank all, or best-of. Do not paste raw worker dumps.
+Read the terminal results. For a factory result, match each entry in `workers` to its input brief by `id` and inspect its `evidence` strings for every required SHA and measurement-method detail (sample count, sample definition, and order). Do not trust the factory's aggregate `status`, an empty `gaps` list, or a worker's `PASS` as proof of this evidence. Briefs that require neither SHAs nor a method need no such records.
+
+Drop a result that omits or contradicts the SHAs or method its brief names. For a read-only factory result, rerun that slice once as a standalone background `general-purpose` worker with the same brief and configured model; do not invoke the 2-8-worker factory for this retry. For a read-only legacy result, rerun that worker once. Apply the same evidence check to the retry. Never replay a writing worker; record its missing evidence as a gap. After a second read-only miss, record a gap. Recompute coverage and gaps from the accepted results, preserving factory-reported gaps unless a valid retry fills them. Any remaining gap makes the consolidated report partial (or blocked if no usable results remain), even when the factory reported `complete`. A gap does not count as a pass. For coverage, every required slice needs a result. For a race, apply the selection rule declared up front. Use first pass, rank all, or best-of. Do not paste raw worker dumps.
 
 Keep a compact result table, one-line evidenced issues, and explicit gaps or dropouts.
 
