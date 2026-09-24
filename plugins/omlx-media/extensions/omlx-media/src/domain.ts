@@ -44,17 +44,40 @@ export interface RenderImageRequest {
   advanced?: AdvancedImageOptions;
 }
 
+export type AudioOperation = "speech" | "transcription";
+
+export type SpeechFormat = "wav" | "mp3" | "opus" | "flac" | "pcm";
+
+export interface OmlxSpeechArgs {
+  input: string;
+  output: string;
+  model?: string;
+  voice?: string;
+  language?: string;
+  speed?: number;
+  instructions?: string;
+  response_format?: SpeechFormat;
+}
+
+export interface OmlxTranscriptionArgs {
+  input: string;
+  output: string;
+  model?: string;
+  language?: string;
+  prompt?: string;
+}
+
 export type FetchImplementation = (
   input: string | URL | Request,
   init?: RequestInit,
 ) => Promise<Response>;
 
-export class ImageToolError extends Error {
+export class OmlxToolError extends Error {
   readonly code: string;
 
   constructor(code: string, message: string) {
     super(message);
-    this.name = "ImageToolError";
+    this.name = "OmlxToolError";
     this.code = code;
   }
 }

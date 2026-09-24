@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import { access, mkdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
-import { ImageToolError } from "./domain.ts";
+import { OmlxToolError } from "./domain.ts";
 
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
 
@@ -13,7 +13,7 @@ function errorCode(error: Error): string | undefined {
 
 function requireAbsolutePath(value: string): string {
   if (!path.isAbsolute(value)) {
-    throw new ImageToolError("ABSOLUTE_PATH_REQUIRED", `Path must be absolute: ${value}`);
+    throw new OmlxToolError("ABSOLUTE_PATH_REQUIRED", `Path must be absolute: ${value}`);
   }
 
   return path.resolve(value);
@@ -29,11 +29,11 @@ export async function resolveImageInput(value: string): Promise<string> {
 
     if (!fileStat.isFile()) throw new Error("not a file");
   } catch {
-    throw new ImageToolError("INPUT_NOT_FOUND", `Image input was not found: ${value}`);
+    throw new OmlxToolError("INPUT_NOT_FOUND", `Image input was not found: ${value}`);
   }
 
   if (!IMAGE_EXTENSIONS.has(path.extname(resolved).toLowerCase())) {
-    throw new ImageToolError("UNSUPPORTED_IMAGE", `Image input must be PNG, JPEG, or WebP: ${value}`);
+    throw new OmlxToolError("UNSUPPORTED_IMAGE", `Image input must be PNG, JPEG, or WebP: ${value}`);
   }
 
   return resolved;
@@ -53,7 +53,7 @@ export async function planImageOutputs(
   const base = requireAbsolutePath(requestedOutput);
 
   if (path.extname(base).toLowerCase() !== ".png") {
-    throw new ImageToolError("INVALID_OUTPUT", "Image output must use a .png extension");
+    throw new OmlxToolError("INVALID_OUTPUT", "Image output must use a .png extension");
   }
 
   const outputs = Array.from({ length: count }, (_, index) => outputForIndex(base, index, count));
@@ -63,9 +63,9 @@ export async function planImageOutputs(
 
     try {
       await access(output, fsConstants.F_OK);
-      throw new ImageToolError("OUTPUT_CONFLICT", `Image output already exists: ${output}`);
+      throw new OmlxToolError("OUTPUT_CONFLICT", `Image output already exists: ${output}`);
     } catch (error) {
-      if (error instanceof ImageToolError) throw error;
+      if (error instanceof OmlxToolError) throw error;
 
       if (!(error instanceof Error) || errorCode(error) !== "ENOENT") throw error;
     }
@@ -89,7 +89,7 @@ export async function readImageDataUri(filePath: string): Promise<string> {
 
 export async function persistImages(outputs: string[], images: Buffer[]): Promise<void> {
   if (outputs.length !== images.length) {
-    throw new ImageToolError("INVALID_RESPONSE", "OMLX returned an unexpected number of images");
+    throw new OmlxToolError("INVALID_RESPONSE", "OMLX returned an unexpected number of images");
   }
 
   const committed: string[] = [];
@@ -97,14 +97,14 @@ export async function persistImages(outputs: string[], images: Buffer[]): Promis
   try {
     for (let index = 0; index < outputs.length; index++) {
       if (images[index].length === 0) {
-        throw new ImageToolError("EMPTY_IMAGE", `OMLX returned an empty image at index ${index}`);
+        throw new OmlxToolError("EMPTY_IMAGE", `OMLX returned an empty image at index ${index}`);
       }
 
       try {
         await writeFile(outputs[index], images[index], { flag: "wx" });
       } catch (error) {
         if (error instanceof Error && errorCode(error) === "EEXIST") {
-          throw new ImageToolError(
+          throw new OmlxToolError(
             "OUTPUT_CONFLICT",
             `Image output already exists: ${outputs[index]}`,
           );
@@ -113,7 +113,7 @@ export async function persistImages(outputs: string[], images: Buffer[]): Promis
         try {
           await rm(outputs[index], { force: true });
         } catch (cleanupError) {
-          throw new ImageToolError(
+          throw new OmlxToolError(
             "OUTPUT_CLEANUP_FAILED",
             `Failed to remove incomplete image output ${outputs[index]}: ${
               cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
