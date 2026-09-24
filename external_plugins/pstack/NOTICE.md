@@ -5,12 +5,12 @@ This plugin is adapted from
 The adaptation originally imported upstream commit
 `46125561306434d8a1d7745d540d8932ab0cd2a2` and had included the compatible
 changes through upstream repository commit
-`7366ac128bdf95f45e6734f412b49a4031800169` (pstack version `0.15.1`). The
+`b0b9c7a0baf8b6aa1d00bf77d4101e577d4ba411` (pstack version `0.15.4`). The
 last commit in that range that changes the `pstack/` subtree is
-`f8abeddd1862dc73704e3d719dd73df0d51b8c71`.
+`b0b9c7a0baf8b6aa1d00bf77d4101e577d4ba411`.
 
 The reviewed range starts after
-`23a56e2dac2efd54788056db8eced26e371d7b5e`, the last upstream content commit
+`7366ac128bdf95f45e6734f412b49a4031800169`, the last upstream content commit
 included by the previous Copilot adaptation. The machine-readable boundary,
 ownership rules, and exclusions live in [`upstream-sync.json`](./upstream-sync.json).
 
@@ -53,6 +53,18 @@ ScaryPilot changed the integration layer for GitHub Copilot:
 - Added an executable sync checker that validates upstream provenance,
   exclusions, inventory, links, extension registration, and model-callable
   skill metadata.
+- Ported the `0.15.2`-`0.15.4` operator-neutral pronoun fix, the swarm skill's
+  requirement that workers record verification SHAs and measurement methods
+  with a one-retry rule for missing records and an explicit caller-side
+  evidence check before accepting native factory results, the autopilot
+  playbooks' split between a code-ready verification round and a final
+  merge-ready receipt audit, and the shipping playbook's noise-vs-signal
+  patch-id diff check applied consistently across both autopilot modes.
+  Excluded the
+  accompanying Grok 4.7/Opus 5.5 model-slug renames, the reasoning-budget
+  addition to `/setup-pstack`, and the Opus-5.5-tuned instruction trims,
+  because Copilot's model catalog and defaults already differ from Cursor's
+  and the trims assume a specific upstream model's behavior.
 
 The upstream guide is included with Copilot-specific installation, agent,
 automation, path, and verification instructions. Cursor-only screenshots and
