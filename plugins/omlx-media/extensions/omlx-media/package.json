@@ -1,8 +1,8 @@
 {
   "name": "omlx-media",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
-  "description": "Generate and edit workspace images through OMLX.",
+  "description": "Generate images and speech or transcribe audio through OMLX.",
   "type": "module",
   "scripts": {
     "test": "node --test --experimental-strip-types tests/*.test.ts",

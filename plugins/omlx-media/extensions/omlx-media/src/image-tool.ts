@@ -1,5 +1,5 @@
 import type { Tool } from "@github/copilot-sdk";
-import { ImageToolError, type OmlxImageArgs } from "./domain.ts";
+import { OmlxToolError, type OmlxImageArgs } from "./domain.ts";
 import { executeImage } from "./execute-image.ts";
 
 export function createOmlxImageTool(): Tool<OmlxImageArgs> {
@@ -72,7 +72,7 @@ export function createOmlxImageTool(): Tool<OmlxImageArgs> {
 
         return `Saved ${result.files.length} ${result.operation === "edit" ? "edited" : "generated"} image${result.files.length === 1 ? "" : "s"} with ${result.model}:\n${files}`;
       } catch (error) {
-        if (error instanceof ImageToolError) return `❌ ${error.code}: ${error.message}`;
+        if (error instanceof OmlxToolError) return `❌ ${error.code}: ${error.message}`;
 
         return `❌ IMAGE_FAILED: ${error instanceof Error ? error.message : String(error)}`;
       }

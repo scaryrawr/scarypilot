@@ -62,7 +62,7 @@
     },
     {
       "name": "omlx-media",
-      "description": "Generate and edit images or turn recordings into grounded written content with local OMLX media models.",
+      "description": "Generate images and speech, transcribe audio, or turn recordings into grounded written content with local OMLX models.",
       "author": {
         "name": "Mike Wallio"
       },

@@ -1,11 +1,16 @@
 import { Type, type Static } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
+import { readFile } from "node:fs/promises";
+import * as path from "node:path";
 
 import { readImageDataUri } from "./workspace-artifacts.ts";
 import {
-  ImageToolError,
+  OmlxToolError,
+  type AudioOperation,
   type FetchImplementation,
   type ImageOperation,
+  type OmlxSpeechArgs,
+  type OmlxTranscriptionArgs,
   type RenderImageRequest,
 } from "./domain.ts";
 
@@ -55,6 +60,10 @@ const ImageDataSchema = Type.Object({
   url: Type.Optional(Type.String()),
 });
 
+const TranscriptionResponseSchema = Type.Object({
+  text: Type.String(),
+});
+
 type JsonValue = Static<typeof JsonValueSchema>;
 
 type ModelPayload = Static<typeof ModelPayloadSchema>;
@@ -82,6 +91,8 @@ interface ModelInfo {
   image: boolean;
   loaded: boolean;
   capabilities: Set<string>;
+  modelType?: string;
+  engineType?: string;
 }
 
 interface ImageRequestBody {
@@ -139,6 +150,8 @@ function parseModel(value: JsonValue): ModelInfo | null {
     image,
     loaded: parseLoaded(value),
     capabilities,
+    modelType: value.model_type?.toLowerCase(),
+    engineType: value.engine_type?.toLowerCase(),
   };
 }
 
@@ -192,7 +205,7 @@ export class OmlxClient {
     return headers;
   }
 
-  private async requestJson(url: string, init: RequestInit): Promise<JsonValue> {
+  private async request(url: string, init: RequestInit): Promise<Response> {
     let response: Response;
 
     try {
@@ -201,33 +214,50 @@ export class OmlxClient {
         signal: init.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch (error) {
-      throw new ImageToolError(
+      throw new OmlxToolError(
         "OMLX_UNREACHABLE",
         `Could not reach OMLX at ${this.baseUrl}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
 
+    if (!response.ok) {
+      const text = await response.text();
+      let message = response.statusText || `HTTP ${response.status}`;
+
+      try {
+        const parsed = Value.Parse(JsonValueSchema, JSON.parse(text));
+        message = responseErrorMessage(parsed) || message;
+
+        if (Value.Check(Type.Object({ detail: Type.String() }), parsed)) message = parsed.detail;
+      } catch {
+        // Non-JSON error bodies still retain their HTTP status.
+      }
+
+      throw new OmlxToolError(
+        requestErrorCode(response.status),
+        `OMLX request failed (${response.status}): ${message}`,
+      );
+    }
+
+    return response;
+  }
+
+  private async requestJson(url: string, init: RequestInit): Promise<JsonValue> {
+    const response = await this.request(url, init);
     const text = await response.text();
     let payload: JsonValue;
 
     try {
       payload = text ? Value.Parse(JsonValueSchema, JSON.parse(text)) : {};
     } catch {
-      if (!response.ok) {
-        throw new ImageToolError(
-          requestErrorCode(response.status),
-          `OMLX request failed (${response.status}): ${response.statusText || "HTTP error"}`,
-        );
-      }
-
-      throw new ImageToolError("INVALID_RESPONSE", `OMLX returned invalid JSON (${response.status})`);
+      throw new OmlxToolError("INVALID_RESPONSE", `OMLX returned invalid JSON (${response.status})`);
     }
 
     const apiError = responseErrorMessage(payload);
 
-    if (!response.ok || apiError) {
+    if (apiError) {
       const message = apiError || response.statusText || `HTTP ${response.status}`;
-      throw new ImageToolError(
+      throw new OmlxToolError(
         requestErrorCode(response.status),
         `OMLX request failed (${response.status}): ${message}`,
       );
@@ -243,7 +273,7 @@ export class OmlxClient {
     });
 
     if (!Value.Check(ModelStatusSchema, payload)) {
-      throw new ImageToolError("INVALID_MODEL_STATUS", "OMLX model status did not contain a models array");
+      throw new OmlxToolError("INVALID_MODEL_STATUS", "OMLX model status did not contain a models array");
     }
 
     return payload.models.flatMap((model) => {
@@ -261,7 +291,7 @@ export class OmlxClient {
     } catch (error) {
       if (
         requestedModel?.trim() &&
-        error instanceof ImageToolError &&
+        error instanceof OmlxToolError &&
         ["INVALID_MODEL_STATUS", "OMLX_REQUEST_FAILED"].includes(error.code)
       ) {
         return requestedModel.trim();
@@ -274,15 +304,15 @@ export class OmlxClient {
       const requested = models.find((model) => model.id === requestedModel.trim());
 
       if (!requested) {
-        throw new ImageToolError("MODEL_NOT_FOUND", `OMLX model was not found: ${requestedModel}`);
+        throw new OmlxToolError("MODEL_NOT_FOUND", `OMLX model was not found: ${requestedModel}`);
       }
 
       if (!requested.loaded) {
-        throw new ImageToolError("MODEL_NOT_LOADED", `OMLX model is not loaded: ${requestedModel}`);
+        throw new OmlxToolError("MODEL_NOT_LOADED", `OMLX model is not loaded: ${requestedModel}`);
       }
 
       if (!supports(requested, operation)) {
-        throw new ImageToolError(
+        throw new OmlxToolError(
           "MODEL_CAPABILITY_MISMATCH",
           `OMLX model does not support image ${operation}: ${requestedModel}`,
         );
@@ -296,13 +326,98 @@ export class OmlxClient {
     );
 
     if (candidates.length === 0) {
-      throw new ImageToolError(
+      throw new OmlxToolError(
         "NO_CAPABLE_MODEL",
         `No loaded OMLX model supports image ${operation}`,
       );
     }
 
     return candidates[0].id;
+  }
+
+  async selectAudioModel(operation: AudioOperation, requestedModel?: string): Promise<string> {
+    const models = await this.models();
+    const requested = requestedModel?.trim();
+
+    if (requestedModel !== undefined && !requested) {
+      throw new OmlxToolError("INVALID_MODEL", "Audio model must not be empty");
+    }
+
+    const matches = (model: ModelInfo) => {
+      const kind = operation === "speech" ? "audio_tts" : "audio_stt";
+
+      return model.modelType === kind || model.engineType === kind;
+    };
+
+    if (requested) {
+      const model = models.find((item) => item.id === requested);
+
+      if (!model) throw new OmlxToolError("MODEL_NOT_FOUND", `OMLX model was not found: ${requested}`);
+
+      if (!matches(model)) {
+        throw new OmlxToolError("MODEL_CAPABILITY_MISMATCH", `OMLX model does not support audio ${operation}: ${requested}`);
+      }
+
+      return model.id;
+    }
+
+    const model = models.find((item) => item.loaded && matches(item))
+      ?? models.find(matches);
+
+    if (!model) throw new OmlxToolError("NO_CAPABLE_MODEL", `No OMLX model supports audio ${operation}`);
+
+    return model.id;
+  }
+
+  async speech(args: OmlxSpeechArgs, model: string): Promise<Buffer> {
+    const response = await this.request(`${this.baseUrl}/v1/audio/speech`, {
+      method: "POST",
+      headers: this.headers(true),
+      body: JSON.stringify({
+        model,
+        input: args.input,
+        voice: args.voice,
+        language: args.language,
+        speed: args.speed,
+        instructions: args.instructions,
+        response_format: args.response_format ?? "wav",
+      }),
+    });
+
+    const contentType = response.headers.get("content-type") ?? "";
+
+    if (!contentType.startsWith("audio/") && contentType !== "application/octet-stream") {
+      throw new OmlxToolError("INVALID_RESPONSE", `OMLX speech response was not audio: ${contentType || "missing content type"}`);
+    }
+
+    const audio = Buffer.from(await response.arrayBuffer());
+
+    if (!audio.length) throw new OmlxToolError("INVALID_RESPONSE", "OMLX returned empty speech audio");
+
+    return audio;
+  }
+
+  async transcribe(args: OmlxTranscriptionArgs, model: string): Promise<string> {
+    const form = new FormData();
+    form.set("model", model);
+    form.set("response_format", "json");
+
+    if (args.language) form.set("language", args.language);
+
+    if (args.prompt) form.set("prompt", args.prompt);
+    form.set("file", new Blob([await readFile(args.input)]), path.basename(args.input));
+
+    const payload = await this.requestJson(`${this.baseUrl}/v1/audio/transcriptions`, {
+      method: "POST",
+      headers: this.headers(false),
+      body: form,
+    });
+
+    if (!Value.Check(TranscriptionResponseSchema, payload)) {
+      throw new OmlxToolError("INVALID_RESPONSE", "OMLX transcription response did not contain text");
+    }
+
+    return payload.text;
   }
 
   async render(request: RenderImageRequest): Promise<Buffer[]> {
@@ -344,7 +459,7 @@ export class OmlxClient {
     });
 
     if (!Value.Check(ImageResponseSchema, payload)) {
-      throw new ImageToolError("INVALID_RESPONSE", "OMLX image response did not contain image data");
+      throw new OmlxToolError("INVALID_RESPONSE", "OMLX image response did not contain image data");
     }
 
     return Promise.all(payload.data.map((item, index) => this.decodeImage(item, index)));
@@ -352,7 +467,7 @@ export class OmlxClient {
 
   private async decodeImage(item: JsonValue, index: number): Promise<Buffer> {
     if (!Value.Check(ImageDataSchema, item)) {
-      throw new ImageToolError("INVALID_RESPONSE", `OMLX image data ${index} was invalid`);
+      throw new OmlxToolError("INVALID_RESPONSE", `OMLX image data ${index} was invalid`);
     }
 
     if (item.b64_json !== undefined) {
@@ -370,14 +485,14 @@ export class OmlxClient {
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
       } catch (error) {
-        throw new ImageToolError(
+        throw new OmlxToolError(
           "IMAGE_DOWNLOAD_FAILED",
           `Could not download OMLX image ${index}: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
 
       if (!response.ok) {
-        throw new ImageToolError(
+        throw new OmlxToolError(
           "IMAGE_DOWNLOAD_FAILED",
           `Could not download OMLX image ${index} (${response.status})`,
         );
@@ -386,7 +501,7 @@ export class OmlxClient {
       return Buffer.from(await response.arrayBuffer());
     }
 
-    throw new ImageToolError(
+    throw new OmlxToolError(
       "INVALID_RESPONSE",
       `OMLX image data ${index} contained neither b64_json nor url`,
     );

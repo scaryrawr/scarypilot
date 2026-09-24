@@ -1,7 +1,7 @@
 {
   "name": "omlx-media",
-  "description": "Generate and edit images or turn recordings into grounded written content with local OMLX media models.",
-  "version": "0.2.1",
+  "description": "Generate images and speech, transcribe audio, or turn recordings into grounded written content with local OMLX models.",
+  "version": "0.3.0",
   "author": {
     "name": "Mike Wallio",
     "url": "https://github.com/scaryrawr"
@@ -11,6 +11,8 @@
     "copilot",
     "omlx",
     "image-generation",
+    "text-to-speech",
+    "speech-to-text",
     "transcription",
     "media"
   ],
