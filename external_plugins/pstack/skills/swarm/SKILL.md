@@ -73,7 +73,7 @@ If a worker drops out, proceed with N-1 and note it.
 
 ## Phase C: Aggregate
 
-Read the terminal results. Drop a result that does not record the SHAs and method its brief names, and rerun that worker once. After a second miss, record a gap. A gap does not count as a pass. For coverage, every required slice needs a result. For a race, apply the selection rule declared up front. Use first pass, rank all, or best-of. Do not paste raw worker dumps.
+Read the terminal results. Drop a result that does not record the SHAs and method its brief names. For a read-only factory result, rerun that slice once as a standalone background `general-purpose` worker with the same brief and configured model; do not invoke the 2-8-worker factory for this retry. For a read-only legacy result, rerun that worker once. Never replay a writing worker; record its missing evidence as a gap. After a second read-only miss, record a gap. A gap does not count as a pass. For coverage, every required slice needs a result. For a race, apply the selection rule declared up front. Use first pass, rank all, or best-of. Do not paste raw worker dumps.
 
 Keep a compact result table, one-line evidenced issues, and explicit gaps or dropouts.
 
