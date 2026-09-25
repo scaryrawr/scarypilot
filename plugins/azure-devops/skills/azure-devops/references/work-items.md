@@ -112,6 +112,7 @@ az boards work-item relation remove --id {workItemId} --relation-type child --ta
 ## Rules
 
 - Prefer the helper script for URL parsing, WIQL assembly, keyword search, required-field discovery, and PR artifact links.
+- When posting agent-authored work item comments or other free-text fields through `az boards` directly, append `- Generated with AI 🤖` once to the published body; do not alter user-provided text or structured fields.
 - Prefer `--detect true` when repository context is available.
 - Keep custom field names exact; do not silently rewrite them.
 - Use `executable` plus `commandArgs` from the WIQL helper instead of copying POSIX shell quoting on Windows.

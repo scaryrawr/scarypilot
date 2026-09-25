@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from shared.ado import (
+    attribute_ai_text,
     normalize_organization,
     parse_azure_devops_https_url,
     request_json,
@@ -208,6 +209,11 @@ def normalize_ref(branch: str) -> str:
     return f"refs/heads/{branch.removeprefix('origin/')}"
 
 
+def utf16_length(value: str) -> int:
+    """Count Azure DevOps description characters as UTF-16 code units."""
+    return len(value.encode("utf-16-le")) // 2
+
+
 def read_description(args: argparse.Namespace) -> str:
     """Read and validate the PR description from inline text or a file."""
     description = ""
@@ -216,9 +222,12 @@ def read_description(args: argparse.Namespace) -> str:
     elif args.description is not None:
         description = args.description
     description = description.replace("\r\n", "\n")
-    if len(description) > PR_DESCRIPTION_MAX:
+    if not args.user_authored:
+        description = attribute_ai_text(description)
+    description_length = utf16_length(description)
+    if description_length > PR_DESCRIPTION_MAX:
         sys.exit(
-            f"error: PR description is {len(description)} characters, exceeding the Azure DevOps limit of "
+            f"error: PR description is {description_length} UTF-16 code units, exceeding the Azure DevOps limit of "
             f"{PR_DESCRIPTION_MAX}. Trim it (keep every template section, drop verbose detail) and retry."
         )
     return description
@@ -265,7 +274,7 @@ def create_pr(args: argparse.Namespace) -> None:
                 "title": payload.get("title"),
                 "sourceRefName": payload.get("sourceRefName"),
                 "targetRefName": payload.get("targetRefName"),
-                "descriptionLength": len(description),
+                "descriptionLength": utf16_length(description),
                 "repositoryId": repo.get("id"),
                 "repositoryName": repo_name,
                 "webUrl": web_url,
@@ -311,6 +320,7 @@ def main() -> None:
     create_parser.add_argument("--title", required=True)
     create_parser.add_argument("--description-file", default="")
     create_parser.add_argument("--description")
+    create_parser.add_argument("--user-authored", action="store_true")
     create_parser.add_argument("--draft", action="store_true")
     upload_parser = subparsers.add_parser("upload-attachment")
     upload_parser.add_argument("--org", required=True)

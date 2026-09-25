@@ -56,6 +56,7 @@ az devops invoke --area git --resource pullRequestThreads --route-parameters pro
 ```
 
 Pass repo-relative Azure paths with `/` separators to `--file-path`; the helper also normalizes Windows `\` separators. If you pass `--out-file auto`, the helper writes to the OS temp directory and returns `{ outFile, payload }`; otherwise it returns the payload directly. Use a top-level thread only when the user explicitly requests a standalone summary or when the comment cannot be anchored to a file.
+The helper appends `- Generated with AI 🤖` once to agent-authored comments. Pass `--user-authored` only when publishing the user's text verbatim.
 
 ## `reply-and-resolve`
 
@@ -66,6 +67,7 @@ uv run ./scripts/ado-pr.py reply-and-resolve --id {prId} --thread-id {threadId} 
 ```
 
 Use `fixed` when code changed, `wontFix` or `byDesign` when the suggestion was considered but intentionally not applied, and `closed` only for a general discussion that is complete. Do not resolve a thread without first leaving a concise reply that records the disposition.
+The helper appends `- Generated with AI 🤖` to agent-authored replies before posting. Pass `--user-authored` only for the user's verbatim reply.
 
 ## Workflow
 

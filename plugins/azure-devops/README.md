@@ -146,6 +146,10 @@ therefore sufficient at install time; users do not need `node_modules`.
 The bundled helpers emit JSON on stdout and diagnostics on stderr. Permission,
 authentication, branch policy, and unsupported-resource errors are surfaced
 instead of being hidden.
+Agent-authored PR descriptions, review comments, and replies created by the
+helpers (and published paired-review findings) include the visible
+`- Generated with AI 🤖` suffix. Direct Azure CLI text posts should include it
+once as well, so readers can distinguish an agent's words from a user's.
 
 ## Resources
 

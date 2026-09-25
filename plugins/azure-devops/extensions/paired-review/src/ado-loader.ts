@@ -449,8 +449,8 @@ function remoteThreadMatches(
     remote.anchor &&
     firstComment &&
     sameAnchor(remote.anchor, finding.anchor) &&
-    normalizeReviewText(removeFindingMarker(firstComment)) ===
-      normalizeReviewText(removeFindingMarker(visibleFindingComment(finding))),
+    normalizeReviewText(removeAiAttribution(removeFindingMarker(firstComment))) ===
+      normalizeReviewText(removeAiAttribution(removeFindingMarker(visibleFindingComment(finding)))),
   );
 }
 
@@ -522,7 +522,9 @@ function azureThreadPayload(
 }
 
 function visibleFindingComment(finding: Extract<ReviewThread, { kind: "finding" }>): string {
-  return `**${finding.finding.title}**\n\n${finding.finding.body}\n\n${findingMarker(finding.finding.id)}`;
+  const body = removeAiAttribution(finding.finding.body);
+
+  return `**${finding.finding.title}**${body ? `\n\n${body}` : ""}\n\n- Generated with AI 🤖\n\n${findingMarker(finding.finding.id)}`;
 }
 
 function findingMarker(findingId: string): string {
@@ -538,6 +540,10 @@ function sameAnchor(remote: RemoteAnchor, local: ReviewThread["anchor"]): boolea
 
 function removeFindingMarker(content: string): string {
   return content.replace(/<!-- paired-review-finding:[a-z0-9-]+ -->/g, "");
+}
+
+function removeAiAttribution(content: string): string {
+  return content.trimEnd().replace(/(?:^|\r?\n\r?\n)(?:- Generated with AI 🤖|🤖 Generated with AI)$/, "");
 }
 
 function buildReviewFile(

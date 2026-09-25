@@ -60,7 +60,7 @@ Use the helper when the PR description comes from a template or file. It creates
 uv run ./scripts/make-pr.py create-pr --org {org-or-url} --project {project} --repository-id {repositoryId} --source-branch "{source_branch}" --target-branch "{target_branch}" --title "<title>" --description-file {absolute_path_to_description}
 ```
 
-Use `--repository {repoName}` instead of `--repository-id` only when the ID is unavailable. Use `--description "<text>"` for short inline descriptions. Add `--draft` only when the user requested a draft.
+Use `--repository {repoName}` instead of `--repository-id` only when the ID is unavailable. Use `--description "<text>"` for short inline descriptions. The helper appends `- Generated with AI 🤖` once to a nonempty agent-authored description and checks the 4000 UTF-16 code-unit limit including the suffix. Pass `--user-authored` only when publishing a description supplied verbatim by the user. Add `--draft` only when the user requested a draft.
 
 ## Workflow
 
@@ -72,7 +72,7 @@ Use `--repository {repoName}` instead of `--repository-id` only when the ID is u
 6. Create focused commits when needed.
 7. Push the source branch.
 8. Run `discover-template` and reuse `selectedContent` when present.
-9. Create the PR with `create-pr` when using template/file descriptions; otherwise `az repos pr create --detect true --source-branch "{source_branch}" --target-branch "{target_branch}" --title "<title>" --description "<description>"` is acceptable for short inline descriptions.
+9. Create the PR with `create-pr` for template, file, or inline descriptions so the attribution is applied before posting.
 10. If auto-detection fails, use explicit org/project/repository values from `preflight.parsedRemote` or user-supplied inputs.
 11. Upload attachments only after PR creation and only when needed.
 

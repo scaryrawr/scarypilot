@@ -99,6 +99,11 @@ describe("loadAzurePullRequest", () => {
                 content: "Please keep this export stable.",
                 author: { displayName: "Ada Lovelace" },
                 publishedDate: "2026-01-01T00:00:00.000Z",
+              }, {
+                id: 12,
+                content: "**Finding**\n\nInvestigate this.\n\n- Generated with AI 🤖\n\n<!-- paired-review-finding:fixture -->",
+                author: { displayName: "Copilot" },
+                publishedDate: "2026-01-01T00:01:00.000Z",
               }],
             }],
           };
@@ -158,6 +163,12 @@ describe("loadAzurePullRequest", () => {
         author: "Ada Lovelace",
         body: "Please keep this export stable.",
         createdAt: "2026-01-01T00:00:00.000Z",
+      }, {
+        id: "remote-7-12",
+        role: "reviewer",
+        author: "Copilot",
+        body: "**Finding**\n\nInvestigate this.\n\n- Generated with AI 🤖",
+        createdAt: "2026-01-01T00:01:00.000Z",
       }],
     }]);
   });
@@ -252,11 +263,81 @@ describe("publishReviewFindings", () => {
 
     expect(result?.kind).toBe("published");
     expect(calls.find((call) => call.args.includes("--http-method"))?.body).toMatchObject({
+      comments: [{
+        content: expect.stringMatching(
+          /^\*\*First finding\*\*\n\nFirst body\n\n- Generated with AI 🤖\n\n<!-- paired-review-finding:[a-z0-9-]+ -->$/,
+        ),
+      }],
       pullRequestThreadContext: {
         changeTrackingId: 0,
         iterationContext: { secondComparingIteration: 0 },
       },
     });
+  });
+
+  it("does not duplicate the attribution when a finding body already includes it", async () => {
+    const review = reviewWithFindings();
+    const finding = review.threads[0]!;
+
+    if (finding.kind !== "finding") throw new Error("Expected a finding");
+
+    finding.finding.body = "First body\n\n- Generated with AI 🤖";
+    const { calls, runner } = publicationRunner([{ value: [] }]);
+
+    await publishReviewFindings(review, { kind: "finding_ids", findingIds: [finding.id] }, runner);
+
+    const created = calls.find((call) => call.args.includes("--http-method"));
+    expect(created?.body).toMatchObject({
+      comments: [{
+        content: expect.stringMatching(
+          /^\*\*First finding\*\*\n\nFirst body\n\n- Generated with AI 🤖\n\n<!-- paired-review-finding:[a-z0-9-]+ -->$/,
+        ),
+      }],
+    });
+  });
+
+  it.each([
+    ["suffix-only", "- Generated with AI 🤖", "**First finding**\n\n- Generated with AI 🤖"],
+    ["CRLF", "First body\r\n\r\n- Generated with AI 🤖", "**First finding**\n\nFirst body\n\n- Generated with AI 🤖"],
+  ])("attributes %s finding bodies once", async (_case, body, expected) => {
+    const review = reviewWithFindings();
+    const finding = review.threads[0]!;
+
+    if (finding.kind !== "finding") throw new Error("Expected a finding");
+
+    finding.finding.body = body;
+    const { calls, runner } = publicationRunner([{ value: [] }]);
+
+    await publishReviewFindings(review, { kind: "finding_ids", findingIds: [finding.id] }, runner);
+
+    expect(calls.find((call) => call.args.includes("--http-method"))?.body).toMatchObject({
+      comments: [{ content: `${expected}\n\n<!-- paired-review-finding:${finding.finding.id} -->` }],
+    });
+  });
+
+  it("matches previously published findings with the legacy attribution", async () => {
+    const review = reviewWithFindings();
+
+    const { calls, runner } = publicationRunner([{
+      value: [{
+        id: 31,
+        comments: [{ content: "**First finding**\n\nFirst body\n\n🤖 Generated with AI" }],
+        threadContext: {
+          filePath: "/src/example.ts",
+          rightFileStart: { line: 2 },
+          rightFileEnd: { line: 2 },
+        },
+      }],
+    }]);
+
+    const [result] = await publishReviewFindings(
+      review,
+      { kind: "finding_ids", findingIds: [review.threads[0]!.id] },
+      runner,
+    );
+
+    expect(result).toMatchObject({ kind: "duplicate", remoteThreadId: 31 });
+    expect(calls.filter((call) => call.args.includes("--http-method"))).toHaveLength(0);
   });
 
   it("lists remote threads before each write and skips exact duplicates", async () => {

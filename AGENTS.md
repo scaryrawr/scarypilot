@@ -38,4 +38,6 @@ For extension I/O boundaries, prefer TypeBox schemas with `Static`-derived types
 
 For Markdown or manifest-only changes, validate JSON, linked paths, and inventory consistency. Load the complete plugin environment before smoke-testing shell-dependent skills. Do not run side-effecting Azure DevOps, Git, Codespaces, Worktrunk, or terminal-automation commands without explicit user approval.
 
+When building integrations that publish agent-authored text to external systems (chat messages, forum posts, comments, review replies, PR descriptions, or similar), add the visible suffix `- Generated with AI 🤖` at the write/payload boundary, not just in prompt guidance. Append it once at the end of the authored text; preserve the body and any required template structure. Keep retries idempotent, and test the exact submitted text. For integrations without a controlled write boundary, instruct agents to include the suffix when posting. Do not attribute third-party or user-authored text as agent-authored, and do not add text to non-text mutations.
+
 Keep repository guidance here. Use scoped `.github/instructions/*.instructions.md` only for path-specific Copilot behavior, and keep `CLAUDE.md` exactly `@AGENTS.md`.

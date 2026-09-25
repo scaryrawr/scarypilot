@@ -89,5 +89,6 @@ user-supplied org URL.
 ## Rules
 
 - Prefer helper output over handwritten URL parsing, WIQL assembly, PR thread JSON, code links, template discovery, or attachment uploads.
+- Helpers append `- Generated with AI 🤖` to agent-authored PR descriptions, review comments, and replies. Pass `--user-authored` only when posting the user's text verbatim. For direct Azure CLI text posts not handled by a helper, append the suffix once yourself only to agent-authored text.
 - Keep commands shell-neutral: use single-line commands, quote shell-sensitive values such as `"@Me"`, use helper-provided temp paths, and avoid POSIX-only temp paths or Bash parameter expansion.
 - Stop and surface blockers, branch-policy errors, permission failures, unsupported URL hosts, and unsupported paths verbatim.
