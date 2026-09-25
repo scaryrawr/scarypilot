@@ -212,6 +212,26 @@ function isSourceFile(filePath) {
   return !filePath.endsWith(".min.js") && !filePath.endsWith(".min.mjs");
 }
 
+export function isScannableFile(filePath, cwd) {
+  const relative = path.relative(cwd, filePath);
+
+  if (!relative || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    return false;
+  }
+
+  if (!isSourceFile(filePath)) return false;
+
+  const parts = relative.split(path.sep);
+
+  for (let index = 1; index < parts.length; index++) {
+    if (shouldIgnoreDirectory(path.join(cwd, ...parts.slice(0, index)), cwd, [])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function shouldIgnoreDirectory(directory, cwd, ignoredDirectories) {
   const name = path.basename(directory);
 

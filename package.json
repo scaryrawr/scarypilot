@@ -3,11 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:anti-slop": "node plugins/anti-slop/tools/build.mjs",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix --allow all --deny anti-slop/require-readable-spacing ."
   },
   "devDependencies": {
     "@oxlint/plugins": "1.83.0",
+    "esbuild": "0.28.2",
     "oxlint": "1.83.0"
   }
 }
