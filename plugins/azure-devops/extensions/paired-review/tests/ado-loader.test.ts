@@ -252,11 +252,62 @@ describe("publishReviewFindings", () => {
 
     expect(result?.kind).toBe("published");
     expect(calls.find((call) => call.args.includes("--http-method"))?.body).toMatchObject({
+      comments: [{
+        content: expect.stringMatching(
+          /^\*\*First finding\*\*\n\nFirst body\n\n- Generated with AI 🤖\n\n<!-- paired-review-finding:[a-z0-9-]+ -->$/,
+        ),
+      }],
       pullRequestThreadContext: {
         changeTrackingId: 0,
         iterationContext: { secondComparingIteration: 0 },
       },
     });
+  });
+
+  it("does not duplicate the attribution when a finding body already includes it", async () => {
+    const review = reviewWithFindings();
+    const finding = review.threads[0]!;
+
+    if (finding.kind !== "finding") throw new Error("Expected a finding");
+
+    finding.finding.body = "First body\n\n- Generated with AI 🤖";
+    const { calls, runner } = publicationRunner([{ value: [] }]);
+
+    await publishReviewFindings(review, { kind: "finding_ids", findingIds: [finding.id] }, runner);
+
+    const created = calls.find((call) => call.args.includes("--http-method"));
+    expect(created?.body).toMatchObject({
+      comments: [{
+        content: expect.stringMatching(
+          /^\*\*First finding\*\*\n\nFirst body\n\n- Generated with AI 🤖\n\n<!-- paired-review-finding:[a-z0-9-]+ -->$/,
+        ),
+      }],
+    });
+  });
+
+  it("matches previously published findings with the legacy attribution", async () => {
+    const review = reviewWithFindings();
+
+    const { calls, runner } = publicationRunner([{
+      value: [{
+        id: 31,
+        comments: [{ content: "**First finding**\n\nFirst body\n\n🤖 Generated with AI" }],
+        threadContext: {
+          filePath: "/src/example.ts",
+          rightFileStart: { line: 2 },
+          rightFileEnd: { line: 2 },
+        },
+      }],
+    }]);
+
+    const [result] = await publishReviewFindings(
+      review,
+      { kind: "finding_ids", findingIds: [review.threads[0]!.id] },
+      runner,
+    );
+
+    expect(result).toMatchObject({ kind: "duplicate", remoteThreadId: 31 });
+    expect(calls.filter((call) => call.args.includes("--http-method"))).toHaveLength(0);
   });
 
   it("lists remote threads before each write and skips exact duplicates", async () => {

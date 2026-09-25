@@ -190,6 +190,7 @@ def main() -> None:
     add_scope_flags(eligibility_parser)
     payload_parser = subparsers.add_parser("thread-payload")
     payload_parser.add_argument("--content", required=True)
+    payload_parser.add_argument("--user-authored", action="store_true")
     payload_parser.add_argument("--status", default="active")
     payload_parser.add_argument("--file-path", default="")
     payload_parser.add_argument("--line-start", type=int)

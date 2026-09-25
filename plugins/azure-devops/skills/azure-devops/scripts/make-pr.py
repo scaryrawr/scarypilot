@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from shared.ado import (
+    attribute_ai_text,
     normalize_organization,
     parse_azure_devops_https_url,
     request_json,
@@ -216,6 +217,8 @@ def read_description(args: argparse.Namespace) -> str:
     elif args.description is not None:
         description = args.description
     description = description.replace("\r\n", "\n")
+    if not args.user_authored:
+        description = attribute_ai_text(description)
     if len(description) > PR_DESCRIPTION_MAX:
         sys.exit(
             f"error: PR description is {len(description)} characters, exceeding the Azure DevOps limit of "
@@ -311,6 +314,7 @@ def main() -> None:
     create_parser.add_argument("--title", required=True)
     create_parser.add_argument("--description-file", default="")
     create_parser.add_argument("--description")
+    create_parser.add_argument("--user-authored", action="store_true")
     create_parser.add_argument("--draft", action="store_true")
     upload_parser = subparsers.add_parser("upload-attachment")
     upload_parser.add_argument("--org", required=True)

@@ -25,10 +25,11 @@ Skip review when `eligible` is false.
 Use the helper instead of hand-writing review thread JSON:
 
 ```text
-uv run ./scripts/review-pr.py thread-payload --content "<brief issue title>\n\n<why it matters>\n\n<actionable fix>\n\n🤖 Generated with AI" --file-path src/path/to/file.ts --line-start 42 --line-end 42 --out-file auto
+uv run ./scripts/review-pr.py thread-payload --content "<brief issue title>\n\n<why it matters>\n\n<actionable fix>" --file-path src/path/to/file.ts --line-start 42 --line-end 42 --out-file auto
 ```
 
 Pass repo-relative Azure paths with `/` separators to `--file-path`; the helper also normalizes Windows `\` separators. If you pass `--out-file auto`, the helper writes to the OS temp directory and returns `{ outFile, payload }`; otherwise it returns the payload directly.
+The helper appends `- Generated with AI 🤖` once to each agent-authored comment, including top-level threads. Pass `--user-authored` only for the user's text verbatim.
 
 ## `sync-labels`
 

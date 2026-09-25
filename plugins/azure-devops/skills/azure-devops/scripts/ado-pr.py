@@ -12,7 +12,7 @@ import shutil
 import sys
 from typing import Any
 
-from shared.ado import build_thread_payload, resolve_out_file, run_json, scope_args, strip_refs_heads
+from shared.ado import attribute_ai_text, build_thread_payload, resolve_out_file, run_json, scope_args, strip_refs_heads
 
 
 def positive_int(value: str) -> int:
@@ -208,7 +208,11 @@ def reply_and_resolve(args: argparse.Namespace) -> None:
         args,
         resource="pullRequestThreadComments",
         method="POST",
-        payload={"content": args.content, "parentCommentId": 0, "commentType": 1},
+        payload={
+            "content": args.content if args.user_authored else attribute_ai_text(args.content),
+            "parentCommentId": 0,
+            "commentType": 1,
+        },
         thread_id=args.thread_id,
     )
     resolved = invoke_thread_api(
@@ -245,10 +249,12 @@ def main() -> None:
     resolve_parser.add_argument("--id", required=True)
     resolve_parser.add_argument("--thread-id", required=True)
     resolve_parser.add_argument("--content", required=True)
+    resolve_parser.add_argument("--user-authored", action="store_true")
     resolve_parser.add_argument("--status", default="fixed", choices=["fixed", "closed", "wontFix", "byDesign"])
     add_scope_flags(resolve_parser)
     payload_parser = subparsers.add_parser("thread-payload")
     payload_parser.add_argument("--content", required=True)
+    payload_parser.add_argument("--user-authored", action="store_true")
     payload_parser.add_argument("--status", default="active")
     payload_parser.add_argument("--file-path", default="")
     payload_parser.add_argument("--line-start", type=int)

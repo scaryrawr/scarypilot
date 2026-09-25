@@ -14,6 +14,19 @@ from typing import Any
 
 
 DEVOPS_RESOURCE = "499b84ac-1321-427f-aa17-267ca6975798"
+AI_ATTRIBUTION = "- Generated with AI 🤖"
+
+
+def attribute_ai_text(content: str) -> str:
+    """Add a single visible attribution to agent-authored text."""
+    body = content.rstrip()
+    if not body:
+        return ""
+    if body.endswith(AI_ATTRIBUTION):
+        return body
+    if body.endswith("🤖 Generated with AI"):
+        body = body.removesuffix("🤖 Generated with AI").rstrip()
+    return f"{body}\n\n{AI_ATTRIBUTION}" if body else AI_ATTRIBUTION
 
 
 def parse_azure_devops_https_url(value: str) -> dict[str, Any] | None:
@@ -147,8 +160,9 @@ def resolve_out_file(value: str, prefix: str) -> Path:
 
 def build_thread_payload(args: argparse.Namespace) -> dict[str, Any]:
     """Build an Azure DevOps pull request thread payload."""
+    content = args.content if args.user_authored else attribute_ai_text(args.content)
     payload: dict[str, Any] = {
-        "comments": [{"parentCommentId": 0, "content": args.content, "commentType": "text"}],
+        "comments": [{"parentCommentId": 0, "content": content, "commentType": "text"}],
         "status": args.status,
     }
     if args.file_path:
