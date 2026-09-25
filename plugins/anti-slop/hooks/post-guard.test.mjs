@@ -338,6 +338,7 @@ describe("anti-slop postToolUse advisory", () => {
     await source(cwd, "src/check.ts", text);
     assert.equal(hooks.hooks.postToolUse[0].cwd, "${PLUGIN_ROOT}");
     assert.match(hooks.hooks.postToolUse[0].matcher, /edit/);
+    assert.equal(hooks.hooks.postToolUse[0].matcher, hooks.hooks.preToolUse[0].matcher);
 
     const command = spawnSync(process.execPath, [script], {
       input: JSON.stringify(event(cwd, "create", {

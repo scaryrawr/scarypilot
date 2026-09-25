@@ -216,6 +216,13 @@ describe("anti-slop preToolUse guard", () => {
     assert.equal(hooks.version, 1);
     assert.equal(hooks.hooks.preToolUse[0].cwd, "${PLUGIN_ROOT}");
     assert.match(hooks.hooks.preToolUse[0].matcher, /apply_patch/);
+    const matcher = new RegExp(hooks.hooks.preToolUse[0].matcher);
+    assert.deepEqual(["apply_patch", "create", "edit", "str_replace_editor"].map((name) =>
+      matcher.test(name)
+    ), [true, true, true, true]);
+    assert.deepEqual(["edit_issue", "create_pull_request", "batch_edit", "my_apply_patch"].map((name) =>
+      matcher.test(name)
+    ), [false, false, false, false]);
 
     const denied = spawnSync(process.execPath, [hookScript], {
       input: JSON.stringify(event(cwd, "create", {
