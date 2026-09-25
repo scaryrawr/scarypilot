@@ -56,7 +56,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 
 - [ ] Open the PR ready, never draft, with the repository's GitHub or review workflow.
 - [ ] Run the repo's lint and typecheck once before the PR-facing push. Push with hooks on.
-- [ ] Run `/deslop`, including its `/anti-slop` pass for TypeScript and JavaScript, before each commit and `/no-comments` before review.
+- [ ] Run `/deslop` before each commit and `/no-comments` before review.
 - [ ] Triage every Bugbot and security-reviewer comment per `../references/bugbot-triage.md`.
 - [ ] Rebase onto current trunk before the code-ready report and babysit. Keep that merge base in fix rounds. Rebase again only at merge prep, on a merge conflict with trunk, or on a CI failure that comes from a change on trunk.
 

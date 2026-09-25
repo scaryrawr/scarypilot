@@ -23,11 +23,6 @@ filters guarded skills from its model-facing skill tool.
 The original and adapted files are distributed under the MIT License in
 [`LICENSE`](./LICENSE).
 
-The bundled `anti-slop` skill and scanner are adapted from
-[dmmulroy/anti-slop](https://github.com/dmmulroy/anti-slop) at commit
-`c44ef22ca116d0ba62a3ff663a0bd13a3f3fa40b`. That project is Copyright (c)
-2026 Dillon Mulroy and distributed under the MIT License.
-
 ScaryPilot changed the integration layer for GitHub Copilot:
 
 - Converted Cursor model, subagent, and background-execution instructions to
@@ -48,8 +43,6 @@ ScaryPilot changed the integration layer for GitHub Copilot:
   workflow surfaces.
 - Bundled the `deslop` skill from
   [cursor-team-kit](https://github.com/cursor/plugins/tree/main/cursor-team-kit).
-- Bundled the advisory `anti-slop` skill and dependency-free scanner from
-  [dmmulroy/anti-slop](https://github.com/dmmulroy/anti-slop).
 - Added an executable sync checker that validates upstream provenance,
   exclusions, inventory, links, extension registration, and model-callable
   skill metadata.

@@ -83,13 +83,14 @@ by default. It is a review aid, not a replacement for parser-backed linting.
 ## Scope and enforcement
 
 Installing the standalone plugin opts into its hooks across CLI workspaces.
-The anti-slop skill bundled with pstack remains advisory and has no hook.
-Disable the standalone plugin with `copilot plugin disable anti-slop` if you
-want advisory-only pstack. Neither hook intercepts shell-written files or
-edits from other tools. Copilot cloud agent jobs do not load installed local
-plugins. Only the two pre-edit patterns above block edits; the complete
-Oxlint checks are advisory and cannot undo a write. The skill's separate
-dependency-free scanner covers a smaller heuristic subset for read-only use.
+Pstack's `/deslop` remains a separate, general code-cleanup skill and does
+not install or run Anti-Slop. Disable the standalone plugin with
+`copilot plugin disable anti-slop` to stop its hooks and skill. Neither hook
+intercepts shell-written files or edits from other tools. Copilot cloud agent
+jobs do not load installed local plugins. Only the two pre-edit patterns above
+block edits; the complete Oxlint checks are advisory and cannot undo a write.
+The skill's separate dependency-free scanner covers a smaller heuristic
+subset for read-only use.
 
 Plugin hook scripts run relative to `${PLUGIN_ROOT}` so installation paths
 need no repository-specific setup. The first post-edit check downloads Oxlint

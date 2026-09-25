@@ -13,8 +13,7 @@ This skill is advisory. Do not install a linter, dependency, build step, or
 repository configuration unless the user asks for repository enforcement.
 When the standalone plugin's pre-edit hook denies an edit, use its remediation
 to revise the proposed code and retry the same editing tool. Do not bypass the
-guard with a shell write. The copy of this skill bundled with pstack remains
-advisory.
+guard with a shell write.
 When its post-edit hook reports a generic record predicate, inspect the full
 file and the value's origin before changing code. Retain a justified boundary
 check; otherwise preserve a known type or parse external input into a named
