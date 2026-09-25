@@ -106,6 +106,34 @@ const PATTERNS = [
   },
 ];
 
+export function scanBlockedText(text, filePath = "<memory>") {
+  const findings = [];
+
+  for (const pattern of PATTERNS.filter(({ id }) =>
+    id === "chained-assertion" || id === "unknown-type-alias"
+  )) {
+    const expression = pattern.id === "chained-assertion"
+      ? `${pattern.expression.source}\\S+`
+      : pattern.expression.source;
+
+    for (const match of text.matchAll(new RegExp(expression, "g"))) {
+      const preceding = text.slice(0, match.index);
+
+      findings.push({
+        file: filePath,
+        line: preceding.split("\n").length,
+        column: match.index - preceding.lastIndexOf("\n"),
+        pattern: pattern.id,
+        summary: pattern.summary,
+        remediation: pattern.remediation,
+        excerpt: match[0].replace(/\s+/g, " ").trim(),
+      });
+    }
+  }
+
+  return findings;
+}
+
 export function scanText(text, filePath = "<memory>") {
   const findings = [];
   const lines = text.split(/\r?\n/);
@@ -210,6 +238,45 @@ function isSourceFile(filePath) {
   if (!SOURCE_EXTENSIONS.has(path.extname(filePath).toLowerCase())) return false;
 
   return !filePath.endsWith(".min.js") && !filePath.endsWith(".min.mjs");
+}
+
+export function isScannableFile(filePath, cwd) {
+  const relative = path.relative(cwd, filePath);
+
+  if (!relative || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    return false;
+  }
+
+  if (!isSourceFile(filePath)) return false;
+
+  const parts = relative.split(path.sep);
+
+  for (let index = 1; index < parts.length; index++) {
+    if (shouldIgnoreDirectory(path.join(cwd, ...parts.slice(0, index)), cwd, [])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export async function isSafeWorkspaceFile(filePath, cwd) {
+  if (!isScannableFile(filePath, cwd)) return false;
+
+  const relative = path.relative(cwd, filePath);
+  let current = cwd;
+
+  for (const part of relative.split(path.sep)) {
+    current = path.join(current, part);
+
+    try {
+      if ((await lstat(current)).isSymbolicLink()) return false;
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+  }
+
+  return true;
 }
 
 function shouldIgnoreDirectory(directory, cwd, ignoredDirectories) {

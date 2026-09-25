@@ -30,7 +30,7 @@
     },
     {
       "name": "anti-slop",
-      "description": "Advisory guidance for precise TypeScript and JavaScript without lint-shaped workarounds.",
+      "description": "Bundled Anti-Slop checks and pre-edit guardrails without per-repository lint setup.",
       "author": {
         "name": "Mike Wallio"
       },

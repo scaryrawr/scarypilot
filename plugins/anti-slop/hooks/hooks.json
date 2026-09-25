@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "matcher": "^(?:apply_patch|create|edit|str_replace_editor)$",
+        "bash": "node hooks/guard.mjs",
+        "powershell": "node hooks/guard.mjs",
+        "cwd": "${PLUGIN_ROOT}",
+        "timeoutSec": 10
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "matcher": "^(?:apply_patch|create|edit|str_replace_editor)$",
+        "bash": "node hooks/post-guard.mjs",
+        "powershell": "node hooks/post-guard.mjs",
+        "cwd": "${PLUGIN_ROOT}",
+        "timeoutSec": 120
+      }
+    ]
+  }
+}

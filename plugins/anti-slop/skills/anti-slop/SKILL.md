@@ -11,11 +11,24 @@ guessing.
 
 This skill is advisory. Do not install a linter, dependency, build step, or
 repository configuration unless the user asks for repository enforcement.
+When the standalone plugin's pre-edit hook denies an edit, use its remediation
+to revise the proposed code and retry the same editing tool. Do not bypass the
+guard with a shell write.
+When its post-edit hook reports a generic record predicate, inspect the full
+file and the value's origin before changing code. Retain a justified boundary
+check; otherwise preserve a known type or parse external input into a named
+contract instead of renaming the guard.
+The standalone plugin's post-edit hook also reports parser-backed Anti-Slop
+diagnostics for newly edited code. Treat those as leads for the remediation
+order below, not as permission to apply broad mechanical rewrites.
 
 ## Optional heuristic scan
 
 For a quick read-only pass in a repository that has not installed Anti-Slop,
 run:
+
+Resolve `scripts/scan.mjs` relative to this skill directory while keeping the
+shell working directory at the repository being scanned.
 
 ```bash
 node scripts/scan.mjs [paths...]
