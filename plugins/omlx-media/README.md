@@ -74,6 +74,13 @@ new files. The audio tools handle complete requests, not realtime WebSocket
 transcription or streamed speech playback. For long recordings that need chunk
 timestamps and silence detection, use `blogify` instead.
 
+## Development
+
+In `plugins/omlx-media/extensions/omlx-media`, install dependencies and run
+`npm run build`, `npm run typecheck`, and `npm test` after changes. Commit the
+generated `dist/` and `bundle-manifest.json`. Installed plugins use that bundle
+without requiring `npm install`; Copilot supplies the SDK at runtime.
+
 ## Resources
 
 - [OMLX repository](https://github.com/jundot/omlx)

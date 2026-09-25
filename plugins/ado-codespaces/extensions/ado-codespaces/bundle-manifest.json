@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "inputs": {
+    "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
+    "package-lock.json": "fb445032e405a460b460ad8be3d343f58b5ad483dff113fbbbb2b8cdb7f5fd8b",
+    "package.json": "f102f9fcc3b0affe3f296220656f69ab4ffc1c8c01afa801167edb50a0ba928e",
+    "src/agent-event-inbox.ts": "cf9a64a9569c4bff28c786e1adbff45df4ec02b4e18275921e21b0034d325712",
+    "src/extension.ts": "553ad9063c96164e8dae58e8b7e13f19028dc494abfa19bff599519c657318fc",
+    "src/supervisor-client.ts": "069aece503cff7efed2814683bef38d95161930dae006112761d7909744df5e9",
+    "src/tools.ts": "11345e89a3056a7e84940c48adfb4a127f9163ae076847d8d0ff6bf4646f86f7",
+    "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
+  },
+  "outputs": {
+    "dist/extension.mjs": "c1d2c6e2ab49d2b25585da494da970d653dcfba6e6c1237ec049c922afcaf848"
+  }
+}

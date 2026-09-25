@@ -1,7 +1,7 @@
 {
   "name": "digivolution",
   "description": "Adaptive post-task reflection for keeping repository guidance accurate.",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "author": {
     "name": "Mike Wallio"
   },

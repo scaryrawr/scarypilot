@@ -62,6 +62,7 @@ spelling.
 ```bash
 cd extensions/copilot-local-llm
 npm install
+npm run build
 npm run typecheck
 npm run lint
 npm test
@@ -69,7 +70,9 @@ npm test
 
 Copilot CLI injects its bundled `@github/copilot-sdk` when it loads the
 extension. The package dependency pins the SDK version used for local
-development and tests; plugin users do not need to run `npm install`.
+development and tests. The committed `dist/` bundle includes other runtime
+dependencies; plugin users do not need to run `npm install` or build. Build in
+a source checkout after changes and commit the bundle and manifest.
 
 ## Resources
 

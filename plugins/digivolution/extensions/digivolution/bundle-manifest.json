@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "inputs": {
+    "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
+    "package-lock.json": "67c9c25d4696530684ebbd376351580c31cadbc1d44b908f35c87dffe434b7be",
+    "package.json": "9b0bf96c356588250594cf085f2dea4ecee5acab8471a5c00ab7437ea0dd1e3d",
+    "src/extension.ts": "8cd26ee6a84822056a6be46fd0259d10eb31d87d55f444e05e5d7df99af01df6",
+    "src/register.ts": "a43c748d8b63a79e121d60ac51abd6cafeadea3648c0b18dc09792eb5a6219e7",
+    "src/turn-monitor.ts": "bf4115eae0a641eb92442d000c726056f487800738914879b1bcacf2ce4d9995",
+    "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
+  },
+  "outputs": {
+    "dist/extension.mjs": "38c3584181eb4fb462d8717f54344cc41febe04ce4609c8d91364c63adbf64ab"
+  }
+}

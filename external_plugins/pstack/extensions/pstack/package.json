@@ -1,10 +1,11 @@
 {
   "name": "@scarypilot/pstack-extension",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "Native GitHub Copilot extension for deterministic pstack state and verification tools.",
   "type": "module",
   "scripts": {
+    "build": "tsdown && node ../../../../tools/check-extension-bundles.mjs write external_plugins/pstack/extensions/pstack",
     "test": "vitest run",
     "typecheck": "tsgo -p tsconfig.json"
   },
@@ -15,6 +16,7 @@
   "devDependencies": {
     "@types/node": "^24.12.2",
     "@typescript/native-preview": "^7.0.0-dev.20260418.1",
+    "tsdown": "^0.22.14",
     "vitest": "^4.1.4"
   },
   "engines": {

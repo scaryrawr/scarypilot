@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "inputs": {
+    "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
+    "package-lock.json": "d310fca03f3380d77efcd979602ad5ce589197cc9eec0d1d0f7de773e13248de",
+    "package.json": "8f203fd1c10bb39faab4e312dda3e887b53b31de401e65a84bc54308dd0b720d",
+    "src/auto-resume.ts": "0055178b9e0d8190484ec9ae434fa96fa2bdb2225c71b44d5327df5d6082b339",
+    "src/command.ts": "35ef916e18aceca04977fcf1b2878b22c4d493a389dfe46a4b11e27abf0a93ea",
+    "src/confidence.ts": "7ce8857e95e7b83a6a34045ef0d3745034fbd1e84202423a98e9439db0ac343f",
+    "src/dashboard.ts": "8ecc3d248ebf9e215cf28b926deb119f56c0f798e18aea014bc2c9349a8b8058",
+    "src/extension-context.ts": "2e0d4810ccd3bd67885c0f8aa11a10cc08c5592839734d6a0c8df4c4533baabf",
+    "src/extension.ts": "e89e9d69d461481aa07bd1791540b3416ecb46e98506a1b6ff89224b025440d7",
+    "src/format.ts": "3f5d98c6b451fd05c0261762a10d8aaffde502465d0388702e5c04eb56b90853",
+    "src/git.ts": "13aa2213b39dbef0ae91fc4cc075299be63d680132c691ac66385080c058155a",
+    "src/jsonl.ts": "bcf69fa5d7b9ca97dca3df8a29705e5b4a568352566f5c3a7828abadde3dfb5b",
+    "src/metric.ts": "4c6ba5dec2e0e93ea8091a9c6d93d69fb24479f39e91e49e1b3851bcb37e6cc0",
+    "src/paths.ts": "b658b8baed99f8856236d5ecf5e0220d04dacde1cbeb2de2fdadcac743cdf17c",
+    "src/spawn.ts": "bb33f9f7bc7a8bc142eda1ffe3b1c3cd9e80d695209cd8cd511d8a8c509c7a9e",
+    "src/state.ts": "a3a7fed3e6d7dd5ab0a0227cd7f7f964ace2ac436829451da0e622b4b73fbf05",
+    "src/system-prompt.ts": "417592f3c8304906c9a76110c321ffe2b38e9f3df778827f13fc012f9882be9c",
+    "src/tools-init.ts": "f2151dac40737fef412d401b492df415f45ba17dd49b72c949ed1c282aa367b1",
+    "src/tools-log.ts": "55848879b1c52f37f6be93551c4bfdc6c68801ab178725187cc9d8e6b0ed8168",
+    "src/tools-run.ts": "b9de1ab06cfaad2817eed50bd13d3cba2fbb4384ae1fa4d123f947fe230e3fec",
+    "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
+  },
+  "outputs": {
+    "dist/extension.mjs": "8f2c46086825704145f6301f796fa1ba17c83f86a6488db0aa5d4b5f9e5c4aec"
+  }
+}
