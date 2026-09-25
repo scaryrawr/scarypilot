@@ -24,8 +24,8 @@ function lineNumber(text, offset) {
   return text.slice(0, offset).split("\n").length;
 }
 
-function recordGuardCandidates(text, touched) {
-  const code = maskNonCode(text);
+function recordGuardCandidates(text, touched, jsx) {
+  const code = maskNonCode(text, { jsx });
   const candidates = [];
 
   function wasAdded(start, end) {
@@ -133,6 +133,10 @@ export async function reviewEdit(input, { lint = lintFile } = {}) {
     throw new Error("invalid postToolUse payload");
   }
 
+  if (input.toolName === "str_replace_editor" && input.toolArgs?.command === "undo_edit") {
+    return { additionalContext: "Anti-Slop could not attribute undo_edit to changed lines; review the reverted file if needed." };
+  }
+
   const cwd = path.resolve(input.cwd);
   const changes = proposedChanges(input.toolName, input.toolArgs);
   const findings = new Map();
@@ -185,7 +189,7 @@ export async function reviewEdit(input, { lint = lintFile } = {}) {
     const sourceLines = text.split(/\r?\n/);
 
     if ([...touched].some((line) => POSSIBLE_GUARD.test(sourceLines[line - 1] ?? ""))) {
-      for (const candidate of recordGuardCandidates(text, touched)) {
+      for (const candidate of recordGuardCandidates(text, touched, /\.(?:jsx|tsx)$/i.test(file))) {
         const location = `${relative}:${candidate.line}`;
         findings.set(`${location}:record-guard`, `${location} ${candidate.kind}: ` +
           "use a named domain contract for internal values, or parse at a real I/O boundary.");

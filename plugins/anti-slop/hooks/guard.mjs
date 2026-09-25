@@ -3,9 +3,11 @@
 import { lstat, open, readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { isGeneratedSource, isSafeWorkspaceFile, scanText } from "../skills/anti-slop/scripts/scan.mjs";
+import { isGeneratedSource, isSafeWorkspaceFile, scanBlockedText } from "../skills/anti-slop/scripts/scan.mjs";
 
-const BLOCKED_PATTERNS = new Set(["chained-assertion", "unknown-type-alias"]);
+const SOURCE_WITH_JSX = /\.(?:jsx|tsx)$/i;
+
+const GENERIC_ARROW_START = /<[A-Za-z_$][\w$]*(?:\s*,|\s+extends\b)/y;
 
 function argumentFields(args) {
   return args && typeof args === "object" ? Object.keys(args).join(", ") : typeof args;
@@ -74,13 +76,16 @@ export function proposedChanges(toolName, args) {
     return patchChanges(patch);
   }
 
+  if (toolName === "str_replace_editor" &&
+    (args?.command === "view" || args?.command === "undo_edit")) return [];
+
   const file = args?.path ?? args?.filePath ?? args?.file_path ?? args?.file;
 
   if (typeof file !== "string") {
     throw new Error(`${toolName} has no readable file path (fields: ${argumentFields(args)})`);
   }
 
-  if (toolName === "create") {
+  if (toolName === "create" || (toolName === "str_replace_editor" && args?.command === "create")) {
     const content = args?.file_text ?? args?.content ?? args?.contents;
 
     if (typeof content !== "string") {
@@ -88,6 +93,23 @@ export function proposedChanges(toolName, args) {
     }
 
     return [{ file, sourceFile: file, created: true, content }];
+  }
+
+  if (toolName === "str_replace_editor") {
+    if (args?.command === "insert") {
+      const insertLine = args.insert_line;
+      const after = args.insert_text ?? args.new_str;
+
+      if (!Number.isInteger(insertLine) || insertLine < 0 || typeof after !== "string") {
+        throw new Error(`str_replace_editor has no readable insertion (fields: ${argumentFields(args)})`);
+      }
+
+      return [{ file, sourceFile: file, created: false, insertLine, after }];
+    }
+
+    if (args?.command !== "str_replace") {
+      throw new Error(`unsupported str_replace_editor command: ${String(args?.command)}`);
+    }
   }
 
   const before = args?.old_str ?? args?.oldString ?? args?.old_string ?? args?.oldText;
@@ -236,6 +258,28 @@ export function projectedEdit(change, text, phase) {
     return { text: lines.join("\n"), touched, deletionAnchors };
   }
 
+  if (change.insertLine !== undefined) {
+    const lines = text.split(/\r?\n/);
+    const inserted = change.after.split(/\r?\n/);
+    const at = change.insertLine;
+
+    if (at > lines.length - (phase === "post" ? inserted.length : 0)) {
+      throw new Error("insertion line is outside the file");
+    }
+
+    if (phase === "post" && !inserted.every((line, index) => lines[at + index] === line)) {
+      throw new Error("inserted text does not match the written file");
+    }
+
+    if (phase === "pre") lines.splice(at, 0, ...inserted);
+
+    return {
+      text: lines.join("\n"),
+      touched: new Set(inserted.map((_, index) => at + index + 1)),
+      deletionAnchors: new Set(),
+    };
+  }
+
   const before = change.before;
   const after = change.after;
   const fragment = phase === "pre" ? before : after;
@@ -261,9 +305,17 @@ export function projectedEdit(change, text, phase) {
   };
 }
 
-export function maskNonCode(text) {
+export function maskNonCode(text, { jsx = false } = {}) {
   const output = text.split("");
   const stack = [{ type: "code", expression: true, depth: 0 }];
+
+  function jsxStarts(index) {
+    if (!jsx || !/[A-Za-z/>]/.test(text[index + 1] ?? "")) return false;
+
+    GENERIC_ARROW_START.lastIndex = index;
+
+    return !GENERIC_ARROW_START.test(text);
+  }
 
   function hide(index) {
     if (text[index] !== "\n") output[index] = " ";
@@ -274,7 +326,42 @@ export function maskNonCode(text) {
     const char = text[index];
     const next = text[index + 1];
 
-    if (frame.type === "line") {
+    if (frame.type === "jsxText") {
+      if (char === "{") {
+        hide(index);
+        stack.push({ type: "code", expression: true, depth: 1 });
+      } else if (char === "<" && jsxStarts(index)) {
+        hide(index);
+        stack.push({ type: "jsxTag", closing: next === "/", quote: null, last: "" });
+      } else {
+        hide(index);
+      }
+    } else if (frame.type === "jsxTag") {
+      hide(index);
+
+      if (frame.quote) {
+        if (char === "\\") {
+          if (next) hide(++index);
+        } else if (char === frame.quote) frame.quote = null;
+      } else if (char === "'" || char === '"') {
+        frame.quote = char;
+      } else if (char === "{") {
+        stack.push({ type: "code", expression: true, depth: 1 });
+      } else if (char === ">") {
+        stack.pop();
+        const parent = stack.at(-1);
+
+        if (frame.closing) parent.depth--;
+        else if (frame.last !== "/") parent.depth++;
+
+        if (parent.depth === 0) {
+          stack.pop();
+          stack.at(-1).expression = false;
+        }
+      } else if (!/\s/.test(char)) {
+        frame.last = char;
+      }
+    } else if (frame.type === "line") {
       hide(index);
 
       if (char === "\n") stack.pop();
@@ -323,6 +410,10 @@ export function maskNonCode(text) {
     } else if (char === "`") {
       hide(index);
       stack.push({ type: "template" });
+    } else if (char === "<" && frame.expression && jsxStarts(index)) {
+      hide(index);
+      stack.push({ type: "jsxText", depth: 0 });
+      stack.push({ type: "jsxTag", closing: false, quote: null, last: "" });
     } else if (char === "}" && frame.depth > 0 && --frame.depth === 0) {
       hide(index);
       stack.pop();
@@ -397,15 +488,13 @@ export async function guard(input) {
     const previous = new Map();
 
     if (!change.created) {
-      for (const finding of scanText(maskNonCode(original), relative)) {
-        if (!BLOCKED_PATTERNS.has(finding.pattern)) continue;
+      for (const finding of scanBlockedText(maskNonCode(original, { jsx: SOURCE_WITH_JSX.test(file) }), relative)) {
         const key = `${finding.pattern}:${finding.excerpt}`;
         previous.set(key, (previous.get(key) ?? 0) + 1);
       }
     }
 
-    const candidates = scanText(maskNonCode(text), relative)
-      .filter((finding) => BLOCKED_PATTERNS.has(finding.pattern));
+    const candidates = scanBlockedText(maskNonCode(text, { jsx: SOURCE_WITH_JSX.test(file) }), relative);
 
     candidates.sort((left, right) => Number(touched.has(left.line)) - Number(touched.has(right.line)));
 

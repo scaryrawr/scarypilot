@@ -126,12 +126,49 @@ describe("anti-slop preToolUse guard", () => {
     })), {});
 
     const result = await guard(event(cwd, "str_replace_editor", {
+      command: "str_replace",
       file_path: "src/old.ts",
       old_str: oldString,
       new_str: `${oldString}\nconst added = x as unknown as New;`,
     }));
 
     assert.equal(result.permissionDecision, "deny");
+  });
+
+  it("dispatches str_replace_editor views, creates, replacements, and inserts", async () => {
+    const cwd = await workspace();
+    await mkdir(path.join(cwd, "src"), { recursive: true });
+    await writeFile(path.join(cwd, "src/existing.ts"), "const safe = 1;\n");
+
+    assert.deepEqual(await guard(event(cwd, "str_replace_editor", { command: "view" })), {});
+    assert.deepEqual(await guard(event(cwd, "str_replace_editor", { command: "undo_edit" })), {});
+
+    const created = await guard(event(cwd, "str_replace_editor", {
+      command: "create", path: "src/new.ts",
+      file_text: "type Json = unknown;",
+    }));
+
+    assert.match(created.permissionDecisionReason, /unknown-type-alias/);
+
+    const inserted = await guard(event(cwd, "str_replace_editor", {
+      command: "insert", path: "src/existing.ts", insert_line: 1,
+      insert_text: "const added = value as unknown as Result;",
+    }));
+
+    assert.match(inserted.permissionDecisionReason, /chained-assertion/);
+
+    const replaced = await guard(event(cwd, "str_replace_editor", {
+      command: "str_replace", path: "src/existing.ts",
+      old_str: "const safe = 1;",
+      new_str: "const added = value as unknown as Result;",
+    }));
+
+    assert.match(replaced.permissionDecisionReason, /chained-assertion/);
+
+    await assert.rejects(
+      guard(event(cwd, "str_replace_editor", { command: "unsupported", path: "src/existing.ts" })),
+      /unsupported str_replace_editor command/,
+    );
   });
 
   it("skips generated files, ignored directories, and non-source paths", async () => {
@@ -193,6 +230,58 @@ describe("anti-slop preToolUse guard", () => {
     }));
 
     assert.equal(result.permissionDecision, "deny");
+  });
+
+  it("ignores JSX text and attributes while checking expressions and multiline syntax", async () => {
+    const cwd = await workspace();
+
+    const display = [
+      "export const view = <section>",
+      "  <code title='value as unknown as Result'>",
+      "    type Json = unknown;",
+      "    <span>value as unknown as Result</span>",
+      "  </code>",
+      "</section>;",
+    ].join("\n");
+
+    assert.deepEqual(await guard(event(cwd, "create", {
+      path: "src/view.tsx", content: display,
+    })), {});
+
+    const expression = await guard(event(cwd, "create", {
+      path: "src/view.tsx", content: `${display}\nexport const bad = <code>{value as unknown\n  as Result}</code>;`,
+    }));
+
+    assert.match(expression.permissionDecisionReason, /chained-assertion/);
+
+    const multiline = await guard(event(cwd, "create", {
+      path: "src/types.ts", content: "type Json =\n  unknown;\nconst value = input as unknown\n  as Result;",
+    }));
+
+    assert.match(multiline.permissionDecisionReason, /unknown-type-alias/);
+    assert.match(multiline.permissionDecisionReason, /chained-assertion/);
+
+    const generic = await guard(event(cwd, "create", {
+      path: "src/generic.tsx",
+      content: "export const adapt = <T,>(value: T) => value as unknown as Result;",
+    }));
+
+    assert.match(generic.permissionDecisionReason, /chained-assertion/);
+  });
+
+  it("does not mistake a newly added assertion for an existing one elsewhere", async () => {
+    const cwd = await workspace();
+    const original = "const old = input as unknown as Old;\n";
+    await mkdir(path.join(cwd, "src"), { recursive: true });
+    await writeFile(path.join(cwd, "src/types.ts"), original);
+
+    const result = await guard(event(cwd, "edit", {
+      path: "src/types.ts",
+      old_str: original,
+      new_str: `${original}const fresh = input as unknown as Fresh;\n`,
+    }));
+
+    assert.match(result.permissionDecisionReason, /chained-assertion/);
   });
 
   it("blocks executable code even when the same line already exists inside a comment", async () => {

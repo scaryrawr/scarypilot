@@ -237,6 +237,28 @@ describe("anti-slop postToolUse advisory", () => {
     assert.equal((result.additionalContext.match(/src\/orders\.ts:2/g) ?? []).length, 1);
   });
 
+  it("skips editor views and attributes inserted lines without flagging legacy code", async () => {
+    const cwd = await workspace();
+    const legacy = "function isRecord(v: unknown): v is Record<string, unknown> { return true; }";
+    const added = "function isOrderRecord(v: unknown): v is Record<string, unknown> { return true; }";
+    await source(cwd, "src/orders.ts", `${legacy}\n${added}\n`);
+
+    assert.deepEqual(await reviewEdit(event(cwd, "str_replace_editor", {
+      command: "view", path: "src/orders.ts",
+    })), {});
+
+    assert.match((await reviewEdit(event(cwd, "str_replace_editor", {
+      command: "undo_edit", path: "src/orders.ts",
+    }))).additionalContext, /could not attribute undo_edit/);
+
+    const result = await reviewEdit(event(cwd, "str_replace_editor", {
+      command: "insert", path: "src/orders.ts", insert_line: 1, insert_text: added,
+    }));
+
+    assert.match(result.additionalContext, /src\/orders\.ts:2/);
+    assert.doesNotMatch(result.additionalContext, /src\/orders\.ts:1/);
+  });
+
   it("ignores strings, comments, generated files, and unrelated output", async () => {
     const cwd = await workspace();
     const comment = "// function isRecord(v: unknown): v is Record<string, unknown> {}";
@@ -255,6 +277,12 @@ describe("anti-slop postToolUse advisory", () => {
     await source(cwd, "dist/output.ts", guard);
     assert.deepEqual(await reviewEdit(event(cwd, "create", {
       path: "dist/output.ts", file_text: guard,
+    })), {});
+
+    const jsx = "export const view = <code>function isRecord(v: unknown): v is Record<string, unknown> {}</code>;";
+    await source(cwd, "src/view.tsx", jsx);
+    assert.deepEqual(await reviewEdit(event(cwd, "create", {
+      path: "src/view.tsx", file_text: jsx,
     })), {});
   });
 

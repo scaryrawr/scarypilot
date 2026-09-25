@@ -31,9 +31,15 @@ copilot plugin install anti-slop@scarypilot
 Once installed, the skill applies while writing, reviewing, or refactoring
 TypeScript and JavaScript. The hooks run automatically when Copilot proposes
 `apply_patch`, `create`, `edit`, or `str_replace_editor` calls on source files.
-The pre-edit hook checks added lines only, and blocks newly introduced chained assertions
-(`as unknown as`) and unknown-only type aliases (`type Json = unknown`).
-Comments, string literals, generated files, vendor/build output, and files
+Read-only `str_replace_editor` views do not run checks; its create,
+replacement, and line-insertion commands are handled according to their
+individual arguments. Undo operations cannot be projected beforehand, and
+post-edit feedback explicitly notes that their changed lines cannot be
+attributed. The pre-edit hook checks new executable code only, and blocks
+newly introduced chained assertions (`as unknown as`) and unknown-only type
+aliases (`type Json = unknown`).
+Multiline forms are included. Comments, strings, JSX text and attributes,
+generated files, vendor/build output, and files
 outside the current workspace are excluded. A denial gives the agent a short
 reason and remediation rather than adding guidance to every tool call.
 
