@@ -449,8 +449,8 @@ function remoteThreadMatches(
     remote.anchor &&
     firstComment &&
     sameAnchor(remote.anchor, finding.anchor) &&
-    normalizeReviewText(removeFindingMarker(firstComment)) ===
-      normalizeReviewText(removeFindingMarker(visibleFindingComment(finding))),
+    normalizeReviewText(removeAiAttribution(removeFindingMarker(firstComment))) ===
+      normalizeReviewText(removeAiAttribution(removeFindingMarker(visibleFindingComment(finding)))),
   );
 }
 
@@ -539,7 +539,7 @@ function sameAnchor(remote: RemoteAnchor, local: ReviewThread["anchor"]): boolea
 }
 
 function removeFindingMarker(content: string): string {
-  return removeAiAttribution(content.replace(/<!-- paired-review-finding:[a-z0-9-]+ -->/g, ""));
+  return content.replace(/<!-- paired-review-finding:[a-z0-9-]+ -->/g, "");
 }
 
 function removeAiAttribution(content: string): string {

@@ -99,6 +99,11 @@ describe("loadAzurePullRequest", () => {
                 content: "Please keep this export stable.",
                 author: { displayName: "Ada Lovelace" },
                 publishedDate: "2026-01-01T00:00:00.000Z",
+              }, {
+                id: 12,
+                content: "**Finding**\n\nInvestigate this.\n\n- Generated with AI 🤖\n\n<!-- paired-review-finding:fixture -->",
+                author: { displayName: "Copilot" },
+                publishedDate: "2026-01-01T00:01:00.000Z",
               }],
             }],
           };
@@ -158,6 +163,12 @@ describe("loadAzurePullRequest", () => {
         author: "Ada Lovelace",
         body: "Please keep this export stable.",
         createdAt: "2026-01-01T00:00:00.000Z",
+      }, {
+        id: "remote-7-12",
+        role: "reviewer",
+        author: "Copilot",
+        body: "**Finding**\n\nInvestigate this.\n\n- Generated with AI 🤖",
+        createdAt: "2026-01-01T00:01:00.000Z",
       }],
     }]);
   });
