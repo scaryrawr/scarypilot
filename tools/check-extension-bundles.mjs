@@ -32,7 +32,7 @@ for (const parent of ["plugins", "external_plugins"]) {
 
     for (const entry of await readdir(extensionRoot, { withFileTypes: true })) {
       if (entry.isDirectory() && existsSync(path.join(extensionRoot, entry.name, "extension.mjs"))) {
-        discovered.push(path.relative(root, path.join(extensionRoot, entry.name)));
+        discovered.push(relativePath(root, path.join(extensionRoot, entry.name)));
       }
     }
   }
@@ -119,8 +119,12 @@ async function walk(directory) {
 async function digest(files, directory) {
   return Object.fromEntries(
     await Promise.all(files.sort().map(async (file) => [
-      path.relative(directory, file).split(path.sep).join("/"),
+      relativePath(directory, file),
       createHash("sha256").update((await readFile(file, "utf8")).replace(/\r\n/g, "\n")).digest("hex"),
     ])),
   );
+}
+
+function relativePath(from, to) {
+  return path.relative(from, to).split(path.sep).join("/");
 }

@@ -25,7 +25,7 @@ for (const extension of extensions) {
     await Promise.all([
       cp(path.join(source, "extension.mjs"), path.join(temporaryRoot, "extension.mjs")),
       cp(path.join(source, "dist"), path.join(temporaryRoot, "dist"), { recursive: true }),
-      writeFile(path.join(temporaryRoot, "gh"), "#!/usr/bin/env node\nprocess.exit(0);\n", { mode: 0o755 }),
+      writeFile(path.join(temporaryRoot, "gh"), "#!/bin/sh\nexit 0\n", { mode: 0o755 }),
       writeFile(path.join(temporaryRoot, "smoke.mjs"), [
         "globalThis.fetch = async () => { throw new Error('Network disabled during bundle smoke test'); };",
         "await import('./extension.mjs');",
@@ -38,8 +38,13 @@ for (const extension of extensions) {
       writeFile(path.join(sdk, "extension.mjs"), [
         "export function defineFactory(definition) { return definition; }",
         "export async function joinSession(options) {",
+        "  if (!options || typeof options !== 'object') throw new Error('Missing session options');",
+        "  const factories = options.factories ?? [];",
+        "  if (factories.some((factory) => !factory.meta?.name || typeof factory.run !== 'function'))",
+        "    throw new Error('Invalid factory registration');",
         "  console.log('SCARYPILOT_SMOKE:' + JSON.stringify({ joined: true, tools: options.tools?.length ?? 0,",
-        "    factories: options.factories?.length ?? 0, agents: options.customAgents?.length ?? 0 }));",
+        "    factories: factories.map((factory) => factory.meta.name),",
+        "    agents: options.customAgents?.map((agent) => agent.name) ?? [] }));",
         "  return { log: async () => {}, on: () => () => {},",
         "    rpc: { model: { getCurrent: async () => ({}) },",
         "      options: { update: async () => ({ success: true }) } } };",
@@ -53,7 +58,7 @@ for (const extension of extensions) {
       timeout: 15_000,
       env: {
         HOME: temporaryRoot,
-        PATH: `${temporaryRoot}${path.delimiter}${process.env.PATH ?? ""}`,
+        PATH: temporaryRoot,
         SESSION_ID: "bundle-smoke",
       },
     });
@@ -68,7 +73,8 @@ for (const extension of extensions) {
     const registration = registrationLine && JSON.parse(registrationLine.slice("SCARYPILOT_SMOKE:".length));
 
     if (!registration || (extension.includes("/pstack/") &&
-      (!registration.factories || !registration.agents))) {
+      (!registration.factories.includes("pstack-swarm") ||
+        !registration.agents.includes("pstack-swarm-worker")))) {
       throw new Error(`${extension}: missing expected session registration`);
     }
 
