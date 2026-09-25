@@ -6,6 +6,8 @@ import json
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -79,19 +81,32 @@ class AttributionTests(unittest.TestCase):
             source_branch="feature", target_branch="main", title="Title",
             description="Summary", description_file="", draft=False, user_authored=False,
         )
-        with patch.object(make_pr, "request_json", return_value={"pullRequestId": 42}) as request:
+        output = StringIO()
+        with patch.object(make_pr, "request_json", return_value={"pullRequestId": 42}) as request, redirect_stdout(output):
             make_pr.create_pr(args)
         body = json.loads(request.call_args.kwargs["body"])
         self.assertEqual(body["description"], f"Summary\n\n{AI_ATTRIBUTION}")
         self.assertEqual(body["title"], "Title")
+        self.assertEqual(json.loads(output.getvalue())["descriptionLength"], 31)
 
         args.user_authored = True
         self.assertEqual(make_pr.read_description(args), "Summary")
         args.user_authored = False
-        args.description = "x" * (make_pr.PR_DESCRIPTION_MAX - len(AI_ATTRIBUTION) - 2)
-        self.assertEqual(len(make_pr.read_description(args)), make_pr.PR_DESCRIPTION_MAX)
+        args.description = "x" * 3976
+        self.assertEqual(make_pr.utf16_length(make_pr.read_description(args)), make_pr.PR_DESCRIPTION_MAX)
         args.description += "x"
-        with self.assertRaises(SystemExit):
+        with self.assertRaisesRegex(SystemExit, "4001 UTF-16 code units"):
+            make_pr.read_description(args)
+
+        args.description = "🤖" * 2001
+        with self.assertRaisesRegex(SystemExit, "4026 UTF-16 code units"):
+            make_pr.read_description(args)
+
+        args.user_authored = True
+        args.description = "🤖" * 2000
+        self.assertEqual(make_pr.utf16_length(make_pr.read_description(args)), make_pr.PR_DESCRIPTION_MAX)
+        args.description += "🤖"
+        with self.assertRaisesRegex(SystemExit, "4002 UTF-16 code units"):
             make_pr.read_description(args)
 
     def test_file_description_preserves_template_sections_and_existing_suffix(self):

@@ -524,7 +524,7 @@ function azureThreadPayload(
 function visibleFindingComment(finding: Extract<ReviewThread, { kind: "finding" }>): string {
   const body = removeAiAttribution(finding.finding.body);
 
-  return `**${finding.finding.title}**\n\n${body}\n\n- Generated with AI 🤖\n\n${findingMarker(finding.finding.id)}`;
+  return `**${finding.finding.title}**${body ? `\n\n${body}` : ""}\n\n- Generated with AI 🤖\n\n${findingMarker(finding.finding.id)}`;
 }
 
 function findingMarker(findingId: string): string {
@@ -543,7 +543,7 @@ function removeFindingMarker(content: string): string {
 }
 
 function removeAiAttribution(content: string): string {
-  return content.trimEnd().replace(/\n\n(?:- Generated with AI 🤖|🤖 Generated with AI)$/, "");
+  return content.trimEnd().replace(/(?:^|\r?\n\r?\n)(?:- Generated with AI 🤖|🤖 Generated with AI)$/, "");
 }
 
 function buildReviewFile(

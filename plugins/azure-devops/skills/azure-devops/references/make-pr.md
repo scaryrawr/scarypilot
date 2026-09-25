@@ -60,7 +60,7 @@ Use the helper when the PR description comes from a template or file. It creates
 uv run ./scripts/make-pr.py create-pr --org {org-or-url} --project {project} --repository-id {repositoryId} --source-branch "{source_branch}" --target-branch "{target_branch}" --title "<title>" --description-file {absolute_path_to_description}
 ```
 
-Use `--repository {repoName}` instead of `--repository-id` only when the ID is unavailable. Use `--description "<text>"` for short inline descriptions. The helper appends `- Generated with AI 🤖` once to a nonempty agent-authored description and checks the 4000-character limit including the suffix. Pass `--user-authored` only when publishing a description supplied verbatim by the user. Add `--draft` only when the user requested a draft.
+Use `--repository {repoName}` instead of `--repository-id` only when the ID is unavailable. Use `--description "<text>"` for short inline descriptions. The helper appends `- Generated with AI 🤖` once to a nonempty agent-authored description and checks the 4000 UTF-16 code-unit limit including the suffix. Pass `--user-authored` only when publishing a description supplied verbatim by the user. Add `--draft` only when the user requested a draft.
 
 ## Workflow
 

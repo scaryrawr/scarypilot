@@ -296,6 +296,25 @@ describe("publishReviewFindings", () => {
     });
   });
 
+  it.each([
+    ["suffix-only", "- Generated with AI 🤖", "**First finding**\n\n- Generated with AI 🤖"],
+    ["CRLF", "First body\r\n\r\n- Generated with AI 🤖", "**First finding**\n\nFirst body\n\n- Generated with AI 🤖"],
+  ])("attributes %s finding bodies once", async (_case, body, expected) => {
+    const review = reviewWithFindings();
+    const finding = review.threads[0]!;
+
+    if (finding.kind !== "finding") throw new Error("Expected a finding");
+
+    finding.finding.body = body;
+    const { calls, runner } = publicationRunner([{ value: [] }]);
+
+    await publishReviewFindings(review, { kind: "finding_ids", findingIds: [finding.id] }, runner);
+
+    expect(calls.find((call) => call.args.includes("--http-method"))?.body).toMatchObject({
+      comments: [{ content: `${expected}\n\n<!-- paired-review-finding:${finding.finding.id} -->` }],
+    });
+  });
+
   it("matches previously published findings with the legacy attribution", async () => {
     const review = reviewWithFindings();
 

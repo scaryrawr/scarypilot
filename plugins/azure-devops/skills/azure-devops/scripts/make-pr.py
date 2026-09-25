@@ -209,6 +209,11 @@ def normalize_ref(branch: str) -> str:
     return f"refs/heads/{branch.removeprefix('origin/')}"
 
 
+def utf16_length(value: str) -> int:
+    """Count Azure DevOps description characters as UTF-16 code units."""
+    return len(value.encode("utf-16-le")) // 2
+
+
 def read_description(args: argparse.Namespace) -> str:
     """Read and validate the PR description from inline text or a file."""
     description = ""
@@ -219,9 +224,10 @@ def read_description(args: argparse.Namespace) -> str:
     description = description.replace("\r\n", "\n")
     if not args.user_authored:
         description = attribute_ai_text(description)
-    if len(description) > PR_DESCRIPTION_MAX:
+    description_length = utf16_length(description)
+    if description_length > PR_DESCRIPTION_MAX:
         sys.exit(
-            f"error: PR description is {len(description)} characters, exceeding the Azure DevOps limit of "
+            f"error: PR description is {description_length} UTF-16 code units, exceeding the Azure DevOps limit of "
             f"{PR_DESCRIPTION_MAX}. Trim it (keep every template section, drop verbose detail) and retry."
         )
     return description
@@ -268,7 +274,7 @@ def create_pr(args: argparse.Namespace) -> None:
                 "title": payload.get("title"),
                 "sourceRefName": payload.get("sourceRefName"),
                 "targetRefName": payload.get("targetRefName"),
-                "descriptionLength": len(description),
+                "descriptionLength": utf16_length(description),
                 "repositoryId": repo.get("id"),
                 "repositoryName": repo_name,
                 "webUrl": web_url,
