@@ -126,6 +126,11 @@ node external_plugins/pstack/tools/pstack-sync.mjs plan --upstream /path/to/curs
 registration, and Copilot-compatible skill metadata. `plan` produces a bounded,
 fail-closed classification of newer upstream changes.
 
+When changing the native extension, install dependencies in
+`external_plugins/pstack/extensions/pstack`, run `npm run build`, and commit its
+generated `dist/` and `bundle-manifest.json`. Installed plugins use the bundle
+without an npm install; Copilot supplies the SDK at runtime.
+
 ## License and resources
 
 - Original author: [Lauren Tan](https://github.com/poteto)

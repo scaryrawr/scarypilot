@@ -21,7 +21,7 @@ It does not trigger for ordinary test failures, long turns, repeated edits, gene
 ## Prerequisites
 
 - GitHub Copilot CLI with plugin, skill, and native extension support.
-- Node.js 22.18 or newer.
+- Node.js 22.18 or newer for development and building from source.
 
 ## Installation
 
@@ -60,6 +60,13 @@ The extension registers typed session hooks through `@github/copilot-sdk`:
 Every handler requires the event's session ID to match the extension's joined primary session ID. Subagent events are ignored, and `onAgentStop` is additionally documented by the SDK as a top-level-agent event.
 
 The continuation includes the reflection rules directly and avoids the skill name and routing language instead of asking the continuation turn to resolve and invoke the installed skill again. This avoids skill lookup failures in the stop-hook lifecycle. It is loop-safe: the extension claims the reflection before blocking, ignores its own continuation prompt, and allows any stop where `stopHookActive` is set. If hook processing is uncertain or fails, the turn ends normally.
+
+## Development
+
+In `plugins/digivolution/extensions/digivolution`, install dependencies and run
+`npm run build`, `npm run typecheck`, and `npm test` after changes. Commit the
+generated `dist/` and `bundle-manifest.json`. Installed plugins use that bundle
+without requiring `npm install`; Copilot supplies the SDK at runtime.
 
 ## Resources
 

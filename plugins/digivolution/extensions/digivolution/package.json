@@ -1,10 +1,11 @@
 {
   "name": "@scarypilot/digivolution-extension",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "description": "Adaptive turn monitor for the ScaryPilot digivolution plugin.",
   "type": "module",
   "scripts": {
+    "build": "tsdown && node ../../../../tools/check-extension-bundles.mjs write plugins/digivolution/extensions/digivolution",
     "test": "vitest run",
     "typecheck": "tsgo -p tsconfig.json"
   },
@@ -15,6 +16,7 @@
   "devDependencies": {
     "@types/node": "^24.12.2",
     "@typescript/native-preview": "^7.0.0-dev.20260418.1",
+    "tsdown": "^0.22.14",
     "vitest": "^4.1.4"
   },
   "engines": {

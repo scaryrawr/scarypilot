@@ -1,10 +1,11 @@
 {
   "name": "@scarypilot/ado-codespaces-extension",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Native Copilot tools for the ado-codespaces supervisor.",
   "type": "module",
   "scripts": {
+    "build": "tsdown && node ../../../../tools/check-extension-bundles.mjs write plugins/ado-codespaces/extensions/ado-codespaces",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
@@ -19,6 +20,7 @@
     "@types/node": "^24.0.0",
     "oxfmt": "^0.62.0",
     "oxlint": "^1.75.0",
+    "tsdown": "^0.22.14",
     "typescript": "^5.9.0",
     "vitest": "^4.0.0"
   },

@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "inputs": {
+    "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
+    "package-lock.json": "2a3736bb853f8b3d75fc59c6b25b799e48b5ef93edefbec71334481638b9485a",
+    "package.json": "bcc25987cc8074548cad0084e7659058c245283b8ef9bc2d88618e7ee5bf4bc4",
+    "src/capabilities.ts": "c1492db1ed2ae01d8d0f5b22ab40363eaacb5808ea7c1d08cc0f86822cfc928f",
+    "src/command.ts": "33a7020224ce2fd515a30ce6d57b1108e9a2586800f3fca48cc9a5acf838e339",
+    "src/extension-context.ts": "25be6a0908e933fb3cbbf9c618a6debbd9565459e44c47aac35bd924c8889b55",
+    "src/extension.ts": "8c02799fb8f43e090c03a076638ba8f74c1edd87644216ad3cb3882b057c75ec",
+    "src/factories/index.ts": "f9caa6174e1f0402818d9fbbcc6194021add5ff87948debdb3c54fbec691346b",
+    "src/factories/swarm.ts": "4fc97bcb636318e0a142dcb77a5e56eb50af1502f8830aadadeb296c4108bcf3",
+    "src/handoff.ts": "34e07ce375e0b33773f955cda5c48d5912facec477c6197a7b72f8079a989341",
+    "src/io.ts": "ca38d057606e375e069644ee1f0277f47d4fb569b2b0afbc0ced52271296c3fe",
+    "src/orch-reader.ts": "1647eb039a11d4ae8d204159f5b35eee63cec81ca404e7069759b2318e711026",
+    "src/receipt.ts": "d22112ec154735872da81974737dab85e129aa4b04cb8526710ab5e52b3bb409",
+    "src/register.ts": "51726d93cc806506383e1e0e1f598ea4ea5a2faf2794fe52d85e963cbfcca64f",
+    "src/service.ts": "64d558d1dc4d56388d299f426b3a2b559e3b218b69c0cedecd9ab63aebf2b7fa",
+    "src/snapshot.ts": "fb0806c5ad03e2ba1b10bfd4d83fe56a732d7618d798f839c4e54f4d375ff9d8",
+    "src/tools/capabilities.ts": "44ebecff57f5ff09d2442db651875325eb803c6cf6216fd37ebae86c606a7a2f",
+    "src/tools/common.ts": "e99c7220dacb33d1709431b2a601679c58a5a3d3f07cb1c02ca27ff606606185",
+    "src/tools/handoff.ts": "deb6646a85a1bd1ee119d6279b2bd708edcddfe6406ee012b019b7f961c92493",
+    "src/tools/inspect-worktrees.ts": "e419511fd6dd27ebae19857b4c72102cc463139e0132b408e223186e3f8afc9b",
+    "src/tools/record-verification.ts": "0d0574ba1aaf71a3eed978093ac6461bdd1187a373d5f8bf1d72d6ea3d0bb948",
+    "src/tools/status.ts": "f51962894036001d445b273a511b2525679dbaf409ae1d650fae5a7dc7369992",
+    "src/tools/validate-plan.ts": "377d488dd2fd1114c3bdcca8b6bede8f2085deeed1e45512b091f0b878daf36b",
+    "src/types.ts": "d0705a485718db032881351961a6787827158b867dae96371b7ba01b9b51cee5",
+    "src/watch-reader.ts": "b11e63d38e88309266f6edf207aac4cfc10180831a8f7f994866e9a33f83c870",
+    "src/worktrees.ts": "f3a3a019c01663caf78c9a7e2efc9b5142f0d5aff56b2a7fa0b902815ed8bcd8",
+    "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5",
+    "../../skills/poteto-mode/scripts/orch/store.ts": "cb865c8db6025ee334b4b3829960445e7d6d957d05ae5a2e8cfad6766c235836",
+    "../../skills/poteto-mode/scripts/plan-rules.mjs": "3d86325b74b5a75021a125cc47da56cc1f81bfd9e94e72ba00a76d27b0cee21c"
+  },
+  "outputs": {
+    "dist/extension.mjs": "ccd4c2a85180885de38995ef33f064fe6a16f7cf8f626f786e430cd2c664f61f"
+  }
+}

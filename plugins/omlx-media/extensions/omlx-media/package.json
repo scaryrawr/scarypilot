@@ -1,10 +1,11 @@
 {
   "name": "omlx-media",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Generate images and speech or transcribe audio through OMLX.",
   "type": "module",
   "scripts": {
+    "build": "tsdown && node ../../../../tools/check-extension-bundles.mjs write plugins/omlx-media/extensions/omlx-media",
     "test": "node --test --experimental-strip-types tests/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
@@ -14,6 +15,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.12.2",
+    "tsdown": "^0.22.14",
     "typescript": "^5.9.0"
   },
   "engines": {

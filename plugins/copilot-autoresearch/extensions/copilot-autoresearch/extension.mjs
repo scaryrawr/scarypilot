@@ -1,1 +1,1 @@
-import "./src/extension.ts";
+import "./dist/extension.mjs";

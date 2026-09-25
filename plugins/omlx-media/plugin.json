@@ -1,7 +1,7 @@
 {
   "name": "omlx-media",
   "description": "Generate images and speech, transcribe audio, or turn recordings into grounded written content with local OMLX models.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": {
     "name": "Mike Wallio",
     "url": "https://github.com/scaryrawr"

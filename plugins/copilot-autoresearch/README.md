@@ -157,6 +157,7 @@ This is simply a Copilot CLI adaptation of the same idea.
 ```bash
 cd extensions/copilot-autoresearch
 npm install
+npm run build
 npm run typecheck
 npm run test
 bash ../../skills/autoresearch-finalize/tests/finalize-smoke.sh
@@ -164,9 +165,9 @@ bash ../../skills/autoresearch-finalize/tests/finalize-smoke.sh
 
 Copilot CLI injects its bundled `@github/copilot-sdk` when it loads the
 extension. The package dependency pins the SDK version used for local
-development and tests; plugin users do not need to run `npm install`. Node.js
-loads the TypeScript source directly through `extension.mjs`, so no build step
-is required.
+development and tests. The committed `dist/` bundle includes other runtime
+dependencies; plugin users do not need to run `npm install` or build. Build in
+a source checkout after changes and commit the bundle and manifest.
 
 ## Resources
 

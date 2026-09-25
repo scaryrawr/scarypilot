@@ -7,7 +7,7 @@ tools to manage Codespaces and the agents running inside them.
 ## Prerequisites
 
 - A current GitHub Copilot CLI release with plugin extension support.
-- Node.js 22.18 or later.
+- Node.js 22.18 or later for development and building from source.
 - GitHub CLI with the `ado-codespaces` extension installed and authenticated.
 - `gh ado-codespaces agent serve` must be available in the shell where Copilot
   starts.
@@ -64,6 +64,7 @@ SDK shutdown event and does not register permission-gated session hooks.
 ```sh
 cd plugins/ado-codespaces/extensions/ado-codespaces
 npm install
+npm run build
 npm run format:check
 npm run lint
 npm run typecheck
@@ -71,7 +72,9 @@ npm test
 ```
 
 Copilot CLI injects its bundled `@github/copilot-sdk` when it loads the
-extension. The package dependency pins the SDK for local development and tests.
+extension. The committed `dist/` bundle includes other runtime dependencies;
+plugin users do not need `npm install` or a build. Run the build in a source
+checkout after changing the extension and commit the bundle and manifest.
 
 ## Resources
 

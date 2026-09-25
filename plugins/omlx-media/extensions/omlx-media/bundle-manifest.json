@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "inputs": {
+    "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
+    "package-lock.json": "557219d84ff6d7ac1f9919fd746b971152f5f53527b2389ebacbb907e80bc996",
+    "package.json": "a58fbf44100d54469b037d7dd2b84e019601b72d3e3c8ba1796f32558f636ffc",
+    "src/audio-tools.ts": "17bf4f4bbb1adb7e91585927c328afeceafb98dea6db10da7adbf5ffff8dbeaa",
+    "src/domain.ts": "74383c2fc757e4d129596cd2c450597fd7024635009d576772c37bfc0c74a01c",
+    "src/execute-audio.ts": "6208e84debd0817d35ebaed6b5c438d6b2295670fab8d1c62dd0fa2090899890",
+    "src/execute-image.ts": "aa31fc2eb417f450859c3615e4ad10f5a7484621ac3040f2109fd79a8184f4ed",
+    "src/extension.ts": "b4117607670c5ec525b77759a6b82c198be0f46e0850bdf50d7f4c715542e8b9",
+    "src/image-tool.ts": "06f8d8e5d8f5badd3e5a18d67a45e2f475fe22a6f55a5753b5ca53333987cf49",
+    "src/omlx-client.ts": "e92cfba6a31e70a9245021acd0759ac79412a3158ddead1eee8a82c10c3900ec",
+    "src/workspace-artifacts.ts": "46e5a8245087a368be28e50b7f7dac07108e3ee9c3229e40b3e665d4ef9a892e",
+    "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
+  },
+  "outputs": {
+    "dist/extension.mjs": "2c60ddea3a4f3338684a167893cd53ae0fe3b37539ca395f7789aac7e8af38c3"
+  }
+}
