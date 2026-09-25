@@ -96,7 +96,7 @@ async function usesEffect(file, cwd) {
   }
 }
 
-function introducedLine(diagnostic, touched, sourceBytes) {
+function introducedLine(diagnostic, touched, deletionAnchors, sourceBytes) {
   for (const label of diagnostic.labels ?? []) {
     const span = label.span;
     const line = span?.line;
@@ -114,9 +114,9 @@ function introducedLine(diagnostic, touched, sourceBytes) {
     }
 
     if (diagnostic.code === "anti-slop(require-readable-spacing)") {
-      if (touched.has(line - 1)) return line - 1;
-
-      if (touched.has(line + 1)) return line + 1;
+      for (const adjacent of [line - 1, line, line + 1]) {
+        if (touched.has(adjacent) || deletionAnchors.has(adjacent)) return adjacent;
+      }
     }
   }
 
@@ -159,17 +159,22 @@ export async function reviewEdit(input, { lint = lintFile } = {}) {
 
     const relative = path.relative(cwd, file);
     const touched = new Set();
+    const deletionAnchors = new Set();
 
     for (const change of entries) {
-      for (const line of projectedEdit(change, text, "post").touched) touched.add(line);
+      const positions = projectedEdit(change, text, "post");
+
+      for (const line of positions.touched) touched.add(line);
+
+      for (const line of positions.deletionAnchors) deletionAnchors.add(line);
     }
 
-    if (touched.size === 0) continue;
+    if (touched.size === 0 && deletionAnchors.size === 0) continue;
 
     const sourceBytes = Buffer.from(text);
 
     for (const diagnostic of await lint(file, cwd, { effect: await usesEffect(file, cwd) })) {
-      const line = introducedLine(diagnostic, touched, sourceBytes);
+      const line = introducedLine(diagnostic, touched, deletionAnchors, sourceBytes);
 
       if (line === null) continue;
       const rule = diagnostic.code;

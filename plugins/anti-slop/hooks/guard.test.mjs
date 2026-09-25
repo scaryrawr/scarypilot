@@ -195,6 +195,30 @@ describe("anti-slop preToolUse guard", () => {
     assert.equal(result.permissionDecision, "deny");
   });
 
+  it("blocks executable code even when the same line already exists inside a comment", async () => {
+    const cwd = await workspace();
+    const before = "/*\ntype Json = unknown;\n*/";
+    await mkdir(path.join(cwd, "src"), { recursive: true });
+    await writeFile(path.join(cwd, "src/types.ts"), `${before}\n`);
+
+    const result = await guard(event(cwd, "edit", {
+      path: "src/types.ts",
+      old_str: before,
+      new_str: `${before}\ntype Json = unknown;`,
+    }));
+
+    assert.equal(result.permissionDecision, "deny");
+    assert.match(result.permissionDecisionReason, /unknown-type-alias/);
+
+    const moved = await guard(event(cwd, "edit", {
+      path: "src/types.ts",
+      old_str: before,
+      new_str: "type Json = unknown;",
+    }));
+
+    assert.equal(moved.permissionDecision, "deny");
+  });
+
   it("does not inspect files through directory symlinks", async () => {
     const cwd = await workspace();
     const outside = await workspace();

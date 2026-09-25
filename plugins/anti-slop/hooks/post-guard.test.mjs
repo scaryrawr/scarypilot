@@ -150,6 +150,58 @@ describe("anti-slop postToolUse advisory", () => {
     assert.doesNotMatch(result.additionalContext, /legacy|duplicates\.ts:2/);
   });
 
+  it("reports spacing after deleting a blank line without treating old code as added", async () => {
+    const cwd = await workspace();
+    await source(cwd, "src/spacing.ts", "const result = 1;\nreturn result;\n");
+
+    const result = await reviewWithLint(event(cwd, "edit", {
+      path: "src/spacing.ts",
+      old_str: "const result = 1;\n\nreturn result;",
+      new_str: "const result = 1;\nreturn result;",
+    }), {
+      lint: async () => [
+        {
+          code: "anti-slop(require-readable-spacing)",
+          message: "Expected blank line before this statement.",
+          labels: [{ span: { line: 2 } }],
+        },
+        {
+          code: "anti-slop(no-unknown-returns)",
+          message: "Existing issue unrelated to the deletion",
+          labels: [{ span: { line: 2 } }],
+        },
+      ],
+    });
+
+    assert.match(result.additionalContext, /require-readable-spacing/);
+    assert.doesNotMatch(result.additionalContext, /no-unknown-returns/);
+  });
+
+  it("reports spacing after a removal-only patch hunk", async () => {
+    const cwd = await workspace();
+    await source(cwd, "src/spacing.ts", "const result = 1;\nreturn result;\n");
+
+    const patch = [
+      "*** Begin Patch",
+      "*** Update File: src/spacing.ts",
+      "@@",
+      " const result = 1;",
+      "-",
+      " return result;",
+      "*** End Patch",
+    ].join("\n");
+
+    const result = await reviewWithLint(event(cwd, "apply_patch", { patch }), {
+      lint: async () => [{
+        code: "anti-slop(require-readable-spacing)",
+        message: "Expected blank line before this statement.",
+        labels: [{ span: { line: 2 } }],
+      }],
+    });
+
+    assert.match(result.additionalContext, /require-readable-spacing/);
+  });
+
   it("does not inspect a source file through a symlinked directory", async () => {
     const cwd = await workspace();
     const outside = await workspace();

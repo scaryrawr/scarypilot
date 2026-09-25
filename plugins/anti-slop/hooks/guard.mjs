@@ -11,26 +11,6 @@ function argumentFields(args) {
   return args && typeof args === "object" ? Object.keys(args).join(", ") : typeof args;
 }
 
-function addedLines(before, after) {
-  const existing = new Map();
-
-  for (const line of before.split(/\r?\n/)) {
-    const key = line.trim();
-
-    existing.set(key, (existing.get(key) ?? 0) + 1);
-  }
-
-  return after.split(/\r?\n/).filter((line) => {
-    const key = line.trim();
-    const count = existing.get(key) ?? 0;
-
-    if (count === 0) return true;
-    existing.set(key, count - 1);
-
-    return false;
-  });
-}
-
 function patchChanges(patch) {
   const changes = [];
   let current;
@@ -135,19 +115,77 @@ function locate(lines, fragment) {
 }
 
 function editedIndices(before, after) {
-  const added = addedLines(before.join("\n"), after.join("\n"));
-  const counts = new Map();
+  const original = before.map((line) => line.trim());
+  const result = after.map((line) => line.trim());
+  let prefix = 0;
 
-  for (const line of added) counts.set(line.trim(), (counts.get(line.trim()) ?? 0) + 1);
+  while (prefix < original.length && prefix < result.length &&
+    original[prefix] === result[prefix]) prefix++;
 
-  return after.flatMap((line, index) => {
-    const count = counts.get(line.trim()) ?? 0;
+  let oldEnd = original.length;
+  let newEnd = result.length;
 
-    if (count === 0 || !line.trim()) return [];
-    counts.set(line.trim(), count - 1);
+  while (oldEnd > prefix && newEnd > prefix && original[oldEnd - 1] === result[newEnd - 1]) {
+    oldEnd--;
+    newEnd--;
+  }
 
-    return [index];
-  });
+  const oldLength = oldEnd - prefix;
+  const newLength = newEnd - prefix;
+
+  if (oldLength * newLength > 1_000_000) {
+    throw new Error("edit is too large to locate changed lines precisely");
+  }
+
+  const scores = Array.from({ length: oldLength + 1 }, () => new Uint32Array(newLength + 1));
+
+  for (let old = oldLength - 1; old >= 0; old--) {
+    for (let next = newLength - 1; next >= 0; next--) {
+      scores[old][next] = original[prefix + old] === result[prefix + next]
+        ? scores[old + 1][next + 1] + 1
+        : Math.max(scores[old + 1][next], scores[old][next + 1]);
+    }
+  }
+
+  const additions = [];
+  const removals = [];
+  let old = 0;
+  let next = 0;
+
+  while (old < oldLength || next < newLength) {
+    if (old < oldLength && next < newLength &&
+      original[prefix + old] === result[prefix + next]) {
+      old++;
+      next++;
+    } else if (old < oldLength &&
+      (next === newLength || scores[old + 1][next] >= scores[old][next + 1])) {
+      removals.push({
+        text: original[prefix + old],
+        anchor: Math.min(prefix + next, Math.max(result.length - 1, 0)),
+      });
+      old++;
+    } else {
+      additions.push({ text: result[prefix + next], index: prefix + next });
+      next++;
+    }
+  }
+
+  const moved = new Set();
+  const added = [];
+
+  for (const addition of additions) {
+    const match = removals.findIndex((removal, index) =>
+      !moved.has(index) && removal.text === addition.text
+    );
+
+    if (match >= 0) moved.add(match);
+    else if (addition.text) added.push(addition.index);
+  }
+
+  return {
+    added,
+    anchors: removals.flatMap((removal, index) => moved.has(index) ? [] : [removal.anchor]),
+  };
 }
 
 export function projectedEdit(change, text, phase) {
@@ -157,12 +195,14 @@ export function projectedEdit(change, text, phase) {
     return {
       text: result,
       touched: new Set(result.split(/\r?\n/).map((_, index) => index + 1)),
+      deletionAnchors: new Set(),
     };
   }
 
   if (change.hunks) {
     let lines = text.split(/\r?\n/);
     const touched = new Set();
+    const deletionAnchors = new Set();
 
     for (const hunk of change.hunks) {
       const before = hunk.filter((row) => row.kind !== "+").map((row) => row.text);
@@ -170,37 +210,30 @@ export function projectedEdit(change, text, phase) {
       const source = phase === "pre" ? before : after;
       const at = locate(lines, source);
 
-      const added = new Set(editedIndices(
-        hunk.filter((row) => row.kind === "-").map((row) => row.text),
-        hunk.filter((row) => row.kind === "+").map((row) => row.text),
-      ));
+      const edits = editedIndices(before, after);
 
       if (phase === "pre") {
         const shift = after.length - before.length;
 
-        for (const line of [...touched]) {
-          if (line <= at + before.length) continue;
-          touched.delete(line);
-          touched.add(line + shift);
+        for (const set of [touched, deletionAnchors]) {
+          for (const line of [...set]) {
+            if (line <= at + before.length) continue;
+            set.delete(line);
+            set.add(line + shift);
+          }
         }
       }
 
-      let plusIndex = 0;
-      let resultIndex = 0;
-
-      for (const row of hunk) {
-        if (row.kind === "-") continue;
-
-        if (row.kind === "+" && added.has(plusIndex)) touched.add(at + resultIndex + 1);
-
-        if (row.kind === "+") plusIndex++;
-        resultIndex++;
+      for (const index of edits.anchors) {
+        deletionAnchors.add(at + index + 1);
       }
+
+      for (const index of edits.added) touched.add(at + index + 1);
 
       if (phase === "pre") lines.splice(at, before.length, ...after);
     }
 
-    return { text: lines.join("\n"), touched };
+    return { text: lines.join("\n"), touched, deletionAnchors };
   }
 
   const before = change.before;
@@ -217,12 +250,14 @@ export function projectedEdit(change, text, phase) {
 
   const line = text.slice(0, start).split("\n").length;
 
-  const touched = new Set(editedIndices(before.split(/\r?\n/), after.split(/\r?\n/))
-    .map((index) => line + index));
+  const edits = editedIndices(before.split(/\r?\n/), after.split(/\r?\n/));
+  const touched = new Set(edits.added.map((index) => line + index));
+  const deletionAnchors = new Set(edits.anchors.map((index) => line + index));
 
   return {
     text: phase === "pre" ? text.slice(0, start) + after + text.slice(start + before.length) : text,
     touched,
+    deletionAnchors,
   };
 }
 
@@ -358,8 +393,29 @@ export async function guard(input) {
 
     if (change.created && isGeneratedSource(text)) continue;
 
-    findings.push(...scanText(maskNonCode(text), path.relative(cwd, file))
-      .filter((finding) => BLOCKED_PATTERNS.has(finding.pattern) && touched.has(finding.line)));
+    const relative = path.relative(cwd, file);
+    const previous = new Map();
+
+    if (!change.created) {
+      for (const finding of scanText(maskNonCode(original), relative)) {
+        if (!BLOCKED_PATTERNS.has(finding.pattern)) continue;
+        const key = `${finding.pattern}:${finding.excerpt}`;
+        previous.set(key, (previous.get(key) ?? 0) + 1);
+      }
+    }
+
+    const candidates = scanText(maskNonCode(text), relative)
+      .filter((finding) => BLOCKED_PATTERNS.has(finding.pattern));
+
+    candidates.sort((left, right) => Number(touched.has(left.line)) - Number(touched.has(right.line)));
+
+    for (const finding of candidates) {
+      const key = `${finding.pattern}:${finding.excerpt}`;
+      const count = previous.get(key) ?? 0;
+
+      if (count > 0) previous.set(key, count - 1);
+      else findings.push(finding);
+    }
   }
 
   if (findings.length === 0) return {};
