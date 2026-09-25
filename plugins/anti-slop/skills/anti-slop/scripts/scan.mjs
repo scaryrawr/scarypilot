@@ -232,6 +232,25 @@ export function isScannableFile(filePath, cwd) {
   return true;
 }
 
+export async function isSafeWorkspaceFile(filePath, cwd) {
+  if (!isScannableFile(filePath, cwd)) return false;
+
+  const relative = path.relative(cwd, filePath);
+  let current = cwd;
+
+  for (const part of relative.split(path.sep)) {
+    current = path.join(current, part);
+
+    try {
+      if ((await lstat(current)).isSymbolicLink()) return false;
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+  }
+
+  return true;
+}
+
 function shouldIgnoreDirectory(directory, cwd, ignoredDirectories) {
   const name = path.basename(directory);
 

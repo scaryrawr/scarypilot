@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -62,6 +62,9 @@ describe("anti-slop preToolUse guard", () => {
 
   it("checks only newly introduced lines in patch updates and ignores deleted files", async () => {
     const cwd = await workspace();
+    await mkdir(path.join(cwd, "src"), { recursive: true });
+    await writeFile(path.join(cwd, "src/old.ts"),
+      "const existing = data as unknown as Existing;\nconst removed = data as unknown as Old;\n");
 
     const patch = [
       "*** Begin Patch",
@@ -87,12 +90,16 @@ describe("anti-slop preToolUse guard", () => {
   it("accepts patches that only remove slop", async () => {
     const cwd = await workspace();
     const patch = "*** Begin Patch\n*** Update File: src/old.ts\n@@\n-const x = value as unknown as Result;\n+const x = parse(value);\n*** End Patch";
+    await mkdir(path.join(cwd, "src"), { recursive: true });
+    await writeFile(path.join(cwd, "src/old.ts"), "const x = value as unknown as Result;\n");
 
     assert.deepEqual(await guard(event(cwd, "apply_patch", patch)), {});
   });
 
   it("allows whitespace-only patch edits of existing findings", async () => {
     const cwd = await workspace();
+    await mkdir(path.join(cwd, "src"), { recursive: true });
+    await writeFile(path.join(cwd, "src/old.ts"), "const x = value as unknown as Result;\n");
 
     const patch = [
       "*** Begin Patch",
@@ -109,6 +116,8 @@ describe("anti-slop preToolUse guard", () => {
   it("checks only added replacement lines, not existing or moved lines", async () => {
     const cwd = await workspace();
     const oldString = "const old = x as unknown as Old;\nconst safe = 1;";
+    await mkdir(path.join(cwd, "src"), { recursive: true });
+    await writeFile(path.join(cwd, "src/old.ts"), oldString);
 
     assert.deepEqual(await guard(event(cwd, "edit", {
       filePath: "src/old.ts",
@@ -155,6 +164,50 @@ describe("anti-slop preToolUse guard", () => {
     assert.deepEqual(await guard(event(cwd, "create", {
       path: path.join(cwd, "..", "outside.ts"),
       content: bad,
+    })), {});
+  });
+
+  it("uses surrounding lexical context, masking regex literals and scanning template expressions", async () => {
+    const cwd = await workspace();
+    await mkdir(path.join(cwd, "src"), { recursive: true });
+    await writeFile(path.join(cwd, "src/comment.ts"), "/* start\n");
+    await writeFile(path.join(cwd, "src/regex.ts"), "const matcher = /old/;\n");
+    await writeFile(path.join(cwd, "src/template.ts"), "const text = `${old}`;\n");
+
+    assert.deepEqual(await guard(event(cwd, "edit", {
+      path: "src/comment.ts", old_str: "/* start\n",
+      new_str: "/* start\ntype Json = unknown;\n",
+    })), {});
+
+    assert.deepEqual(await guard(event(cwd, "edit", {
+      path: "src/regex.ts", old_str: "/old/", new_str: "/as unknown as Result/",
+    })), {});
+
+    assert.deepEqual(await guard(event(cwd, "create", {
+      path: "src/mixed.ts",
+      content: "const emoji = '🎃';\nconst regex = /[as unknown as Result]/;\n",
+    })), {});
+
+    const result = await guard(event(cwd, "edit", {
+      path: "src/template.ts", old_str: "${old}", new_str: "${value as unknown as Result}",
+    }));
+
+    assert.equal(result.permissionDecision, "deny");
+  });
+
+  it("does not inspect files through directory symlinks", async () => {
+    const cwd = await workspace();
+    const outside = await workspace();
+    await symlink(outside, path.join(cwd, "link"), "dir");
+    await writeFile(path.join(outside, "file.ts"), "const value = 1;");
+
+    assert.deepEqual(await guard(event(cwd, "edit", {
+      path: "link/file.ts", old_str: "const value = 1;",
+      new_str: "const value = x as unknown as Result;",
+    })), {});
+    assert.deepEqual(await guard(event(cwd, "create", {
+      path: "link/new.ts",
+      file_text: "const value = x as unknown as Result;",
     })), {});
   });
 

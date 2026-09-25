@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -119,6 +119,54 @@ describe("anti-slop postToolUse advisory", () => {
     }));
 
     assert.deepEqual(result, {});
+  });
+
+  it("does not flag a duplicate legacy line when only its other occurrence was added", async () => {
+    const cwd = await workspace();
+
+    const text = [
+      "function first() {",
+      "  return result;",
+      "}",
+      "function second() {",
+      "  // marker",
+      "  return result;",
+      "}",
+    ].join("\n");
+
+    await source(cwd, "src/duplicates.ts", text);
+
+    const result = await reviewWithLint(event(cwd, "edit", {
+      path: "src/duplicates.ts", old_str: "  // marker",
+      new_str: "  // marker\n  return result;",
+    }), {
+      lint: async () => [
+        { code: "anti-slop(test)", message: "legacy", labels: [{ span: { line: 2 } }] },
+        { code: "anti-slop(test)", message: "new", labels: [{ span: { line: 6 } }] },
+      ],
+    });
+
+    assert.match(result.additionalContext, /src\/duplicates\.ts:6 anti-slop\(test\): new/);
+    assert.doesNotMatch(result.additionalContext, /legacy|duplicates\.ts:2/);
+  });
+
+  it("does not inspect a source file through a symlinked directory", async () => {
+    const cwd = await workspace();
+    const outside = await workspace();
+    await symlink(outside, path.join(cwd, "link"), "dir");
+    await writeFile(path.join(outside, "guard.ts"),
+      "function isRecord(x: unknown): x is Record<string, unknown> { return true; }");
+
+    assert.deepEqual(await reviewEdit(event(cwd, "create", {
+      path: "link/guard.ts",
+      file_text: "function isRecord(x: unknown): x is Record<string, unknown> { return true; }",
+    })), {});
+    await writeFile(path.join(outside, "new.ts"),
+      "function isRecord(x: unknown): x is Record<string, unknown> { return true; }");
+    assert.deepEqual(await reviewEdit(event(cwd, "create", {
+      path: "link/new.ts",
+      file_text: "function isRecord(x: unknown): x is Record<string, unknown> { return true; }",
+    })), {});
   });
 
   it("advises on new helpers in an edited file with surrounding context", async () => {

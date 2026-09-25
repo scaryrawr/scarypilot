@@ -3,8 +3,8 @@
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { isGeneratedSource, isScannableFile } from "../skills/anti-slop/scripts/scan.mjs";
-import { maskNonCode, proposedChanges } from "./guard.mjs";
+import { isGeneratedSource, isSafeWorkspaceFile } from "../skills/anti-slop/scripts/scan.mjs";
+import { maskNonCode, projectedEdit, proposedChanges } from "./guard.mjs";
 import { lintFile } from "./oxlint-runtime.mjs";
 
 const GENERIC_RECORD = String.raw`Record\s*<\s*(?:string|PropertyKey)\s*,\s*(?:unknown|any)\s*>`;
@@ -24,17 +24,19 @@ function lineNumber(text, offset) {
   return text.slice(0, offset).split("\n").length;
 }
 
-function recordGuardCandidates(text, changedLines) {
+function recordGuardCandidates(text, touched) {
   const code = maskNonCode(text);
-  const added = new Set(changedLines.map((line) => line.trim()).filter(Boolean));
   const candidates = [];
 
   function wasAdded(start, end) {
-    const firstLine = text.lastIndexOf("\n", start - 1) + 1;
-    const lastLine = text.indexOf("\n", end);
-    const span = text.slice(firstLine, lastLine === -1 ? text.length : lastLine);
+    const first = lineNumber(text, start);
+    const last = lineNumber(text, end);
 
-    return span.split(/\r?\n/).some((line) => added.has(line.trim()));
+    for (let line = first; line <= last; line++) {
+      if (touched.has(line)) return true;
+    }
+
+    return false;
   }
 
   for (const match of code.matchAll(RECORD_PREDICATE)) {
@@ -94,17 +96,6 @@ async function usesEffect(file, cwd) {
   }
 }
 
-function touchedLines(text, addedLines) {
-  const added = new Set(addedLines.map((line) => line.trim()).filter(Boolean));
-  const touched = new Set();
-
-  for (const [index, line] of text.split(/\r?\n/).entries()) {
-    if (added.has(line.trim())) touched.add(index + 1);
-  }
-
-  return touched;
-}
-
 function introducedLine(diagnostic, touched, sourceBytes) {
   for (const label of diagnostic.labels ?? []) {
     const span = label.span;
@@ -148,18 +139,16 @@ export async function reviewEdit(input, { lint = lintFile } = {}) {
   const files = new Map();
 
   for (const change of changes) {
-    if (change.lines.length === 0) continue;
-
     const file = path.resolve(cwd, change.file);
 
-    if (!isScannableFile(file, cwd)) continue;
+    if (!await isSafeWorkspaceFile(file, cwd)) continue;
 
-    const lines = files.get(file) ?? [];
-    lines.push(...change.lines);
-    files.set(file, lines);
+    const entries = files.get(file) ?? [];
+    entries.push(change);
+    files.set(file, entries);
   }
 
-  for (const [file, lines] of files) {
+  for (const [file, entries] of files) {
     const metadata = await lstat(file);
 
     if (!metadata.isFile() || metadata.isSymbolicLink()) continue;
@@ -169,7 +158,14 @@ export async function reviewEdit(input, { lint = lintFile } = {}) {
     if (isGeneratedSource(text)) continue;
 
     const relative = path.relative(cwd, file);
-    const touched = touchedLines(text, lines);
+    const touched = new Set();
+
+    for (const change of entries) {
+      for (const line of projectedEdit(change, text, "post").touched) touched.add(line);
+    }
+
+    if (touched.size === 0) continue;
+
     const sourceBytes = Buffer.from(text);
 
     for (const diagnostic of await lint(file, cwd, { effect: await usesEffect(file, cwd) })) {
@@ -181,8 +177,10 @@ export async function reviewEdit(input, { lint = lintFile } = {}) {
         `${relative}:${line} ${rule}: ${diagnostic.message}`);
     }
 
-    if (lines.some((line) => POSSIBLE_GUARD.test(line))) {
-      for (const candidate of recordGuardCandidates(text, lines)) {
+    const sourceLines = text.split(/\r?\n/);
+
+    if ([...touched].some((line) => POSSIBLE_GUARD.test(sourceLines[line - 1] ?? ""))) {
+      for (const candidate of recordGuardCandidates(text, touched)) {
         const location = `${relative}:${candidate.line}`;
         findings.set(`${location}:record-guard`, `${location} ${candidate.kind}: ` +
           "use a named domain contract for internal values, or parse at a real I/O boundary.");
