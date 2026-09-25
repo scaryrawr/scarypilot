@@ -2,22 +2,20 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "d8d30fff80d3ebe61a3c5cc16219096b87e8901b1544685fa4ec2fdccf0d814d",
-    "package.json": "839f079050becfc4294af0b25edd53967bfdf9a39cf3551b5f26c685a15c9ebd",
+    "package-lock.json": "9e8478416ff3dc9d9de8d4fbc52eea09fb4d6fbbcc61107a8397fdddba11e04b",
+    "package.json": "9f7f6644e8698f411e63dcf61a235f0945f37cbb01ac66b981189a002203d8dd",
     "src/extension.ts": "acfbaf1dcf41cf99b178370211ace791bd35ba8e36e9f26554d8362946ca838e",
     "src/local-providers.ts": "1b7e6c01d7195df8a7c3d91cee66e41698f1486b7354c86340bde331d131db6e",
-    "src/model-tools.ts": "a6325b29441a695415d281659292c604ae87307d1609983a99d4fb1f2f0f9808",
     "src/providers/geniex.ts": "8ee5be695037cccf8e5cb30a9bbef4956d1c61bf2b6f16dba5cfbeb9bf0a0442",
     "src/providers/lmstudio.ts": "301c9fc9a8c891fea64f925cc0eb6e4e5d801601f362fc6c4c9d789553b7265b",
     "src/providers/ollama.ts": "82391987ac92f3a7c1470d07dc1042dcd42ec8cce2fbb4bc71d9d697196a8ffb",
     "src/providers/omlx.ts": "08b6ee9b51954444fae4231c34c2f5e1d60510f4d5a486e1f2cf49dbeae95f8a",
     "src/providers/osaurus.ts": "745e115ba63c7d5c4babd2f0f4e74ee1fe29ceaaafd1c9d891c15d77e9256ab0",
     "src/providers/types.ts": "0b908c42ab05294df73c91c5ac4c5ad20c2f42b1acfc293ffdcf0b2ded0c6730",
-    "src/register.ts": "57e0c40800aec148c128fb13d99cce09c0cd33bce22fc41ff7ba574349fc8307",
-    "src/system-message.ts": "357ec383b5add99d5a4e4f92fa9e629d8608b873bf051ae1dec2fcc0d66e1f32",
+    "src/register.ts": "efb99d63e80281ff9f559d52be4268618a037efb20ac9ae88b801d2ca6ab445d",
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
   },
   "outputs": {
-    "dist/extension.mjs": "80e149b01093a3e6f0fb4e814e655f700618a750eab005e96e9fd118a818f7a0"
+    "dist/extension.mjs": "d816e9997ec9187519170cad068d6969f6c4c94f38fa18e7c439ef01c32d246d"
   }
 }

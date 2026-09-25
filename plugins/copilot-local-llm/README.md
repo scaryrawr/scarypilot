@@ -9,18 +9,9 @@ CLI does not replay additive provider registrations. Models remain available
 through `/model` as `provider/model-id` (for example,
 `omlx/Qwen3.5-9B-mxfp4`).
 
-The plugin also replaces Copilot's verbose generic coding guidance with a
-compact prompt to reduce prefill time for local models. This session-wide
-customization also applies to Copilot-hosted models selected in the same
-session. Copilot's safety, project, runtime, and environment instructions remain
-enabled. Tools remain available through their schemas with compact usage
-guidance.
-
-When a discovered local model is selected, the plugin preserves the current
-tool catalog, including extension tools registered later, and disables only
-subagent and factory orchestration tools because local inference generally
-cannot serve concurrent agent workloads effectively. Switching back to a
-Copilot-hosted model removes those exclusions.
+The plugin does not modify Copilot's system prompt or available tools. For a
+local-model launcher with minimal prompts and tooling, see
+[`vivi`](https://github.com/scaryrawr/vivi).
 
 ## Prerequisites
 
