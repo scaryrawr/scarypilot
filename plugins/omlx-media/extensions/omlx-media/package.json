@@ -1,6 +1,6 @@
 {
   "name": "omlx-media",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "Generate images and speech or transcribe audio through OMLX.",
   "type": "module",

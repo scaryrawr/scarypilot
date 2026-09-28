@@ -2,8 +2,8 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "557219d84ff6d7ac1f9919fd746b971152f5f53527b2389ebacbb907e80bc996",
-    "package.json": "a58fbf44100d54469b037d7dd2b84e019601b72d3e3c8ba1796f32558f636ffc",
+    "package-lock.json": "3d670a633cec4451c698a6ba2d532ca451954da116ef7ea2e744ea908c92929a",
+    "package.json": "59a9dfa45edc62491d48537fbdd63bed34e0cf257ed3ea731c1a396b6ecbc6fa",
     "src/audio-tools.ts": "17bf4f4bbb1adb7e91585927c328afeceafb98dea6db10da7adbf5ffff8dbeaa",
     "src/domain.ts": "74383c2fc757e4d129596cd2c450597fd7024635009d576772c37bfc0c74a01c",
     "src/execute-audio.ts": "6208e84debd0817d35ebaed6b5c438d6b2295670fab8d1c62dd0fa2090899890",
