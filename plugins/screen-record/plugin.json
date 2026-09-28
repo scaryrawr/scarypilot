@@ -1,7 +1,8 @@
 {
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "screen-record",
   "description": "Record agent-driven demos and edit them into polished videos with FFmpeg.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "author": {
     "name": "Mike Wallio",
     "url": "https://github.com/scaryrawr"
