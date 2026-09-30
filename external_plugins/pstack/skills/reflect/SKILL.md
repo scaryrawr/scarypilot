@@ -19,7 +19,7 @@ Use the active conversation already in context. When `session_store_sql` is avai
 
 ### 2. Spawn three reviewers in parallel
 
-One message, three `Task` calls with `agent_type: "general-purpose"`. Use configured models when present and omit `model` for `auto`. Each prompt forbids file writes; the parent applies edits.
+One message, three `Task` calls with `agent_type: "general-purpose"`. Set `model` from the role line in `instructions/pstack-models.instructions.md` in Copilot home. If the configuration or the line is missing, or the value is `auto` or `inherit-parent`, omit `model`. If the Task tool rejects a slug, omit `model` and say so. Each prompt forbids file writes; the parent applies edits.
 
 | Lens | `model` | Prompt template |
 |---|---|---|

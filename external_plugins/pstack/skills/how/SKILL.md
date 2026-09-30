@@ -18,6 +18,8 @@ When in doubt, take the simple path.
 
 ## Step 2a. Explore (complex questions only)
 
+Each spawn below names a role line in the `pstack-models.instructions.md` configuration (Copilot home `instructions/`) and its default. Use that line's value. If the configuration or the line is missing, omit `model`. Omit `model` when the value is `auto` or `inherit-parent`. If the Task tool rejects a slug, omit `model` and say so.
+
 Decompose the question into 2 to 4 exploration angles, each a distinct slice of the subsystem. Spawn all explorers in a single message:
 
 - `agent_type`: `explore`

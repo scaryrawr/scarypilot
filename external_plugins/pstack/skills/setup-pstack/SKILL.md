@@ -15,11 +15,11 @@ Read the current Task tool schema or another first-party Copilot model listing w
 
 ### 2. Load current state
 
-Read `instructions/pstack-models.instructions.md` from Copilot home when it exists. Otherwise start every scalar role at `auto` and each panel at a single `auto` entry.
+Read `instructions/pstack-models.instructions.md` from Copilot home when it exists. Otherwise start every scalar role at `auto` and each panel at a single `auto` entry. A line whose role is not in step 5, such as `how critics`, is from a retired role. Drop it.
 
 ### 3. Map and confirm
 
-Show every role with its current value. Mark unavailable IDs. Ask one focused `ask_user` question at a time when a choice is needed. Offer only detected model IDs plus `auto`.
+Show every role with its current value. Mark unavailable IDs. Also list each line step 2 dropped. Ask one focused `ask_user` question at a time when a choice is needed. Offer only detected model IDs plus `auto`.
 
 Panel values are comma-separated lists. One subagent runs per entry, so the list length sets panel size. Recommend models from different families for judgment panels only when those models are available.
 
