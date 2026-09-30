@@ -151,6 +151,15 @@ helpers (and published paired-review findings) include the visible
 `- Generated with AI 🤖` suffix. Direct Azure CLI text posts should include it
 once as well, so readers can distinguish an agent's words from a user's.
 
+Attachment helpers return a ready-to-paste `markdown` field: inline image
+Markdown for screenshots and `<video src="..." controls width="800"></video>`
+for recordings. Agents prefer these embeds in PR descriptions and comments so
+reviewers can see images or play videos without following a download link.
+Browser-playable MP4 is preferred. Other file types remain ordinary links;
+media links are used only when requested or when the target ADO surface cannot
+render the embed. Uploading is separate from updating a description or posting
+a comment.
+
 ## Resources
 
 - [Azure DevOps CLI documentation](https://learn.microsoft.com/azure/devops/cli/)

@@ -56,10 +56,16 @@ The script returns `{ url }`.
 Upload PR attachments with:
 
 ```text
-uv run ./scripts/review-pr.py upload-attachment --org {org-or-url} --project {project} --repository-id {repositoryId} --pull-request-id {prId} --file {absolute_path_to_image}
+uv run ./scripts/review-pr.py upload-attachment --org {org-or-url} --project {project} --repository-id {repositoryId} --pull-request-id {prId} --file {absolute_path_to_media}
 ```
 
-Use `id` and `url` from the JSON result.
+Use `id`, `url`, and `markdown` from the JSON result. Include `markdown` in the
+relevant review comment's `thread-payload --content` outside code fences so images
+and videos render inline. Images use `![filename](url)`; videos use
+`<video src="url" controls width="800"></video>`, not image syntax, a bare URL,
+or a linked thumbnail. Use ordinary links only for non-media attachments, an
+explicit user request, or an observed inline-rendering failure.
+Uploading does not post a comment or change permission to publish findings.
 
 ## Workflow
 

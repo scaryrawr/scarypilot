@@ -1,6 +1,6 @@
 ---
 name: azure-devops
-description: Use for performing Azure DevOps work — privately pair-review or discuss pull requests in the local canvas; create, inspect, review, comment on, vote on, or manage pull requests; find, query, create, update, and link Azure Boards work items (including building WIQL queries); parse and route dev.azure.com or *.visualstudio.com URLs; and upload PNG/image/file attachments to pull requests. Triggers on Azure DevOps / ADO / Azure Boards links or action requests such as "make an ADO PR", "review this Azure DevOps PR without posting", or "find work items assigned to me". Not for general conceptual explanations that do not act on a specific Azure DevOps resource, and not for GitHub, Jira, or other non-Azure-DevOps tools.
+description: Use for performing Azure DevOps work — privately pair-review or discuss pull requests in the local canvas; create, inspect, review, comment on, vote on, or manage pull requests; find, query, create, update, and link Azure Boards work items (including building WIQL queries); parse and route dev.azure.com or *.visualstudio.com URLs; and upload or embed image/video/file attachments in PR descriptions and comments. Triggers on Azure DevOps / ADO / Azure Boards links or action requests such as "make an ADO PR", "review this Azure DevOps PR without posting", or "find work items assigned to me". Not for general conceptual explanations that do not act on a specific Azure DevOps resource, and not for GitHub, Jira, or other non-Azure-DevOps tools.
 allowed-tools: >-
   list_canvas_capabilities
   open_canvas
@@ -78,6 +78,20 @@ repository IDs when a later operation requires project context.
 
 Use `uv run ./scripts/ado-cli.py upload-attachment ...` (or the workflow-specific
 helper's attachment command). Run `--help` for exact flags.
+
+Insert the returned `markdown` into the PR description or comment, outside code
+fences. It embeds images as `![filename](url)` and videos as
+`<video src="url" controls width="800"></video>` so reviewers can view them
+inline. Prefer browser-playable MP4 for recordings; do not use image syntax for
+video or substitute a bare URL, download link, or linked thumbnail.
+
+If the attachment is already uploaded, reuse its URL with the same syntax rather
+than uploading it again. Preserve the existing description/template and unrelated
+comment text, and keep AI attribution once at the end of agent-authored text.
+Use ordinary links for non-media files, when the user explicitly requests links,
+or when inline rendering actually fails on the target ADO surface; explain that
+fallback instead of claiming inline playback. Uploading alone does not publish
+the media in a description or comment, and does not authorize an unrequested post.
 
 ## Organization detection
 
