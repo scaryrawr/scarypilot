@@ -3,12 +3,12 @@
   "upstream": {
     "repository": "https://github.com/cursor/plugins",
     "subtree": "pstack",
-    "reviewedFromCommit": "7366ac128bdf95f45e6734f412b49a4031800169",
-    "integratedCommit": "b0b9c7a0baf8b6aa1d00bf77d4101e577d4ba411",
-    "contentCommit": "b0b9c7a0baf8b6aa1d00bf77d4101e577d4ba411",
-    "version": "0.15.4"
+    "reviewedFromCommit": "b0b9c7a0baf8b6aa1d00bf77d4101e577d4ba411",
+    "integratedCommit": "2eb7ed4613cfc8f098dfe464a23680ea44d84c5e",
+    "contentCommit": "12d587dfb20741cafc376c42c696c5f6e2a64487",
+    "version": "0.15.5"
   },
-  "localVersion": "0.15.4-copilot.6",
+  "localVersion": "0.15.5-copilot.0",
   "requiredSkills": [
     "how",
     "why",

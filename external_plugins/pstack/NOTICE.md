@@ -5,12 +5,12 @@ This plugin is adapted from
 The adaptation originally imported upstream commit
 `46125561306434d8a1d7745d540d8932ab0cd2a2` and had included the compatible
 changes through upstream repository commit
-`b0b9c7a0baf8b6aa1d00bf77d4101e577d4ba411` (pstack version `0.15.4`). The
+`2eb7ed4613cfc8f098dfe464a23680ea44d84c5e` (pstack version `0.15.5`). The
 last commit in that range that changes the `pstack/` subtree is
-`b0b9c7a0baf8b6aa1d00bf77d4101e577d4ba411`.
+`12d587dfb20741cafc376c42c696c5f6e2a64487`.
 
 The reviewed range starts after
-`7366ac128bdf95f45e6734f412b49a4031800169`, the last upstream content commit
+`b0b9c7a0baf8b6aa1d00bf77d4101e577d4ba411`, the last upstream content commit
 included by the previous Copilot adaptation. The machine-readable boundary,
 ownership rules, and exclusions live in [`upstream-sync.json`](./upstream-sync.json).
 
@@ -46,6 +46,13 @@ ScaryPilot changed the integration layer for GitHub Copilot:
 - Added an executable sync checker that validates upstream provenance,
   exclusions, inventory, links, extension registration, and model-callable
   skill metadata.
+- Ported the `0.15.5` model-rule resolution wording (missing configuration or
+  role line omits `model`, `auto`/`inherit-parent` are aliases, rejected slugs
+  fall back to the Task default), the retired-role cleanup in `/setup-pstack`,
+  the autopilot owner's babysit and own-branch `--force-with-lease` rules, and
+  the decision-log run/`start`-row and supersede-don't-edit audit rules. The
+  Cursor model slugs, family-prefix fallbacks, and `swarm workers` lane model
+  placeholder are not carried.
 - Ported the `0.15.2`-`0.15.4` operator-neutral pronoun fix, the swarm skill's
   requirement that workers record verification SHAs and measurement methods
   with a one-retry rule for missing records and an explicit caller-side

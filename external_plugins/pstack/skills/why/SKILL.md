@@ -74,6 +74,8 @@ Source control is always available through git and `gh`. For the other six, clas
 
 Aim for a complete **coverage map**, not a minimal one. Document the null, don't skip the search.
 
+Each spawn below names a role line in the `pstack-models.instructions.md` configuration (Copilot home `instructions/`) and its default. Use that line's value. If the configuration or the line is missing, omit `model`. Omit `model` when the value is `auto` or `inherit-parent`. If the Task tool rejects a slug, omit `model` and say so.
+
 Launch all matching investigators in a single message so they run concurrently. Don't ask one agent to cover multiple MCPs.
 
 Subagent config (each):
