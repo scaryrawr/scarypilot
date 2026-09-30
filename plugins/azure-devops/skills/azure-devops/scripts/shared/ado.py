@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
+import mimetypes
 import shutil
 import subprocess
 import sys
@@ -208,4 +210,26 @@ def upload_pr_attachment(
         body=file_path.read_bytes(),
         headers={"Authorization": f"Bearer {token()}", "Content-Type": "application/octet-stream"},
     )
-    return {"fileName": resolved_file_name, "filePath": str(file_path), "id": payload.get("id"), "url": payload.get("url")}
+    attachment_url = payload.get("url")
+    if not isinstance(attachment_url, str) or not attachment_url:
+        sys.exit("error: attachment upload response did not include a URL")
+    return {
+        "fileName": resolved_file_name,
+        "filePath": str(file_path),
+        "id": payload.get("id"),
+        "url": attachment_url,
+        "markdown": attachment_markdown(resolved_file_name, attachment_url),
+    }
+
+
+def attachment_markdown(file_name: str, url: str) -> str:
+    """Format uploaded media inline and other attachments as download links."""
+    mime_type, encoding = mimetypes.guess_type(file_name)
+    if encoding is None and mime_type and mime_type.startswith("video/"):
+        return f'<video src="{html.escape(url, quote=True)}" controls width="800"></video>'
+    label = " ".join(file_name.splitlines())
+    for character in ("\\", "[", "]", "<", ">"):
+        label = label.replace(character, f"\\{character}")
+    destination = urllib.parse.quote(url, safe=":/?#[]@!$&'*+,;=%")
+    prefix = "!" if encoding is None and mime_type and mime_type.startswith("image/") else ""
+    return f"{prefix}[{label}]({destination})"

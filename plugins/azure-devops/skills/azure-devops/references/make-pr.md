@@ -47,10 +47,18 @@ Use these fields directly:
 Use the helper instead of rebuilding token lookup and binary upload flow inline:
 
 ```text
-uv run ./scripts/make-pr.py upload-attachment --org {org-or-url} --project {project} --repository-id {repositoryId} --pull-request-id {prId} --file {absolute_path_to_image}
+uv run ./scripts/make-pr.py upload-attachment --org {org-or-url} --project {project} --repository-id {repositoryId} --pull-request-id {prId} --file {absolute_path_to_media}
 ```
 
-Use `id`, `url`, `fileName`, and `filePath` from the JSON response.
+Use `id`, `url`, `fileName`, `filePath`, and `markdown` from the JSON response.
+After uploading, insert `markdown` into the existing PR description's relevant
+demo/testing section, preserving every template section and unrelated content.
+Images render inline with `![filename](url)`; videos use
+`<video src="url" controls width="800"></video>`. Do not replace media embeds with
+clickable links unless the user requests links or inline rendering fails.
+Keep embeds outside code fences and the AI attribution once at the end.
+Updating the description is a separate write after uploading; do not stop at
+returning the attachment URL when the user requested media in the description.
 
 ### `create-pr`
 
@@ -74,7 +82,8 @@ Use `--repository {repoName}` instead of `--repository-id` only when the ID is u
 8. Run `discover-template` and reuse `selectedContent` when present.
 9. Create the PR with `create-pr` for template, file, or inline descriptions so the attribution is applied before posting.
 10. If auto-detection fails, use explicit org/project/repository values from `preflight.parsedRemote` or user-supplied inputs.
-11. Upload attachments only after PR creation and only when needed.
+11. Upload attachments only after PR creation and only when needed, then update
+    the description with the returned `markdown` when media was requested there.
 
 ## PR content rules
 

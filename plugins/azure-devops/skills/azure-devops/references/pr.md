@@ -58,6 +58,22 @@ az devops invoke --area git --resource pullRequestThreads --route-parameters pro
 Pass repo-relative Azure paths with `/` separators to `--file-path`; the helper also normalizes Windows `\` separators. If you pass `--out-file auto`, the helper writes to the OS temp directory and returns `{ outFile, payload }`; otherwise it returns the payload directly. Use a top-level thread only when the user explicitly requests a standalone summary or when the comment cannot be anchored to a file.
 The helper appends `- Generated with AI 🤖` once to agent-authored comments. Pass `--user-authored` only when publishing the user's text verbatim.
 
+## Media in descriptions and comments
+
+Upload requested media with `scripts/ado-cli.py upload-attachment` using the
+resolved PR context, or reuse an already uploaded attachment's URL. Insert the
+returned `markdown` into the description, `thread-payload --content`, or reply
+content. Images use `![filename](url)`; playable videos use
+`<video src="url" controls width="800"></video>`, not image syntax or a download
+link. Keep embeds outside code fences. Prefer inline media unless the user
+requests links or inline rendering actually fails on the target ADO surface.
+
+For description updates, read the current description first, preserve its
+template sections and unrelated content, and keep AI attribution once at the end
+of agent-authored text. Uploading alone does not update the description or post
+a comment; perform the requested write separately and do not create an
+unrequested summary thread merely to share the URL.
+
 ## `reply-and-resolve`
 
 Reply inside an existing review thread and resolve it only after the reply succeeds:

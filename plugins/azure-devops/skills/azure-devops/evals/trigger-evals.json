@@ -80,6 +80,10 @@
     "should_trigger": true
   },
   {
+    "query": "Draft markup to embed an already uploaded MP4 inline in an Azure DevOps PR description and comment. Do not upload or publish anything.",
+    "should_trigger": true
+  },
+  {
     "query": "Open this GitHub pull request and summarize it: https://github.com/octocat/hello/pull/12",
     "should_trigger": false
   },
