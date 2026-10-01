@@ -1102,9 +1102,10 @@ class BackendTests(unittest.TestCase):
     def test_successful_iteration_throttle_defers_before_journaling_unsent_post(self):
         http = Http(response({"value": []}),
                     response({"value": [{"id": 2}]}, headers={"retry-after": "90"}))
-        with self.assertRaises(Deferred) as error:
-            self.publish(self.client(http))
-        self.assertEqual(error.exception.retry_at, 1090)
+        self.assertEqual(self.publish(self.client(http)), {"results": [{
+            "kind": "failed", "findingId": "finding-1",
+            "error": "organization cooldown exceeds foreground wait budget",
+        }]})
         self.assertEqual([call[1] for call in http.calls], ["GET", "GET"])
         with self.state.connect() as db:
             self.assertEqual(db.execute("SELECT count(*) FROM journal").fetchone()[0], 0)
@@ -1112,6 +1113,63 @@ class BackendTests(unittest.TestCase):
         http = Http(response({"value": []}), response({"value": [{"id": 2}]}), response({"id": 82}))
         self.assertEqual(self.publish(self.client(http))["results"][0]["kind"], "published")
         self.assertEqual([call[1] for call in http.calls], ["GET", "GET", "POST"])
+
+    def test_bridge_publication_preserves_confirmed_results_after_post_cooldown(self):
+        from io import BytesIO
+        second = json.loads(json.dumps(FINDING))
+        second["findingId"] = "finding-2"
+        second["payload"]["comments"][0]["content"] = "Second finding."
+        third = json.loads(json.dumps(FINDING))
+        third["findingId"] = "finding-3"
+        third["payload"]["comments"][0]["content"] = "Third finding."
+        findings = [FINDING, second, FINDING, third, second]
+        request = {"operation": "publish", "org": ORG, "project": "project", "repositoryId": "repo",
+                   "pullRequestId": 42, "findings": findings}
+        http = Http(response({"value": []}), response({"value": [{"id": 2}]}),
+                    response({"id": 91}, headers={"retry-after": "90"}))
+        client = self.client(http)
+        stdin = type("Input", (), {"buffer": BytesIO(json.dumps(request).encode())})()
+        stdout, stderr = StringIO(), StringIO()
+        with patch.object(bridge, "PrClient", return_value=client), patch.object(sys, "stdin", stdin), \
+                redirect_stdout(stdout), redirect_stderr(stderr):
+            self.assertEqual(bridge.main(), 0)
+        error = "organization cooldown exceeds foreground wait budget"
+        self.assertEqual(json.loads(stdout.getvalue()), {"results": [
+            {"kind": "published", "findingId": "finding-1", "remoteThreadId": 91},
+            {"kind": "failed", "findingId": "finding-2", "error": error},
+            {"kind": "duplicate", "findingId": "finding-1", "remoteThreadId": 91},
+            {"kind": "failed", "findingId": "finding-3", "error": error},
+            {"kind": "failed", "findingId": "finding-2", "error": error},
+        ]})
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual([call[1] for call in http.calls], ["GET", "GET", "POST"])
+        self.assertEqual(self.clock.sleeps, [])
+        publisher = Publisher(client, SCOPE)
+        self.assertEqual(publisher.journal("finding:finding-1")[0], "confirmed")
+        self.assertIsNone(publisher.journal("finding:finding-2"))
+        self.assertIsNone(publisher.journal("finding:finding-3"))
+        self.clock.now += 91
+        later = Http(response({"value": []}), response({"value": [{"id": 2}]}),
+                     response({"id": 92}), response({"id": 93}))
+        self.assertEqual(self.publish(self.client(later), findings), {"results": [
+            {"kind": "duplicate", "findingId": "finding-1", "remoteThreadId": 91},
+            {"kind": "published", "findingId": "finding-2", "remoteThreadId": 92},
+            {"kind": "duplicate", "findingId": "finding-1", "remoteThreadId": 91},
+            {"kind": "published", "findingId": "finding-3", "remoteThreadId": 93},
+            {"kind": "duplicate", "findingId": "finding-2", "remoteThreadId": 92},
+        ]})
+        self.assertEqual([call[1] for call in later.calls], ["GET", "GET", "POST", "POST"])
+        self.assertEqual([call[2]["comments"][0]["content"].split("\n")[0]
+                          for call in later.calls if call[1] == "POST"], ["Second finding.", "Third finding."])
+
+    def test_publication_thread_read_cooldown_still_defers_before_batch(self):
+        self.state.throttle("example", 1090)
+        http = Http()
+        with self.assertRaises(Deferred) as error:
+            self.publish(self.client(http))
+        self.assertEqual(error.exception.retry_at, 1090)
+        self.assertEqual(http.calls, [])
+        self.assertIsNone(Publisher(self.client(http), SCOPE).journal("finding:finding-1"))
 
     def test_successful_reply_read_throttle_defers_before_journaling_unsent_post(self):
         http = Http(response({"comments": []}, headers={"retry-after": "90"}))

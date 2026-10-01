@@ -116,6 +116,9 @@ side, range, and canonically normalized first comment. Normalization standardize
 Unicode, line endings, trailing line whitespace, and outer whitespace. Retrying
 a publish request therefore adopts a prior remote write instead of creating
 another thread.
+If a cooldown blocks an unsent finding, the batch returns a failure for that
+finding while preserving confirmed publications and duplicates. Unsent findings
+are not journaled and can be submitted in a later explicit publish request.
 An uncertain submission is recorded for reconciliation rather than blindly
 repeated. Separate cooperating plugin processes on the same machine share the
 publication lock and recovery state.

@@ -12,7 +12,7 @@ from functools import wraps
 from typing import Any, Callable, Concatenate, ParamSpec, TypeVar
 
 from .ado import AI_ATTRIBUTION, attribute_ai_text
-from .transport import AdoError, Deferred, Transport, WriteRejected, organization, resolve_organization
+from .transport import AdoError, Transport, WriteRejected, organization, resolve_organization
 
 
 def object_response(value: Any) -> dict[str, Any]:
@@ -527,8 +527,6 @@ class Publisher:
                                          before_send=lambda: self.save(key, "unknown", payload))
                     if not isinstance(created.get("id"), int) or isinstance(created["id"], bool) or created["id"] < 1:
                         raise AdoError("thread response did not include an ID; outcome unknown")
-                except Deferred:
-                    raise
                 except WriteRejected as exc:
                     self.save(key, "rejected", payload, {"status": exc.status})
                     rejected = exc
