@@ -61,6 +61,11 @@ class AttachmentTests(unittest.TestCase):
             f'<video src="{ATTACHMENT_URL}?api-version=7.1&amp;name=&quot;demo&quot;" controls width="800"></video>',
         )
 
+    def test_webp_images_do_not_depend_on_host_mime_registration(self):
+        with patch("shared.ado.mimetypes.guess_type", return_value=(None, None)):
+            for name in ("demo.webp", "demo.WEBP"):
+                self.assertEqual(attachment_markdown(name, ATTACHMENT_URL), f"![{name}]({ATTACHMENT_URL})")
+
     def test_markdown_escapes_filename_and_url_delimiters(self):
         self.assertEqual(
             attachment_markdown("screen[1]\\<test>\n.png", f"{ATTACHMENT_URL}/screen (1).png"),
@@ -68,7 +73,7 @@ class AttachmentTests(unittest.TestCase):
         )
 
     def test_every_upload_command_returns_shared_markup_and_preserves_metadata(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
             path = Path(directory) / "recording.bin"
             path.write_bytes(b"media bytes")
             for script_name in ("ado-cli.py", "make-pr.py", "review-pr.py"):
@@ -100,7 +105,7 @@ class AttachmentTests(unittest.TestCase):
                         self.assertIn(f"/attachments/{file_name}?api-version=7.1", request.call_args.args[0])
 
     def test_upload_uses_local_filename_by_default(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
             path = Path(directory) / "screenshot.png"
             path.write_bytes(b"media bytes")
             with (
@@ -114,7 +119,7 @@ class AttachmentTests(unittest.TestCase):
             self.assertEqual(metadata["markdown"], f"![screenshot.png]({ATTACHMENT_URL})")
 
     def test_missing_attachment_url_is_an_explicit_failure(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
             path = Path(directory) / "demo.mp4"
             path.write_bytes(b"media bytes")
             for url in (None, "", 42):

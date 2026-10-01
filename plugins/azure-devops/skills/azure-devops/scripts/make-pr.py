@@ -20,9 +20,9 @@ from shared.ado import (
     parse_azure_devops_https_url,
     request_json,
     run,
-    token,
     upload_pr_attachment,
 )
+from shared.transport import AdoError, Deferred
 
 
 PR_DESCRIPTION_MAX = 4000
@@ -256,7 +256,7 @@ def create_pr(args: argparse.Namespace) -> None:
         url,
         method="POST",
         body=body,
-        headers={"Authorization": f"Bearer {token()}", "Content-Type": "application/json"},
+        headers={"Content-Type": "application/json"},
     )
     repo = payload.get("repository") or {}
     repo_name = repo.get("name") or repository
@@ -342,4 +342,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Deferred as exc:
+        print(json.dumps({"error": str(exc), "deferred": True, "retryAt": exc.retry_at}), file=sys.stderr)
+        sys.exit(2)
+    except AdoError as exc:
+        sys.exit(f"error: {exc}")

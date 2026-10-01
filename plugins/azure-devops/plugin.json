@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "azure-devops",
   "description": "Create, inspect, and pair-review Azure DevOps pull requests, drive them through completion, and manage Azure Boards work items.",
-  "version": "0.11.1",
+  "version": "0.12.7",
   "author": {
     "name": "Mike Wallio",
     "url": "https://github.com/scaryrawr"

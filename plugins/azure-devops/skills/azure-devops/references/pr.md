@@ -2,6 +2,24 @@
 
 Run these non-interactive helpers with `uv run` from the skill directory using the `./scripts/...` paths shown below. The helpers print JSON to stdout and diagnostics to stderr. Run `uv run ./scripts/ado-pr.py --help` to confirm flags or subcommands.
 
+## `snapshot`
+
+For readiness checks or merge monitoring, retrieve the PR details, reviewers,
+threads, policy evaluations, and current-merge build summary together:
+
+```text
+uv run ./scripts/ado-pr.py snapshot --id {prId} --detect true
+```
+
+If the extension is available, use `azure_devops_pr_snapshot` with the PR URL
+instead. Both routes use the same request owner. Reuse one snapshot within the
+pass rather than repeating each lookup. Refresh after a push and immediately
+before a readiness-dependent write.
+
+Snapshots exhaust collection pages and validate the PR revision before returning.
+A failed or incomplete read does not establish readiness. Surface its error
+instead of treating missing results as successful checks.
+
 ## `context`
 
 Start with the helper script so you have normalized IDs and branch metadata before composing follow-up commands:
@@ -38,7 +56,8 @@ Query pipeline runs for the PR's current synthetic merge commit:
 uv run ./scripts/ado-pr.py list-builds --id {prId} --detect true
 ```
 
-This is separate from `az repos pr policy list`: policy output is not a complete
+For a full readiness pass, use `snapshot` instead of running this separately.
+Policy output is not a complete
 inventory of pipelines triggered for a PR. The helper queries
 `refs/pull/{prId}/merge`, then filters out runs from superseded merge commits.
 Treat nonempty `failed` as a current build failure and nonempty `pending` as work
@@ -85,12 +104,17 @@ uv run ./scripts/ado-pr.py reply-and-resolve --id {prId} --thread-id {threadId} 
 Use `fixed` when code changed, `wontFix` or `byDesign` when the suggestion was considered but intentionally not applied, and `closed` only for a general discussion that is complete. Do not resolve a thread without first leaving a concise reply that records the disposition.
 The helper appends `- Generated with AI 🤖` to agent-authored replies before posting. Pass `--user-authored` only for the user's verbatim reply.
 
+Retry the same helper invocation to resume an interrupted resolution. Do not
+post the reply separately. An uncertain reply submission must be reconciled
+before resolution or another submission. The helper reports unresolved outcomes
+instead of blindly retrying writes.
+
 ## Workflow
 
-1. Resolve PR context with `context`.
-2. Retrieve threads with `list-threads` when you need prior discussion state.
-3. Retrieve current-merge pipeline runs with `list-builds`; do not infer build
-   health only from branch policies.
+1. Retrieve `snapshot` for readiness work, or `context` for a narrow metadata query.
+2. Reuse the snapshot's threads and build summary. Use `list-threads` or
+   `list-builds` only for a standalone query.
+3. Do not infer current-merge build health only from branch policies.
 4. Use `reply-and-resolve` after addressing an existing active thread.
 5. Build comment payloads with `thread-payload` before posting new inline comments. Do not add a separate top-level summary when it repeats an inline finding.
 
