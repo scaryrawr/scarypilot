@@ -27,14 +27,28 @@ uv run ./scripts/ado-work-items.py wiql --assigned-to "@Me" --exclude-state Clos
 The script returns:
 
 - `wiql`: the query text
-- `executable` and `commandArgs`: shell-neutral argv values for `az boards query`
+- `executable` and `commandArgs`: legacy Azure CLI argv values, not the coordinated execution path
 - `powerShellCommand` and `posixCommand`: display-only commands for those shells
+
+Pass the returned `wiql` text to `query`, not `az boards query`.
 
 Use `--current` to exclude `Closed` and `Removed` without repeating those states:
 
 ```text
 uv run ./scripts/ado-work-items.py wiql --assigned-to "@Me" --current --type Bug
 ```
+
+## `query`
+
+Execute WIQL through the shared request owner so safe read retries and
+organization cooldowns apply:
+
+```text
+uv run ./scripts/ado-work-items.py query --org {org-or-url} --project {project} --wiql "SELECT [System.Id], [System.Title] FROM workitems WHERE [System.AssignedTo] = @Me"
+```
+
+Resolve organization and project from `parse-url` or repository context. Pass
+the exact query as the `--wiql` argument without executing generated shell text.
 
 ## `search`
 
@@ -65,9 +79,9 @@ Use `--project-id` and `--repository-id` when you already have the GUIDs.
 ## Workflow
 
 1. Parse incoming Azure DevOps work item URLs with `parse-url`.
-2. Build WIQL with `wiql` instead of manually composing `WHERE` clauses.
+2. Build WIQL with `wiql` instead of manually composing `WHERE` clauses, then execute the returned query text with `query`.
 3. Use `search` for keyword lookup, `required-fields` before creating customized work item types, and `link-pr` when Azure CLI relation commands cannot create the required PR artifact link.
-4. Run the appropriate Azure CLI command after the helper has normalized the inputs.
+4. Use the Azure CLI commands below for other work item operations. Those commands do not participate in the helper's request coordination.
 
 ## Common work item commands
 
@@ -98,7 +112,7 @@ az boards work-item update --id {workItemId} --state "Active" --detect true
 Run WIQL:
 
 ```text
-az boards query --wiql "SELECT [System.Id], [System.Title] FROM workitems WHERE [System.AssignedTo] = @Me" --detect true
+uv run ./scripts/ado-work-items.py query --org {org-or-url} --project {project} --wiql "SELECT [System.Id], [System.Title] FROM workitems WHERE [System.AssignedTo] = @Me"
 ```
 
 Manage relations:
@@ -111,8 +125,8 @@ az boards work-item relation remove --id {workItemId} --relation-type child --ta
 
 ## Rules
 
-- Prefer the helper script for URL parsing, WIQL assembly, keyword search, required-field discovery, and PR artifact links.
+- Prefer the helper script for URL parsing, WIQL assembly and execution, keyword search, required-field discovery, and PR artifact links.
 - When posting agent-authored work item comments or other free-text fields through `az boards` directly, append `- Generated with AI 🤖` once to the published body; do not alter user-provided text or structured fields.
 - Prefer `--detect true` when repository context is available.
 - Keep custom field names exact; do not silently rewrite them.
-- Use `executable` plus `commandArgs` from the WIQL helper instead of copying POSIX shell quoting on Windows.
+- Execute WIQL through `query` using shell-neutral argv. Do not run the legacy Azure CLI command fields or copy POSIX shell quoting on Windows.

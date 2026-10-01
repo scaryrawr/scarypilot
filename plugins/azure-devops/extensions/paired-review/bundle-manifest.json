@@ -12,7 +12,7 @@
     "../../skills/azure-devops/scripts/shared/pr.py": "421e050d39807bd1dfa53fee781be85084a6cb557013e2977aaacd1d02b815a4",
     "../../skills/azure-devops/scripts/shared/transport.py": "fb5333cdfaf0ac8eee8c1a5b69c209fc6b5d8520362bb250f373e69f283f03e8",
     "index.html": "082572d9dc35ccb5e6f0e89bd379ba8565235822b465a26f9f701f04253abfa4",
-    "package.json": "0f10e1542bedee1ceabdb52901a5d60eb022066590131617d8020f9ab47ccbc4",
+    "package.json": "8bb5c1f254ddf9a531eb413188e8ecdb637e9d29f3e951eb8912e3f366848138",
     "src/ado-bridge.ts": "93d4862a0bd920e308e78b620e3b9370cba983e82d44bfe98e60a7e16e877a82",
     "src/ado-loader.ts": "d6a00b761787947fa84cb0f5b55b41e24cc97c111e20685a7b20039760464fc6",
     "src/ado-tools.ts": "586caf41075f4356f2ea982c95661aad64564f1ef99932dbfb6ae31695db61bb",
