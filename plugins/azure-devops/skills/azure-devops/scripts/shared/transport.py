@@ -638,7 +638,7 @@ class Transport:
             if 200 <= response.status < 300:
                 return response
             if response.status not in (429, 502, 503, 504) or attempt + 1 == attempts:
-                if method != "GET" and response.status in (400, 401, 403, 429):
+                if method != "GET" and 400 <= response.status < 500:
                     raise WriteRejected(response.status)
                 raise AdoError(f"Azure DevOps HTTP {response.status}")
         raise AdoError("HTTP read retries exhausted")

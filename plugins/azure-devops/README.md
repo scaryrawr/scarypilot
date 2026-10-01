@@ -176,7 +176,9 @@ snapshot per pass and refreshes before enabling auto-complete.
 Plugin-owned HTTP requests share per-organization concurrency and cooldown state
 on the same machine. The client honors `Retry-After` on successful and failed
 responses. Safe reads have bounded retries. Writes are not automatically replayed
-after an uncertain response.
+after an uncertain response. HTTP 4xx write responses record a rejection and allow
+a later explicit retry. Transport failures and HTTP 5xx responses remain unknown
+and require reconciliation before further publication.
 
 Commit-addressed file contents use a bounded credential-isolated cache.
 Concurrent reads of the same content share one fetch. Mutable PR, thread,

@@ -511,17 +511,20 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(result.read1.call_count, 2)
 
     def test_native_definite_write_rejection_does_not_depend_on_reading_error_body(self):
-        result = MagicMock()
-        result.code, result.headers = 429, {"Retry-After": "5"}
-        result.read1.side_effect = AssertionError("error body must not hide definite rejection")
-        opener = MagicMock()
-        opener.open.return_value = result
-        transport = Transport(self.state, auth=lambda: "Basic fake")
-        with patch("shared.transport.urllib.request.build_opener", return_value=opener), self.assertRaises(WriteRejected):
-            transport.json(SCOPE.base + "/threads?api-version=7.1", "POST", b"{}")
-        result.read1.assert_not_called()
-        self.assertEqual(opener.open.call_count, 1)
-        self.assertEqual(self.state.cooldown("example"), 1005)
+        for status in (404, 409, 429):
+            with self.subTest(status=status):
+                result = MagicMock()
+                result.code, result.headers = status, {"Retry-After": "5"}
+                result.read1.side_effect = AssertionError("error body must not hide definite rejection")
+                opener = MagicMock()
+                opener.open.return_value = result
+                transport = Transport(self.state, auth=lambda: "Basic fake")
+                with patch("shared.transport.urllib.request.build_opener", return_value=opener), self.assertRaises(WriteRejected):
+                    transport.json(SCOPE.base + "/threads?api-version=7.1", "POST", b"{}")
+                result.read1.assert_not_called()
+                self.assertEqual(opener.open.call_count, 1)
+                self.assertEqual(self.state.cooldown("example"), self.clock.now + 5)
+                self.clock.now += 5
 
     def test_network_failure_diagnostics_do_not_invent_a_server_http_status(self):
         http = Http(ConnectionError("private-exception-detail"), response({"value": []}))
@@ -1138,7 +1141,7 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(len(found.calls), 1)
 
     def test_definite_rejections_record_receipt_and_allow_later_explicit_retry(self):
-        for index, status in enumerate((400, 401, 403, 429)):
+        for index, status in enumerate((400, 401, 403, 404, 409, 429, 499)):
             with self.subTest(status=status):
                 finding = json.loads(json.dumps(FINDING))
                 finding["findingId"] = f"rejected-{index}"
@@ -1161,6 +1164,51 @@ class BackendTests(unittest.TestCase):
                 self.assertEqual(result["kind"], "published")
                 self.assertEqual([call[1] for call in later.calls], ["GET", "GET", "POST"])
                 self.assertEqual(publisher.journal("finding:" + finding["findingId"])[0], "confirmed")
+
+    def test_all_client_error_write_responses_are_rejected_without_retry(self):
+        for method in ("POST", "PATCH", "PUT", "DELETE"):
+            for status in range(400, 500):
+                with self.subTest(method=method, status=status):
+                    http = Http(response({}, status))
+                    with self.assertRaises(WriteRejected) as rejected:
+                        self.client(http).transport.json(SCOPE.base + "/threads?api-version=7.1", method, b"{}")
+                    self.assertEqual(rejected.exception.status, status)
+                    self.assertEqual(rejected.exception.code, "write_rejected")
+                    self.assertEqual([call[1] for call in http.calls], [method])
+                    self.clock.now += 5
+
+    def test_server_errors_and_transport_failures_leave_publication_unknown(self):
+        failures = [response({}, status) for status in (500, 502, 503, 504, 599)]
+        failures.extend((ConnectionError("accepted but lost"), TimeoutError("response lost")))
+        for index, failure in enumerate(failures):
+            with self.subTest(failure=failure):
+                finding = json.loads(json.dumps(FINDING))
+                finding["findingId"] = f"ambiguous-{index}"
+                http = Http(response({"value": []}), response({"value": [{"id": 2}]}), failure)
+                client = self.client(http)
+                publisher = Publisher(client, SCOPE)
+                result = self.publish(client, [finding])
+                self.assertEqual(result["results"][0]["kind"], "failed")
+                self.assertEqual([call[1] for call in http.calls], ["GET", "GET", "POST"])
+                self.assertTrue(publisher.has_unknown())
+                self.assertEqual(publisher.journal("finding:" + finding["findingId"])[0], "unknown")
+                self.clock.now += 5
+                later = Http(response({"value": []}))
+                self.assertEqual(self.publish(self.client(later))["results"][0]["kind"], "failed")
+                self.assertEqual([call[1] for call in later.calls], ["GET"])
+                with self.state.connect() as db:
+                    db.execute("DELETE FROM journal")
+
+    def test_server_error_writes_and_client_error_reads_are_not_write_rejections(self):
+        for method, statuses in (("POST", range(500, 600)), ("GET", (404, 409))):
+            for status in statuses:
+                with self.subTest(method=method, status=status):
+                    http = Http(response({}, status))
+                    with self.assertRaises(AdoError) as failure:
+                        self.client(http).transport.request(SCOPE.base + "/threads?api-version=7.1", method)
+                    self.assertNotIsInstance(failure.exception, WriteRejected)
+                    self.assertEqual([call[1] for call in http.calls], [method])
+                    self.clock.now += 5
 
     def test_duplicate_batch_entries_do_not_automatically_retry_rejected_post(self):
         http = Http(response({"value": []}), response({"value": [{"id": 2}]}), response({}, 429, {"retry-after": "5"}))
