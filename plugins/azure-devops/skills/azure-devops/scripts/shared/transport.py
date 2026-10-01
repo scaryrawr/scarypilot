@@ -292,10 +292,12 @@ class FileLock:
 
     def __init__(self, path: Path):
         self.file = path.open("a+b")
-        os.chmod(path, 0o600)
-        if path.stat().st_size == 0:
-            self.file.write(b"\0")
-            self.file.flush()
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            self.file.close()
+            raise
+        # Both OS lock APIs support empty files; writes can collide with a Windows byte lock.
         self.held = False
 
     def acquire(self) -> bool:

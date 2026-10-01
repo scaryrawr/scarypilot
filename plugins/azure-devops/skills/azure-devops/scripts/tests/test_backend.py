@@ -23,7 +23,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 from shared import ado
 from shared.pr import PrClient, Publisher, Scope
-from shared.transport import AdoError, Deferred, NoRedirect, Response, State, Transport, WriteRejected, authorization, resolve_organization
+from shared.transport import AdoError, Deferred, FileLock, NoRedirect, Response, State, Transport, WriteRejected, authorization, resolve_organization
 
 
 def load(name):
@@ -196,6 +196,46 @@ class BackendTests(unittest.TestCase):
     def publish(self, client, findings=None):
         return bridge.dispatch({"operation": "publish", "org": ORG, "project": "project", "repositoryId": "repo",
                                 "pullRequestId": 42, "findings": findings or [FINDING]}, client)
+
+    def test_lock_initialization_never_writes_a_shared_lock_byte(self):
+        path = Path(self.directory.name) / "empty.lock"
+        with path.open("a+b") as handle:
+            with patch.object(Path, "open", return_value=handle), patch.object(
+                handle, "write", side_effect=PermissionError("another owner locked this byte")
+            ) as write:
+                lock = FileLock(path)
+                lock.close()
+                write.assert_not_called()
+        self.assertEqual(path.stat().st_size, 0)
+
+    def test_empty_lock_file_excludes_contenders_and_can_be_reacquired(self):
+        path = Path(self.directory.name) / "empty.lock"
+        owner = FileLock(path)
+        try:
+            self.assertTrue(owner.acquire())
+            contender = FileLock(path)
+            try:
+                self.assertFalse(contender.acquire())
+            finally:
+                contender.close()
+        finally:
+            owner.close()
+        contender = FileLock(path)
+        try:
+            self.assertTrue(contender.acquire())
+        finally:
+            contender.close()
+        self.assertEqual(path.stat().st_size, 0)
+
+    def test_lock_initialization_failure_closes_its_handle(self):
+        path = Path(self.directory.name) / "failed.lock"
+        with path.open("a+b") as handle:
+            with patch.object(Path, "open", return_value=handle), patch(
+                "shared.transport.os.chmod", side_effect=PermissionError("permissions unavailable")
+            ):
+                with self.assertRaises(PermissionError):
+                    FileLock(path)
+            self.assertTrue(handle.closed)
 
     def test_malformed_credentials_fail_at_caller_boundary_without_dispatch_or_leak(self):
         for control in ("\r", "\n", "\0", "\t", "\x7f"):

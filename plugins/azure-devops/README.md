@@ -234,7 +234,9 @@ smoke check without ADO credentials or live writes.
 The installed-layout tests launch native `uv` or `uv.exe` with a Python fixture.
 They cover source and bundled entry points, paths containing spaces, stdin text,
 and fresh snapshot calls. The backend uses OS-held locks rather than Unix-only
-process signaling. Windows Azure CLI authentication must use a native executable
+process signaling. Lock files can remain empty: opening a contender never writes
+into a byte another owner may have locked on Windows.
+Windows Azure CLI authentication must use a native executable
 or its bundled Python interpreter, not a shell command assembled from PR text.
 Bridge input and helper output use UTF-8 explicitly, and bridge output escapes
 non-ASCII JSON characters so Windows pipe encodings do not corrupt text.
