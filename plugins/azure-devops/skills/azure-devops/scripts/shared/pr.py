@@ -504,6 +504,7 @@ class Publisher:
             threads = self.client.threads(self.scope)["value"]
             self.reconcile(threads)
             latest_iteration = None
+            iteration_error: AdoError | None = None
             for finding_id, payload in prepared:
                 key = "finding:" + finding_id
                 record = self.journal(key)
@@ -530,6 +531,8 @@ class Publisher:
                     results.append({"kind": "failed", "findingId": finding_id, "error": str(rejected)})
                     continue
                 try:
+                    if iteration_error is not None:
+                        raise iteration_error
                     if latest_iteration is None:
                         iterations = self.client.collection(self.scope.base + "/iterations?api-version=7.1")["value"]
                         if not iterations:
@@ -548,6 +551,8 @@ class Publisher:
                     results.append({"kind": "failed", "findingId": finding_id, "error": str(exc)})
                     continue
                 except AdoError as exc:
+                    if latest_iteration is None:
+                        iteration_error = exc
                     results.append({"kind": "failed", "findingId": finding_id, "error": str(exc)})
                     continue
                 self.save(key, "confirmed", payload, created)

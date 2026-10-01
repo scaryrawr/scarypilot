@@ -1,7 +1,7 @@
 {
   "version": 1,
   "inputs": {
-    "../../skills/azure-devops/scripts/ado-bridge.py": "10e987dbcfe342417794fb33173865ee42a17fe573ab48f3a9e46068fa017953",
+    "../../skills/azure-devops/scripts/ado-bridge.py": "8194fd1e2de2e2148b5b331178a765547948a54ca0ff77c25d70cd478d3d2e5e",
     "../../skills/azure-devops/scripts/ado-cli.py": "1ab15aacf0b72502aa242c503f003bf19bfad582cd4980d417914a51c7d32058",
     "../../skills/azure-devops/scripts/ado-pr.py": "229f92be4b558c8414d3b5d1d43e70b95f503928f80db4975ac67ab9e276289b",
     "../../skills/azure-devops/scripts/ado-work-items.py": "f9e9771b5a04c00a83046fe014fe33d0ede5c75e9491cc7a50e7c91d1a1924b3",
@@ -9,10 +9,10 @@
     "../../skills/azure-devops/scripts/review-pr.py": "66dbc311f56179c2065db436592015d6a8ff7d0fb152d84bd56a12683fd26427",
     "../../skills/azure-devops/scripts/shared/__init__.py": "531ade2640028f38442d2711989ecdb62c67513cb1e02642aa7e0c8f1fab266d",
     "../../skills/azure-devops/scripts/shared/ado.py": "5a19d564656f6326931521ee3480ead604e62ff260697623e3b6c0e45c4fc38b",
-    "../../skills/azure-devops/scripts/shared/pr.py": "5c3997b99d54a203b70904e96ca69e434557538d2ebf1d19169e41024695958e",
+    "../../skills/azure-devops/scripts/shared/pr.py": "421e050d39807bd1dfa53fee781be85084a6cb557013e2977aaacd1d02b815a4",
     "../../skills/azure-devops/scripts/shared/transport.py": "fb5333cdfaf0ac8eee8c1a5b69c209fc6b5d8520362bb250f373e69f283f03e8",
     "index.html": "082572d9dc35ccb5e6f0e89bd379ba8565235822b465a26f9f701f04253abfa4",
-    "package.json": "5bbec7bc197ee9c59424ad1175977910d763d8380c89e4c2fdb0272ea36bb4f5",
+    "package.json": "0f10e1542bedee1ceabdb52901a5d60eb022066590131617d8020f9ab47ccbc4",
     "src/ado-bridge.ts": "93d4862a0bd920e308e78b620e3b9370cba983e82d44bfe98e60a7e16e877a82",
     "src/ado-loader.ts": "d6a00b761787947fa84cb0f5b55b41e24cc97c111e20685a7b20039760464fc6",
     "src/ado-tools.ts": "586caf41075f4356f2ea982c95661aad64564f1ef99932dbfb6ae31695db61bb",

@@ -1253,6 +1253,27 @@ class BackendTests(unittest.TestCase):
         with self.state.connect() as db:
             self.assertEqual(db.execute("SELECT count(*) FROM journal").fetchone()[0], 0)
 
+    def test_iteration_error_is_shared_across_findings_without_suppressing_duplicates(self):
+        for failure in (response({}, 403), response({"value": "malformed"})):
+            with self.subTest(status=failure.status):
+                first = json.loads(json.dumps(FINDING))
+                first["findingId"] = "new-first"
+                first["payload"]["comments"][0]["content"] = "New first finding"
+                second = json.loads(json.dumps(first))
+                second["findingId"] = "new-second"
+                second["payload"]["comments"][0]["content"] = "New second finding"
+                http = Http(response({"value": [{**FINDING["payload"], "id": 91}]}),
+                            response({"value": [{"id": 2}]}, headers={"x-ms-continuationtoken": "next"}),
+                            failure)
+                publisher = Publisher(self.client(http), SCOPE)
+                results = publisher.publish([first, second, FINDING])["results"]
+                self.assertEqual([item["kind"] for item in results], ["failed", "failed", "duplicate"])
+                self.assertEqual(results[0]["error"], results[1]["error"])
+                self.assertEqual(results[2]["remoteThreadId"], 91)
+                self.assertEqual([call[1] for call in http.calls], ["GET", "GET", "GET"])
+                self.assertIsNone(publisher.journal("finding:new-first"))
+                self.assertIsNone(publisher.journal("finding:new-second"))
+
     def test_successful_iteration_throttle_defers_before_journaling_unsent_post(self):
         http = Http(response({"value": []}),
                     response({"value": [{"id": 2}]}, headers={"retry-after": "90"}))

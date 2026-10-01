@@ -79,6 +79,9 @@ def read_items(request: dict[str, Any], client: PrClient) -> dict[str, Any]:
                     raise AdoError("item response must be an object")
                 content = payload.get("content")
                 if content is None:
+                    metadata = payload.get("contentMetadata")
+                    if not isinstance(metadata, dict) or metadata.get("isBinary") is not True:
+                        raise AdoError("item content is incomplete")
                     result = {"kind": "binary"}
                 else:
                     if not isinstance(content, str):

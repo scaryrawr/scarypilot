@@ -106,6 +106,19 @@ class BatchItemsTests(unittest.TestCase):
                     bridge.dispatch(batch)
                 owner.assert_not_called()
 
+    def test_missing_content_is_binary_only_with_explicit_binary_metadata(self):
+        client = self.client()
+        for payload in ({}, {"content": None}, {"contentMetadata": {"isBinary": False}},
+                        {"contentMetadata": {"isBinary": 1}}, {"contentMetadata": "invalid"}):
+            with self.subTest(payload=payload), patch.object(client, "read", return_value=payload):
+                self.assertEqual(bridge.dispatch(request(1), client)["results"], [
+                    {"kind": "error", "error": "item content is incomplete"},
+                ])
+        with patch.object(client, "read", return_value={"contentMetadata": {"isBinary": True}}):
+            self.assertEqual(bridge.dispatch(request(1), client)["results"], [{"kind": "binary"}])
+        with patch.object(client, "read", return_value={"content": ""}):
+            self.assertEqual(bridge.dispatch(request(1), client)["results"], [{"kind": "text", "content": ""}])
+
     def test_decoded_content_and_error_sizes_are_bounded(self):
         outcomes = iter([
             {"content": "é" * (bridge.MAX_ITEM_CONTENT_BYTES // 2)},
