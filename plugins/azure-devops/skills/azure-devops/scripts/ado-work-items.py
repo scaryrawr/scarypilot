@@ -113,6 +113,7 @@ def query_work_items(args: argparse.Namespace) -> None:
         method="POST",
         body=json.dumps({"query": args.wiql}).encode("utf-8"),
         headers=auth_headers("application/json"),
+        replay_safe=True,
     )
     print(json.dumps(payload, indent=2))
 
@@ -136,6 +137,7 @@ def search_work_items(args: argparse.Namespace) -> None:
         method="POST",
         body=json.dumps(body).encode("utf-8"),
         headers=auth_headers("application/json"),
+        replay_safe=True,
     )
     results = []
     for result in payload.get("results", []):

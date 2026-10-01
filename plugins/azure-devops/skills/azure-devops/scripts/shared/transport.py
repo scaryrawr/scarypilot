@@ -555,7 +555,7 @@ class Transport:
 
     def request(self, url: str, method: str = "GET", body: bytes | None = None,
                 headers: dict[str, str] | None = None, *,
-                before_send: Callable[[], None] | None = None) -> Response:
+                before_send: Callable[[], None] | None = None, replay_safe: bool = False) -> Response:
         org, url = canonical_url(url)
         self.check_budget()
         deadline = self.state.clock() + 30
@@ -563,8 +563,9 @@ class Transport:
         if remaining is not None:
             deadline = min(deadline, self.state.clock() + remaining)
         method = method.upper()
-        if before_send and method == "GET":
-            raise AdoError("write journaling cannot be attached to a GET")
+        safe_read = method == "GET" or replay_safe
+        if before_send and safe_read:
+            raise AdoError("write journaling cannot be attached to a replay-safe read")
         supplied = {key.lower(): value for key, value in (headers or {}).items()}
         if supplied.keys() & {"host", "proxy-authorization", "cookie"}:
             raise AdoError("unsafe request headers")
@@ -575,7 +576,7 @@ class Transport:
                for key, value in supplied.items() for char in key + value):
             raise AdoError("invalid request headers")
         self.check_budget()
-        attempts = 3 if method == "GET" else 1
+        attempts = 3 if safe_read else 1
         for attempt in range(attempts):
             self.check_budget()
             if self.state.clock() >= deadline:
@@ -596,10 +597,10 @@ class Transport:
                     response = (send_http(url, method, body, supplied, timeout=max(0.001, timeout), timer=self.timer)
                                 if self.send is send_http else self.send(url, method, body, supplied))
                 except (urllib.error.URLError, TimeoutError, ConnectionError, OSError, http.client.HTTPException) as exc:
-                    if method == "GET":
+                    if safe_read:
                         self.check_budget()
-                    if method != "GET" or attempt + 1 == attempts:
-                        raise AdoError("request outcome unknown" if method != "GET" else "HTTP read failed") from exc
+                    if not safe_read or attempt + 1 == attempts:
+                        raise AdoError("HTTP read failed" if safe_read else "request outcome unknown") from exc
                     has_response = False
                     response = Response(503, {}, b"")
                 delay = retry_delay(response.headers.get("retry-after"), self.state.clock())
@@ -607,7 +608,7 @@ class Transport:
                     self.state.throttle(org, self.state.clock() + delay)
                 elif response.status in (429, 502, 503, 504):
                     backoff = 2 ** attempt
-                    if method == "GET":
+                    if safe_read:
                         backoff *= 1 + 0.25 * max(0.0, min(1.0, self.jitter()))
                     self.state.throttle(org, self.state.clock() + backoff)
                 remaining = header_number(response.headers.get("x-ratelimit-remaining"))
@@ -631,21 +632,22 @@ class Transport:
                     "cooldownUntil": cooldown if cooldown > self.state.clock() else None,
                     "cacheHit": False,
                 })
-            if method == "GET":
+            if safe_read:
                 self.check_budget()
                 if self.state.clock() >= deadline:
                     raise AdoError("HTTP read retry budget exceeded")
             if 200 <= response.status < 300:
                 return response
             if response.status not in (429, 502, 503, 504) or attempt + 1 == attempts:
-                if method != "GET" and 400 <= response.status < 500:
+                if not safe_read and 400 <= response.status < 500:
                     raise WriteRejected(response.status)
                 raise AdoError(f"Azure DevOps HTTP {response.status}")
         raise AdoError("HTTP read retries exhausted")
 
     def json(self, url: str, method: str = "GET", body: bytes | None = None,
-             headers: dict[str, str] | None = None, *, before_send: Callable[[], None] | None = None) -> Any:
-        response = self.request(url, method, body, headers, before_send=before_send)
+             headers: dict[str, str] | None = None, *, before_send: Callable[[], None] | None = None,
+             replay_safe: bool = False) -> Any:
+        response = self.request(url, method, body, headers, before_send=before_send, replay_safe=replay_safe)
         try:
             return json.loads(response.body) if response.body else {}
         except (ValueError, UnicodeDecodeError) as exc:

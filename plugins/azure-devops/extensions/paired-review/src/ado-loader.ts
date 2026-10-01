@@ -1,7 +1,11 @@
 import { createTwoFilesPatch } from "diff";
 import { Type, type Static } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
-import { bridgeReadRequest, runBridge, type BridgeRequest, type BridgeRunner } from "./ado-bridge.ts";
+import {
+  bridgeReadRequest, runBridge, MAX_ITEM_BATCH_SIZE, MAX_ITEM_BATCH_OUTPUT_BYTES, MAX_ITEM_CONTENT_BYTES,
+  ReadItemsRequestSchema, ReadItemsResponseSchema,
+  type ReadItemsRequest, type BridgeRequest, type BridgeRunner,
+} from "./ado-bridge.ts";
 import {
   changedLineRanges,
   findingThreads,
@@ -20,7 +24,7 @@ const MAX_CHANGED_FILES = 2_000;
 
 const FILE_FETCH_CONCURRENCY = 2;
 
-const MAX_FILE_BYTES = 2 * 1024 * 1024;
+const MAX_FILE_BYTES = MAX_ITEM_CONTENT_BYTES;
 
 const MAX_FILE_RESPONSE_BYTES = MAX_FILE_BYTES * 6 + 64 * 1024;
 
@@ -104,6 +108,7 @@ export interface LoadedPullRequest {
 export interface AzureCliRunner {
   json(args: string[], body?: AzureThreadPayload): Promise<JsonValue>;
   file(args: string[]): Promise<Buffer>;
+  readItems?(request: ReadItemsRequest): Promise<Array<Buffer | null>>;
   publishBatch?(request: Extract<BridgeRequest, { operation: "publish" }>): Promise<PublicationResult[]>;
 }
 
@@ -180,7 +185,7 @@ export async function loadAzurePullRequest(
   let remainingContentBytes = MAX_TOTAL_CONTENT_BYTES;
   let omittedFiles = 0;
 
-  const files = await mapLimit(changes, FILE_FETCH_CONCURRENCY, async (change) => {
+  const loadChange = async (change: PullRequestChange, contents?: Array<Buffer | null>) => {
     const currentPath = normalizePath(change.path);
     const previousPath = normalizePath(change.originalPath) || currentPath;
     const added = change.changeType.includes("add");
@@ -192,7 +197,7 @@ export async function loadAzurePullRequest(
       return omittedReviewFile(currentPath, change.changeType, "total content limit reached");
     }
 
-    const [before, after] = await Promise.all([
+    const [before, after] = contents ?? await Promise.all([
       added
         ? Promise.resolve(Buffer.alloc(0))
         : fetchItem(runner, invokeScope, location.project, repositoryId, previousPath, iteration.commonRefCommit),
@@ -227,7 +232,46 @@ export async function loadAzurePullRequest(
       change.changeTrackingId,
       iteration.id,
     );
-  });
+  };
+
+  const files: ReviewFile[] = [];
+
+  if (runner.readItems) {
+    for (let offset = 0; offset < changes.length; offset += MAX_ITEM_BATCH_SIZE / 2) {
+      const chunk = changes.slice(offset, offset + MAX_ITEM_BATCH_SIZE / 2);
+      const items: ReadItemsRequest["items"] = [];
+
+      const indices = chunk.map((change) => {
+        const currentPath = normalizePath(change.path);
+        const previousPath = normalizePath(change.originalPath) || currentPath;
+
+        const addItem = (path: string, commit: string) => {
+          items.push({ path: `/${path}`, commit });
+
+          return items.length - 1;
+        };
+
+        return [
+          change.changeType.includes("add") ? -1 : addItem(previousPath, iteration.commonRefCommit),
+          change.changeType.includes("delete") ? -1 : addItem(currentPath, iteration.sourceRefCommit),
+        ];
+      });
+
+      const contents = remainingContentBytes > 0 && items.length
+        ? await runner.readItems({
+          operation: "readItems", org: location.organizationUrl, project: location.project, repositoryId, items,
+        })
+        : [];
+
+      for (const [index, change] of chunk.entries()) {
+        const pair = indices[index]!.map((itemIndex) => itemIndex < 0 ? Buffer.alloc(0) : contents[itemIndex]!);
+
+        files.push(await loadChange(change, pair));
+      }
+    }
+  } else {
+    files.push(...await mapLimit(changes, FILE_FETCH_CONCURRENCY, (change) => loadChange(change)));
+  }
 
   let threads: ReviewThread[] = [];
   let threadLoadError: string | undefined;
@@ -477,6 +521,26 @@ export function createAzureBridgeRunner(bridge: BridgeRunner = runBridge): Azure
       if (buffer.length > MAX_FILE_BYTES) throw new AzureResponseTooLargeError(MAX_FILE_BYTES);
 
       return buffer;
+    },
+    async readItems(request) {
+      Value.Assert(ReadItemsRequestSchema, request);
+      const { results } = Value.Parse(ReadItemsResponseSchema, await bridge(request, MAX_ITEM_BATCH_OUTPUT_BYTES));
+
+      if (results.length !== request.items.length) throw new Error("Azure DevOps bridge returned incomplete item results.");
+
+      return results.map((result) => {
+        if (result.kind === "error") {
+          if (result.code === "content_too_large") return null;
+          throw new Error(`Azure DevOps item read failed: ${JSON.stringify(result)}`);
+        }
+
+        if (result.kind === "binary") return Buffer.from([0]);
+        const buffer = Buffer.from(result.content, "utf8");
+
+        if (buffer.length > MAX_FILE_BYTES) throw new Error("Azure DevOps bridge returned oversized item content.");
+
+        return buffer;
+      });
     },
     async publishBatch(request) {
       const { results } = Value.Parse(PublicationResponseSchema, await bridge(request));

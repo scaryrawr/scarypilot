@@ -23,7 +23,45 @@ interface PullRequestScope extends BridgeScope {
   pullRequestId: number;
 }
 
+export const MAX_ITEM_BATCH_SIZE = 8;
+
+export const MAX_ITEM_CONTENT_BYTES = 2 * 1024 * 1024;
+
+// ASCII JSON can expand every decoded byte into a six-byte escape.
+export const MAX_ITEM_BATCH_OUTPUT_BYTES = MAX_ITEM_BATCH_SIZE * MAX_ITEM_CONTENT_BYTES * 6 + 64 * 1024;
+
+export const ReadItemsRequestSchema = Type.Object({
+  operation: Type.Literal("readItems"),
+  org: Type.String({ minLength: 1, maxLength: 2048 }),
+  project: Type.String({ minLength: 1, maxLength: 4096 }),
+  repositoryId: Type.String({ minLength: 1, maxLength: 4096 }),
+  items: Type.Array(Type.Object({
+    path: Type.String({ minLength: 1, maxLength: 4096 }),
+    commit: Type.String({ pattern: "^[0-9a-fA-F]{40}$" }),
+  }, { additionalProperties: false }), { minItems: 1, maxItems: MAX_ITEM_BATCH_SIZE }),
+}, { additionalProperties: false });
+
+export const ReadItemsResponseSchema = Type.Object({
+  results: Type.Array(Type.Union([
+    Type.Object({
+      kind: Type.Literal("text"),
+      content: Type.String({ maxLength: MAX_ITEM_CONTENT_BYTES }),
+    }, { additionalProperties: false }),
+    Type.Object({ kind: Type.Literal("binary") }, { additionalProperties: false }),
+    Type.Object({
+      kind: Type.Literal("error"),
+      error: Type.String({ maxLength: 1024 }),
+      code: Type.Optional(Type.String({ maxLength: 1024 })),
+      deferred: Type.Optional(Type.Literal(true)),
+      retryAt: Type.Optional(Type.Number()),
+    }, { additionalProperties: false }),
+  ]), { minItems: 1, maxItems: MAX_ITEM_BATCH_SIZE }),
+}, { additionalProperties: false });
+
+export type ReadItemsRequest = Static<typeof ReadItemsRequestSchema>;
+
 export type BridgeRequest =
+  | ReadItemsRequest
   | (BridgeScope & {
       operation: "read";
       resource: "pullRequest";
@@ -165,7 +203,15 @@ export function createBridgeTransport(
     write: (record) => { process.stderr.write(`${JSON.stringify(record)}\n`); },
   },
 ): BridgeRunner {
-  return async (request, maxBuffer = 32 * 1024 * 1024) => {
+  return async (request, maxBuffer = request.operation === "readItems" ? MAX_ITEM_BATCH_OUTPUT_BYTES : 32 * 1024 * 1024) => {
+    if (request.operation === "readItems") {
+      Value.Assert(ReadItemsRequestSchema, request);
+
+      if (maxBuffer < MAX_ITEM_BATCH_OUTPUT_BYTES) {
+        throw new Error("Azure DevOps item batch requires its bounded ASCII JSON output buffer.");
+      }
+    }
+
     const invocation = await resolveInvocation();
 
     const stdout = await new Promise<string>((resolve, reject) => {

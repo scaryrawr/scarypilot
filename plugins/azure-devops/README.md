@@ -196,6 +196,27 @@ request bursts; it does not remove Azure DevOps usage limits.
 Each collection or snapshot shares a 60-second read budget across its requests.
 An expired budget returns `incomplete_read`, not a partial readiness result.
 
+Paired-review content loads use a bounded `readItems` bridge operation, not one
+Python launch per file revision or a background daemon. Each stdin request names
+one organization, project and repository, and 1–8 ordered `{path, commit}` items
+with full commit SHAs. One Python client/transport and credential memo serve the
+whole batch, including cache hits. Results retain the exact request order:
+`text` with content, `binary`, or `error` with explicit error/code and optional
+cooldown metadata. Only `content_too_large` becomes an oversized-file omission;
+other item failures fail the load rather than masquerading as binary content.
+
+The loader reads up to four changed files (eight revisions) per batch, one batch
+at a time, and stops fetching once its 32 MiB retained-content budget is spent.
+Each item retains the 2 MiB decoded UTF-8 and 8 MiB raw HTTP response limits.
+Normalized batch results contain at most 16 MiB of decoded content; ASCII JSON
+escaping can expand this to 96 MiB, so the process output buffer is 96 MiB plus
+64 KiB for bounded error/structure overhead, not the ordinary 32 MiB buffer.
+Python streams that output rather than constructing an aggregate encoded string.
+Each batch shares a 60-second total deadline, and requests still acquire the
+existing organization-wide maximum of four HTTP permits. No new write path is
+introduced. For 2,000 edited files within the retained-content budget, this is at
+most 500 content-owner launches instead of 4,000.
+
 Set `ADO_REQUEST_DIAGNOSTICS` to `1` to emit sanitized request, quota, cooldown,
 and cache metadata on stderr. Diagnostics exclude resource identifiers,
 credentials, raw headers, and authored text.

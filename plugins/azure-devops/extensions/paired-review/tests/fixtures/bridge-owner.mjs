@@ -18,7 +18,11 @@ if (request.org === "https://dev.azure.com/diagnostic-fixture") {
   })}\n`);
 }
 
-if (request.org === "https://dev.azure.com/failing-fixture") {
+if (request.operation === "readItems" && request.org === "https://dev.azure.com/large-batch-fixture") {
+  process.stdout.write(JSON.stringify({
+    results: request.items.map(() => ({ kind: "text", content: "\u0001".repeat(2 * 1024 * 1024) })),
+  }));
+} else if (request.org === "https://dev.azure.com/failing-fixture") {
   process.stderr.write('{"type":"ado_request_diagnostic","source":"cache","cacheHit":true}\n');
   process.stderr.write('{"error":"organization cooldown; defer 120s","deferred":true,"retryAt":1234}\n');
   process.exitCode = 1;

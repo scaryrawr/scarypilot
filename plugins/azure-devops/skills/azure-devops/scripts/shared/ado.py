@@ -101,9 +101,10 @@ def token() -> str:
     return run(["az", "account", "get-access-token", "--resource", DEVOPS_RESOURCE, "--query", "accessToken", "-o", "tsv"])
 
 
-def request_json(url: str, method: str = "GET", body: bytes | None = None, headers: dict[str, str] | None = None) -> Any:
+def request_json(url: str, method: str = "GET", body: bytes | None = None,
+                 headers: dict[str, str] | None = None, *, replay_safe: bool = False) -> Any:
     """All direct REST callers share organization admission and cooldown."""
-    return Transport().json(url, method, body, headers)
+    return Transport().json(url, method, body, headers, replay_safe=replay_safe)
 
 
 def scope_args(args: argparse.Namespace) -> list[str]:
@@ -210,6 +211,8 @@ def upload_pr_attachment(
 def attachment_markdown(file_name: str, url: str) -> str:
     """Format uploaded media inline and other attachments as download links."""
     mime_type, encoding = mimetypes.guess_type(file_name)
+    if mime_type is None and encoding is None and Path(file_name).suffix.lower() == ".webp":
+        mime_type = "image/webp"
     if encoding is None and mime_type and mime_type.startswith("video/"):
         return f'<video src="{html.escape(url, quote=True)}" controls width="800"></video>'
     label = " ".join(file_name.splitlines())

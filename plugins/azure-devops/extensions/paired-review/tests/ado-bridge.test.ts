@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import { describe, expect, it, vi } from "vitest";
 import {
   bridgeInvocation, bridgeReadRequest, bridgeScriptPath, createBridgeTransport, parseBridgeStderr,
+  MAX_ITEM_BATCH_OUTPUT_BYTES, MAX_ITEM_CONTENT_BYTES, type ReadItemsRequest,
   type BridgeJson, type BridgeRequest, type BridgeDiagnostic,
 } from "../src/ado-bridge.ts";
 import { createAzureBridgeRunner } from "../src/ado-loader.ts";
@@ -54,6 +55,39 @@ describe("packaged bridge discovery", () => {
 });
 
 describe("bridge process boundary", () => {
+  const batch: ReadItemsRequest = {
+    operation: "readItems", org: "https://dev.azure.com/example", project: "project",
+    repositoryId: "repo", items: [{ path: "/日本語 & %PATH% | $(echo unsafe)", commit: "a".repeat(40) }],
+  };
+
+  it("keeps batch scope and ordered domain item requests on stdin", async () => {
+    await expect(fixtureBridge(batch)).resolves.toEqual({ request: batch });
+  });
+
+  it("rejects out-of-bound batches and undersized output budgets before launch", async () => {
+    const resolveInvocation = vi.fn(async () => ({ file: process.execPath, args: [fixtureScript] }));
+    const transport = createBridgeTransport(resolveInvocation);
+
+    await expect(transport({ ...batch, items: [] })).rejects.toThrow();
+    await expect(transport({ ...batch, items: Array(9).fill(batch.items[0]) })).rejects.toThrow();
+    await expect(transport({ ...batch, items: [{ path: "/x", commit: "branch" }] })).rejects.toThrow();
+    await expect(transport(batch, 32 * 1024 * 1024)).rejects.toThrow("bounded ASCII JSON output buffer");
+    expect(resolveInvocation).not.toHaveBeenCalled();
+    expect(MAX_ITEM_BATCH_OUTPUT_BYTES).toBe(8 * MAX_ITEM_CONTENT_BYTES * 6 + 64 * 1024);
+  });
+
+  it("accepts ASCII escape expansion larger than the old 32 MiB process buffer", async () => {
+    const runner = createAzureBridgeRunner(fixtureBridge);
+
+    const buffers = await runner.readItems!({
+      ...batch, org: "https://dev.azure.com/large-batch-fixture", items: Array(3).fill(batch.items[0]),
+    });
+
+    expect(buffers).toHaveLength(3);
+    expect(buffers.every((buffer) => buffer?.length === MAX_ITEM_CONTENT_BYTES)).toBe(true);
+    expect(buffers[0]?.[0]).toBe(1);
+  }, 30_000);
+
   it("sends exact authored text through real process stdin without shell interpretation", async () => {
     const request: BridgeRequest = {
       operation: "publish", org: "https://dev.azure.com/example", project: "project",

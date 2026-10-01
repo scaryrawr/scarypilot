@@ -886,6 +886,15 @@ class BackendTests(unittest.TestCase):
                     bridge.dispatch({"operation": "snapshot", "org": ORG, "pullRequestId": 42}, self.client(http))
                 self.assertEqual(len(http.calls), 1)
 
+    def test_snapshot_returns_reviewers_and_details_observed_at_final_fence(self):
+        fence = {**DETAILS, "title": "Updated title", "reviewers": [{"id": "reviewer", "vote": -10}]}
+        http = self.snapshot_http(fence)
+        payload = bridge.dispatch({"operation": "snapshot", "org": ORG, "pullRequestId": 42}, self.client(http))
+        self.assertEqual(payload["reviewers"], [{"id": "reviewer", "vote": -10}])
+        self.assertEqual(payload["details"], fence)
+        self.assertEqual(payload["revision"]["sourceCommit"], "source")
+        self.assertEqual(len(http.calls), 7)
+
     def test_snapshot_fence_cannot_default_missing_readiness_metadata(self):
         for field in ("isDraft", "reviewers"):
             with self.subTest(field=field):
@@ -986,12 +995,47 @@ class BackendTests(unittest.TestCase):
             work_items.query_work_items(argparse.Namespace(org=ORG, project="Project name", wiql=query))
         self.assertEqual(len(http.calls), 1)
 
-    def test_wiql_post_failure_is_not_blindly_retried(self):
-        http = Http(response({"error": "authored private query"}, 429, {"retry-after": "5"}))
+    def test_wiql_read_post_retries_throttle_without_changing_query(self):
+        query = "SELECT [System.Id] FROM WorkItems"
+        http = Http(response({}, 429, {"retry-after": "5"}), response({"workItems": [{"id": 7}]}))
+        output = StringIO()
+        with patch.object(ado, "Transport", return_value=self.client(http).transport), redirect_stdout(output):
+            work_items.query_work_items(argparse.Namespace(org=ORG, project="project", wiql=query))
+        self.assertEqual(json.loads(output.getvalue()), {"workItems": [{"id": 7}]})
+        self.assertEqual([call[1] for call in http.calls], ["POST", "POST"])
+        self.assertEqual([call[2] for call in http.calls], [{"query": query}] * 2)
+        self.assertEqual(self.clock.sleeps, [5])
+
+    def test_read_post_retries_are_bounded_and_not_write_rejections(self):
+        http = Http(*(response({}, 429, {"retry-after": "5"}) for _ in range(3)))
         with patch.object(ado, "Transport", return_value=self.client(http).transport), \
-                self.assertRaisesRegex(AdoError, "HTTP 429"):
+                self.assertRaisesRegex(AdoError, "HTTP 429") as failure:
             work_items.query_work_items(argparse.Namespace(org=ORG, project="project", wiql="SELECT [System.Id] FROM WorkItems"))
-        self.assertEqual([call[1] for call in http.calls], ["POST"])
+        self.assertNotIsInstance(failure.exception, WriteRejected)
+        self.assertEqual([call[1] for call in http.calls], ["POST"] * 3)
+
+    def test_search_read_post_retries_network_and_service_failures(self):
+        for first in (ConnectionError("private"), response({}, 503)):
+            with self.subTest(first=type(first).__name__):
+                http = Http(first, response({"count": 0, "results": []}))
+                output = StringIO()
+                with patch.object(ado, "Transport", return_value=self.client(http).transport), redirect_stdout(output):
+                    work_items.search_work_items(argparse.Namespace(
+                        org=ORG, top=25, type=[], project=[], area=[], text="query",
+                    ))
+                self.assertEqual(json.loads(output.getvalue()), {"count": 0, "results": []})
+                self.assertEqual([call[1] for call in http.calls], ["POST", "POST"])
+                self.assertEqual(http.calls[0][2], http.calls[1][2])
+
+    def test_replay_safe_post_cannot_use_write_journal_callback(self):
+        http = Http()
+        journal = MagicMock()
+        with self.assertRaisesRegex(AdoError, "journaling"):
+            self.client(http).transport.request(
+                ORG + "/project/_apis/wit/wiql", "POST", replay_safe=True, before_send=journal,
+            )
+        journal.assert_not_called()
+        self.assertEqual(http.calls, [])
 
     def test_work_item_link_reuses_one_owner_for_repo_resolution_and_patch(self):
         http = Http(response({"id": "repo", "project": {"id": "project"}}, headers={"retry-after": "3"}),

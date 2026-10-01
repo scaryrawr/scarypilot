@@ -6,7 +6,7 @@ import {
   type AzureCliRunner,
   type JsonValue,
 } from "../src/ado-loader.ts";
-import type { BridgeRequest } from "../src/ado-bridge.ts";
+import { MAX_ITEM_BATCH_OUTPUT_BYTES, MAX_ITEM_BATCH_SIZE, type BridgeRequest } from "../src/ado-bridge.ts";
 import {
   changedLineRanges,
   createReviewState,
@@ -654,7 +654,114 @@ describe("publishReviewFindings", () => {
 
 describe("bridge-backed review loads", () => {
   const prUrl = "https://dev.azure.com/example/project/_git/repo/pullrequest/42";
-  const iteration = { id: 3, commonRefCommit: { commitId: "base" }, sourceRefCommit: { commitId: "head" } };
+  const base = "a".repeat(40);
+  const head = "b".repeat(40);
+  const iteration = { id: 3, commonRefCommit: { commitId: base }, sourceRefCommit: { commitId: head } };
+
+  it("preserves exact batch order and maps only explicit oversized content to omission", async () => {
+    const runner = createAzureBridgeRunner(async (): Promise<JsonValue> => ({ results: [
+      { kind: "text", content: "first 日本語\n" },
+      { kind: "binary" },
+      { kind: "error", error: "too large", code: "content_too_large" },
+      { kind: "text", content: "last\n" },
+    ] }));
+
+    const results = await runner.readItems!({
+      operation: "readItems", org: "example", project: "project", repositoryId: "repo",
+      items: Array.from({ length: 4 }, (_, index) => ({ path: `/file-${index}`, commit: base })),
+    });
+
+    expect(results).toEqual([Buffer.from("first 日本語\n"), Buffer.from([0]), null, Buffer.from("last\n")]);
+  });
+
+  const invalidResponses: JsonValue[] = [
+    { results: [] },
+    { results: [{ kind: "text", content: "one" }, { kind: "binary" }] },
+    { results: [{ kind: "unexpected" }] },
+    { results: [{ kind: "text", content: "é".repeat(2 * 1024 * 1024) }] },
+    { results: [{ kind: "error", error: "HTTP 403" }] },
+    { results: [{ kind: "error", error: "cooldown", deferred: true, retryAt: 1234 }] },
+  ];
+
+  it.each(invalidResponses)("fails closed for invalid or failed batch response %#", async (response) => {
+    const runner = createAzureBridgeRunner(async () => response);
+    await expect(runner.readItems!({
+      operation: "readItems", org: "example", project: "project", repositoryId: "repo",
+      items: [{ path: "/x", commit: base }],
+    })).rejects.toThrow();
+  });
+
+  it("rejects an over-limit caller batch before invoking the bridge", async () => {
+    let calls = 0;
+
+    const runner = createAzureBridgeRunner(async () => {
+      calls++;
+
+      return { results: [] };
+    });
+
+    await expect(runner.readItems!({
+      operation: "readItems", org: "example", project: "project", repositoryId: "repo",
+      items: Array.from({ length: 9 }, () => ({ path: "/x", commit: base })),
+    })).rejects.toThrow();
+    expect(calls).toBe(0);
+  });
+
+  it("keeps added/deleted/renamed revisions and binary/oversize omissions aligned across chunks", async () => {
+    const batches: Extract<BridgeRequest, { operation: "readItems" }>[] = [];
+
+    const runner = createAzureBridgeRunner(async (request): Promise<JsonValue> => {
+      if (request.operation === "readItems") {
+        batches.push(request);
+
+        return { results: request.items.map((item): JsonValue => {
+          if (item.path === "/binary.bin") return { kind: "binary" };
+
+          if (item.path === "/large.ts") return { kind: "error", error: "too large", code: "content_too_large" };
+
+          return { kind: "text", content: `${item.commit === base ? "old" : "new"} ${item.path}\n` };
+        }) };
+      }
+
+      if (request.operation !== "read") throw new Error("Expected read");
+
+      switch (request.resource) {
+        case "pullRequest": return { repository: { id: "repo-id" } };
+        case "iterations": return { value: [iteration] };
+        case "changes": return { changeEntries: [
+          { changeType: "add", item: { path: "/added.ts" } },
+          { changeType: "delete", item: { path: "/deleted.ts" } },
+          { changeType: "rename, edit", originalPath: "/before.ts", item: { path: "/after.ts" } },
+          { changeType: "add", item: { path: "/binary.bin" } },
+          { changeType: "edit", item: { path: "/large.ts" } },
+          { changeType: "edit", item: { path: "/final.ts" } },
+        ] };
+        case "threads": return { value: [] };
+        case "item": throw new Error("Per-item processes must not be used");
+      }
+    });
+
+    const loaded = await loadAzurePullRequest(prUrl, runner);
+    expect(batches.map((batch) => batch.items)).toEqual([
+      [
+        { path: "/added.ts", commit: head }, { path: "/deleted.ts", commit: base },
+        { path: "/before.ts", commit: base }, { path: "/after.ts", commit: head },
+        { path: "/binary.bin", commit: head },
+      ],
+      [
+        { path: "/large.ts", commit: base }, { path: "/large.ts", commit: head },
+        { path: "/final.ts", commit: base }, { path: "/final.ts", commit: head },
+      ],
+    ]);
+    expect(loaded.files[0]).toMatchObject({ oldContent: "", newContent: "new /added.ts\n" });
+    expect(loaded.files[1]).toMatchObject({ oldContent: "old /deleted.ts\n", newContent: "" });
+    expect(loaded.files[2]).toMatchObject({
+      path: "after.ts", previousPath: "before.ts", oldContent: "old /before.ts\n", newContent: "new /after.ts\n",
+    });
+    expect(loaded.files[3]?.diff).toContain("Binary files");
+    expect(loaded.files[4]?.diff).toBe("Diff content omitted: file exceeds 2 MiB.\n");
+    expect(loaded.files[5]).toMatchObject({ oldContent: "old /final.ts\n", newContent: "new /final.ts\n" });
+  });
 
   it("delegates immutable caching across repeated loads without caching mutable reads", async () => {
     const requests: BridgeRequest[] = [];
@@ -663,6 +770,21 @@ describe("bridge-backed review loads", () => {
 
     const runner = createAzureBridgeRunner(async (request): Promise<JsonValue> => {
       requests.push(request);
+
+      if (request.operation === "readItems") {
+        return { results: request.items.map((item) => {
+          const key = `${request.org}/${request.repositoryId}/${item.commit}/${item.path}`;
+          let result = cache.get(key);
+
+          if (result === undefined) {
+            immutableMisses++;
+            result = { kind: "text", content: item.commit === base ? "old\n" : "new\n" };
+            cache.set(key, result);
+          }
+
+          return result;
+        }) };
+      }
 
       if (request.operation !== "read") throw new Error("Expected read");
 
@@ -677,7 +799,7 @@ describe("bridge-backed review loads", () => {
 
           if (result === undefined) {
             immutableMisses++;
-            result = { content: request.commit === "base" ? "old\n" : "new\n" };
+            result = { content: request.commit === base ? "old\n" : "new\n" };
             cache.set(key, result);
           }
 
@@ -691,9 +813,10 @@ describe("bridge-backed review loads", () => {
     expect(second.files).toEqual(first.files);
     expect(second.files[0]).toMatchObject({ oldContent: "old\n", newContent: "new\n" });
     expect(immutableMisses).toBe(2);
-    expect(requests).toHaveLength(12);
+    expect(requests).toHaveLength(10);
     expect(requests.filter((request) => request.operation === "read" && request.resource === "pullRequest")).toHaveLength(2);
-    expect(requests.filter((request) => request.operation === "read" && request.resource === "item")).toHaveLength(4);
+    expect(requests.filter((request) => request.operation === "readItems")).toHaveLength(2);
+    expect(requests.filter((request) => request.operation === "read" && request.resource === "item")).toHaveLength(0);
   });
 
   it("reports display omissions after consuming the owner's complete late-page changes", async () => {
@@ -701,6 +824,10 @@ describe("bridge-backed review loads", () => {
 
     const runner = createAzureBridgeRunner(async (request): Promise<JsonValue> => {
       requests.push(request);
+
+      if (request.operation === "readItems") {
+        return { results: request.items.map(() => ({ kind: "text", content: "new\n" })) };
+      }
 
       if (request.operation !== "read") throw new Error("Expected read");
 
@@ -723,7 +850,8 @@ describe("bridge-backed review loads", () => {
     expect(loaded.files[1999]?.path).toBe("file-1999.ts");
     expect(loaded.threads[0]?.messages[0]?.body).toBe("Late-page thread");
     expect(loaded.status).toBe("Loaded 2000 changed files; omitted 3 changed files from display (2000 file display limit); loaded 1 inline Azure DevOps thread");
-    expect(requests).toHaveLength(2004);
+    expect(requests).toHaveLength(504);
+    expect(requests.filter((request) => request.operation === "readItems")).toHaveLength(500);
     expect(requests.find((request) => request.operation === "read" && request.resource === "changes")).toEqual({
       operation: "read", resource: "changes", org: "https://dev.azure.com/example",
       project: "project", repositoryId: "repo-id", pullRequestId: 42, iterationId: 3,
@@ -735,6 +863,12 @@ describe("bridge-backed review loads", () => {
     '{"error": "item content exceeds 2097152 bytes", "code": "content_too_large"}',
   ])("reports oversized content rather than interpreting it as binary for %s", async (errorPayload) => {
     const runner = createAzureBridgeRunner(async (request): Promise<JsonValue> => {
+      if (request.operation === "readItems") {
+        return { results: request.items.map(() => ({
+          kind: "error", error: JSON.parse(errorPayload).error, code: "content_too_large",
+        })) };
+      }
+
       if (request.operation !== "read") throw new Error("Expected read");
 
       switch (request.resource) {
@@ -751,12 +885,25 @@ describe("bridge-backed review loads", () => {
     expect(loaded.status).toContain("omitted content for 1 files");
   });
 
-  it("reports the total content cap and keeps at most four immutable reads in flight", async () => {
+  it("reports the total content cap, bounds batches and stops fetching after exhaustion", async () => {
     let activeItems = 0;
     let maxActiveItems = 0;
     const content = "a".repeat(2 * 1024 * 1024);
+    const batches: BridgeRequest[] = [];
 
-    const runner = createAzureBridgeRunner(async (request): Promise<JsonValue> => {
+    const runner = createAzureBridgeRunner(async (request, maxBuffer): Promise<JsonValue> => {
+      if (request.operation === "readItems") {
+        batches.push(request);
+        expect(request.items.length).toBeLessThanOrEqual(MAX_ITEM_BATCH_SIZE);
+        expect(maxBuffer).toBe(MAX_ITEM_BATCH_OUTPUT_BYTES);
+        activeItems++;
+        maxActiveItems = Math.max(maxActiveItems, activeItems);
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        activeItems--;
+
+        return { results: request.items.map(() => ({ kind: "text", content })) };
+      }
+
       if (request.operation !== "read") throw new Error("Expected read");
 
       switch (request.resource) {
@@ -777,7 +924,8 @@ describe("bridge-backed review loads", () => {
     });
 
     const loaded = await loadAzurePullRequest(prUrl, runner);
-    expect(maxActiveItems).toBe(4);
+    expect(maxActiveItems).toBe(1);
+    expect(batches).toHaveLength(2);
     expect(loaded.files.filter((file) => file.oldContent !== undefined)).toHaveLength(8);
     expect(loaded.files.filter((file) => file.diff === "Diff content omitted: total content limit reached.\n")).toHaveLength(2);
     expect(loaded.status).toBe("Loaded 8 changed files; omitted content for 2 files; loaded 0 inline Azure DevOps threads");

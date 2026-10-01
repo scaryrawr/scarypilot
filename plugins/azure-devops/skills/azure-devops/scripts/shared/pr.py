@@ -276,6 +276,8 @@ class PrClient:
                 raise AdoError("active PR reviewer collection is incomplete at snapshot fence")
             if revision(fence) != expected or (fence.get("repository") or {}).get("id") != scope.repository:
                 raise AdoError("PR revision changed during snapshot")
+            payload["details"] = fence
+            payload["reviewers"] = fence["reviewers"]
         payload["observedAt"] = datetime.fromtimestamp(self.transport.state.clock(), timezone.utc).isoformat()
         return payload
 
