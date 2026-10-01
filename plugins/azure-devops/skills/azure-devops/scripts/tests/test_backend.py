@@ -41,7 +41,7 @@ work_items = load("ado-work-items.py")
 ORG = "https://dev.azure.com/example"
 SCOPE = Scope("example", "project", "repo", "42")
 DETAILS = {
-    "pullRequestId": 42, "status": "active", "title": "A change", "isDraft": False,
+    "pullRequestId": 42, "status": "active", "title": "A change", "isDraft": False, "mergeStatus": "succeeded",
     "repository": {"id": "repo", "name": "Repo", "project": {"id": "project", "name": "Project"}},
     "lastMergeSourceCommit": {"commitId": "source"}, "lastMergeTargetCommit": {"commitId": "target"},
     "lastMergeCommit": {"commitId": "merge"}, "sourceRefName": "refs/heads/feature", "targetRefName": "refs/heads/main",
@@ -813,6 +813,75 @@ class BackendTests(unittest.TestCase):
                     response({"value": [good, stale]}, headers={"x-ms-continuationtoken": "build-next"}),
                     response({"value": [failed]}), response(end or DETAILS))
 
+    def test_empty_state_override_uses_private_default_without_touching_cwd(self):
+        home = Path(self.directory.name) / "home"
+        working = Path(self.directory.name) / "working"
+        working.mkdir()
+        previous = Path.cwd()
+        try:
+            os.chdir(working)
+            mode = working.stat().st_mode
+            with patch.dict(os.environ, {"ADO_STATE_DIR": ""}), patch("shared.transport.Path.home", return_value=home):
+                state = State()
+            self.assertEqual(state.directory, home / ".cache/scarypilot/ado")
+            self.assertEqual(list(working.iterdir()), [])
+            self.assertEqual(working.stat().st_mode, mode)
+        finally:
+            os.chdir(previous)
+
+    def test_snapshot_rejects_invalid_votes_and_merge_status_at_both_boundaries(self):
+        for field, invalids in (
+            ("reviewers", [[{}], [{"vote": None}], [{"vote": True}], [{"vote": "10"}], [{"vote": 7}]]),
+            ("mergeStatus", [None, True, {}, "unexpected"]),
+        ):
+            for value in invalids:
+                for fenced in (False, True):
+                    with self.subTest(field=field, value=value, fenced=fenced):
+                        details = {**DETAILS, field: value}
+                        http = self.snapshot_http(details) if fenced else Http(response(details))
+                        with self.assertRaisesRegex(AdoError, "incomplete"):
+                            self.client(http).snapshot(42)
+            missing = {key: value for key, value in DETAILS.items() if key != field}
+            for http in (Http(response(missing)), self.snapshot_http(missing)):
+                with self.assertRaisesRegex(AdoError, "incomplete"):
+                    self.client(http).snapshot(42)
+
+    def test_snapshot_thread_status_is_a_documented_enum(self):
+        for value in (None, True, {}, [], 7, -1, "unexpected"):
+            with self.subTest(value=value):
+                http = Http(response(DETAILS), response({"value": [{"id": 1, "status": value, "comments": []}]}))
+                with self.assertRaisesRegex(AdoError, "thread data is incomplete"):
+                    self.client(http).snapshot(42)
+        for value in (*range(7), "unknown", "active", "fixed", "wontFix", "closed", "byDesign", "pending"):
+            http = self.snapshot_http()
+            http.outcomes[1] = response({"value": [{"id": 1, "status": value, "comments": []}]})
+            self.assertEqual(self.client(http).snapshot(42)["threads"][0]["status"], value)
+
+    def test_snapshot_preserves_recognized_merge_states_and_reviewer_votes(self):
+        for status in ("notSet", "queued", "conflicts", "succeeded", "rejectedByPolicy", "failure"):
+            fence = {**DETAILS, "mergeStatus": status, "reviewers": [{"vote": vote} for vote in (-10, -5, 0, 5, 10)]}
+            payload = self.client(self.snapshot_http(fence)).snapshot(42)
+            self.assertEqual(payload["details"]["mergeStatus"], status)
+            self.assertEqual(payload["reviewers"], fence["reviewers"])
+
+    def test_iteration_fence_cooldown_preserves_duplicates_and_unsent_journals(self):
+        duplicate = {**FINDING["payload"], "id": 9}
+        second = json.loads(json.dumps(FINDING))
+        second["findingId"] = "finding-2"
+        second["payload"]["comments"][0]["content"] = "Another distinct finding"
+        third = json.loads(json.dumps(second))
+        third["findingId"] = "finding-3"
+        http = Http(response({"value": [duplicate]}, headers={"retry-after": "600"}))
+        publisher = Publisher(self.client(http), SCOPE)
+        payload = publisher.publish([FINDING, second, third])
+        self.assertEqual(payload["results"][0], {
+            "kind": "duplicate", "findingId": "finding-1", "remoteThreadId": 9,
+        })
+        self.assertEqual([result["kind"] for result in payload["results"]], ["duplicate", "failed", "failed"])
+        self.assertEqual([call[1] for call in http.calls], ["GET"])
+        self.assertIsNone(publisher.journal("finding:finding-2"))
+        self.assertIsNone(publisher.journal("finding:finding-3"))
+
     def test_snapshot_exact_budget_includes_late_failed_build_and_complete_policies(self):
         http = self.snapshot_http()
         payload = bridge.dispatch({"operation": "snapshot", "org": ORG, "pullRequestId": 42}, self.client(http))
@@ -1137,8 +1206,9 @@ class BackendTests(unittest.TestCase):
         http = Http(response({"value": []}),
                     response({"value": [{"id": 2}]}, headers={"x-ms-continuationtoken": "next"}),
                     response({}, 403))
-        with self.assertRaisesRegex(AdoError, "HTTP 403"):
-            self.publish(self.client(http))
+        self.assertEqual(self.publish(self.client(http)), {"results": [{
+            "kind": "failed", "findingId": "finding-1", "error": "Azure DevOps HTTP 403",
+        }]})
         self.assertEqual([call[1] for call in http.calls], ["GET", "GET", "GET"])
         with self.state.connect() as db:
             self.assertEqual(db.execute("SELECT count(*) FROM journal").fetchone()[0], 0)

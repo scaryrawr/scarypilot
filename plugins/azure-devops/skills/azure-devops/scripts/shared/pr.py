@@ -240,7 +240,10 @@ class PrClient:
         if not terminal and "reviewers" not in details:
             raise AdoError("active PR reviewer collection is incomplete")
         reviewers = details.get("reviewers", [])
-        if not isinstance(reviewers, list) or any(not isinstance(reviewer, dict) for reviewer in reviewers):
+        if not isinstance(reviewers, list) or any(
+            not isinstance(reviewer, dict) or type(reviewer.get("vote")) is not int or
+            reviewer["vote"] not in (-10, -5, 0, 5, 10) for reviewer in reviewers
+        ):
             raise AdoError("incomplete reviewer collection")
         payload: dict[str, Any] = {
             "details": details, "reviewers": reviewers, "revision": expected,
@@ -251,6 +254,9 @@ class PrClient:
         else:
             if details.get("status") != "active":
                 raise AdoError("unknown PR status")
+            merge_statuses = {"notSet", "queued", "conflicts", "succeeded", "rejectedByPolicy", "failure"}
+            if not isinstance(details.get("mergeStatus"), str) or details["mergeStatus"] not in merge_statuses:
+                raise AdoError("active PR merge status is incomplete")
             scope = Scope.from_details(self.org, details)
             if not object_response(object_response(details.get("repository")).get("project")).get("id"):
                 raise AdoError("snapshot project ID is incomplete")
@@ -262,7 +268,13 @@ class PrClient:
             payload["threads"] = self.threads(scope)["value"]
             for thread in payload["threads"]:
                 if not thread.get("isDeleted"):
-                    if "status" not in thread or not isinstance(thread.get("comments"), list):
+                    status = thread.get("status")
+                    valid_status = (
+                        type(status) is int and status in range(7) or
+                        isinstance(status, str) and status in
+                        {"unknown", "active", "fixed", "wontFix", "closed", "byDesign", "pending"}
+                    )
+                    if not valid_status or not isinstance(thread.get("comments"), list):
                         raise AdoError("snapshot thread data is incomplete")
             payload["policies"] = self.policies(scope)
             payload["builds"] = self.builds(scope, details)
@@ -271,9 +283,12 @@ class PrClient:
                 raise AdoError("active PR draft state is incomplete at snapshot fence")
             if fence.get("status") == "active" and (
                 not isinstance(fence.get("reviewers"), list) or
-                any(not isinstance(reviewer, dict) for reviewer in fence["reviewers"])
+                any(not isinstance(reviewer, dict) or type(reviewer.get("vote")) is not int or
+                    reviewer["vote"] not in (-10, -5, 0, 5, 10) for reviewer in fence["reviewers"])
             ):
                 raise AdoError("active PR reviewer collection is incomplete at snapshot fence")
+            if not isinstance(fence.get("mergeStatus"), str) or fence["mergeStatus"] not in merge_statuses:
+                raise AdoError("active PR merge status is incomplete at snapshot fence")
             if revision(fence) != expected or (fence.get("repository") or {}).get("id") != scope.repository:
                 raise AdoError("PR revision changed during snapshot")
             payload["details"] = fence
@@ -514,17 +529,15 @@ class Publisher:
                 if rejected is not None:
                     results.append({"kind": "failed", "findingId": finding_id, "error": str(rejected)})
                     continue
-                if latest_iteration is None:
-                    iterations = self.client.collection(self.scope.base + "/iterations?api-version=7.1")["value"]
-                    if not iterations:
-                        raise AdoError("PR iterations are incomplete; publication blocked")
-                    latest_iteration = max(int(positive_id(iteration.get("id"))) for iteration in iterations)
-                expected_iteration = payload["pullRequestThreadContext"]["iterationContext"].get("secondComparingIteration")
-                if expected_iteration != latest_iteration:
-                    results.append({"kind": "failed", "findingId": finding_id,
-                                    "error": "finding iteration is not current; reload the PR before publication"})
-                    continue
                 try:
+                    if latest_iteration is None:
+                        iterations = self.client.collection(self.scope.base + "/iterations?api-version=7.1")["value"]
+                        if not iterations:
+                            raise AdoError("PR iterations are incomplete; publication blocked")
+                        latest_iteration = max(int(positive_id(iteration.get("id"))) for iteration in iterations)
+                    expected_iteration = payload["pullRequestThreadContext"]["iterationContext"].get("secondComparingIteration")
+                    if expected_iteration != latest_iteration:
+                        raise AdoError("finding iteration is not current; reload the PR before publication")
                     created = self.write("/threads", "POST", payload,
                                          before_send=lambda: self.save(key, "unknown", payload))
                     if not isinstance(created.get("id"), int) or isinstance(created["id"], bool) or created["id"] < 1:

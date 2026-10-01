@@ -175,6 +175,10 @@ current-merge build results. It reuses PR scope, follows collection pagination,
 and checks that the revision did not change during the read. A missing or failed
 check is an error, not evidence that the PR is ready. Merge monitoring uses one
 snapshot per pass and refreshes before enabling auto-complete.
+Active snapshots require documented thread statuses. PR details require a
+recognized merge status and complete reviewer votes at both the initial read
+and final revision fence. A recognized
+conflict or pending state remains visible to callers; it is not a ready result.
 
 Plugin-owned HTTP requests share per-organization concurrency and cooldown state
 on the same machine. The client honors `Retry-After` on successful and failed

@@ -330,7 +330,8 @@ class FileLock:
 class State:
     def __init__(self, directory: Path | None = None, *, clock: Callable[[], float] = time.time,
                  sleep: Callable[[float], None] = time.sleep):
-        self.directory = directory or Path(os.environ.get("ADO_STATE_DIR", str(Path.home() / ".cache/scarypilot/ado")))
+        configured = os.environ.get("ADO_STATE_DIR")
+        self.directory = directory or (Path(configured) if configured else Path.home() / ".cache/scarypilot/ado")
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         os.chmod(self.directory, 0o700)
         self.clock, self.sleep = clock, sleep
