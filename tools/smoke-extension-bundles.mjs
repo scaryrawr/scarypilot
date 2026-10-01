@@ -36,14 +36,15 @@ for (const extension of extensions) {
         exports: { "./extension": "./extension.mjs" },
       })),
       writeFile(path.join(sdk, "extension.mjs"), [
-        "export function defineFactory(definition) { return definition; }",
+        "export function defineWorkflow(definition) { return Object.freeze({ meta: definition.meta }); }",
         "export async function joinSession(options) {",
         "  if (!options || typeof options !== 'object') throw new Error('Missing session options');",
-        "  const factories = options.factories ?? [];",
-        "  if (factories.some((factory) => !factory.meta?.name || typeof factory.run !== 'function'))",
-        "    throw new Error('Invalid factory registration');",
+        "  if ('factories' in options) throw new Error('Obsolete factory registration');",
+        "  const workflows = options.workflows ?? [];",
+        "  if (workflows.some((workflow) => !workflow.meta?.name || 'run' in workflow))",
+        "    throw new Error('Invalid workflow registration');",
         "  console.log('SCARYPILOT_SMOKE:' + JSON.stringify({ joined: true, tools: options.tools?.length ?? 0,",
-        "    factories: factories.map((factory) => factory.meta.name),",
+        "    workflows: workflows.map((workflow) => workflow.meta.name),",
         "    agents: options.customAgents?.map((agent) => agent.name) ?? [] }));",
         "  return { log: async () => {}, on: () => () => {},",
         "    rpc: { model: { getCurrent: async () => ({}) },",
@@ -73,7 +74,7 @@ for (const extension of extensions) {
     const registration = registrationLine && JSON.parse(registrationLine.slice("SCARYPILOT_SMOKE:".length));
 
     if (!registration || (extension.includes("/pstack/") &&
-      (!registration.factories.includes("pstack-swarm") ||
+      (!registration.workflows.includes("pstack-swarm") ||
         !registration.agents.includes("pstack-swarm-worker")))) {
       throw new Error(`${extension}: missing expected session registration`);
     }
