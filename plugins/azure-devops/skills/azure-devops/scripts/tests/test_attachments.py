@@ -68,7 +68,7 @@ class AttachmentTests(unittest.TestCase):
         )
 
     def test_every_upload_command_returns_shared_markup_and_preserves_metadata(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
             path = Path(directory) / "recording.bin"
             path.write_bytes(b"media bytes")
             for script_name in ("ado-cli.py", "make-pr.py", "review-pr.py"):
@@ -100,7 +100,7 @@ class AttachmentTests(unittest.TestCase):
                         self.assertIn(f"/attachments/{file_name}?api-version=7.1", request.call_args.args[0])
 
     def test_upload_uses_local_filename_by_default(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
             path = Path(directory) / "screenshot.png"
             path.write_bytes(b"media bytes")
             with (
@@ -114,7 +114,7 @@ class AttachmentTests(unittest.TestCase):
             self.assertEqual(metadata["markdown"], f"![screenshot.png]({ATTACHMENT_URL})")
 
     def test_missing_attachment_url_is_an_explicit_failure(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
             path = Path(directory) / "demo.mp4"
             path.write_bytes(b"media bytes")
             for url in (None, "", 42):

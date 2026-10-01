@@ -1,12 +1,7 @@
-import { execFile } from "node:child_process";
-import { access, mkdtemp, rm, writeFile } from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-import { win32 as windowsPath } from "node:path";
-import { promisify } from "node:util";
 import { createTwoFilesPatch } from "diff";
 import { Type, type Static } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
+import { bridgeReadRequest, runBridge, type BridgeRequest, type BridgeRunner } from "./ado-bridge.ts";
 import {
   changedLineRanges,
   findingThreads,
@@ -19,13 +14,11 @@ import {
   type ReviewThread,
 } from "./review-state.ts";
 
-const execFileAsync = promisify(execFile);
-
-const MAX_AZ_OUTPUT_BYTES = 32 * 1024 * 1024;
+const MAX_BRIDGE_OUTPUT_BYTES = 32 * 1024 * 1024;
 
 const MAX_CHANGED_FILES = 2_000;
 
-const FILE_FETCH_CONCURRENCY = 6;
+const FILE_FETCH_CONCURRENCY = 2;
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
@@ -51,11 +44,6 @@ const JsonObjectSchema = Type.Record(Type.String(), JsonValueSchema);
 const StringSchema = Type.String();
 
 const NumberSchema = Type.Number();
-
-const ChildProcessErrorSchema = Type.Object({
-  code: Type.Optional(Type.Union([Type.String(), Type.Number()])),
-  stderr: Type.Optional(Type.String()),
-});
 
 export type JsonValue = Static<typeof JsonValueSchema>;
 
@@ -116,6 +104,7 @@ export interface LoadedPullRequest {
 export interface AzureCliRunner {
   json(args: string[], body?: AzureThreadPayload): Promise<JsonValue>;
   file(args: string[]): Promise<Buffer>;
+  publishBatch?(request: Extract<BridgeRequest, { operation: "publish" }>): Promise<PublicationResult[]>;
 }
 
 export type PublicationResult =
@@ -136,6 +125,8 @@ export async function loadAzurePullRequest(
     "show",
     "--id",
     String(location.pullRequestId),
+    "--project",
+    location.project,
     ...scopeArgs,
     "--output",
     "json",
@@ -169,7 +160,7 @@ export async function loadAzurePullRequest(
     throw new Error("Azure DevOps returned incomplete commit metadata for the latest pull request iteration.");
   }
 
-  const changes = parseChanges(await runner.json([
+  const allChanges = parseChanges(await runner.json([
     "devops",
     "invoke",
     ...invokeScope,
@@ -181,7 +172,10 @@ export async function loadAzurePullRequest(
     "--query-parameters",
     `$top=${MAX_CHANGED_FILES}`,
     "$compareTo=0",
-  ])).slice(0, MAX_CHANGED_FILES);
+  ]));
+
+  const changes = allChanges.slice(0, MAX_CHANGED_FILES);
+  const displayOmissions = allChanges.length - changes.length;
 
   let remainingContentBytes = MAX_TOTAL_CONTENT_BYTES;
   let omittedFiles = 0;
@@ -256,9 +250,9 @@ export async function loadAzurePullRequest(
     loaded: true,
     status: `${omittedFiles > 0
       ? `Loaded ${files.length - omittedFiles} changed files; omitted content for ${omittedFiles} files`
-      : changes.length >= MAX_CHANGED_FILES
-        ? `Loaded the first ${MAX_CHANGED_FILES} changed files`
-        : `Loaded ${files.length} changed file${files.length === 1 ? "" : "s"}`}${
+      : `Loaded ${files.length} changed file${files.length === 1 ? "" : "s"}`}${
+      displayOmissions ? `; omitted ${displayOmissions} changed files from display (${MAX_CHANGED_FILES} file display limit)` : ""
+    }${
       threadLoadError
         ? `; could not load Azure DevOps threads: ${threadLoadError}`
         : `; loaded ${threads.length} inline Azure DevOps thread${threads.length === 1 ? "" : "s"}`
@@ -282,6 +276,9 @@ async function publishReviewFindingsOnce(
   runner: AzureCliRunner,
 ): Promise<PublicationResult[]> {
   const location = parseAzurePullRequestUrl(review.prUrl);
+  const findings = findingThreads(review, selection);
+
+  if (!findings.length) return [];
 
   const details = parsePullRequestDetails(await runner.json([
     "repos",
@@ -291,6 +288,8 @@ async function publishReviewFindingsOnce(
     String(location.pullRequestId),
     "--org",
     location.organizationUrl,
+    "--project",
+    location.project,
     "--only-show-errors",
     "--output",
     "json",
@@ -305,35 +304,33 @@ async function publishReviewFindingsOnce(
 
   const results: PublicationResult[] = [];
 
-  for (const finding of findingThreads(review, selection)) {
+  const iterations = runner.publishBatch ? [] : collection(await runner.json([
+    "devops", "invoke", ...scope.invokeScope,
+    "--resource", "pullRequestIterations",
+    "--route-parameters", ...scope.route,
+  ]));
+
+  const latestIteration = iterations.reduce<number | undefined>((latest, entry) => {
+    const id = isRecord(entry) ? numberAt(entry, "id") : undefined;
+
+    return id !== undefined && id >= 0 ? Math.max(latest ?? 0, id) : latest;
+  }, undefined);
+
+  const pending: Array<{ finding: typeof findings[number]; payload: AzureThreadPayload }> = [];
+
+  for (const finding of findings) {
     try {
-      const currentThreads = await listRemoteThreads(runner, scope.invokeScope, scope.route);
-      const duplicate = currentThreads.find((thread) => remoteThreadMatches(thread, finding));
-
-      if (duplicate) {
-        results.push({ kind: "duplicate", findingId: finding.finding.id, remoteThreadId: duplicate.id });
-        continue;
-      }
-
       const file = review.files.find((candidate) => candidate.path === finding.anchor.path);
 
       if (file?.changeTrackingId === undefined || file.iterationId === undefined) {
         throw new Error("Azure DevOps did not provide the change tracking context for this finding.");
       }
 
-      const created = parseCreatedThread(await runner.json([
-        "devops",
-        "invoke",
-        ...scope.invokeScope,
-        "--resource",
-        "pullRequestThreads",
-        "--route-parameters",
-        ...scope.route,
-        "--http-method",
-        "POST",
-      ], azureThreadPayload(finding, file)));
+      if (!runner.publishBatch && (latestIteration === undefined || latestIteration !== file.iterationId)) {
+        throw new Error("The pull request iteration changed or could not be verified. Reload the review before publishing.");
+      }
 
-      results.push({ kind: "published", findingId: finding.finding.id, remoteThreadId: created });
+      pending.push({ finding, payload: azureThreadPayload(finding, file) });
     } catch (error) {
       results.push({
         kind: "failed",
@@ -343,14 +340,85 @@ async function publishReviewFindingsOnce(
     }
   }
 
-  return results;
+  if (pending.length) {
+    try {
+      if (runner.publishBatch) {
+        results.push(...await runner.publishBatch({
+          operation: "publish",
+          org: location.organizationUrl,
+          project: location.project,
+          repositoryId: details.repositoryId,
+          pullRequestId: location.pullRequestId,
+          findings: pending.map(({ finding, payload }) => ({ findingId: finding.finding.id, payload })),
+        }));
+      } else {
+        const currentThreads = await listRemoteThreads(runner, scope.invokeScope, scope.route);
+        const uncertain: typeof findings = [];
+
+        for (const { finding, payload } of pending) {
+          try {
+            const duplicate = currentThreads.find((thread) => remoteThreadMatches(thread, finding));
+
+            if (duplicate) {
+              results.push({ kind: "duplicate", findingId: finding.finding.id, remoteThreadId: duplicate.id });
+              continue;
+            }
+
+            if (uncertain.some((previous) => remoteThreadMatches({
+              id: 0, resolved: false, messages: [],
+              firstComment: visibleFindingComment(previous), anchor: previous.anchor,
+            }, finding))) {
+              throw new Error("An earlier matching write has an uncertain outcome. Check Azure DevOps before publishing again.");
+            }
+
+            let created: number;
+
+            try {
+              created = parseCreatedThread(await runner.json([
+                "devops", "invoke", ...scope.invokeScope,
+                "--resource", "pullRequestThreads", "--route-parameters", ...scope.route,
+                "--http-method", "POST",
+              ], payload));
+            } catch (error) {
+              uncertain.push(finding);
+              throw error;
+            }
+
+            currentThreads.push({
+              id: created, anchor: finding.anchor, resolved: false,
+              firstComment: payload.comments[0]!.content, messages: [],
+            });
+            results.push({ kind: "published", findingId: finding.finding.id, remoteThreadId: created });
+          } catch (error) {
+            results.push({ kind: "failed", findingId: finding.finding.id, error: error instanceof Error ? error.message : String(error) });
+          }
+        }
+      }
+    } catch (error) {
+      for (const { finding } of pending) {
+        if (!results.some((result) => result.findingId === finding.finding.id)) {
+          results.push({ kind: "failed", findingId: finding.finding.id, error: error instanceof Error ? error.message : String(error) });
+        }
+      }
+    }
+  }
+
+  return findings.map((finding) => results.find((result) => result.findingId === finding.finding.id)!);
 }
 
 async function serializePublication<T>(
   prUrl: string,
   work: () => Promise<T>,
 ): Promise<T> {
-  const previous = publicationQueues.get(prUrl) ?? Promise.resolve();
+  const location = parseAzurePullRequestUrl(prUrl);
+  const org = new URL(location.organizationUrl);
+
+  const organization = org.hostname === "dev.azure.com"
+    ? decodeURIComponent(org.pathname.slice(1))
+    : org.hostname.slice(0, -".visualstudio.com".length);
+
+  const key = `${organization.toLowerCase()}/${location.pullRequestId}`;
+  const previous = publicationQueues.get(key) ?? Promise.resolve();
   let release: () => void;
 
   const gate = new Promise<void>((resolve) => {
@@ -358,7 +426,7 @@ async function serializePublication<T>(
   });
 
   const tail = previous.catch(() => {}).then(() => gate);
-  publicationQueues.set(prUrl, tail);
+  publicationQueues.set(key, tail);
   await previous.catch(() => {});
 
   try {
@@ -366,42 +434,66 @@ async function serializePublication<T>(
   } finally {
     release!();
 
-    if (publicationQueues.get(prUrl) === tail) publicationQueues.delete(prUrl);
+    if (publicationQueues.get(key) === tail) publicationQueues.delete(key);
   }
 }
 
-export const defaultAzureCliRunner: AzureCliRunner = {
-  async json(args, body) {
-    if (body === undefined) {
-      return Value.Parse(JsonValueSchema, JSON.parse((await runAzureCli(args)).stdout));
-    }
+const PublicationResponseSchema = Type.Object({
+  results: Type.Array(Type.Union([
+    Type.Object({
+      kind: Type.Union([Type.Literal("published"), Type.Literal("duplicate")]),
+      findingId: Type.String(),
+      remoteThreadId: Type.Integer({ minimum: 1 }),
+    }),
+    Type.Object({ kind: Type.Literal("failed"), findingId: Type.String(), error: Type.String() }),
+  ])),
+});
 
-    const directory = await mkdtemp(path.join(os.tmpdir(), "paired-review-"));
-    const inputPath = path.join(directory, "request.json");
+export function createAzureBridgeRunner(bridge: BridgeRunner = runBridge): AzureCliRunner {
+  return {
+    async json(args, body) {
+      if (body !== undefined) throw new Error("Azure DevOps writes require a coordinated publication batch.");
 
-    try {
-      await writeFile(inputPath, JSON.stringify(body));
+      return bridge(bridgeReadRequest(args), MAX_BRIDGE_OUTPUT_BYTES);
+    },
+    async file(args) {
+      let payload: JsonValue;
 
-      return Value.Parse(
-        JsonValueSchema,
-        JSON.parse((await runAzureCli([...args, "--in-file", inputPath])).stdout),
-      );
-    } finally {
-      await rm(directory, { recursive: true, force: true });
-    }
-  },
-  async file(args) {
-    const payload = JSON.parse((await runAzureCli(args, MAX_FILE_RESPONSE_BYTES)).stdout);
-    const content = itemContent(payload);
+      try {
+        payload = await bridge(bridgeReadRequest(args), MAX_FILE_RESPONSE_BYTES);
+      } catch (error) {
+        if (error instanceof Error && /content_too_large|item content exceeds (?:2097152 bytes|2 MiB limit)/.test(error.message)) {
+          throw new AzureResponseTooLargeError(MAX_FILE_BYTES);
+        }
 
-    if (content === undefined) return Buffer.from([0]);
-    const buffer = Buffer.from(content, "utf8");
+        throw error;
+      }
 
-    if (buffer.length > MAX_FILE_BYTES) throw new AzureResponseTooLargeError(MAX_FILE_BYTES);
+      const content = itemContent(payload);
 
-    return buffer;
-  },
-};
+      if (content === undefined) return Buffer.from([0]);
+      const buffer = Buffer.from(content, "utf8");
+
+      if (buffer.length > MAX_FILE_BYTES) throw new AzureResponseTooLargeError(MAX_FILE_BYTES);
+
+      return buffer;
+    },
+    async publishBatch(request) {
+      const { results } = Value.Parse(PublicationResponseSchema, await bridge(request));
+      const expected = new Set(request.findings.map((finding) => finding.findingId));
+
+      for (const result of results) {
+        if (!expected.delete(result.findingId)) throw new Error("Azure DevOps bridge returned an unexpected publication result.");
+      }
+
+      if (expected.size) throw new Error("Azure DevOps bridge returned incomplete publication results.");
+
+      return results;
+    },
+  };
+}
+
+export const defaultAzureCliRunner = createAzureBridgeRunner();
 
 function azureInvokeScope(organizationUrl: string): string[] {
   return [
@@ -454,7 +546,7 @@ function remoteThreadMatches(
   );
 }
 
-interface AzureThreadPayload {
+export type AzureThreadPayload = {
   comments: Array<{
     parentCommentId: number;
     content: string;
@@ -475,7 +567,7 @@ interface AzureThreadPayload {
       secondComparingIteration?: number;
     };
   };
-}
+};
 
 function azureThreadPayload(
   finding: Extract<ReviewThread, { kind: "finding" }>,
@@ -639,85 +731,6 @@ async function fetchItem(
   } catch (error) {
     if (error instanceof AzureResponseTooLargeError) return null;
     throw error;
-  }
-}
-
-async function runAzureCli(
-  args: string[],
-  maxBuffer = MAX_AZ_OUTPUT_BYTES,
-): Promise<{ stdout: string; stderr: string }> {
-  try {
-    const invocation = await azureCliInvocation(args);
-
-    return await execFileAsync(invocation.file, invocation.args, {
-      encoding: "utf8",
-      env: { ...process.env, AZURE_CORE_ONLY_SHOW_ERRORS: "1" },
-      maxBuffer,
-      windowsHide: true,
-    });
-  } catch (error) {
-    const errorRecord = Value.Check(ChildProcessErrorSchema, error) ? error : undefined;
-
-    if (errorRecord?.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") {
-      throw new AzureResponseTooLargeError(maxBuffer);
-    }
-
-    const stderr = errorRecord?.stderr;
-
-    const message = stderr
-      ? stderr.trim()
-      : error instanceof Error
-        ? error.message
-        : String(error);
-
-    throw new Error(`Azure CLI request failed: ${message || "unknown error"}`);
-  }
-}
-
-export function azureCliInvocation(
-  args: string[],
-  platform = process.platform,
-  findWindowsCommands: () => Promise<string[]> = findWindowsAzureCliCommands,
-  fileExists: (filePath: string) => Promise<boolean> = pathExists,
-): Promise<{ file: string; args: string[] }> {
-  if (platform !== "win32") return Promise.resolve({ file: "az", args });
-
-  return findWindowsCommands().then(async (commands) => {
-    const executable = commands.find((command) => [".exe", ".com"].includes(
-      windowsPath.extname(command).toLowerCase(),
-    ));
-
-    if (executable) return { file: executable, args };
-
-    for (const command of commands) {
-      if (windowsPath.extname(command).toLowerCase() !== ".cmd") continue;
-      const python = windowsPath.resolve(windowsPath.dirname(command), "..", "python.exe");
-
-      if (await fileExists(python)) {
-        return { file: python, args: ["-IBm", "azure.cli", ...args] };
-      }
-    }
-
-    throw new Error("Azure CLI for Windows was not found in a supported installation");
-  });
-}
-
-async function findWindowsAzureCliCommands(): Promise<string[]> {
-  const { stdout } = await execFileAsync("where.exe", ["az"], {
-    encoding: "utf8",
-    windowsHide: true,
-  });
-
-  return stdout.split(/\r?\n/).map((command) => command.trim()).filter(Boolean);
-}
-
-async function pathExists(filePath: string): Promise<boolean> {
-  try {
-    await access(filePath);
-
-    return true;
-  } catch {
-    return false;
   }
 }
 

@@ -12,6 +12,7 @@ import sys
 from typing import Any
 
 from shared.ado import parse_azure_devops_https_url, upload_pr_attachment
+from shared.transport import AdoError, Deferred
 
 
 def parse_azure_devops_url(raw_url: str) -> dict[str, Any]:
@@ -110,4 +111,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Deferred as exc:
+        print(json.dumps({"error": str(exc), "deferred": True, "retryAt": exc.retry_at}), file=sys.stderr)
+        sys.exit(2)
+    except AdoError as exc:
+        sys.exit(f"error: {exc}")

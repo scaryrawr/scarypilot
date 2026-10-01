@@ -55,25 +55,26 @@ class AttributionTests(unittest.TestCase):
         self.assertEqual(payload["comments"][0]["content"], "Post this verbatim.")
 
     def test_reply_is_attributed_before_post_and_resolves_after_reply(self):
+        from shared.pr import PrClient
+        from shared.transport import Response, State, Transport
         args = argparse.Namespace(id="42", thread_id="7", content="Fixed", status="fixed", user_authored=False)
-        calls = []
+        details = {"pullRequestId": 42, "repository": {"id": "repo", "project": {"id": "project"}}}
+        for user_authored in (False, True):
+            args.user_authored = user_authored
+            calls = []
 
-        def invoke(*_args, **kwargs):
-            calls.append(kwargs)
-            return {"id": len(calls)}
+            def send(url, method, body, headers):
+                calls.append((method, json.loads(body) if body else None))
+                result = details if "/pullrequests/42" in url else {"comments": []} if method == "GET" else \
+                    {"id": 7, "status": "fixed"} if method == "PATCH" else {"id": 1}
+                return Response(200, {}, json.dumps(result).encode())
 
-        with patch.object(ado_pr, "invoke_thread_api", side_effect=invoke):
-            ado_pr.reply_and_resolve(args)
-
-        self.assertEqual(calls[0]["payload"]["content"], f"Fixed\n\n{AI_ATTRIBUTION}")
-        self.assertEqual(calls[0]["method"], "POST")
-        self.assertEqual(calls[1]["method"], "PATCH")
-
-        args.user_authored = True
-        calls.clear()
-        with patch.object(ado_pr, "invoke_thread_api", side_effect=invoke):
-            ado_pr.reply_and_resolve(args)
-        self.assertEqual(calls[0]["payload"]["content"], "Fixed")
+            with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
+                client = PrClient("example", Transport(State(Path(directory)), auth=lambda: "Bearer test", send=send))
+                with patch.object(ado_pr, "cli_client", return_value=client), redirect_stdout(StringIO()):
+                    ado_pr.reply_and_resolve(args)
+            self.assertEqual([call[0] for call in calls], ["GET", "GET", "POST", "PATCH"])
+            self.assertEqual(calls[2][1]["content"], "Fixed" if user_authored else f"Fixed\n\n{AI_ATTRIBUTION}")
 
     def test_pr_description_is_attributed_in_rest_body_and_limit_includes_suffix(self):
         args = argparse.Namespace(
@@ -110,7 +111,7 @@ class AttributionTests(unittest.TestCase):
             make_pr.read_description(args)
 
     def test_file_description_preserves_template_sections_and_existing_suffix(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
             path = Path(directory) / "description.md"
             path.write_text(f"## What\n\nDetail\n\n{AI_ATTRIBUTION}\n", encoding="utf-8")
             args = argparse.Namespace(description_file=str(path), description=None, user_authored=False)

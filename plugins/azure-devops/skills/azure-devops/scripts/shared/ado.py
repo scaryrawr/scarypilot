@@ -4,15 +4,16 @@ import argparse
 import html
 import json
 import mimetypes
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
-import urllib.error
 import urllib.parse
-import urllib.request
 from pathlib import Path
 from typing import Any
+
+from .transport import AdoError, Transport, azure_cli_invocation, organization
 
 
 DEVOPS_RESOURCE = "499b84ac-1321-427f-aa17-267ca6975798"
@@ -65,31 +66,22 @@ def parse_azure_devops_https_url(value: str) -> dict[str, Any] | None:
 
 def normalize_organization(value: str) -> dict[str, str]:
     """Normalize an Azure DevOps organization name or URL."""
-    raw = value.strip().rstrip("/")
-    if not raw:
-        sys.exit("error: Azure DevOps organization cannot be empty")
-    if raw.startswith("http://") or raw.startswith("https://"):
-        parsed = urllib.parse.urlparse(raw)
-        if parsed.hostname == "dev.azure.com":
-            parts = [part for part in parsed.path.split("/") if part]
-            if not parts:
-                sys.exit(f"error: could not determine organization from {value}")
-            org = parts[0]
-        elif parsed.hostname and parsed.hostname.endswith(".visualstudio.com"):
-            org = parsed.hostname.removesuffix(".visualstudio.com")
-        else:
-            sys.exit(f"error: unsupported Azure DevOps organization URL: {value}")
-    else:
-        org = raw
+    try:
+        org = organization(value)
+    except AdoError as exc:
+        sys.exit(f"error: {exc}")
     return {"organization": org, "organizationUrl": f"https://dev.azure.com/{org}"}
 
 
 def run(command: list[str], cwd: Path | None = None, *, exit_on_error: bool = True) -> str:
     """Run a command and return stdout, preserving stderr context on failure."""
     executable = shutil.which(command[0])
-    resolved_command = [executable or command[0], *command[1:]]
+    resolved_command = azure_cli_invocation(command) if command[0] == "az" else [executable or command[0], *command[1:]]
     try:
-        return subprocess.run(resolved_command, cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+        return subprocess.run(
+            resolved_command, cwd=cwd, check=True, capture_output=True, encoding="utf-8",
+            env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+        ).stdout.strip()
     except FileNotFoundError:
         sys.exit(f"error: executable not found: {command[0]}")
     except subprocess.CalledProcessError as exc:
@@ -110,15 +102,8 @@ def token() -> str:
 
 
 def request_json(url: str, method: str = "GET", body: bytes | None = None, headers: dict[str, str] | None = None) -> Any:
-    """Call an Azure DevOps JSON endpoint and return decoded JSON."""
-    request = urllib.request.Request(url, data=body, headers=headers or {}, method=method)
-    try:
-        with urllib.request.urlopen(request, timeout=300) as response:
-            payload = response.read().decode("utf-8")
-    except urllib.error.HTTPError as exc:
-        details = exc.read().decode("utf-8", errors="replace")
-        sys.exit(f"error: request failed ({exc.code}): {details}")
-    return json.loads(payload) if payload else {}
+    """All direct REST callers share organization admission and cooldown."""
+    return Transport().json(url, method, body, headers)
 
 
 def scope_args(args: argparse.Namespace) -> list[str]:
@@ -208,7 +193,7 @@ def upload_pr_attachment(
         url,
         method="POST",
         body=file_path.read_bytes(),
-        headers={"Authorization": f"Bearer {token()}", "Content-Type": "application/octet-stream"},
+        headers={"Content-Type": "application/octet-stream"},
     )
     attachment_url = payload.get("url")
     if not isinstance(attachment_url, str) or not attachment_url:

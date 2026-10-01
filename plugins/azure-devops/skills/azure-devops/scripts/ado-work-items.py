@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.11"
 # ///
-"""Build Azure Boards helper payloads."""
+"""Build Azure Boards payloads and execute coordinated REST operations."""
 
 from __future__ import annotations
 
@@ -13,7 +13,8 @@ import sys
 import urllib.parse
 from typing import Any
 
-from shared.ado import normalize_organization, request_json, token
+from shared.ado import normalize_organization, request_json
+from shared.transport import AdoError, Deferred, Transport
 
 
 def parse_work_item_url(raw_url: str) -> dict[str, Any]:
@@ -94,11 +95,26 @@ def build_wiql(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def auth_headers(content_type: str | None = None) -> dict[str, str]:
-    """Return Azure DevOps REST authorization headers."""
-    headers = {"Authorization": f"Bearer {token()}"}
+    """Return optional content headers; the HTTP owner supplies authorization."""
+    headers: dict[str, str] = {}
     if content_type:
         headers["Content-Type"] = content_type
     return headers
+
+
+def query_work_items(args: argparse.Namespace) -> None:
+    """Execute WIQL through coordinated REST, preserving the service result."""
+    normalized = normalize_organization(args.org)
+    project = urllib.parse.quote(args.project, safe="")
+    if not args.wiql.strip():
+        raise AdoError("WIQL query is required")
+    payload = request_json(
+        f"{normalized['organizationUrl']}/{project}/_apis/wit/wiql?api-version=7.1",
+        method="POST",
+        body=json.dumps({"query": args.wiql}).encode("utf-8"),
+        headers=auth_headers("application/json"),
+    )
+    print(json.dumps(payload, indent=2))
 
 
 def search_work_items(args: argparse.Namespace) -> None:
@@ -169,12 +185,13 @@ def required_fields(args: argparse.Namespace) -> None:
 def link_pr(args: argparse.Namespace) -> None:
     """Link an Azure DevOps pull request to a work item with a named ArtifactLink."""
     normalized = normalize_organization(args.org)
+    transport = Transport()
     project_id = args.project_id
     repository_id = args.repository_id
     if not project_id or not repository_id:
         if not args.project or not args.repository:
             sys.exit("error: provide either --project-id/--repository-id or --project/--repository")
-        repo_payload = request_json(
+        repo_payload = transport.json(
             f"{normalized['organizationUrl']}/{urllib.parse.quote(args.project, safe='')}/_apis/git/repositories/"
             f"{urllib.parse.quote(args.repository, safe='')}?api-version=7.1",
             headers=auth_headers(),
@@ -191,7 +208,7 @@ def link_pr(args: argparse.Namespace) -> None:
             "value": {"rel": "ArtifactLink", "url": artifact_url, "attributes": {"name": "Pull Request"}},
         }
     ]
-    payload = request_json(
+    payload = transport.json(
         f"{normalized['organizationUrl']}/_apis/wit/workitems/{args.work_item_id}?api-version=7.1",
         method="PATCH",
         body=json.dumps(patch).encode("utf-8"),
@@ -225,6 +242,10 @@ def main() -> None:
     wiql.add_argument("--type", action="append", default=[])
     wiql.add_argument("--fields", default="")
     wiql.add_argument("--extra-clause", action="append", default=[])
+    query = subparsers.add_parser("query", help="Execute WIQL through coordinated REST")
+    query.add_argument("--org", required=True)
+    query.add_argument("--project", required=True)
+    query.add_argument("--wiql", required=True)
     search = subparsers.add_parser("search")
     search.add_argument("--org", required=True)
     search.add_argument("--text", required=True)
@@ -250,6 +271,8 @@ def main() -> None:
         print(json.dumps(parse_work_item_url(args.url), indent=2))
     elif args.command == "wiql":
         print(json.dumps(build_wiql(args), indent=2))
+    elif args.command == "query":
+        query_work_items(args)
     elif args.command == "search":
         search_work_items(args)
     elif args.command == "required-fields":
@@ -259,4 +282,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Deferred as exc:
+        print(json.dumps({"error": str(exc), "deferred": True, "retryAt": exc.retry_at}), file=sys.stderr)
+        sys.exit(2)
+    except AdoError as exc:
+        sys.exit(f"error: {exc}")

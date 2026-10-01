@@ -5,12 +5,14 @@ on:
     paths:
       - ".github/workflows/paired-review-bundle.yml"
       - "plugins/azure-devops/extensions/paired-review/**"
+      - "plugins/azure-devops/skills/azure-devops/scripts/**"
   push:
     branches:
       - main
     paths:
       - ".github/workflows/paired-review-bundle.yml"
       - "plugins/azure-devops/extensions/paired-review/**"
+      - "plugins/azure-devops/skills/azure-devops/scripts/**"
 
 permissions:
   contents: read
@@ -23,3 +25,36 @@ jobs:
       - name: Check generated bundle
         working-directory: plugins/azure-devops/extensions/paired-review
         run: npm run check:bundle
+
+  platforms:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22.18.0"
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+      - name: Check Python request owner
+        run: python -m unittest discover -s plugins/azure-devops/skills/azure-devops/scripts/tests -v
+      - name: Install extension dependencies
+        working-directory: plugins/azure-devops/extensions/paired-review
+        run: npm ci --no-audit --no-fund
+      - name: Check extension types
+        working-directory: plugins/azure-devops/extensions/paired-review
+        run: npm run typecheck
+      - name: Check frontend types
+        working-directory: plugins/azure-devops/extensions/paired-review
+        run: npm run typecheck:frontend
+      - name: Check extension behavior
+        working-directory: plugins/azure-devops/extensions/paired-review
+        run: npm test
+      - name: Check installed bundle
+        working-directory: plugins/azure-devops/extensions/paired-review
+        run: npm run smoke:bundle

@@ -2,6 +2,7 @@
 name: azure-devops
 description: Use for performing Azure DevOps work — privately pair-review or discuss pull requests in the local canvas; create, inspect, review, comment on, vote on, or manage pull requests; find, query, create, update, and link Azure Boards work items (including building WIQL queries); parse and route dev.azure.com or *.visualstudio.com URLs; and upload or embed image/video/file attachments in PR descriptions and comments. Triggers on Azure DevOps / ADO / Azure Boards links or action requests such as "make an ADO PR", "review this Azure DevOps PR without posting", or "find work items assigned to me". Not for general conceptual explanations that do not act on a specific Azure DevOps resource, and not for GitHub, Jira, or other non-Azure-DevOps tools.
 allowed-tools: >-
+  azure_devops_pr_snapshot
   list_canvas_capabilities
   open_canvas
   invoke_canvas_action
@@ -54,6 +55,16 @@ helper. Do not read references you do not need.
 
 Every helper prints JSON to stdout and diagnostics to stderr. Run any helper with
 `--help` to confirm its subcommands and flags before composing a command.
+
+For PR readiness, prefer the read-only `azure_devops_pr_snapshot` extension tool.
+If it is unavailable, use `ado-pr.py snapshot`. Reuse the fresh result within
+the pass instead of repeating PR, reviewer, thread, policy, and build reads.
+Refresh after changes and before readiness-dependent writes.
+
+Plugin-owned HTTP requests share local organization pacing and cooldowns.
+Honor reported throttling waits. Do not switch to raw Azure CLI or another MCP
+server to bypass them. Existing MCP registration does not coordinate its requests
+with this plugin's local request owner.
 
 ## Routing an unknown ADO URL
 
