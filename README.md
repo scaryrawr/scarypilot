@@ -53,6 +53,11 @@ This marketplace supports multiple plugin patterns:
 - **Agent-Based Plugins**: Define specialized agent behaviors for complex tasks
 - **LSP-Based Plugins**: Enable language server integration for code intelligence
 
+Native extensions target `@github/copilot-sdk` 1.0.16 for development.
+Copilot supplies its own SDK at runtime. Pstack's native read-only swarm
+requires a host exposing dynamic workflow tools; otherwise its skill uses
+the existing Task-agent fallback.
+
 ## Contributing
 
 Interested in adding plugins to this marketplace? Check out the plugin development documentation:

@@ -6,8 +6,8 @@ description: "Fan out N parallel workers, drain them, and return one report. Use
 # Swarm
 
 Fan out N parallel workers. Read-only swarms use the native `pstack-swarm`
-factory when `run_factory` is available. Writing swarms keep the isolated Task
-worker flow because factory concurrency does not provide workspace isolation.
+workflow when `run_dynamic_workflow` is available. Writing swarms keep the isolated Task
+worker flow because workflow concurrency does not provide workspace isolation.
 
 ## Start
 
@@ -35,7 +35,8 @@ Open a todolist with one entry per phase before launching anything.
 
 ## Phase B: Fan out
 
-For a read-only swarm, call `run_factory` once with name `pstack-swarm` and:
+For a read-only swarm, call `run_dynamic_workflow` once with name `pstack-swarm`
+and the following `args`:
 
 ```json
 {
@@ -50,25 +51,31 @@ For a read-only swarm, call `run_factory` once with name `pstack-swarm` and:
 }
 ```
 
-The first factory contract supports read-only coverage swarms only. Races,
+The first workflow contract supports read-only coverage swarms only. Races,
 mixed swarms, and all writing work use the legacy flow below. Include the
 configured model on each worker only when it is present and not `auto`. The
-factory accepts 2-8 workers. Its workers are read-only and must not invoke
-factories.
+workflow accepts 2-8 workers. Its workers are read-only and must not invoke
+workflows.
+
+Save the returned run ID and wait for completion. Read the durable result with
+`dynamic_workflows_manage` using `operation: "inspect-run"` and that `runId`.
+Check the run envelope's status before inspecting its result: a completed run
+can still contain a swarm result with `status: "partial"` or `"blocked"`.
+Do not launch another workflow while the original is still running.
 
 For verification or measurement slices, put the exact SHAs and any required
 measurement method in each worker's `brief`, and explicitly require the worker
-to record them in its report's `evidence` strings. The factory's schema and
+to record them in its report's `evidence` strings. The workflow's schema and
 aggregate `status` do not validate these requirements; Phase C is mandatory
-before accepting any factory result, including `status: "complete"`.
+before accepting any workflow result, including `status: "complete"`.
 
-If `run_factory` is unavailable, excluded by the active model, returns a
+If `run_dynamic_workflow` is unavailable, excluded by the active model, returns a
 failed run, or completes with `status: "blocked"`, use the legacy flow below
 from the beginning. Report a `partial` result with its explicit gaps instead
-of replaying completed workers. A read-only factory run may fall back once
+of replaying completed workers. A read-only workflow run may fall back once
 because it cannot leave partial repository writes.
 
-For a writing swarm, do not call the factory. Spawn all N workers in one
+For a writing swarm, do not call the workflow. Spawn all N workers in one
 message with `agent_type: "general-purpose"` and `mode: "background"`. Pass the
 configured model unless it is absent or set to `auto`. Never replay or
 automatically fall back after a writing worker may have changed files.
@@ -79,9 +86,9 @@ If a worker drops out, proceed with N-1 and note it.
 
 ## Phase C: Aggregate
 
-Read the terminal results. For a factory result, match each entry in `workers` to its input brief by `id` and inspect its `evidence` strings for every required SHA and measurement-method detail (sample count, sample definition, and order). Do not trust the factory's aggregate `status`, an empty `gaps` list, or a worker's `PASS` as proof of this evidence. Briefs that require neither SHAs nor a method need no such records.
+Read the terminal results. For a workflow result, match each entry in `workers` to its input brief by `id` and inspect its `evidence` strings for every required SHA and measurement-method detail (sample count, sample definition, and order). Do not trust the workflow's aggregate `status`, an empty `gaps` list, or a worker's `PASS` as proof of this evidence. Briefs that require neither SHAs nor a method need no such records.
 
-Drop a result that omits or contradicts the SHAs or method its brief names. For a read-only factory result, rerun that slice once as a standalone background `general-purpose` worker with the same brief and configured model; do not invoke the 2-8-worker factory for this retry. For a read-only legacy result, rerun that worker once. Apply the same evidence check to the retry. Never replay a writing worker; record its missing evidence as a gap. After a second read-only miss, record a gap. Recompute coverage and gaps from the accepted results, preserving factory-reported gaps unless a valid retry fills them. Any remaining gap makes the consolidated report partial (or blocked if no usable results remain), even when the factory reported `complete`. A gap does not count as a pass. For coverage, every required slice needs a result. For a race, apply the selection rule declared up front. Use first pass, rank all, or best-of. Do not paste raw worker dumps.
+Drop a result that omits or contradicts the SHAs or method its brief names. For a read-only workflow result, rerun that slice once as a standalone background `general-purpose` worker with the same brief and configured model; do not invoke the 2-8-worker workflow for this retry. For a read-only legacy result, rerun that worker once. Apply the same evidence check to the retry. Never replay a writing worker; record its missing evidence as a gap. Recompute coverage and gaps from the accepted results, preserving workflow-reported gaps unless a valid retry fills them. Any remaining gap makes the consolidated report partial (or blocked if no usable results remain), even when the workflow reported `complete`. A gap does not count as a pass. For coverage, every required slice needs a result. For a race, apply the selection rule declared up front. Use first pass, rank all, or best-of. Do not paste raw worker dumps.
 
 Keep a compact result table, one-line evidenced issues, and explicit gaps or dropouts.
 

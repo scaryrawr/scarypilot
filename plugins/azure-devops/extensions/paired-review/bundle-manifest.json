@@ -2,7 +2,7 @@
   "version": 1,
   "inputs": {
     "index.html": "082572d9dc35ccb5e6f0e89bd379ba8565235822b465a26f9f701f04253abfa4",
-    "package.json": "c770d345efb83232617028a57d60ea1b63df020a0990370a1ea121e4b59ddc17",
+    "package.json": "b2d4e5987bedbc2decdb10e850f2cb030d38649ba845c5e244c404cb7b1ad59c",
     "src/ado-loader.ts": "e397d9f1e114383cb731736c8148d63b31694fdc7c35982154fa606db0b49186",
     "src/client/ChangedFileTree.tsx": "50861ddc9bdad5883f42ef2c1c14cc8cb15b9d24c502be6b85d3859219b58b4e",
     "src/client/file-tree-interaction.ts": "6582a95ca79445ace7f617445224b3c7949c15b5a2e4962d1a3b40b15ee032e5",

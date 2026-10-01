@@ -1,5 +1,5 @@
 import type {
-  FactoryContext,
+  WorkflowContext,
   JsonValue,
   joinSession,
 } from "@github/copilot-sdk/extension";
@@ -7,7 +7,7 @@ import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { describe, expect, it, vi } from "vitest";
-import { runSwarmFactory, type SwarmArgs } from "../src/factories/swarm.ts";
+import { runSwarmWorkflow, type SwarmArgs } from "../src/workflows/swarm.ts";
 import {
   createPstackExtensionRegistration,
   registerPstackExtension,
@@ -18,7 +18,7 @@ type SessionOptions = NonNullable<Parameters<typeof joinSession>[0]>;
 const execFileAsync = promisify(execFile);
 
 describe("pstack extension", () => {
-  it("registers the native tools and read-only swarm factory", () => {
+  it("registers the native tools and read-only swarm workflow", () => {
     const { options } = createPstackExtensionRegistration();
 
     expect(options.tools?.map((tool) => tool.name)).toEqual([
@@ -29,9 +29,11 @@ describe("pstack extension", () => {
       "pstack_inspect_worktrees",
       "pstack_handoff",
     ]);
-    expect(options.factories?.map((factory) => factory.meta.name)).toEqual([
+    expect(options.workflows?.map((workflow) => workflow.meta.name)).toEqual([
       "pstack-swarm",
     ]);
+    expect(options).not.toHaveProperty("factories");
+    expect(options.workflows?.[0]).not.toHaveProperty("run");
     expect(options.customAgents).toEqual([
       expect.objectContaining({
         name: "pstack-swarm-worker",
@@ -87,7 +89,7 @@ describe("pstack extension", () => {
     };
 
     const context: Pick<
-      FactoryContext<SwarmArgs>,
+      WorkflowContext<SwarmArgs>,
       "agent" | "args" | "log" | "parallel" | "phase" | "signal" | "step"
     > = {
       agent,
@@ -103,12 +105,12 @@ describe("pstack extension", () => {
       ),
     };
 
-    expect(options?.factories?.map((factory) => factory.meta.name)).toContain(
+    expect(options?.workflows?.map((workflow) => workflow.meta.name)).toContain(
       "pstack-swarm",
     );
     expect(workerAgent).toMatchObject({ tools: ["read", "search"] });
 
-    await expect(runSwarmFactory(context)).resolves.toMatchObject({
+    await expect(runSwarmWorkflow(context)).resolves.toMatchObject({
       status: "complete",
       gaps: [],
     });

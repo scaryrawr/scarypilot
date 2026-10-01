@@ -25,7 +25,7 @@ from setup and code understanding through verification and long-running work.
 
 ## Prerequisites
 
-- GitHub Copilot CLI with plugin and Agent Skills support.
+- GitHub Copilot CLI with plugin, Agent Skills, and native extension support.
 - Git and GitHub CLI for GitHub and PR workflows.
 - Bun only for the legacy `poteto-mode` PR watcher and orchestration CLIs.
 - Graphite CLI only for playbooks that explicitly use stacked PRs.
@@ -93,13 +93,20 @@ notifications, `.github/skills/`, and available browser, computer-use,
 terminal, and project verification tools.
 
 The native extension centralizes capability detection, deterministic state
-access, and the experimental read-only `pstack-swarm` factory. The extension
-registers a non-invocable factory worker limited to read and search tools. The
+access, and the experimental read-only `pstack-swarm` workflow. The extension
+registers a non-invocable workflow worker limited to read and search tools. The
 `swarm` skill keeps its existing Task-agent flow as a compatibility fallback
 and for all writing work, where separate worktrees remain mandatory.
-Host-controlled surfaces such as Task agents, factories, session history,
+Host-controlled surfaces such as Task agents, dynamic workflows, session history,
 browser automation, MCP tools, and App sidebar state remain conditional until
 the host proves they are available.
+
+Read-only swarms use `run_dynamic_workflow` and `dynamic_workflows_manage`.
+The host must expose these experimental tools; a CLI version alone does not
+guarantee they are enabled.
+The extension targets SDK 1.0.16 and registers its worker and workflow together
+through `joinSession({ customAgents, workflows })`. The workflow name and v1
+argument/result contracts are unchanged.
 
 Cursor's `automations/benny` pack is not included because Copilot plugins do
 not provide the Cursor Automations runtime. See [`NOTICE.md`](./NOTICE.md) for
