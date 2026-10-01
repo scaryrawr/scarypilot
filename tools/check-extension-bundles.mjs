@@ -44,6 +44,19 @@ if (JSON.stringify(discovered.sort()) !== JSON.stringify(expected.sort())) {
   throw new Error(`Extension inventory changed: expected ${expected}, found ${discovered}`);
 }
 
+for (const extension of selected ? [selected] : expected) {
+  const lock = JSON.parse(await readFile(path.join(root, extension, "package-lock.json"), "utf8"));
+  const sdk = lock.packages["node_modules/@github/copilot-sdk"];
+
+  for (const [name, version] of Object.entries(sdk.optionalDependencies)) {
+    const platform = lock.packages[`node_modules/${name}`];
+
+    if (platform?.version !== version || !platform.resolved || !platform.integrity) {
+      throw new Error(`${extension}: SDK platform package ${name}@${version} is not fully locked`);
+    }
+  }
+}
+
 for (const extension of selected ? [selected] : extensions) {
   const directory = path.join(root, extension);
 

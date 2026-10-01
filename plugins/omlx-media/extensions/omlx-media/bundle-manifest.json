@@ -2,7 +2,7 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "bbe597f4780eda5de0d9d184d62eff9bc4c197295770bc91aaa2e9f7f67b21e1",
+    "package-lock.json": "3a626ff285f97901f0a582a4bfe633db10c9a6deddd2dfcae37c374b913954a2",
     "package.json": "ba0e1f9e2a172ca2b7906bd2f984a08c338cdffbb6c5328b2f0634c9a7852fa1",
     "src/audio-tools.ts": "17bf4f4bbb1adb7e91585927c328afeceafb98dea6db10da7adbf5ffff8dbeaa",
     "src/domain.ts": "74383c2fc757e4d129596cd2c450597fd7024635009d576772c37bfc0c74a01c",
