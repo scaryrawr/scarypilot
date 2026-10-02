@@ -1,10 +1,9 @@
 import type { Tool } from "@github/copilot-sdk";
 import { Type, type Static } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
-import { constants } from "node:fs";
-import { open, realpath } from "node:fs/promises";
-import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { open } from "node:fs/promises";
 import type { CwdRef } from "../extension-context.ts";
+import { readWorkspaceFile } from "../workspace-reader.ts";
 import { json } from "./common.ts";
 import {
   ARTIFACT_KINDS, validateArtifact, type ArtifactKind, type ArtifactValidation,
@@ -50,72 +49,6 @@ export interface PlanArtifactOutput extends Omit<PlanValidation, "profile"> {
 
 export type ValidateArtifactOutput = JsonArtifactOutput | PlanArtifactOutput;
 
-function inside(root: string, path: string): boolean {
-  const child = relative(root, path);
-
-  return child !== ".." && !child.startsWith(`..${sep}`) && !isAbsolute(child);
-}
-
-async function openConfinedFile(path: string, openFile: typeof open) {
-  const flags = constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK;
-
-  if (process.platform === "darwin") {
-    // Darwin's O_NOFOLLOW_ANY rejects symlinks in every component; Node exposes only O_NOFOLLOW.
-    const noFollowAny = 0x20000000;
-
-    return openFile(path, constants.O_RDONLY | constants.O_NONBLOCK | noFollowAny);
-  }
-
-  if (process.platform !== "linux") {
-    throw new Error("native workspace-confined validation requires macOS or Linux; use the approved-workspace CLI fallback on other platforms");
-  }
-
-  const directoryFlags = flags | constants.O_DIRECTORY;
-  let parent = await openFile("/", directoryFlags);
-
-  try {
-    for (const directory of dirname(path).split(sep).filter(Boolean)) {
-      const previous = parent;
-      parent = await openFile(`/proc/self/fd/${parent.fd}/${directory}`, directoryFlags);
-      await previous.close();
-    }
-
-    return await openFile(`/proc/self/fd/${parent.fd}/${basename(path)}`, flags);
-  } finally {
-    await parent.close();
-  }
-}
-
-async function readWorkspaceFile(cwd: string, path: string, openFile: typeof open): Promise<{ path: string; raw: string }> {
-  if (
-    !path.trim() || path.includes("\0") ||
-    /^[a-z][a-z\d+.-]*:/i.test(path) || path.startsWith("//") ||
-    path.split(/[\\/]/).includes("..")
-  ) {
-    throw new Error("path must name one workspace file, without URLs or traversal");
-  }
-
-  const root = await realpath(cwd);
-  const target = resolve(cwd, path);
-
-  if (!inside(resolve(cwd), target) && !inside(root, target)) {
-    throw new Error("path must stay inside the current workspace");
-  }
-
-  const resolved = await realpath(target);
-
-  if (!inside(root, resolved)) throw new Error("path resolves outside the current workspace");
-  const file = await openConfinedFile(resolved, openFile);
-
-  try {
-    if (!(await file.stat()).isFile()) throw new Error("path must name a regular file");
-
-    return { path: resolved, raw: await file.readFile("utf8") };
-  } finally {
-    await file.close();
-  }
-}
-
 export function createValidateArtifactTool(cwdRef: CwdRef, openFile: typeof open = open): Tool<ValidateArtifactInput> & {
   handler: NonNullable<Tool<ValidateArtifactInput>["handler"]>;
 } {
@@ -130,10 +63,11 @@ export function createValidateArtifactTool(cwdRef: CwdRef, openFile: typeof open
       }
 
       const file = await readWorkspaceFile(cwdRef.get(), args.path, openFile);
+      const raw = file.bytes.toString("utf8");
 
       if (args.kind === "plan") {
         const profile = args.profile ?? "verified-stack";
-        const result = validatePlanText(file.raw, profile);
+        const result = validatePlanText(raw, profile);
 
         return json<ValidateArtifactOutput>({
           kind: args.kind,
@@ -148,7 +82,7 @@ export function createValidateArtifactTool(cwdRef: CwdRef, openFile: typeof open
       return json<ValidateArtifactOutput>({
         kind: args.kind,
         path: file.path,
-        ...validateArtifact(args.kind, JSON.parse(file.raw)),
+        ...validateArtifact(args.kind, JSON.parse(raw)),
       });
     },
   };

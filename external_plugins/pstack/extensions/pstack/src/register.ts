@@ -2,7 +2,7 @@ import type { CopilotSession } from "@github/copilot-sdk";
 import { joinSession } from "@github/copilot-sdk/extension";
 import { createPstackCommand } from "./command.ts";
 import { createCwdRef } from "./extension-context.ts";
-import { pstackWorkflows, pstackWorkflowAgents } from "./workflows/index.ts";
+import { createPstackWorkflows, pstackWorkflowAgents } from "./workflows/index.ts";
 import { handoffAdditionalContext } from "./handoff.ts";
 import { createPstackService } from "./service.ts";
 import { createCapabilitiesTool } from "./tools/capabilities.ts";
@@ -78,7 +78,7 @@ export function createPstackExtensionRegistration(): PstackExtensionRegistration
     ],
     commands: [command],
     customAgents: pstackWorkflowAgents,
-    workflows: pstackWorkflows,
+    workflows: createPstackWorkflows(cwdRef),
   };
 
   return {
