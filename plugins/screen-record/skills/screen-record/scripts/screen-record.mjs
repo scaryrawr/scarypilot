@@ -19,7 +19,7 @@ import {
 } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { dirname, extname, relative, resolve } from "node:path";
-import { tmpdir } from "node:os";
+import { tmpdir, userInfo } from "node:os";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 
@@ -89,8 +89,16 @@ function findPowerShell() {
     const result = spawnSync(
       candidate,
       ["-NoProfile", "-NonInteractive", "-Command", "exit 0"],
-      { encoding: "utf8", windowsHide: true },
+      { encoding: "utf8", windowsHide: true, timeout: 1000, maxBuffer: 16384 },
     );
+
+    if (result.error) {
+      if (result.error.code !== "ENOENT") {
+        console.error(`screen-record: PowerShell probe ${candidate} failed: ${result.error.message}`);
+      }
+
+      continue;
+    }
 
     if (result.status === 0) {
       return candidate;
@@ -244,7 +252,20 @@ function recordingKey(output) {
 
 function recordingPaths(output) {
   const id = createHash("sha256").update(recordingKey(output)).digest("hex").slice(0, 16);
-  const root = resolve(tmpdir(), "scarypilot-screen-record");
+
+  const user = process.getuid ? String(process.getuid()) :
+    createHash("sha256").update(`${userInfo().username}\0${userInfo().homedir}`).digest("hex").slice(0, 16);
+
+  const legacy = resolve(tmpdir(), "scarypilot-screen-record");
+
+  const oldDirectory = lstatSync(legacy, { throwIfNoEntry: false });
+
+  const ownLegacy = oldDirectory?.isDirectory() &&
+    (!process.getuid || oldDirectory.uid === process.getuid());
+
+  const root = ownLegacy && ["json", "lock", "log", "stop"].some((suffix) => existsSync(resolve(legacy, `${id}.${suffix}`)))
+    ? legacy : resolve(tmpdir(), `scarypilot-screen-record-${user}`);
+
   mkdirSync(root, { recursive: true, mode: 0o700 });
   const directory = lstatSync(root);
 

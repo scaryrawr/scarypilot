@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { appendFile, cp, mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { tmpdir, userInfo } from "node:os";
 import { basename, resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -20,6 +20,13 @@ const invocation = { sessionId: "fixture", toolCallId: "fixture", toolName: "fix
 
 function stateId(output: string) {
   return createHash("sha256").update(process.platform === "win32" ? output.toLowerCase() : output).digest("hex").slice(0, 16);
+}
+
+function stateDirectoryName() {
+  const user = process.getuid ? String(process.getuid()) :
+    createHash("sha256").update(`${userInfo().username}\0${userInfo().homedir}`).digest("hex").slice(0, 16);
+
+  return `scarypilot-screen-record-${user}`;
 }
 
 async function setup(mode = "") {
@@ -421,13 +428,13 @@ test("worker revalidates a selected window and releases only its startup lock if
 
     const lock = join(
       fixture.runtime.env.TMPDIR!,
-      "scarypilot-screen-record",
+      stateDirectoryName(),
       `${stateId(output)}.lock`,
     );
 
     const logPath = join(
       fixture.runtime.env.TMPDIR!,
-      "scarypilot-screen-record",
+      stateDirectoryName(),
       `${stateId(output)}.log`,
     );
 
@@ -503,6 +510,83 @@ test("validated canonical parents give aliases one recording identity", async ()
   }
 });
 
+test("foreign legacy state cannot block user-scoped recording and same-owner state stays readable", async () => {
+  const fixture = await setup();
+  let recording: RecordingState | undefined;
+
+  try {
+    const legacy = join(fixture.runtime.env.TMPDIR!, "scarypilot-screen-record");
+
+    await mkdir(legacy);
+    await writeFile(join(legacy, `${stateId(resolve(fixture.runtime.cwd, "raw.mp4"))}.lock`), "another-user");
+    fixture.runtime.env.RECORDER_FIXTURE_FOREIGN_LEGACY = "1";
+    recording = await start(fixture.runtime);
+    assert.ok("statePath" in recording);
+    assert.equal(basename(resolve(recording.statePath, "..")), stateDirectoryName());
+
+    const stopped = await stop(fixture.runtime, recording);
+
+    assert.equal(stopped.resultType, "success", stopped.textResultForLlm);
+    assert.equal(await readFile(join(legacy, `${stateId(recording.output)}.lock`), "utf8"), "another-user");
+    fixture.runtime.env.RECORDER_FIXTURE_FOREIGN_LEGACY = "0";
+
+    const oldOutput = resolve(fixture.runtime.cwd, "legacy.mp4");
+
+    await writeFile(join(legacy, `${stateId(oldOutput)}.log`), "");
+    recording = await start(fixture.runtime, "legacy.mp4");
+    assert.ok("statePath" in recording);
+    assert.equal(basename(resolve(recording.statePath, "..")), "scarypilot-screen-record");
+
+    const current = await call(fixture.runtime, "screen_record_status", { output: oldOutput });
+
+    assert.equal(current.resultType, "success", current.textResultForLlm);
+    assert.equal(state(current.textResultForLlm).status, "recording");
+
+    const legacyStop = await stop(fixture.runtime, recording);
+
+    assert.equal(legacyStop.resultType, "success", legacyStop.textResultForLlm);
+    assert.equal(state(legacyStop.textResultForLlm).status, "stopped");
+  } finally {
+    if (recording) await stop(fixture.runtime, recording);
+    await fixture.cleanup();
+  }
+});
+
+test("PowerShell probe timeout and output overflow are bounded and fall back explicitly", async () => {
+  const fixture = await setup();
+
+  try {
+    if (process.platform !== "win32") {
+      const unsupported = await call(fixture.runtime, "screen_record_windows", {});
+
+      assert.equal(unsupported.resultType, "failure");
+
+      return;
+    }
+
+    setWindowsFixture(fixture.runtime, fixtureWindows());
+
+    for (const mode of ["powershell-probe-timeout", "powershell-probe-overflow"]) {
+      fixture.runtime.env.RECORDER_FIXTURE_MODE = mode;
+
+      const started = Date.now();
+
+      const result = await call(fixture.runtime, "screen_record_windows", {});
+
+      assert.equal(result.resultType, "success", result.textResultForLlm);
+      assert.ok(Date.now() - started < 5000);
+
+      const cli = spawnSync(process.execPath, [script, "windows", "--json"], {
+        cwd: fixture.runtime.cwd, env: fixture.runtime.env, encoding: "utf8",
+        timeout: 5000,
+      });
+
+      assert.equal(cli.status, 0, cli.stderr);
+      assert.match(cli.stderr, /PowerShell probe pwsh.exe failed/);
+    }
+  } finally { await fixture.cleanup(); }
+});
+
 test("startup lock write and close failures release only this attempt's lock and allow retry", async () => {
   for (const failure of ["write", "close", "replacement"]) {
     const fixture = await setup();
@@ -511,7 +595,7 @@ test("startup lock write and close failures release only this attempt's lock and
     try {
       const output = resolve(fixture.runtime.cwd, "lock-failure.mp4");
 
-      const lock = join(fixture.runtime.env.TMPDIR!, "scarypilot-screen-record", `${stateId(output)}.lock`);
+      const lock = join(fixture.runtime.env.TMPDIR!, stateDirectoryName(), `${stateId(output)}.lock`);
 
       const closed = join(fixture.root, "closed");
 
@@ -558,7 +642,7 @@ test("confirmed worker spawn failure preserves its error, removes its owned lock
   try {
     const output = resolve(fixture.runtime.cwd, "spawn-failure.mp4");
     const id = stateId(output);
-    const lock = join(fixture.runtime.env.TMPDIR!, "scarypilot-screen-record", `${id}.lock`);
+    const lock = join(fixture.runtime.env.TMPDIR!, stateDirectoryName(), `${id}.lock`);
 
     const failing: RecorderRuntime = {
       ...fixture.runtime,
@@ -590,7 +674,7 @@ test("spawn failure never removes a lock whose owner changed", async () => {
   try {
     const output = resolve(fixture.runtime.cwd, "replaced-lock.mp4");
     const id = stateId(output);
-    const lock = join(fixture.runtime.env.TMPDIR!, "scarypilot-screen-record", `${id}.lock`);
+    const lock = join(fixture.runtime.env.TMPDIR!, stateDirectoryName(), `${id}.lock`);
 
     const failing: RecorderRuntime = {
       ...fixture.runtime,

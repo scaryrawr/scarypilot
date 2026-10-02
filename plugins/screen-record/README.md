@@ -99,6 +99,12 @@ their existing virtual-desktop meaning and cannot be combined with `windowId`.
 The list is metadata only and does not verify that FFmpeg can capture every
 window or that capture permissions are available.
 
+Recording state lives in a user-scoped temporary directory (UID on Unix, user identity
+hash on Windows). Existing same-owner legacy state for that output remains
+readable in its original directory; foreign legacy directories are not adopted.
+PowerShell candidate probes have a one-second timeout and 16 KiB output bound;
+non-missing probe errors are reported before trying the next candidate.
+
 Start returns a `recordingId`, output, worker and FFmpeg PIDs, timestamps, and
 state/log paths. The worker is detached from the tool and extension. A recording
 continues after cancellation, extension reload, or session exit until stopped
