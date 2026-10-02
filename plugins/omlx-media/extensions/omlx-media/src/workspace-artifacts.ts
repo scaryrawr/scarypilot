@@ -2,6 +2,7 @@ import * as path from "node:path";
 import { access, mkdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { OmlxToolError } from "./domain.ts";
+import { guardPluginOutput } from "./media-io.ts";
 
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
 
@@ -59,6 +60,7 @@ export async function planImageOutputs(
   const outputs = Array.from({ length: count }, (_, index) => outputForIndex(base, index, count));
 
   for (const output of outputs) {
+    await guardPluginOutput(output);
     await mkdir(path.dirname(output), { recursive: true });
 
     try {
