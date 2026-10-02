@@ -11,6 +11,7 @@ import { createInspectWorktreesTool } from "./tools/inspect-worktrees.ts";
 import { createRecordVerificationTool } from "./tools/record-verification.ts";
 import { createStatusTool } from "./tools/status.ts";
 import { createValidatePlanTool } from "./tools/validate-plan.ts";
+import { createValidateArtifactTool } from "./tools/validate-artifact.ts";
 
 type SessionOptions = NonNullable<Parameters<typeof joinSession>[0]>;
 
@@ -70,6 +71,7 @@ export function createPstackExtensionRegistration(): PstackExtensionRegistration
       createStatusTool(service),
       createCapabilitiesTool(service),
       createValidatePlanTool(service),
+      createValidateArtifactTool(cwdRef),
       createRecordVerificationTool(service),
       createInspectWorktreesTool(service),
       createHandoffTool(service),

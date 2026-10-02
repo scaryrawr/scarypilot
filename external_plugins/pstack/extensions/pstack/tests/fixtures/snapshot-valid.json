@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "snapshotHash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "capabilities": {},
+  "sources": [],
+  "orch": null,
+  "watch": [],
+  "worktrees": null,
+  "handoff": null,
+  "now": [],
+  "sourceWarnings": []
+}
