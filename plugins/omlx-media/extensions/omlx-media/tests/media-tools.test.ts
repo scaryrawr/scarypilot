@@ -795,6 +795,22 @@ describe("registered frame preparation", () => {
     ]);
     const jpeg = await readFile(path.join(output_dir, "t_000m05s_f0000.jpg"));
     assert.equal(jpeg.readUInt16BE(0), 0xffd8);
+    const reference = path.join(root, "reference-crop.jpg");
+
+    await runMediaProcess("ffmpeg", [
+      "-nostdin", "-v", "error", "-n", "-noautorotate", "-threads", "1", "-filter_threads", "1",
+      "-i", video, "-vf", "select=eq(n\\,15),crop=101:81:11:13:exact=1,scale=101:81,setsar=1",
+      "-frames:v", "1", "-c:v", "mjpeg", "-threads", "1", "-update", "1", reference,
+    ], AbortSignal.timeout(20_000));
+
+    const pixels = await Promise.all([saved.frames[0].file, reference].map((file) =>
+      runMediaProcess("ffmpeg", [
+        "-nostdin", "-v", "error", "-i", file, "-frames:v", "1", "-pix_fmt", "rgb24", "-f", "framemd5", "-",
+      ], AbortSignal.timeout(20_000))));
+
+    for (const decoded of pixels) assert.match(decoded, /[0-9a-f]{32}\s*$/);
+
+    assert.equal(pixels[0].trim().split(",").at(-1), pixels[1].trim().split(",").at(-1));
   });
 
   it("uses start-inclusive/end-exclusive ranges and defaults to 24 samples without upscaling", async () => {
