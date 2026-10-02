@@ -61,6 +61,11 @@ export class DecisionClient {
       throw new DecisionError("OLLAMA_API_KEY must not contain line breaks.");
     }
 
+    if (apiKey && baseUrl.protocol === "http:" &&
+        !["localhost", "127.0.0.1", "[::1]"].includes(baseUrl.hostname)) {
+      throw new DecisionError("Authenticated remote Ollama endpoints require HTTPS. HTTP authentication is allowed only for localhost, 127.0.0.1, or [::1].");
+    }
+
     return { baseUrl, apiKey };
   }
 
@@ -134,7 +139,7 @@ export class DecisionClient {
         }
 
         signal.throwIfAborted();
-        payload = JSON.parse(new TextDecoder().decode(Buffer.concat(chunks, bytes)));
+        payload = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks, bytes)));
       } catch (error) {
         signal.throwIfAborted();
 

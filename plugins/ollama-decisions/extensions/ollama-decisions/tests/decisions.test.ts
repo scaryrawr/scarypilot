@@ -326,6 +326,62 @@ for (const endpoint of ["/api/tags", "/api/show", "/v1/systemone"]) {
       environment: { OLLAMA_BASE_URL: http.url },
     }).decide(request), /malformed JSON/);
   });
+
+  test(`${endpoint} invalid UTF-8 fails instead of replacing corrupted text`, async (t) => {
+    const http = await server(t, (req, res) => {
+      if (req.path === endpoint) {
+        const payload = endpoint === "/api/tags"
+          ? { models: [{ name: "corrupted", capabilities: ["decision"] }] }
+          : endpoint === "/api/show"
+            ? { capabilities: ["corrupted"] }
+            : { ...response, model: "corrupted" };
+
+        const bytes = Buffer.from(JSON.stringify(payload));
+
+        bytes[bytes.indexOf("corrupted")] = 0xff;
+        res.end(bytes);
+      } else if (req.path === "/api/tags") json(res, { models: [{ name: "installed:latest" }] });
+      else json(res, { capabilities: ["decision"] });
+    });
+
+    await assert.rejects(new DecisionClient({
+      environment: { OLLAMA_BASE_URL: http.url },
+    }).decide(request), /malformed JSON/);
+  });
+}
+
+for (const hostname of ["remote.example", "localhost.example", "127.0.0.1.example", "[2001:db8::1]"]) {
+  test(`authenticated remote HTTP rejects ${hostname} before network`, async () => {
+    const client = new DecisionClient({
+      environment: { OLLAMA_BASE_URL: `http://${hostname}:11434`, OLLAMA_API_KEY: "synthetic-secret-key" },
+      fetch: async () => { assert.fail("credentials must not cross remote HTTP"); },
+    });
+
+    await assert.rejects(client.discover(), /HTTPS/);
+    await assert.rejects(client.decide(request), /HTTPS/);
+  });
+}
+
+for (const baseUrl of [
+  "http://localhost:11434", "http://127.0.0.1:11434", "http://[::1]:11434", "https://remote.example",
+]) {
+  test(`authenticated endpoint permits ${baseUrl}`, async () => {
+    let calls = 0;
+
+    const client = new DecisionClient({
+      environment: { OLLAMA_BASE_URL: baseUrl, OLLAMA_API_KEY: "synthetic-secret-key" },
+      fetch: async (url, init) => {
+        calls++;
+        assert.equal(String(url), `${baseUrl}/api/tags`);
+        assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer synthetic-secret-key");
+
+        return Response.json(installed);
+      },
+    });
+
+    assert.deepEqual(await client.discover(), installed);
+    assert.equal(calls, 1);
+  });
 }
 
 test("redirects never forward credentials or request state", async (t) => {

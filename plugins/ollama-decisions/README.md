@@ -33,6 +33,8 @@ Copilot supplies the SDK at runtime. The checked-in bundle includes TypeBox, so 
 | `OLLAMA_API_KEY` | Unset | Optional bearer token for a protected server or proxy. Local Ollama does not require a key. |
 
 Set variables before starting Copilot. The extension requests access to `OLLAMA_API_KEY` through the host's environment-variable permission flow.
+When an API key is configured, remote endpoints require HTTPS before any network request.
+Authenticated HTTP is allowed only for the exact URL hosts `localhost`, `127.0.0.1`, and `[::1]`.
 Redirects are rejected so credentials and state cannot follow a redirect to another server.
 Discovery and model verification have a 15-second total metadata deadline. Inference has a separate 120-second deadline.
 Host cancellation aborts active requests, including response-body reads.
@@ -100,7 +102,7 @@ A three-level score is `0*P(0) + 1*P(1) + 2*P(2)`, ranging from 0 to 2, not a no
 
 Tools return explicit failure results for invalid input, oversized requests or responses, invalid configuration, unavailable servers, rejected redirects, HTTP errors, timeouts, and cancellation.
 Ollama 0.35 or later and a decision-capable installed model are required for inference.
-Malformed network JSON, failed capability lookups, and invalid answer correspondence fail instead of returning partial success.
+Malformed network JSON, invalid UTF-8, failed capability lookups, and invalid answer correspondence fail instead of returning partial success.
 Validation checks answer names and types, choice membership, rubric legends, probability bounds and sums, weighted scores, confidence bounds, and nonnegative integer usage.
 Server error bodies are not echoed because they can contain state or credentials.
 Unknown errors return a redacted failure, never a success-shaped fallback.
