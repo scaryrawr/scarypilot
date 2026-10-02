@@ -12,6 +12,7 @@ const extensions = [
   "plugins/copilot-local-llm/extensions/copilot-local-llm",
   "plugins/digivolution/extensions/digivolution",
   "plugins/omlx-media/extensions/omlx-media",
+  "plugins/screen-record/extensions/screen-record",
 ];
 
 for (const extension of extensions) {
@@ -44,6 +45,7 @@ for (const extension of extensions) {
         "  if (workflows.some((workflow) => !workflow.meta?.name || 'run' in workflow))",
         "    throw new Error('Invalid workflow registration');",
         "  console.log('SCARYPILOT_SMOKE:' + JSON.stringify({ joined: true, tools: options.tools?.length ?? 0,",
+        "    toolNames: options.tools?.map((tool) => tool.name) ?? [],",
         "    workflows: workflows.map((workflow) => workflow.meta.name),",
         "    agents: options.customAgents?.map((agent) => agent.name) ?? [] }));",
         "  return { log: async () => {}, on: () => () => {},",
@@ -77,6 +79,14 @@ for (const extension of extensions) {
       (!registration.workflows.includes("pstack-swarm") ||
         !registration.agents.includes("pstack-swarm-worker")))) {
       throw new Error(`${extension}: missing expected session registration`);
+    }
+
+    if (extension === "plugins/screen-record/extensions/screen-record" &&
+      JSON.stringify(registration.toolNames.toSorted()) !== JSON.stringify([
+        "screen_record_devices", "screen_record_doctor", "screen_record_start",
+        "screen_record_status", "screen_record_stop", "screen_record_windows",
+      ])) {
+      throw new Error(`${extension}: missing expected capture lifecycle tools`);
     }
 
     console.log(`${extension}: isolated startup verified`);
