@@ -118,7 +118,7 @@ for (const extension of selected ? [selected] : extensions) {
 
   if (mode === "write") {
     await writeFile(manifestPath, serialized);
-  } else if ((await readFile(manifestPath, "utf8")) !== serialized) {
+  } else if ((await readFile(manifestPath, "utf8")).replace(/\r\n/g, "\n") !== serialized) {
     throw new Error(`${extension}: stale bundle; run npm run build and commit dist/ and bundle-manifest.json`);
   }
 

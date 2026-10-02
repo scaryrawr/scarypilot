@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { appendFile, cp, mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { resolve, join } from "node:path";
+import { basename, resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -76,6 +76,44 @@ async function stop(runtime: RecorderRuntime, value: RecordingState, timeoutSeco
 
   return call(runtime, "screen_record_stop", { output: value.output, recordingId: value.recordingId, timeoutSeconds });
 }
+
+test("bundle freshness tolerates CRLF manifests but still rejects changed helper contents", async () => {
+  const fixture = await setup();
+
+  try {
+    const copiedPlugin = join(fixture.root, "plugin");
+
+    await cp(fileURLToPath(new URL("../../../", import.meta.url)), copiedPlugin, {
+      recursive: true,
+      filter: (source) => basename(source) !== "node_modules",
+    });
+
+    const extension = join(copiedPlugin, "extensions", "screen-record");
+
+    const manifest = join(extension, "bundle-manifest.json");
+
+    await writeFile(manifest, (await readFile(manifest, "utf8")).replace(/\r\n/g, "\n").replace(/\n/g, "\r\n"));
+
+    const check = () => spawnSync(process.execPath, [join(extension, "tools", "check-bundle.mjs"), "check"], {
+      encoding: "utf8",
+      timeout: 10000,
+      windowsHide: true,
+    });
+
+    const fresh = check();
+
+    assert.ifError(fresh.error);
+    assert.equal(fresh.status, 0, fresh.stderr);
+
+    await appendFile(join(copiedPlugin, "skills", "screen-record", "scripts", "screen-record.mjs"), "\n");
+
+    const stale = check();
+
+    assert.ifError(stale.error);
+    assert.notEqual(stale.status, 0);
+    assert.match(stale.stderr, /Stale bundle/);
+  } finally { await fixture.cleanup(); }
+});
 
 test("diagnostics and device discovery return bounded typed results without capture or narration", async () => {
   const fixture = await setup();

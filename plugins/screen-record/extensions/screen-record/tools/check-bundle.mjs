@@ -65,6 +65,6 @@ const serialized = `${JSON.stringify({ version: 1, inputs: await digest(inputs),
 const manifest = path.join(directory, "bundle-manifest.json");
 
 if (mode === "write") await writeFile(manifest, serialized);
-else if (await readFile(manifest, "utf8") !== serialized) throw new Error("Stale bundle; run npm run build");
+else if ((await readFile(manifest, "utf8")).replace(/\r\n/g, "\n") !== serialized) throw new Error("Stale bundle; run npm run build");
 
 console.log(`screen-record: bundle ${mode === "write" ? "recorded" : "verified"}`);
