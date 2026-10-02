@@ -2,14 +2,16 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "9b7b585a1f3d5c99bba4ce64c91461f8bc42795d83860246513db1418c6a774d",
-    "package.json": "3c3357255c293b8cb96b3b97bb8d5335bfff1d14bf7e22490982fcd74c35153c",
+    "package-lock.json": "020bf443a1216262d39fd8cf72782eff5b5a2c25231502316cc5aa03125f9ce2",
+    "package.json": "da91f5ff8a2ec573a13328e03c2d7d75c014316fdcef938f8c0ee0a323dcd84b",
     "src/audio-tools.ts": "0079e418823172dfdc7af3620a4cccf6e5ba41c2b5f9c63624b8495689dd0912",
     "src/domain.ts": "7c59d9bf76e4f9fc16d822398cc7eeb05a9150ae1127bc6528421635f8840cce",
     "src/execute-audio.ts": "9d48dd22861319075086af12f79e619cbd560d54d02bcd787e2f541519316158",
     "src/execute-image.ts": "aa31fc2eb417f450859c3615e4ad10f5a7484621ac3040f2109fd79a8184f4ed",
-    "src/extension.ts": "eab0f9542d5f39acc6b1aa91cf77bd6783c96d72eaf6760ebdde451a0ac7c513",
+    "src/extension.ts": "8c707f1601c168f57a4c48101342bee1f0a5ca8c31fc5cd150c722b6e5c061dc",
     "src/frame-tool.ts": "284d82816b32c208091ded8c20f8ebe5564610d3551235dc4c1138f6a4cc5d8a",
+    "src/grounded-note.ts": "85ac9aa43686b68e5c6803d111708557a1c9319b1c1a6ff496b51a238d2b2773",
+    "src/grounded-registration.ts": "30411206a7bb15bc35cfcd4a39e3ca3f9819c2a807e3e83310122aa4e6be83f3",
     "src/image-tool.ts": "06f8d8e5d8f5badd3e5a18d67a45e2f475fe22a6f55a5753b5ca53333987cf49",
     "src/media-domain.ts": "005396acf50ff95b2266d68cd147fd5541a5cbb73d292ec4b81f546cd8033f92",
     "src/media-io.ts": "5afd8b8431d8a2885c1e37849c6aa3f28c29e50c9a35628efffda05f9cd23319",
@@ -20,6 +22,6 @@
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
   },
   "outputs": {
-    "dist/extension.mjs": "4634d9f6a346ecc3d11f707b522e039bbc7fa3a3861b2b04063274e9e676b1ed"
+    "dist/extension.mjs": "6c4c6d0d95c1dea1f8b0da009af7b82331c8141128165d29623bb1c9da5643fd"
   }
 }
