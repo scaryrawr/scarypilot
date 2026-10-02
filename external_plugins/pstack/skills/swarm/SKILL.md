@@ -44,6 +44,7 @@ and the following `args`:
   "objective": "the overall goal",
   "donePredicate": "the exact completion condition",
   "aggregation": "coverage",
+  "inputFiles": ["src/api.ts", "tests/api.test.ts"],
   "workers": [
     { "id": "api", "brief": "inspect API behavior" },
     { "id": "tests", "brief": "inspect behavioral coverage" }
@@ -56,6 +57,28 @@ mixed swarms, and all writing work use the legacy flow below. Include the
 configured model on each worker only when it is present and not `auto`. The
 workflow accepts 2-8 workers. Its workers are read-only and must not invoke
 workflows.
+
+For verification or measurement, declare every file whose bytes must stay
+unchanged in `inputFiles`. Replace the example paths with actual workspace
+files. The optional manifest accepts 1-128 unique files. It rejects missing
+files, directories, symlinks, outside paths, URLs, traversal, and duplicate
+canonical targets. Native confined reads require macOS or Linux.
+
+The first attempt journals `pinnedInputSnapshot`, containing the canonical
+workspace path, directory identity, and each declared file's canonical path
+and exact-byte SHA256. Every attempt reads those inputs outside the journal
+before admitting workers. It checks again before aggregation and before
+returning the result. Workspace, path, or byte drift raises a workflow error
+before cached results can be accepted. Resume with unchanged inputs reuses
+the existing workers. After drift, start a new run for the changed inputs.
+Do not silently remove the manifest to retry.
+
+This protects only declared file bytes and workspace identity at those
+boundaries. It does not pin undeclared reads, provide an immutable snapshot,
+detect a transient edit restored between checks, or prove factual evidence.
+Legacy v1 calls without `inputFiles` remain supported but have no freshness
+guarantee. A supplied SHA, digest, path, `PASS`, or evidence string does not
+prove truth. Phase C still owns evidence acceptance.
 
 Save the returned run ID and wait for completion. Read the durable result with
 `dynamic_workflows_manage` using `operation: "inspect-run"` and that `runId`.
@@ -74,6 +97,8 @@ failed run, or completes with `status: "blocked"`, use the legacy flow below
 from the beginning. Report a `partial` result with its explicit gaps instead
 of replaying completed workers. A read-only workflow run may fall back once
 because it cannot leave partial repository writes.
+Do not use fallback to bypass pinned-input drift or an invalid manifest.
+Report that error and reframe the inputs before starting new work.
 
 For a writing swarm, do not call the workflow. Spawn all N workers in one
 message with `agent_type: "general-purpose"` and `mode: "background"`. Pass the

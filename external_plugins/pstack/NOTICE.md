@@ -75,6 +75,16 @@ ScaryPilot changed the integration layer for GitHub Copilot:
   manifest. Copilot's legacy format supports the existing native extension
   paths and root agent and skill fields. The canonical selector gives
   `extensions` a different namespace-based meaning.
+- Added optional `inputFiles` pinning to the existing v1 read-only swarm.
+  Journaled snapshots record canonical workspace identity and declared
+  file-byte digests. Fresh confined reads reject drift before memoized
+  workers or aggregate results can be returned. Legacy unpinned calls retain
+  their coverage behavior without a freshness guarantee. This does not
+  validate factual evidence or change Phase C acceptance.
+  Extracted the existing native confined reader for reuse without adding
+  runtime writes, subprocesses, or network access. The swarm skill changes
+  are a Copilot adaptation of the upstream-derived skill. The native
+  extension remains Copilot-owned, and the upstream revision is unchanged.
 
 The upstream guide is included with Copilot-specific installation, agent,
 automation, path, and verification instructions. Cursor-only screenshots and
