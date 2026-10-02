@@ -73,6 +73,7 @@ for (const extension of selected ? [selected] : extensions) {
     inputs.push(
       "../../skills/poteto-mode/scripts/plan-rules.mjs",
       "../../skills/poteto-mode/scripts/orch/store.ts",
+      "../../skills/pstack-schema-validate/scripts/artifact-rules.mjs",
     );
   }
 

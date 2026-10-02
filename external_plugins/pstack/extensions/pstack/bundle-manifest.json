@@ -30,7 +30,8 @@
     "src/worktrees.ts": "f3a3a019c01663caf78c9a7e2efc9b5142f0d5aff56b2a7fa0b902815ed8bcd8",
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5",
     "../../skills/poteto-mode/scripts/orch/store.ts": "cb865c8db6025ee334b4b3829960445e7d6d957d05ae5a2e8cfad6766c235836",
-    "../../skills/poteto-mode/scripts/plan-rules.mjs": "3d86325b74b5a75021a125cc47da56cc1f81bfd9e94e72ba00a76d27b0cee21c"
+    "../../skills/poteto-mode/scripts/plan-rules.mjs": "3d86325b74b5a75021a125cc47da56cc1f81bfd9e94e72ba00a76d27b0cee21c",
+    "../../skills/pstack-schema-validate/scripts/artifact-rules.mjs": "7584b25ee79bb5b47bf3e519bda5758dd7e9393d6ff9055e31bfef068fca773d"
   },
   "outputs": {
     "dist/extension.mjs": "d3b4b521458924f16829fc3a934d81bc9cfa0c560e77af0c9020272c94f193ca"
