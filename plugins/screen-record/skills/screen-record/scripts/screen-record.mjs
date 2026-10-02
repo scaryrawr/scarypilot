@@ -766,7 +766,10 @@ function printDeviceListing(result, captureDevice) {
     ? /AVFoundation (?:video|audio) devices:/
     : /DirectShow (?:video|audio) devices|\((?:video|audio)\)/;
 
-  if (![0, 1].includes(result.status) || !marker.test(listing)) {
+  const enumerationExit = [0, 1].includes(result.status) ||
+    (captureDevice === "avfoundation" && result.status === 251);
+
+  if (!enumerationExit || !marker.test(listing)) {
     fail(`device discovery did not return a device list (exit ${result.status}): ${listing.trim()}`);
   }
 

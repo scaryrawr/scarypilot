@@ -19,7 +19,7 @@ if (args.includes("-version")) {
     process.exitCode = 2;
   } else {
     console.error("AVFoundation video devices:\n[0] Fixture screen\nAVFoundation audio devices:\n[0] Fixture audio\nDirectShow video devices\n\"Fixture audio\" (audio)");
-    process.exitCode = 1;
+    process.exitCode = mode === "device-enumeration-eio" ? 251 : 1;
   }
 } else {
   const output = args.at(-1);

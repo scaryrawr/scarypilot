@@ -410,6 +410,15 @@ test("diagnostic timeout and device failures are failures, not empty success", a
 
       assert.equal(errorOnly.resultType, "failure");
       assert.match(errorOnly.textResultForLlm, /Could not enumerate video devices/);
+
+      if (process.platform === "darwin") {
+        fixture.runtime.env.RECORDER_FIXTURE_MODE = "device-enumeration-eio";
+
+        const enumeration = await call(fixture.runtime, "screen_record_devices", {});
+
+        assert.equal(enumeration.resultType, "success", enumeration.textResultForLlm);
+        assert.match(enumeration.textResultForLlm, /Fixture screen/);
+      }
     }
   } finally { await fixture.cleanup(); }
 });
