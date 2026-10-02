@@ -69,6 +69,14 @@
       "source": "./plugins/omlx-media"
     },
     {
+      "name": "ollama-decisions",
+      "description": "Use installed Ollama decision models for routing, classification, and rubric evaluation.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/ollama-decisions"
+    },
+    {
       "name": "screen-record",
       "description": "Record agent-driven demos and edit them into polished videos with local FFmpeg.",
       "author": {
