@@ -98,6 +98,10 @@ the desktop. Desktop `region` coordinates retain
 their existing virtual-desktop meaning and cannot be combined with `windowId`.
 The list is metadata only and does not verify that FFmpeg can capture every
 window or that capture permissions are available.
+Selected-window starts allow 15 seconds for worker readiness, covering the
+bounded revalidation probes and enumeration; desktop starts retain 5 seconds.
+An unavailable drive or UNC root fails explicitly rather than looping during
+path canonicalization.
 
 Recording state lives in a user-scoped temporary directory (UID on Unix, user identity
 hash on Windows). On Unix, existing UID-verified same-owner legacy state for that

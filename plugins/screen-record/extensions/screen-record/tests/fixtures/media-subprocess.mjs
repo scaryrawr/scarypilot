@@ -9,6 +9,8 @@ const spawnSync = childProcess.spawnSync;
 
 const mediaFixture = fileURLToPath(new URL("./ffmpeg.mjs", import.meta.url));
 
+if (process.env.RECORDER_FIXTURE_MODE === "missing-root") fs.existsSync = () => false;
+
 if (process.env.RECORDER_FIXTURE_DISCOVERY_PLATFORM && (
   process.argv.includes("devices") || process.argv.includes("windows")
 )) {
@@ -177,6 +179,10 @@ function fixturePowerShell(command, args, options) {
   }
 
   if (!args.includes("-File")) return undefined;
+
+  if (process.env.RECORDER_FIXTURE_MODE === "window-slow-worker" && process.argv.includes("_capture")) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5500);
+  }
 
   const windows = process.env.RECORDER_FIXTURE_MODE === "window-disappears-worker" &&
       process.argv.includes("_capture")

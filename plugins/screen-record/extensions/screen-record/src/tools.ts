@@ -70,7 +70,12 @@ function workspaceOutput(runtime: RecorderRuntime, value: string): string {
 
   let ancestor = dirname(output);
 
-  while (!existsSync(ancestor)) ancestor = dirname(ancestor);
+  while (!existsSync(ancestor)) {
+    const parent = dirname(ancestor);
+
+    if (parent === ancestor) throw new Error(`Cannot resolve an existing filesystem ancestor for ${output}`);
+    ancestor = parent;
+  }
 
   const canonical = existsSync(output)
     ? realpathSync(output)

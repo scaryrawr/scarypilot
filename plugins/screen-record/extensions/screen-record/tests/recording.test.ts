@@ -412,6 +412,73 @@ test("approved capture options map to the existing platform recorder without ext
   }
 });
 
+test("missing filesystem roots fail bounded native and standalone path resolution", async () => {
+  const fixture = await setup("missing-root");
+
+  try {
+    for (const args of [
+      [script, "status", "--output", "missing/raw.mp4"],
+      [script, "stop", "--output", "missing/raw.mp4"],
+      ["--experimental-strip-types", fileURLToPath(new URL("./fixtures/missing-root-tool.mjs", import.meta.url))],
+    ]) {
+      const result = spawnSync(process.execPath, args, {
+        cwd: fixture.runtime.cwd,
+        env: { ...fixture.runtime.env, RECORDER_FIXTURE_SCRIPT: script },
+        encoding: "utf8", timeout: 2000,
+      });
+
+      assert.ifError(result.error);
+      assert.match(`${result.stderr}${result.stdout}`, /cannot resolve.*existing.*ancestor/i);
+
+      if (args[0] === "--experimental-strip-types") {
+        assert.equal(JSON.parse(result.stdout).resultType, "failure");
+      } else {
+        assert.notEqual(result.status, 0);
+      }
+    }
+  } finally { await fixture.cleanup(); }
+});
+
+test("selected Windows window startup allows bounded slow worker revalidation", async () => {
+  const fixture = await setup("window-slow-worker");
+  let recording: RecordingState | undefined;
+
+  try {
+    setWindowsFixture(fixture.runtime, fixtureWindows());
+
+    if (process.platform !== "win32") {
+      const unavailable = await call(fixture.runtime, "screen_record_windows", {});
+
+      assert.equal(unavailable.resultType, "failure");
+
+      return;
+    }
+
+    const listed = await call(fixture.runtime, "screen_record_windows", {});
+
+    const selected = JSON.parse(listed.textResultForLlm).windows[0].windowId;
+
+    const started = await call(fixture.runtime, "screen_record_start", {
+      output: "slow-window.mp4", captureApproved: true, windowId: selected,
+    });
+
+    assert.equal(started.resultType, "success", started.textResultForLlm);
+    recording = state(started.textResultForLlm);
+    assert.equal((await stop(fixture.runtime, recording)).resultType, "success");
+  } finally {
+    if (!recording && process.platform === "win32") {
+      const current = await call(fixture.runtime, "screen_record_status", { output: "slow-window.mp4" });
+
+      if (current.resultType === "success" && JSON.parse(current.textResultForLlm).status === "recording") {
+        recording = state(current.textResultForLlm);
+      }
+    }
+
+    if (recording) await stop(fixture.runtime, recording);
+    await fixture.cleanup();
+  }
+});
+
 test("Windows window discovery returns bounded selectable IDs without exposing handles", async () => {
   const fixture = await setup();
 

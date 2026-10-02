@@ -242,7 +242,12 @@ function recordingKey(output) {
   const resolved = resolve(output);
   let ancestor = dirname(resolved);
 
-  while (!existsSync(ancestor)) ancestor = dirname(ancestor);
+  while (!existsSync(ancestor)) {
+    const parent = dirname(ancestor);
+
+    if (parent === ancestor) fail(`cannot resolve an existing filesystem ancestor for ${output}`);
+    ancestor = parent;
+  }
 
   const canonical = existsSync(resolved)
     ? realpathSync(resolved)
@@ -1114,7 +1119,9 @@ async function start() {
 
   worker.unref();
 
-  for (let attempt = 0; attempt < 50; attempt += 1) {
+  const readinessAttempts = config.windowId ? 150 : 50;
+
+  for (let attempt = 0; attempt < readinessAttempts; attempt += 1) {
     sleep(100);
     const state = readState(paths.state);
 
