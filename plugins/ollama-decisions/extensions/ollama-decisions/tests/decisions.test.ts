@@ -664,7 +664,9 @@ for (const phase of ["metadata", "inference", "body"] as const) {
       inferenceTimeoutMs: 80,
     });
 
-    await assert.rejects(client.decide(request), /timed out/);
+    await assert.rejects(client.decide(request), {
+      message: `${phase === "metadata" ? "api/tags" : "v1/systemone"} timed out. No retry was attempted.`,
+    });
     assert.equal(http.requests.length, phase === "metadata" ? 1 : 2);
   });
 }
@@ -707,7 +709,8 @@ for (const endpoint of ["/api/tags", "/api/show", "/v1/systemone"]) {
       });
 
       assert.equal(result.resultType, "failure");
-      assert.match(result.textResultForLlm, cancel ? /cancelled/ : /timed out/);
+      assert.equal(result.textResultForLlm,
+        `${endpoint.slice(1)} ${cancel ? "was cancelled" : "timed out"}. No retry was attempted.`);
       assert.doesNotMatch(result.textResultForLlm, /synthetic-sensitive-reason/);
       await closed.promise;
       assert.equal(http.requests.filter((req) => req.path === endpoint).length, 1);

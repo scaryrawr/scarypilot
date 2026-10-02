@@ -156,8 +156,8 @@ export class DecisionClient {
     } catch (error) {
       if (signal.aborted) {
         throw new DecisionError(signal.reason?.name === "TimeoutError"
-          ? `${endpoint} timed out. No inference retry was attempted.`
-          : `${endpoint} was cancelled. No inference retry was attempted.`);
+          ? `${endpoint} timed out. No retry was attempted.`
+          : `${endpoint} was cancelled. No retry was attempted.`);
       }
 
       if (error instanceof DecisionError) throw error;
