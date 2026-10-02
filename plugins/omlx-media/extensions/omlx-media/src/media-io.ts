@@ -229,22 +229,25 @@ export interface MediaProbe {
   duration: number;
   streams: MediaStream[];
   audioRange?: { start: number; end?: number };
+  videoRange?: { start: number; end?: number };
 }
 
-export async function probeAudioDuration(source: string, index: number, runner: ProcessRunner, signal: AbortSignal): Promise<number> {
+export async function probeStreamDuration(source: string, index: number, kind: "audio" | "video", runner: ProcessRunner, signal: AbortSignal): Promise<number> {
   const progress = await runner("ffmpeg", [
     "-nostdin", "-hide_banner", "-loglevel", "error", "-threads", "1",
     "-filter_threads", "1", "-stats_period", "86400", "-progress", "pipe:1",
-    "-protocol_whitelist", "file,pipe", "-i", source, "-map", `0:${index}`, "-vn",
-    "-af", "asetpts=PTS-STARTPTS", "-t", String(MAX_DURATION_SECONDS),
-    "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "-threads", "1", "-f", "null", "-",
+    "-protocol_whitelist", "file,pipe", "-noautorotate", "-i", source, "-map", `0:${index}`,
+    ...(kind === "audio"
+      ? ["-vn", "-af", "asetpts=PTS-STARTPTS", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le"]
+      : ["-an", "-vf", "setpts=PTS-STARTPTS", "-fps_mode", "passthrough", "-c:v", "wrapped_avframe"]),
+    "-t", String(MAX_DURATION_SECONDS), "-threads", "1", "-f", "null", "-",
   ], signal);
 
   const finalTime = [...progress.matchAll(/^out_time_us=(\d+)\r?$/gm)].at(-1);
   const duration = finalTime ? Number(finalTime[1]) / 1_000_000 : NaN;
 
   if (!/^progress=end\r?$/m.test(progress) || !Number.isFinite(duration) || duration <= 0 || duration > MAX_DURATION_SECONDS) {
-    throw new OmlxToolError("INVALID_MEDIA", "Could not determine the selected audio stream's finite positive extent");
+    throw new OmlxToolError("INVALID_MEDIA", `Could not determine the selected ${kind} stream's finite positive extent`);
   }
 
   return duration;
@@ -288,28 +291,31 @@ export async function probeMedia(source: string, runner: ProcessRunner, signal: 
     }
   }
 
-  const audio = payload.streams.find((stream) => stream.codec_type === "audio");
-  let audioRange: MediaProbe["audioRange"];
+  const ranges: Pick<MediaProbe, "audioRange" | "videoRange"> = {};
 
-  if (audio) {
+  for (const kind of ["audio", "video"] as const) {
+    const stream = payload.streams.find((candidate) => candidate.codec_type === kind);
+
+    if (!stream) continue;
     const origin = Number(payload.format?.start_time ?? "0");
-    const audioStart = Number(audio.start_time ?? String(origin));
-    const audioDuration = audio.duration === undefined ? undefined : Number(audio.duration);
+    const streamStart = Number(stream.start_time ?? String(origin));
+    const streamDuration = stream.duration === undefined ? undefined : Number(stream.duration);
+    const label = kind === "audio" ? "Audio" : "Video";
 
-    if (!Number.isFinite(origin) || !Number.isFinite(audioStart) ||
-        (audioDuration !== undefined && (!Number.isFinite(audioDuration) || audioDuration <= 0))) {
-      throw new OmlxToolError("INVALID_MEDIA", "Audio stream timing metadata must be finite with positive duration");
+    if (!Number.isFinite(origin) || !Number.isFinite(streamStart) ||
+        (streamDuration !== undefined && (!Number.isFinite(streamDuration) || streamDuration <= 0))) {
+      throw new OmlxToolError("INVALID_MEDIA", `${label} stream timing metadata must be finite with positive duration`);
     }
 
-    const start = Math.max(0, audioStart - origin);
-    const end = audioDuration === undefined ? undefined : Math.min(duration, audioStart - origin + audioDuration);
+    const start = Math.max(0, streamStart - origin);
+    const end = streamDuration === undefined ? undefined : Math.min(duration, streamStart - origin + streamDuration);
 
     if (start >= duration || (end !== undefined && start >= end)) {
-      throw new OmlxToolError("INVALID_MEDIA", "Audio stream does not overlap the source duration");
+      throw new OmlxToolError("INVALID_MEDIA", `${label} stream does not overlap the source duration`);
     }
 
-    audioRange = { start, end };
+    ranges[kind === "audio" ? "audioRange" : "videoRange"] = { start, end };
   }
 
-  return { duration, streams: payload.streams, audioRange };
+  return { duration, streams: payload.streams, ...ranges };
 }

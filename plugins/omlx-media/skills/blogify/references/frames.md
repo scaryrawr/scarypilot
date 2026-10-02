@@ -17,8 +17,8 @@ The tool does not classify frames or choose images for publication.
 | Option or limit | Frame preparation |
 | --- | --- |
 | `max_frames` | Integer from 1 to 120. Defaults to 24 uniform samples. |
-| `start`, `end` | Source seconds for a start-inclusive, end-exclusive sampling range. Defaults to the full duration. |
-| `seconds` | From 1 to 120 unique nonnegative timestamps, each less than the duration. Mutually exclusive with `start`, `end`, and `max_frames`. |
+| `start`, `end` | Source seconds for a start-inclusive, end-exclusive sampling range within the selected video stream. Defaults to that stream's start and end. |
+| `seconds` | From 1 to 120 unique nonnegative timestamps within the selected video stream's start-inclusive, end-exclusive range. Mutually exclusive with `start`, `end`, and `max_frames`. |
 | `width` | Integer from 1 to 4096. Defaults to 1280, never upscales, and preserves aspect ratio. |
 | `crop` | `{"x": 0, "y": 0, "width": 160, "height": 90}`. Integer source-pixel geometry contained in the original unrotated stream dimensions. Applies before scaling. |
 | `format` | `"png"` by default, or explicit `"jpeg"`. Use JPEG with the bundled classifier or deduplication script. |
@@ -29,6 +29,13 @@ The output directory's parent must exist. `manifest.json` records the source,
 duration, sampling mode, requested timestamps, image paths, crop, and source and
 output dimensions. The manifest appears with `status: "complete"` only when all
 frames succeed. Display rotation metadata is not applied.
+
+`source_duration_seconds` remains the container duration.
+`source_video_range` records the selected video stream's source-relative start
+and end. Audio can outlast video, or video can begin later than audio.
+Sampling and explicit timestamp validation use the video range, not the
+container extent. Missing stream duration triggers a bounded local
+decode-to-null measurement within the same total deadline.
 
 The manifest records requested extraction seconds on the source timeline.
 These are not decoded frame presentation timestamps. FFmpeg selects the frame

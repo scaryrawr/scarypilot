@@ -3,7 +3,7 @@ import { stat } from "node:fs/promises";
 import { OmlxToolError } from "./domain.ts";
 import { type AudioChunk, type RecordingArgs } from "./media-domain.ts";
 import {
-  abortError, boundedOperation, freshDirectory, probeAudioDuration, probeMedia, publishManifest, reserveDirectory,
+  abortError, boundedOperation, freshDirectory, probeStreamDuration, probeMedia, publishManifest, reserveDirectory,
   retainedArtifacts, runMediaProcess, sourceFile, writeArtifact,
   type MediaDependencies,
 } from "./media-io.ts";
@@ -34,7 +34,7 @@ export async function prepareRecording(
     const audioRange = {
       start: media.audioRange.start,
       end: media.audioRange.end ?? Math.min(media.duration,
-        media.audioRange.start + await probeAudioDuration(source, audio.index, runner, signal)),
+        media.audioRange.start + await probeStreamDuration(source, audio.index, "audio", runner, signal)),
     };
 
     const chunkSeconds = args.chunk_seconds ?? 60;

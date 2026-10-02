@@ -1,6 +1,6 @@
 {
   "name": "omlx-media",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Generate images and speech, transcribe recordings, and prepare local video frames.",
   "type": "module",

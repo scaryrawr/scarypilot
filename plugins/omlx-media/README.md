@@ -87,6 +87,9 @@ bounded set of candidate frames, or frames at explicit `seconds`, with a
 manifest of their source timestamps and file paths. Optional typed crop geometry
 removes overlays before scaling. Sampling is not classification, deduplication,
 or editorial selection.
+Sampling uses the selected video stream's range, including a delayed start,
+not a longer audio/container timeline. Missing video duration is measured
+locally within the operation deadline.
 
 Both preparation modes require a fresh absolute `output_dir` with an existing
 parent. They never

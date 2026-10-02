@@ -2,7 +2,7 @@ import * as path from "node:path";
 import { OmlxToolError } from "./domain.ts";
 import { type FramesArgs, type PreparedFrame } from "./media-domain.ts";
 import {
-  abortError, boundedOperation, freshDirectory, probeFrame, probeMedia, publishManifest, reserveDirectory,
+  abortError, boundedOperation, freshDirectory, probeFrame, probeMedia, probeStreamDuration, publishManifest, reserveDirectory,
   retainedArtifacts, runMediaProcess, sourceFile,
   type MediaDependencies,
 } from "./media-io.ts";
@@ -23,16 +23,26 @@ export async function prepareFrames(
     const media = await probeMedia(source, runner, signal);
     const video = media.streams.find((stream) => stream.codec_type === "video");
 
-    if (!video || !video.width || !video.height) throw new OmlxToolError("NO_VIDEO_STREAM", "Source has no video stream to extract");
-    const start = args.start ?? 0;
-    const end = args.end ?? media.duration;
+    if (!video || !video.width || !video.height || !media.videoRange) throw new OmlxToolError("NO_VIDEO_STREAM", "Source has no video stream to extract");
 
-    if (start >= end || end > media.duration) throw new OmlxToolError("INVALID_RANGE", "Require 0 <= start < end <= source duration");
+    const videoRange = {
+      start: media.videoRange.start,
+      end: media.videoRange.end ?? Math.min(media.duration,
+        media.videoRange.start + await probeStreamDuration(source, video.index, "video", runner, signal)),
+    };
+
+    const start = args.start ?? videoRange.start;
+    const end = args.end ?? videoRange.end;
+
+    if (start < videoRange.start || start >= end || end > videoRange.end) {
+      throw new OmlxToolError("INVALID_RANGE", `Require ${videoRange.start} <= start < end <= ${videoRange.end}, the selected video stream range`);
+    }
+
     const count = args.max_frames ?? 24;
     const seconds = args.seconds ?? Array.from({ length: count }, (_, index) => start + (end - start) * index / count);
 
-    if (seconds.some((second) => second >= media.duration)) {
-      throw new OmlxToolError("INVALID_RANGE", "Explicit seconds must be less than source duration");
+    if (seconds.some((second) => second < videoRange.start || second >= videoRange.end)) {
+      throw new OmlxToolError("INVALID_RANGE", `Explicit seconds must be within the selected video stream range [${videoRange.start}, ${videoRange.end})`);
     }
 
     const crop = args.crop;
@@ -90,6 +100,7 @@ export async function prepareFrames(
       const manifest = path.join(directory, "manifest.json");
       await publishManifest(manifest, JSON.stringify({
         status: "complete", kind: "frames", source, source_duration_seconds: media.duration,
+        source_video_range: videoRange,
         timing: "Requested source timestamps in seconds; selects the frame covering each request, including the final frame interval. Requests are resolved at ffmpeg microsecond seek precision, not measured frame PTS.",
         filename_timing: "Requested seconds rounded to the nearest whole second with zero-based frame indices; frames[].requested_seconds retains exact fractional timestamps.",
         sampling: args.seconds ? "explicit" : "periodic-start-inclusive-end-exclusive",

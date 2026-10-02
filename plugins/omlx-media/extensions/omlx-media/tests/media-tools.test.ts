@@ -32,6 +32,10 @@ let tailVideo: string;
 
 let unequalRecording: string;
 
+const shortVideos: string[] = [];
+
+let delayedVideo: string;
+
 async function workspace(): Promise<string> {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), "omlx-preparation-")));
   roots.push(root);
@@ -67,6 +71,24 @@ before(async () => {
     "-nostdin", "-v", "error", "-n", "-f", "lavfi", "-i", "testsrc2=size=160x120:rate=1",
     "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=16000:duration=10",
     "-t", "90", "-c:v", "mpeg4", "-c:a", "pcm_s16le", "-threads", "1", unequalRecording,
+  ], AbortSignal.timeout(20_000));
+
+  for (const extension of ["mp4", "mkv"]) {
+    const input = path.join(fixtureRoot, `short-video.${extension}`);
+    shortVideos.push(input);
+    await runMediaProcess("ffmpeg", [
+      "-nostdin", "-v", "error", "-n", "-f", "lavfi", "-i", "testsrc2=size=160x120:rate=1:duration=4",
+      "-f", "lavfi", "-i", "sine=sample_rate=16000:duration=10",
+      "-c:v", "mpeg4", "-g", "100", "-c:a", "aac", "-threads", "1", input,
+    ], AbortSignal.timeout(20_000));
+  }
+
+  delayedVideo = path.join(fixtureRoot, "delayed-video.mkv");
+  await runMediaProcess("ffmpeg", [
+    "-nostdin", "-v", "error", "-n", "-itsoffset", "2",
+    "-f", "lavfi", "-i", "testsrc2=size=160x120:rate=1:duration=4",
+    "-f", "lavfi", "-i", "sine=sample_rate=16000:duration=10",
+    "-fps_mode", "passthrough", "-c:v", "mpeg4", "-g", "100", "-c:a", "aac", "-threads", "1", delayedVideo,
   ], AbortSignal.timeout(20_000));
 });
 
@@ -154,6 +176,7 @@ const ManifestSchema = Type.Object({
   source_dimensions: Type.Optional(DimensionsSchema),
   dimensions: Type.Optional(DimensionsSchema),
   range: Type.Optional(Type.Object({ start_seconds: Type.Number(), end_seconds: Type.Number() })),
+  source_video_range: Type.Optional(Type.Object({ start: Type.Number(), end: Type.Number() })),
   crop: Type.Optional(Type.Object({ x: Type.Integer(), y: Type.Integer(), width: Type.Integer(), height: Type.Integer() })),
   frames: Type.Optional(Type.Array(Type.Object({ index: Type.Integer(), requested_seconds: Type.Number(), file: Type.String() }))),
 });
@@ -256,7 +279,7 @@ function probeRunner(payload: ProbeFixture, ffmpegFailure?: OmlxToolError): Proc
 const mediaMetadata = {
   format: { duration: "12" },
   streams: [
-    { index: 0, codec_type: "video", width: 320, height: 180 },
+    { index: 0, codec_type: "video", width: 320, height: 180, duration: "12" },
     { index: 1, codec_type: "audio", sample_rate: "16000", duration: "12" },
   ],
 };
@@ -674,6 +697,112 @@ describe("registered recording preparation", () => {
 });
 
 describe("registered frame preparation", () => {
+  it("rejects invalid selected-video timing metadata and incomplete extent measurements before output creation", async () => {
+    const root = await workspace();
+    const stream = { index: 0, codec_type: "video", width: 320, height: 180 };
+
+    for (const [index, progress] of [
+      "out_time_us=10000000\nprogress=continue\n",
+      "out_time_us=0\nprogress=end\n",
+      "out_time_us=7201000000\nprogress=end\n",
+      "out_time_us=NaN\nprogress=end\n",
+    ].entries()) {
+      const processRunner: ProcessRunner = async (command, args) => {
+        if (command === "ffprobe") return JSON.stringify({ format: { duration: "12" }, streams: [stream] });
+        assert.ok(args.includes("-progress") && args.includes("0:0") && args.includes("7200"));
+        assert.ok(args.includes("-an") && args.includes("setpts=PTS-STARTPTS"));
+
+        return progress;
+      };
+
+      const output_dir = path.join(root, `bad-video-extent-${index}`);
+      assert.match(await invoke(createOmlxPrepareFramesTool({ processRunner }), { input: video, output_dir }), /INVALID_MEDIA.*selected video stream/);
+      await assert.rejects(stat(output_dir), { code: "ENOENT" });
+    }
+
+    for (const [index, timing] of [
+      { duration: "NaN" }, { duration: "Infinity" }, { duration: "0" }, { duration: "-1" },
+      { start_time: "NaN" }, { start_time: "12", duration: "4" },
+    ].entries()) {
+      const processRunner: ProcessRunner = async (command) => {
+        assert.equal(command, "ffprobe");
+
+        return JSON.stringify({ format: { duration: "12" }, streams: [{ ...stream, ...timing }] });
+      };
+
+      const output_dir = path.join(root, `bad-video-timing-${index}`);
+      assert.match(await invoke(createOmlxPrepareFramesTool({ processRunner }), { input: video, output_dir }), /INVALID_MEDIA.*Video stream/);
+      await assert.rejects(stat(output_dir), { code: "ENOENT" });
+    }
+  });
+
+  for (const [index, extension] of ["mp4", "mkv"].entries()) {
+    it(`samples the selected video extent when audio outlasts it in ${extension}`, async () => {
+      const input = shortVideos[index];
+      assert.ok(input);
+      const output_dir = path.join(await workspace(), "short-video");
+
+      const metadata: unknown = JSON.parse(await runMediaProcess("ffprobe", [
+        "-v", "error", "-show_entries", "stream=codec_type,duration", "-of", "json", input,
+      ], AbortSignal.timeout(20_000)));
+
+      assert.ok(Value.Check(Type.Object({ streams: Type.Array(Type.Object({
+        codec_type: Type.String(), duration: Type.Optional(Type.String()),
+      })) }), metadata));
+
+      if (input.endsWith(".mkv")) assert.equal(metadata.streams.find((stream) => stream.codec_type === "video")?.duration, undefined);
+      const before = await readFile(input);
+      const result = await invokeResult(createOmlxPrepareFramesTool(), { input, output_dir }, FramesResultSchema);
+      const saved = await manifest(output_dir);
+      assert.equal(result.frames, 24);
+      assert.ok(saved.source_duration_seconds > 9);
+      assert.deepEqual(saved.source_video_range, { start: 0, end: 4 });
+      assert.deepEqual(saved.range, { start_seconds: 0, end_seconds: 4 });
+      assert.equal(saved.frames?.at(-1)?.requested_seconds, 4 * 23 / 24);
+      assert.deepEqual(await readFile(input), before);
+
+      for (const options of [{ seconds: [4] }, { seconds: [9] }, { end: 5 }]) {
+        const invalid = path.join(await workspace(), "outside-video");
+        assert.match(await invoke(createOmlxPrepareFramesTool(), { input, output_dir: invalid, ...options }), /INVALID_RANGE/);
+        await assert.rejects(stat(invalid), { code: "ENOENT" });
+      }
+    });
+  }
+
+  it("defaults to the delayed video range and rejects requests before its first frame", async () => {
+    const output_dir = path.join(await workspace(), "delayed-video");
+    const result = await invokeResult(createOmlxPrepareFramesTool(), { input: delayedVideo, output_dir }, FramesResultSchema);
+    const saved = await manifest(output_dir);
+    assert.equal(result.frames, 24);
+    assert.deepEqual(saved.source_video_range, { start: 2, end: 6 });
+    assert.deepEqual(saved.range, { start_seconds: 2, end_seconds: 6 });
+    assert.equal(saved.frames?.[0]?.requested_seconds, 2);
+    assert.equal(saved.frames?.at(-1)?.requested_seconds, 2 + 4 * 23 / 24);
+
+    for (const [sample, sourceFrame] of [[0, 0], [23, 3]]) {
+      const frame = saved.frames?.[sample];
+      assert.ok(frame);
+
+      const pixels = await runMediaProcess("ffmpeg", [
+        "-nostdin", "-v", "error", "-i", frame.file, "-frames:v", "1", "-pix_fmt", "rgb24", "-f", "framemd5", "-",
+      ], AbortSignal.timeout(20_000));
+
+      const reference = await runMediaProcess("ffmpeg", [
+        "-nostdin", "-v", "error", "-i", delayedVideo, "-map", "0:v:0", "-vf", `select=eq(n\\,${sourceFrame})`,
+        "-frames:v", "1", "-pix_fmt", "rgb24", "-f", "framemd5", "-",
+      ], AbortSignal.timeout(20_000));
+
+      assert.match(pixels, /[0-9a-f]{32}\s*$/);
+      assert.equal(pixels.trim().split(",").at(-1), reference.trim().split(",").at(-1));
+    }
+
+    for (const options of [{ seconds: [1.9] }, { start: 0 }, { seconds: [6] }]) {
+      const invalid = path.join(await workspace(), "outside-video");
+      assert.match(await invoke(createOmlxPrepareFramesTool(), { input: delayedVideo, output_dir: invalid, ...options }), /INVALID_RANGE/);
+      await assert.rejects(stat(invalid), { code: "ENOENT" });
+    }
+  });
+
   it("selects the final covering frame for an explicit timestamp between the last PTS and EOF", async () => {
     const output_dir = path.join(await workspace(), "tail");
 
@@ -1029,7 +1158,7 @@ describe("registered media boundaries", () => {
       streams: [{ index: 1, codec_type: "audio", sample_rate: "16000", duration: "1210" }],
     })), { input: video, output_dir, chunk_seconds: 10 }), /CHUNK_COUNT_LIMIT/);
     assert.match(await invoke(createOmlxPrepareFramesTool(dependencies({ format: { duration: "12" }, streams: [{ index: 0, codec_type: "video", width: 16384, height: 16384 }] })), { input: video, output_dir }), /MEDIA_DIMENSION_LIMIT/);
-    assert.match(await invoke(createOmlxPrepareFramesTool(dependencies({ format: { duration: "12" }, streams: [{ index: 0, codec_type: "video", width: 4096, height: 4096 }] })), { input: video, output_dir, width: 4096, max_frames: 120 }), /FRAME_WORK_LIMIT/);
+    assert.match(await invoke(createOmlxPrepareFramesTool(dependencies({ format: { duration: "12" }, streams: [{ index: 0, codec_type: "video", width: 4096, height: 4096, duration: "12" }] })), { input: video, output_dir, width: 4096, max_frames: 120 }), /FRAME_WORK_LIMIT/);
 
     for (const duration of ["NaN", "Infinity", "0", "-1"]) {
       assert.match(await invoke(createOmlxPrepareFramesTool(dependencies({ ...mediaMetadata, format: { duration } })), { input: video, output_dir }), /INVALID_MEDIA/);
