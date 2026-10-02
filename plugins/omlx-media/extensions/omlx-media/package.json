@@ -1,8 +1,8 @@
 {
   "name": "omlx-media",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "private": true,
-  "description": "Generate images and speech or transcribe audio through OMLX.",
+  "description": "Generate images and speech, transcribe recordings, and prepare local video frames.",
   "type": "module",
   "scripts": {
     "build": "tsdown && node ../../../../tools/check-extension-bundles.mjs write plugins/omlx-media/extensions/omlx-media",

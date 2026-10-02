@@ -1,10 +1,13 @@
-import type { Tool } from "@github/copilot-sdk";
+import type { Tool, ToolResultObject } from "@github/copilot-sdk";
+import { Value } from "@sinclair/typebox/value";
 import {
   OmlxToolError,
   type OmlxSpeechArgs,
-  type OmlxTranscriptionArgs,
 } from "./domain.ts";
 import { executeSpeech, executeTranscription } from "./execute-audio.ts";
+import { TranscriptionParametersSchema, TranscriptionSchema, type RecordingResult } from "./media-domain.ts";
+import { type MediaDependencies } from "./media-io.ts";
+import { prepareRecording } from "./prepare-recording.ts";
 
 export function createOmlxSpeechTool(): Tool<OmlxSpeechArgs> {
   return {
@@ -39,31 +42,46 @@ export function createOmlxSpeechTool(): Tool<OmlxSpeechArgs> {
   };
 }
 
-export function createOmlxTranscriptionTool(): Tool<OmlxTranscriptionArgs> {
+export function createOmlxTranscriptionTool(dependencies: MediaDependencies = {}): Tool {
   return {
     name: "omlx_transcribe",
-    description: "Transcribe a local audio file with an OMLX STT model, saving its text to the workspace. Returns the transcript path and text.",
-    parameters: {
-      type: "object",
-      properties: {
-        input: { type: "string", description: "Absolute path to an existing audio file." },
-        output: { type: "string", description: "Absolute path for a new .txt transcript." },
-        model: { type: "string", description: "Optional explicit OMLX STT model; otherwise prefer a loaded model, then an installed one." },
-        language: { type: "string", description: "Optional spoken language code." },
-        prompt: { type: "string", description: "Optional vocabulary/spelling guidance for supported models." },
-      },
-      required: ["input", "output"],
-      additionalProperties: false,
-    },
-    handler: async (args) => {
+    description: "Transcribe local audio with OMLX. Use output for a new .txt transcript (legacy mode), OR output_dir for bounded audio/video preparation with mono 16 kHz WAV chunks, transcript.md, chunks.json and manifest.json. output_dir must be fresh, outside the plugin tree, with an existing parent. Source is preserved. Recording limits: 2 hours, 4 GiB, 120 serial chunks, 120-second requests, 600-second total deadline by default. Chunk-boundary timestamps are not word/speaker timestamps. Requires ffmpeg/ffprobe and a literal loopback endpoint unless allow_remote explicitly consents; no redirects. Failures retain incomplete artifacts.",
+    parameters: TranscriptionParametersSchema,
+    handler: async (args, invocation) => {
       try {
-        const result = await executeTranscription(args);
+        if (!Value.Check(TranscriptionSchema, args)) {
+          throw new OmlxToolError("INVALID_INPUT", "Require absolute input and exactly one of output or output_dir with valid bounded options");
+        }
+
+        if ("output_dir" in args) {
+          const result = await prepareRecording(args, dependencies, invocation?.signal);
+
+          const response: RecordingResult = {
+            kind: "recording",
+            ...result,
+            timing: "Timestamps are chunk boundaries, not word or speaker timestamps.",
+          };
+
+          return {
+            resultType: "success",
+            textResultForLlm: JSON.stringify(response),
+          } satisfies ToolResultObject;
+        }
+
+        const result = await executeTranscription(args, dependencies);
 
         return `Saved transcription with ${result.model}: ${result.file}\n\n${result.text}`;
       } catch (error) {
-        if (error instanceof OmlxToolError) return `❌ ${error.code}: ${error.message}`;
+        const failure = error instanceof OmlxToolError ? error
+          : new OmlxToolError("AUDIO_FAILED", error instanceof Error ? error.message : String(error));
 
-        return `❌ AUDIO_FAILED: ${error instanceof Error ? error.message : String(error)}`;
+        const message = `${failure.code}: ${failure.message}`;
+
+        return {
+          resultType: "failure",
+          error: message,
+          textResultForLlm: `❌ ${message}`,
+        } satisfies ToolResultObject;
       }
     },
   };

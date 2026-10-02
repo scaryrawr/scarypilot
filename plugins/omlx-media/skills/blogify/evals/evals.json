@@ -4,16 +4,20 @@
     {
       "id": 1,
       "name": "recording-workflow-plan",
-      "prompt": "I have a local screen-recording at /workspace/demo.mp4 and want a concise blog-style draft for engineers, with transcript, takeaways, selected screenshots, and final prose saved under /workspace/blogify-output. Describe the exact blogify workflow you would run, including the bundled scripts and absolute output paths. Do not claim to have processed the recording.",
+      "prompt": "The omlx-media plugin and its native tools are installed. I have a local screen-recording at /workspace/demo.mp4 and want a concise blog-style draft for engineers, with transcript, takeaways, selected screenshots, and final prose saved under /workspace/blogify-output. Describe the exact blogify workflow you would run, including native preparation calls, any optional scripts, and absolute output paths. Do not claim to have processed the recording.",
       "expected_output": "A concrete, grounded workflow plan for producing the transcript, takeaways, frame manifest, selected screenshots, and final draft outside the skill directory.",
       "files": [],
       "expectations": [
         "The answer does not claim that /workspace/demo.mp4 was processed or that artifacts already exist.",
-        "The plan uses uv run scripts/transcribe.py with --input /workspace/demo.mp4 and an absolute --output-dir outside the skill directory.",
-        "The plan samples frames, deduplicates them with uv run scripts/dedupe_frames.py --frames-dir /workspace/blogify-output/frames (or equivalent sampled-frame dir) --output-dir /workspace/blogify-output/frames-dedup, then classifies the deduped set with uv run scripts/classify_frames.py using a short fixed category enum that includes OTHER or NONE.",
-        "The plan uses uv run scripts/extract_frame.py for full-resolution frame extraction before optional uv run scripts/crop_frames.py cropping.",
+        "The plan uses omlx_transcribe with input /workspace/demo.mp4 and a fresh absolute output_dir under /workspace/blogify-output, without also passing output.",
+        "The plan uses omlx_prepare_frames in a different fresh directory and reads its timestamp manifest. Classification and deduplication are optional. Any classification uses a short fixed category enum including OTHER or NONE and writes a separate classification manifest.",
+        "The plan uses omlx_prepare_frames with explicit seconds for final image extraction and typed crop geometry if needed. Final image selection remains an editorial step.",
         "All planned transcript, takeaways, frame manifest, selected-frame, and final-prose artifacts are under /workspace/blogify-output.",
-        "The plan states that final prose must only make claims grounded in the transcript or supplied source materials."
+        "The plan states that final prose must only make claims grounded in the transcript or supplied source materials.",
+        "The plan distinguishes chunk-boundary timestamps from word timestamps and does not invent speaker attribution.",
+        "The plan does not silently switch to cloud or legacy scripts to bypass a preparation error.",
+        "The plan creates or verifies the common output parent while leaving each native output_dir nonexistent.",
+        "If the plan passes native frames to classify_frames.py or dedupe_frames.py, it explicitly requests format jpeg. It does not pass PNG output to those scripts."
       ]
     },
     {

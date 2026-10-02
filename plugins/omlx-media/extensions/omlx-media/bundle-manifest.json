@@ -2,19 +2,24 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "3a626ff285f97901f0a582a4bfe633db10c9a6deddd2dfcae37c374b913954a2",
-    "package.json": "ba0e1f9e2a172ca2b7906bd2f984a08c338cdffbb6c5328b2f0634c9a7852fa1",
-    "src/audio-tools.ts": "17bf4f4bbb1adb7e91585927c328afeceafb98dea6db10da7adbf5ffff8dbeaa",
-    "src/domain.ts": "74383c2fc757e4d129596cd2c450597fd7024635009d576772c37bfc0c74a01c",
-    "src/execute-audio.ts": "6208e84debd0817d35ebaed6b5c438d6b2295670fab8d1c62dd0fa2090899890",
+    "package-lock.json": "e99924c09e4116d74d392d3b33fb8a38a0b45216184c51e1441d6be7497bb657",
+    "package.json": "b1d03017903daa89e6be4073ed373d6df6932df70913ecf9150517faf20e3bf2",
+    "src/audio-tools.ts": "0079e418823172dfdc7af3620a4cccf6e5ba41c2b5f9c63624b8495689dd0912",
+    "src/domain.ts": "7c59d9bf76e4f9fc16d822398cc7eeb05a9150ae1127bc6528421635f8840cce",
+    "src/execute-audio.ts": "9d48dd22861319075086af12f79e619cbd560d54d02bcd787e2f541519316158",
     "src/execute-image.ts": "aa31fc2eb417f450859c3615e4ad10f5a7484621ac3040f2109fd79a8184f4ed",
-    "src/extension.ts": "b4117607670c5ec525b77759a6b82c198be0f46e0850bdf50d7f4c715542e8b9",
+    "src/extension.ts": "eab0f9542d5f39acc6b1aa91cf77bd6783c96d72eaf6760ebdde451a0ac7c513",
+    "src/frame-tool.ts": "284d82816b32c208091ded8c20f8ebe5564610d3551235dc4c1138f6a4cc5d8a",
     "src/image-tool.ts": "06f8d8e5d8f5badd3e5a18d67a45e2f475fe22a6f55a5753b5ca53333987cf49",
-    "src/omlx-client.ts": "e92cfba6a31e70a9245021acd0759ac79412a3158ddead1eee8a82c10c3900ec",
-    "src/workspace-artifacts.ts": "46e5a8245087a368be28e50b7f7dac07108e3ee9c3229e40b3e665d4ef9a892e",
+    "src/media-domain.ts": "005396acf50ff95b2266d68cd147fd5541a5cbb73d292ec4b81f546cd8033f92",
+    "src/media-io.ts": "6ed44bb62a89f735072f96d48447c25c4a09e3b99a67b783e2ec3e403a22b868",
+    "src/omlx-client.ts": "b90e21e365c970f63408c1cee1d8bed57fee015c3d66870958ebdae01ed2bba7",
+    "src/prepare-frames.ts": "442cb9d9f7c12a2412e25f89fd9071d1d19b1883871c358b3a4b9b64230e2314",
+    "src/prepare-recording.ts": "393a1b235c899faf3ea31f0b4d3cd61e46941f5642d37df46a827583ac69b82a",
+    "src/workspace-artifacts.ts": "4d94254859e5b6b63371287a123c165af00fa6e2b7382e226dc9f6bc30a133de",
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
   },
   "outputs": {
-    "dist/extension.mjs": "2c60ddea3a4f3338684a167893cd53ae0fe3b37539ca395f7789aac7e8af38c3"
+    "dist/extension.mjs": "8c6f98a2fc7d90ce4e221e6304e7083a842b5e0ef81951627a26c195e051ab3c"
   }
 }

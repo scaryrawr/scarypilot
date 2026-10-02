@@ -1,7 +1,55 @@
 # Frames & screenshots
 
-Operational details for `sample_frames.py`, `dedupe_frames.py`,
-`classify_frames.py`, and `crop_frames.py`.
+Native frame preparation and optional legacy sampling, deduplication,
+classification, and cropping.
+
+## Native frame preparation
+
+Prefer `omlx_prepare_frames` with an absolute video `input` and a fresh
+`output_dir`. The tool does not use OMLX or send frames to a service.
+Read its returned `manifest.json` for timestamps and file paths.
+
+Default sampling produces a bounded candidate set across the recording.
+For a brief demo, request a narrower window or explicit `seconds`.
+Uniform sampling can miss transitions and does not remove near-duplicates.
+The tool does not classify frames or choose images for publication.
+
+| Option or limit | Frame preparation |
+| --- | --- |
+| `max_frames` | Integer from 1 to 120. Defaults to 24 uniform samples. |
+| `start`, `end` | Source seconds for a start-inclusive, end-exclusive sampling range. Defaults to the full duration. |
+| `seconds` | From 1 to 120 unique nonnegative timestamps, each less than the duration. Mutually exclusive with `start`, `end`, and `max_frames`. |
+| `width` | Integer from 1 to 4096. Defaults to 1280, never upscales, and preserves aspect ratio. |
+| `crop` | `{"x": 0, "y": 0, "width": 160, "height": 90}`. Integer source-pixel geometry contained in the original unrotated stream dimensions. Applies before scaling. |
+| `format` | `"png"` by default, or explicit `"jpeg"`. Use JPEG with the bundled classifier or deduplication script. |
+| `timeout_seconds` | Total deadline from 1 to 1800 seconds. Defaults to 600. |
+| Source and work limits | Nonempty local file, at most 4 GiB and 2 hours. Video streams have at most 32 megapixels. Total output has at most 256 megapixels. |
+
+The output directory's parent must exist. `manifest.json` records the source,
+duration, sampling mode, requested timestamps, image paths, crop, and source and
+output dimensions. The manifest appears with `status: "complete"` only when all
+frames succeed. Display rotation metadata is not applied.
+
+The manifest records requested extraction seconds on the source timeline.
+These are not decoded frame presentation timestamps. FFmpeg selects the frame
+covering each requested instant, including requests after the last frame's
+presentation time and before EOF. Seeking uses FFmpeg's microsecond precision.
+Use the manifest's fractional seconds when
+re-extracting, not the rounded timestamp in a filename.
+
+For final images, request explicit `seconds` into a new directory and provide
+typed `crop` geometry when overlays need removal. Crop coordinates refer to
+the source image before resizing. Verify the final images visually against
+the transcript.
+
+Native JPEG candidates use timestamped filenames that the optional local
+`classify_frames.py` script can read. Native PNG output does not work with that
+script. Save classification output to a different
+path, such as `classification.json`, so it does not replace the preparation
+manifest. Use a fresh `--select-dir` for classifier copies.
+
+Legacy scripts can overwrite files or remove earlier samples. Use fresh
+destinations and do not use them to bypass a native error.
 
 ## Frame extraction policy
 
@@ -134,10 +182,11 @@ standalone script can't reach the Copilot model gateway):
    classifier (`build_prompt` in `classify_frames.py`), and require exactly
    `{"file","label","reason"}` per frame, `label` from the fixed enum (else
    `OTHER`/`NONE`).
-3. Merge subagent results into the same `manifest.json` shape the script emits
+3. Merge subagent results into the same classification shape the script emits
    (`[{"file","ts","label","reason"}]`, `ts` via the `t_<MMmSSs>` filename) and
    copy non-`OTHER`/`NONE` frames into the select dir, exactly as `--select-dir`
-   would.
+   would. Save this as `classification.json` outside the preparation outputs,
+   and preserve the native preparation manifest's fractional timestamps.
 
 Keep the same "classifier, not captioner" discipline: short enum, one label,
 short reason — the cloud path changes *where* inference runs, not the contract.
