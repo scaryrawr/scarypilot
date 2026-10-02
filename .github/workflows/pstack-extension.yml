@@ -1,0 +1,42 @@
+name: Pstack extension
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/pstack-extension.yml"
+      - "external_plugins/pstack/extensions/pstack/**"
+      - "external_plugins/pstack/skills/pstack-schema-validate/scripts/**"
+      - "external_plugins/pstack/skills/poteto-mode/scripts/plan-rules.mjs"
+      - "external_plugins/pstack/skills/poteto-mode/scripts/orch/store.ts"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/pstack-extension.yml"
+      - "external_plugins/pstack/extensions/pstack/**"
+      - "external_plugins/pstack/skills/pstack-schema-validate/scripts/**"
+      - "external_plugins/pstack/skills/poteto-mode/scripts/plan-rules.mjs"
+      - "external_plugins/pstack/skills/poteto-mode/scripts/orch/store.ts"
+
+permissions:
+  contents: read
+
+jobs:
+  linux-validation:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: external_plugins/pstack/extensions/pstack
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22.18.0"
+      - name: Install locked extension dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Check extension types
+        run: npm run typecheck
+      - name: Check artifact confinement and ancestor-swap regressions
+        run: npm test -- --run tests/artifact-validator.test.ts tests/artifact-fixtures.test.ts --reporter=verbose
+      - name: Check complete extension suite
+        run: npm test
