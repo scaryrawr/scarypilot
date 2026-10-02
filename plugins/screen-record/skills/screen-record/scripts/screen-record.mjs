@@ -1360,8 +1360,16 @@ function stop() {
     fail("recording identity does not match; pass --recording-id retained from start; refusing to stop a different recording");
   }
 
-  const ownsLock = () =>
-    state.recordingId && existsSync(paths.lock) && readFileSync(paths.lock, "utf8") === state.recordingId;
+  const ownsLock = () => {
+    if (!state.recordingId) return false;
+
+    try {
+      return readFileSync(paths.lock, "utf8") === state.recordingId;
+    } catch (error) {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    }
+  };
 
   if (state.status === "stopped" && !ownsLock()) {
     if (!existsSync(output)) fail(`stopped recording output is missing: ${output}`);
@@ -1370,7 +1378,11 @@ function stop() {
     return;
   }
 
-  if (!activeState(state) && !(state.status === "stopped" && ownsLock() && pidRunning(state.workerPid))) {
+  if (state.status === "stopped" && ownsLock() && !pidRunning(state.workerPid)) {
+    fail(`recording worker exited with finalization incomplete; inspect ${paths.lock} and ${paths.log}. No lock was removed.`);
+  }
+
+  if (!activeState(state) && state.status !== "stopped") {
     fail(`recording is ${state.status === "failed" ? "failed" : "stale"}; inspect ${paths.log}`);
   }
 
@@ -1395,8 +1407,12 @@ function stop() {
 
   final = readState(paths.state);
 
-  if (finalizationPending() && pidRunning(state.workerPid)) {
-    fail(`graceful stop timed out; recording may still be active. Run status; inspect ${paths.log}. No process was killed.`);
+  if (finalizationPending()) {
+    if (pidRunning(state.workerPid)) {
+      fail(`graceful stop timed out; recording may still be active. Run status; inspect ${paths.log}. No process was killed.`);
+    }
+
+    fail(`recording worker exited with finalization incomplete; inspect ${paths.lock} and ${paths.log}. No lock was removed.`);
   }
 
   if (final?.status === "failed") fail(`FFmpeg failed with exit ${final.exitCode}; inspect ${paths.log}`);

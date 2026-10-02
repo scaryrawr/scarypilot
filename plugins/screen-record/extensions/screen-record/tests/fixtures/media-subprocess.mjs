@@ -19,6 +19,42 @@ const open = fs.openSync;
 
 const close = fs.closeSync;
 
+const readFile = fs.readFileSync;
+
+const remove = fs.rmSync;
+
+const kill = process.kill;
+
+fs.readFileSync = (path, ...args) => {
+  if (process.argv.includes("stop") && String(path).endsWith(".lock") &&
+    process.env.RECORDER_FIXTURE_MODE?.startsWith("stop-lock-read-")) {
+    const missing = process.env.RECORDER_FIXTURE_MODE === "stop-lock-read-ENOENT";
+
+    if (missing) remove(path, { force: true });
+
+    const error = new Error("fixture ownership read failed");
+
+    error.code = missing ? "ENOENT" : "EACCES";
+    throw error;
+  }
+
+  return readFile(path, ...args);
+};
+
+let exitChecks = 0;
+
+process.kill = (pid, signal) => {
+  if (process.argv.includes("stop") && signal === 0 &&
+    pid === Number(process.env.RECORDER_FIXTURE_EXITED_PID) && ++exitChecks > 1) {
+    const error = new Error("fixture controller already exited");
+
+    error.code = "ESRCH";
+    throw error;
+  }
+
+  return kill(pid, signal);
+};
+
 let controllerLog;
 
 fs.openSync = (path, ...args) => {

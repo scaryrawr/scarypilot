@@ -679,6 +679,57 @@ test("foreign legacy state cannot block user-scoped recording and same-owner sta
   }
 });
 
+test("stop rejects exited-controller locks and tolerates only missing ownership reads", async () => {
+  const fixture = await setup();
+
+  try {
+    const output = resolve(fixture.runtime.cwd, "terminal.mp4");
+    const directory = join(fixture.runtime.env.TMPDIR!, stateDirectoryName());
+    const statePath = join(directory, `${stateId(output)}.json`);
+    const lock = statePath.replace(/\.json$/, ".lock");
+    const now = new Date().toISOString();
+
+    const terminal = {
+      status: "stopped", output, statePath, logPath: statePath.replace(/\.json$/, ".log"),
+      workerPid: process.pid, ffmpegPid: process.pid, recordingId: "retained-id",
+      startedAt: now, updatedAt: now, endedAt: now, exitCode: 0,
+    };
+
+    await mkdir(directory);
+    await writeFile(output, "fixture finalized output");
+    await writeFile(statePath, JSON.stringify(terminal));
+    await writeFile(lock, terminal.recordingId);
+    fixture.runtime.env.RECORDER_FIXTURE_EXITED_PID = String(process.pid);
+
+    const abandoned = await call(fixture.runtime, "screen_record_stop", {
+      output, recordingId: terminal.recordingId,
+    });
+
+    assert.equal(abandoned.resultType, "failure", "remaining lock must never be reported as successful finalization");
+    assert.match(abandoned.textResultForLlm, /worker exited.*finalization.*incomplete/);
+    assert.equal(await readFile(lock, "utf8"), terminal.recordingId);
+
+    fixture.runtime.env.RECORDER_FIXTURE_MODE = "stop-lock-read-EACCES";
+
+    const unreadable = await call(fixture.runtime, "screen_record_stop", {
+      output, recordingId: terminal.recordingId,
+    });
+
+    assert.equal(unreadable.resultType, "failure");
+    assert.match(unreadable.textResultForLlm, /fixture ownership read failed/);
+
+    fixture.runtime.env.RECORDER_FIXTURE_MODE = "stop-lock-read-ENOENT";
+
+    const released = await call(fixture.runtime, "screen_record_stop", {
+      output, recordingId: terminal.recordingId,
+    });
+
+    assert.equal(released.resultType, "success", released.textResultForLlm);
+    assert.equal(state(released.textResultForLlm).status, "stopped");
+    await assert.rejects(readFile(lock), { code: "ENOENT" });
+  } finally { await fixture.cleanup(); }
+});
+
 test("controller retains ownership through log-close failure persistence", async () => {
   const fixture = await setup("log-close-failure");
 

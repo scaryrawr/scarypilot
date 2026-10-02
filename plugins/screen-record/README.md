@@ -115,6 +115,10 @@ than assuming a successful recording. No process is force-killed.
 The controller keeps its ownership lock until log-close handling and all terminal
 state writes finish. Stop waits for ownership release, not just terminal state, so
 its successful return includes final cleanup.
+If the controller exits with its ownership lock retained, stop reports incomplete
+finalization rather than success. Inspect the named lock and log before approved
+recovery; stop does not remove abandoned locks. Concurrent normal lock deletion
+is treated as ownership release; other lock-read failures remain explicit errors.
 
 Start returns a `recordingId`, output, worker and FFmpeg PIDs, timestamps, and
 state/log paths. The worker is detached from the tool and extension. A recording
