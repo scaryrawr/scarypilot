@@ -28,3 +28,14 @@ export const invalidDurationStrings = [
   "-9223372036854775808ns9223372036854775807ns",
   "9223372036854775808.9999999999999999999999999999999999ns9223372036854775808ns",
 ];
+
+export const validDurationNumbers = [
+  -Number.MAX_VALUE, -9223372036.854776, -1, -Number.MIN_VALUE,
+  0, Number.MIN_VALUE, 0.5, 300,
+  9223372036.854773, 9223372036.854774,
+];
+
+export const invalidDurationNumbers = [
+  9223372036.854776, 9223372036.854778, Number.MAX_VALUE,
+  NaN, Infinity, -Infinity,
+];

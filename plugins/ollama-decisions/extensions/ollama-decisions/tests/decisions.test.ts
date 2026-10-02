@@ -4,7 +4,7 @@ import { test, type TestContext } from "node:test";
 import { Value } from "@sinclair/typebox/value";
 import { DecisionClient, createDecisionTools } from "../src/decisions.ts";
 import { DecisionRequestSchema, DecisionResponseSchema, type DecisionRequest, type Question } from "../src/schemas.ts";
-import { invalidDurationStrings, validDurationStrings } from "./keep-alive-cases.ts";
+import { invalidDurationNumbers, invalidDurationStrings, validDurationNumbers, validDurationStrings } from "./keep-alive-cases.ts";
 
 type ObservedRequest = { path: string; method: string; authorization?: string; body?: unknown };
 
@@ -479,6 +479,9 @@ const invalidRequests: [string, unknown][] = [
   ["invented question field", { ...request, questions: { q: { ...request.questions.refund, confidence: 0.5 } } }],
   ["boolean keep alive", { ...request, keep_alive: false }],
   ["nonfinite keep alive", { ...request, keep_alive: NaN }],
+  ...invalidDurationNumbers.map((seconds): [string, unknown] => [
+    `numeric keep_alive ${String(seconds)}`, { ...request, keep_alive: seconds },
+  ]),
   ...invalidDurationStrings.map((duration): [string, unknown] => [
     `keep_alive ${JSON.stringify(duration)}`, { ...request, keep_alive: duration },
   ]),
@@ -505,8 +508,30 @@ for (const [label, input] of invalidRequests) {
   });
 }
 
+test("numeric keep_alive boundary is the greatest binary64 seconds value with a product below 2^63", () => {
+  const maximum = 9223372036.854774;
+  const next = 9223372036.854776;
+  const bits = new DataView(new ArrayBuffer(8));
+
+  bits.setFloat64(0, maximum);
+  const maximumBits = bits.getBigUint64(0);
+  bits.setFloat64(0, next);
+  assert.equal(bits.getBigUint64(0), maximumBits + 1n);
+  assert.ok(maximum * 1e9 < 2 ** 63);
+  assert.equal(next * 1e9, 2 ** 63);
+  assert.equal(Number(9223372036854775807n) / 1e9, next, "the rounded Go maximum is unsafe");
+
+  for (const keep_alive of [...validDurationNumbers, -0]) {
+    assert.ok(Value.Check(DecisionRequestSchema, { ...request, keep_alive }), String(keep_alive));
+  }
+
+  for (const keep_alive of invalidDurationNumbers) {
+    assert.equal(Value.Check(DecisionRequestSchema, { ...request, keep_alive }), false, String(keep_alive));
+  }
+});
+
 test("keep_alive accepts Go duration strings and numeric seconds without changing wire values", async (t) => {
-  for (const keep_alive of [...validDurationStrings, 0, -1, 0.5]) {
+  for (const keep_alive of [...validDurationStrings, ...validDurationNumbers]) {
     await t.test(JSON.stringify(keep_alive), async (t) => {
       const expected = { ...request, keep_alive };
 

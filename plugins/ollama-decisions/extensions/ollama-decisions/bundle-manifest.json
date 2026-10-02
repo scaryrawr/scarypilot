@@ -2,15 +2,15 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "b04787e1d048dfec3b7dcffd97839d4ecce7607cff83eb18b2ac5ea70d4578fa",
-    "package-lock.json": "e24927ebfe75598e2fc5417684ced3c40538e75f184cf24a317f2d94e852b0b0",
-    "package.json": "7ceabe6b557b078804ec4e14182a415373d09404741a5d5b89d56e709dff5afd",
+    "package-lock.json": "8f44adda53b18b606963a877447609283e6f23a75cb8c415a91a5f06170e6a75",
+    "package.json": "56acfc5add018dafc6cebbaf66f2e2cb3f98cc10f8beacce8d12fc5f5adc48c4",
     "src/decisions.ts": "297591ecd08f63cb3224e687cea9de199b015ec4ea17bb15a468e5c3672c3048",
     "src/duration.ts": "9e9b46329ac24fe30306e3597a03ed8f508ef8ec1eabc57ee5545e94008a5d1f",
     "src/extension.ts": "a187aac3808a885541279d20ba499d9477471721bf5dda8464eb57ccfdbc7290",
-    "src/schemas.ts": "5d07a9b4bdc7a88ced6455c2321c3dbfe69c350b0bca3a181c92e28c1de700aa",
+    "src/schemas.ts": "f2797f41bcb309feea999bc5c2af6cce4e6fff0437a28466323e62409383e4ed",
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
   },
   "outputs": {
-    "dist/extension.mjs": "821e4df6cb4394fd45a8ecc55a4b9c46750d222dad06cd2bf803853dff0b17c2"
+    "dist/extension.mjs": "f2b7f8057c8c895eadcc4ed4c5b8eb98b8bd685f23e274661d0797e617266fcf"
   }
 }

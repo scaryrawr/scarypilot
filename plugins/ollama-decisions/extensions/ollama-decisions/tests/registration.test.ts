@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
 import type { Tool } from "@github/copilot-sdk";
-import { invalidDurationStrings, validDurationStrings } from "./keep-alive-cases.ts";
+import { invalidDurationNumbers, invalidDurationStrings, validDurationNumbers, validDurationStrings } from "./keep-alive-cases.ts";
 
 test("source and shipped tools register and validate durations before fetching", async (t) => {
   t.after(() => mock.restoreAll());
@@ -44,7 +44,7 @@ test("source and shipped tools register and validate durations before fetching",
   await import(new URL("../extension.mjs", import.meta.url).href);
   assert.equal(registrations.length, 2);
 
-  for (const registration of registrations) {
+  for (const [index, registration] of registrations.entries()) {
     assert.deepEqual(Object.keys(registration).sort(), ["requestedEnvironmentVariables", "tools"]);
     assert.deepEqual(registration.requestedEnvironmentVariables, ["OLLAMA_API_KEY"]);
     assert.deepEqual(registration.tools.map((tool) => tool.name), [
@@ -60,21 +60,23 @@ test("source and shipped tools register and validate durations before fetching",
       resultType: "failure",
     });
 
-    for (const keep_alive of invalidDurationStrings) {
-      fetched.length = 0;
-      const args = { ...input, keep_alive };
+    await t.test(index === 0 ? "source rejects before fetching" : "shipped rejects before fetching", async () => {
+      for (const keep_alive of [...invalidDurationStrings, ...invalidDurationNumbers]) {
+        fetched.length = 0;
+        const args = { ...input, keep_alive };
 
-      const result = await handler(args, {
-        sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: args,
-      });
+        const result = await handler(args, {
+          sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: args,
+        });
 
-      assert.equal(fetched.length, 0, JSON.stringify(keep_alive));
-      assert.ok(result && typeof result === "object" && "resultType" in result && "textResultForLlm" in result);
-      assert.equal(result.resultType, "failure");
-      assert.match(String(result.textResultForLlm), /Invalid decision request/);
-    }
+        assert.equal(fetched.length, 0, String(keep_alive));
+        assert.ok(result && typeof result === "object" && "resultType" in result && "textResultForLlm" in result);
+        assert.equal(result.resultType, "failure");
+        assert.match(String(result.textResultForLlm), /Invalid decision request/);
+      }
+    });
 
-    for (const keep_alive of validDurationStrings) {
+    for (const keep_alive of [...validDurationStrings, ...validDurationNumbers]) {
       fetched.length = 0;
       const args = { ...input, keep_alive };
 

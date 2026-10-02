@@ -89,6 +89,9 @@ The extension checks the byte limit before inference. Input is never truncated.
 `noul` has optional criteria containing only `true` and `false` string descriptions. Either description can be omitted.
 `score` has an array of 2-26 string descriptions, ordered from lowest to highest.
 `keep_alive` is optional and accepts an Ollama duration string or a number of seconds. Negative values keep the model loaded.
+Numeric seconds must be finite and at most `9223372036.854774`, the greatest binary64 value whose multiplication by `1e9` stays below `2^63`.
+That bound is exactly `9223372036.85477447509765625` seconds. The next binary64 value, `9223372036.854776`, multiplies to `2^63` and is rejected before any fetch.
+All finite negative numeric values remain valid because Ollama handles them before duration conversion.
 Duration strings use Go's `time.ParseDuration` syntax, including signs, compound values such as `"1h30m"`, fractions such as `".5s"`, and `"0"`.
 Supported units are `ns`, `us`, both Unicode microsecond spellings, `ms`, `s`, `m`, and `h`.
 Strings must parse successfully under Go's signed 64-bit nanosecond rules. Invalid strings fail locally before any metadata or inference request.

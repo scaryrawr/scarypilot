@@ -51,7 +51,10 @@ export const DecisionRequestSchema = Type.Object({
     maxProperties: 64,
     additionalProperties: false,
   }),
-  keep_alive: Type.Optional(Type.Union([Type.String({ pattern: durationPattern }), Type.Number()])),
+  keep_alive: Type.Optional(Type.Union([
+    Type.String({ pattern: durationPattern }),
+    Type.Number({ maximum: 9223372036.854774 }),
+  ])),
 }, strict);
 
 export type DecisionRequest = Static<typeof DecisionRequestSchema>;
