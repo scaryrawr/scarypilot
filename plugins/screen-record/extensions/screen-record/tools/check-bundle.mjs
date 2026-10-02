@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile, readdir, writeFile } from "node:fs/promises";
+import { EOL } from "node:os";
 import path from "node:path";
 
 const directory = path.resolve(import.meta.dirname, "..");
@@ -28,6 +29,7 @@ async function digest(files) {
 const inputs = [
   "extension.mjs", "package.json", "package-lock.json", "tsdown.config.mjs",
   "../../skills/screen-record/scripts/screen-record.mjs",
+  "../../skills/screen-record/scripts/windows-enumerate.ps1",
   "../../skills/screen-record/scripts/sapi-narrate.ps1",
 ].map((file) => path.resolve(directory, file));
 
@@ -64,7 +66,21 @@ const serialized = `${JSON.stringify({ version: 1, inputs: await digest(inputs),
 
 const manifest = path.join(directory, "bundle-manifest.json");
 
-if (mode === "write") await writeFile(manifest, serialized);
+if (mode === "write") await writeManifest(manifest, serialized);
 else if ((await readFile(manifest, "utf8")).replace(/\r\n/g, "\n") !== serialized) throw new Error("Stale bundle; run npm run build");
 
 console.log(`screen-record: bundle ${mode === "write" ? "recorded" : "verified"}`);
+
+async function writeManifest(file, contents) {
+  let current;
+
+  try {
+    current = await readFile(file, "utf8");
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+
+  const lineEnding = current === undefined ? EOL : current.includes("\r\n") ? "\r\n" : "\n";
+
+  await writeFile(file, contents.replace(/\n/g, lineEnding));
+}

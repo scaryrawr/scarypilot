@@ -36,13 +36,17 @@ Read exactly one capture reference for the current host:
 ## Capture
 
 1. Discover inputs with `screen_record_devices` when needed. Device discovery
-   can trigger an OS permission prompt. Never grant permissions or bypass OS
-   privacy controls without user approval.
+   can list audio/video inputs and may trigger an OS permission prompt. Never
+   grant permissions or bypass OS privacy controls without user approval. On
+   Windows, use `screen_record_windows` to choose a visible, non-minimized
+   window when the user requests window capture. Pass its `windowId` to
+   `screen_record_start`; titles may contain private document names. Window
+   discovery does not capture or verify permissions.
 2. Start with `screen_record_start` only after the user's explicit capture
    request. Set `output` and `captureApproved: true`. Set `audioDevice` and
    `audioApproved: true` only if the user requests audio. Use `videoInput`,
-   `fps`, or a `region` object only as documented in the current host's
-   reference. Keep the returned `recordingId`.
+   `fps`, `region`, or the Windows-only `windowId` only as documented in the
+   current host's reference. Keep the returned `recordingId`.
 3. Drive the rehearsed shot list. Leave a short pause before the first action,
    after meaningful state changes, and before stopping.
 4. Stop gracefully with `screen_record_stop`, passing `output` and

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile, readdir, writeFile } from "node:fs/promises";
+import { EOL } from "node:os";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -81,6 +82,7 @@ for (const extension of selected ? [selected] : extensions) {
   if (extension === "plugins/screen-record/extensions/screen-record") {
     inputs.push(
       "../../skills/screen-record/scripts/screen-record.mjs",
+      "../../skills/screen-record/scripts/windows-enumerate.ps1",
       "../../skills/screen-record/scripts/sapi-narrate.ps1",
     );
   }
@@ -118,7 +120,7 @@ for (const extension of selected ? [selected] : extensions) {
   const manifestPath = path.join(directory, "bundle-manifest.json");
 
   if (mode === "write") {
-    await writeFile(manifestPath, serialized);
+    await writeManifest(manifestPath, serialized);
   } else if ((await readFile(manifestPath, "utf8")).replace(/\r\n/g, "\n") !== serialized) {
     throw new Error(`${extension}: stale bundle; run npm run build and commit dist/ and bundle-manifest.json`);
   }
@@ -145,6 +147,20 @@ async function digest(files, directory) {
       createHash("sha256").update((await readFile(file, "utf8")).replace(/\r\n/g, "\n")).digest("hex"),
     ])),
   );
+}
+
+async function writeManifest(file, serialized) {
+  let current;
+
+  try {
+    current = await readFile(file, "utf8");
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+
+  const lineEnding = current === undefined ? EOL : current.includes("\r\n") ? "\r\n" : "\n";
+
+  await writeFile(file, serialized.replace(/\n/g, lineEnding));
 }
 
 function relativePath(from, to) {

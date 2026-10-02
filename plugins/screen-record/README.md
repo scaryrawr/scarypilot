@@ -14,6 +14,9 @@ FFmpeg screen capture and editing. The plugin includes:
 - A current GitHub Copilot CLI release with plugin, skill, and native extension support.
 - Node.js 22.18 or newer on `PATH` for the native tools. The standalone CLI supports Node.js 20 or newer.
 - `ffmpeg` and `ffprobe` on `PATH`.
+- Windows window capture also requires PowerShell and FFmpeg 7.0 or newer with
+  `gdigrab` HWND input support. Full-desktop capture does not require HWND
+  support.
 - Windows screen capture uses FFmpeg's `gdigrab`; microphone capture uses
   `dshow`. Linux uses `x11grab` and PulseAudio. macOS uses `avfoundation` and
   requires an explicit screen device index.
@@ -60,8 +63,9 @@ interaction, privacy review, and editing in the skill.
 | Tool | Contract |
 | --- | --- |
 | `screen_record_doctor` | Bounded local FFmpeg and FFprobe checks. No narration discovery or network request. |
+| `screen_record_windows` | On Windows, list visible, non-minimized, non-cloaked windows for selection. Returns titles, process metadata, and bounds to disambiguate choices; titles may contain private document names. Does not capture, change focus, or verify capture permission. |
 | `screen_record_devices` | Bounded device listing, or X11/PulseAudio input guidance on Linux. Discovery can trigger an OS permission prompt. |
-| `screen_record_start` | Takes `output`, `captureApproved: true`, and optional `fps`, `videoInput`, `audioDevice`, and `region`. Audio requires `audioApproved: true`. |
+| `screen_record_start` | Takes `output`, `captureApproved: true`, and optional `fps`, `videoInput`, `audioDevice`, `region`, or Windows-only `windowId`. A window target cannot be combined with `videoInput` or `region`. Audio requires `audioApproved: true`. |
 | `screen_record_status` | Takes `output` and an optional `recordingId`. Reports recording, stopping, stopped, failed, stale, or not-recording state. |
 | `screen_record_stop` | Takes `output` and the returned `recordingId`. Requests graceful stop with an optional `timeoutSeconds`, at most 120. |
 
@@ -82,6 +86,18 @@ keys before upgrading this increment; it does not migrate their persisted state.
 `height` fields. Width and height must be positive even numbers. On macOS,
 `videoInput` is the explicit AVFoundation screen index, and region offsets
 cannot be negative. Device indices can change between captures.
+
+On Windows, call `screen_record_windows` when the user wants a particular
+application window. It lists visible, non-minimized, non-cloaked top-level
+windows. Select using a returned opaque `windowId`, not its title.
+The ID identifies the current window observation and must be rediscovered if
+the window closes or its identity changes. Window capture targets the selected
+window's client area; odd dimensions are padded by at most one pixel for H.264.
+It does not activate or restore the window. Omit `windowId` to keep capturing
+the desktop. Desktop `region` coordinates retain
+their existing virtual-desktop meaning and cannot be combined with `windowId`.
+The list is metadata only and does not verify that FFmpeg can capture every
+window or that capture permissions are available.
 
 Start returns a `recordingId`, output, worker and FFmpeg PIDs, timestamps, and
 state/log paths. The worker is detached from the tool and extension. A recording
@@ -106,8 +122,9 @@ frame or requested audio has been verified. Probe and review the resulting file.
 The standalone helper remains at
 `skills/screen-record/scripts/screen-record.mjs`. From the skill directory,
 run `node scripts/screen-record.mjs <command>`. The existing `doctor`, `devices`,
-`start`, `status`, and `stop` commands remain available. `doctor --capture-only`
-and `devices --json` provide the native tools' machine-readable results.
+`windows`, `start`, `status`, and `stop` commands remain available. The
+`doctor --capture-only`, `devices --json`, and Windows-only `windows --json`
+invocations provide the native tools' machine-readable results.
 CLI `status` and `stop` also accept `--recording-id`. Native stop requires an ID;
 for a legacy recording without one, use the standalone CLI's graceful stop.
 Editing, media probing, voices, and narration remain standalone commands.
@@ -119,9 +136,10 @@ Packaged Copilot hosts can use the Copilot executable as `process.execPath`.
 From `extensions/screen-record`, run `npm install`, `npm run build`,
 `npm test`, `npm run typecheck`, and `npm run check:bundle`.
 Commit generated `dist/` and `bundle-manifest.json` with source changes.
-The local bundle check includes the reused CLI and SAPI helper in its freshness
-inputs. Process tests use fixture media subprocesses and never capture screen
-or audio. Real capture requires explicit user approval and OS permission.
+The local bundle check includes the reused CLI, Windows window enumerator, and
+SAPI helper in its freshness inputs. Process tests use fixture media
+subprocesses and never capture screen or audio. Real capture requires explicit
+user approval and OS permission.
 
 The dedicated [screen recording CI workflow](../../.github/workflows/screen-record-ci.yml)
 runs the capture-free contract suite on Ubuntu, macOS, and Windows with pinned

@@ -382,7 +382,166 @@ async function narrationEngine() {
   return { engine: requested === "auto" ? nativeNarrationEngine() : requested };
 }
 
-function ffmpegCaptureArgs(config) {
+const windowIdPattern = /^w1_[A-Za-z0-9_-]{43}$/;
+
+const windowHandlePattern = /^0x[0-9a-fA-F]{1,16}$/;
+
+function windowIdFor(window) {
+  const identity = [
+    window.hwnd,
+    window.processId,
+    window.processStartTime,
+    window.threadId,
+    window.className,
+    window.title,
+  ];
+
+  return `w1_${createHash("sha256").update(JSON.stringify(identity)).digest("base64url")}`;
+}
+
+function sanitizeWindowText(value, limit) {
+  return Array.from(value, (character) => {
+    const code = character.charCodeAt(0);
+
+    return code < 32 || (code >= 0x7f && code <= 0x9f) ? " " : character;
+  }).join("").trim().slice(0, limit);
+}
+
+function enumerateWindows() {
+  if (process.platform !== "win32") throw new Error("Windows window discovery is only supported on Windows.");
+
+  const powershell = findPowerShell();
+
+  if (!powershell) throw new Error("Windows window discovery requires pwsh.exe or powershell.exe on PATH.");
+
+  const script = resolve(process.argv[1], "..", "windows-enumerate.ps1");
+
+  const result = spawnSync(powershell, ["-NoProfile", "-NonInteractive", "-File", script], {
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 7000,
+    maxBuffer: 1048576,
+  });
+
+  if (result.error) throw new Error(`Could not enumerate Windows windows: ${result.error.message}`);
+
+  if (result.status !== 0) {
+    throw new Error(`Windows window enumeration failed: ${result.stderr.trim() || `PowerShell exited with code ${result.status}`}`);
+  }
+
+  let snapshot;
+
+  try {
+    snapshot = JSON.parse(result.stdout);
+  } catch (error) {
+    throw new Error(`PowerShell returned invalid window JSON: ${error.message}`);
+  }
+
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot) ||
+    !Array.isArray(snapshot.windows) ||
+    !Number.isSafeInteger(snapshot.uninspectableCount) || snapshot.uninspectableCount < 0 ||
+    snapshot.windows.length > 4096) {
+    throw new Error("PowerShell returned an unsupported window listing.");
+  }
+
+  for (const window of snapshot.windows) {
+    if (!window || typeof window !== "object" || Array.isArray(window) ||
+      typeof window.hwnd !== "string" || !windowHandlePattern.test(window.hwnd) ||
+      !Number.isSafeInteger(window.processId) || window.processId < 1 ||
+      typeof window.processStartTime !== "string" || !/^\d+$/.test(window.processStartTime) ||
+      !Number.isSafeInteger(window.threadId) || window.threadId < 1 ||
+      typeof window.className !== "string" || !window.className ||
+      typeof window.title !== "string" || !window.title ||
+      typeof window.processName !== "string" || !window.processName ||
+      !Number.isSafeInteger(window.clientWidth) || window.clientWidth < 1 ||
+      !Number.isSafeInteger(window.clientHeight) || window.clientHeight < 1 ||
+      !Number.isSafeInteger(window.windowLeft) ||
+      !Number.isSafeInteger(window.windowTop) ||
+      !Number.isSafeInteger(window.windowWidth) || window.windowWidth < 1 ||
+      !Number.isSafeInteger(window.windowHeight) || window.windowHeight < 1 ||
+      typeof window.foreground !== "boolean") {
+      throw new Error("PowerShell returned an invalid window entry.");
+    }
+  }
+
+  return snapshot;
+}
+
+function resolveWindowId(windowId) {
+  if (process.platform !== "win32") throw new Error("Window capture is only supported on Windows.");
+
+  if (typeof windowId !== "string" || !windowIdPattern.test(windowId)) {
+    throw new Error("Invalid windowId; rediscover windows and use an ID returned by the windows command.");
+  }
+
+  const snapshot = enumerateWindows();
+  const matches = snapshot.windows.filter((window) => windowIdFor(window) === windowId);
+
+  if (matches.length !== 1) {
+    throw new Error("The selected window is stale or unavailable; run the windows command again and select a current window.");
+  }
+
+  return matches[0];
+}
+
+function requireGdigrabWindowSupport() {
+  const result = spawnSync("ffmpeg", [
+    "-hide_banner", "-f", "gdigrab", "-i", "hwnd=not-a-window",
+    "-frames:v", "1", "-f", "null", "-",
+  ], {
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 3000,
+    maxBuffer: 262144,
+  });
+
+  const diagnostic = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+
+  if (result.error) throw new Error(`Could not check FFmpeg window-capture support: ${result.error.message}`);
+
+  if (!diagnostic.includes("Invalid window handle 'not-a-window'")) {
+    throw new Error("This FFmpeg build does not support gdigrab HWND capture; install FFmpeg 7.0 or newer or use desktop capture.");
+  }
+}
+
+function windows() {
+  if (process.platform !== "win32") fail("Windows window discovery is only supported on Windows.");
+
+  requireGdigrabWindowSupport();
+  const snapshot = enumerateWindows();
+
+  const candidates = snapshot.windows.flatMap((window) => {
+    const title = sanitizeWindowText(window.title, 1024);
+    const processName = sanitizeWindowText(window.processName, 260);
+
+    return title && processName
+      ? [{
+        windowId: windowIdFor(window),
+        title,
+        processName,
+        processId: window.processId,
+        bounds: {
+          x: window.windowLeft,
+          y: window.windowTop,
+          width: window.windowWidth,
+          height: window.windowHeight,
+        },
+        clientArea: { width: window.clientWidth, height: window.clientHeight },
+        foreground: window.foreground,
+      }]
+      : [];
+  });
+
+  console.log(JSON.stringify({
+    platform: "win32",
+    windows: candidates.slice(0, 128),
+    truncated: candidates.length > 128,
+    uninspectableCount: snapshot.uninspectableCount,
+    permissionsVerified: false,
+  }, null, 2));
+}
+
+function ffmpegCaptureArgs(config, windowTarget) {
   const ffmpegArgs = ["-hide_banner", "-n"];
   const fps = String(config.fps);
   let region;
@@ -411,6 +570,10 @@ function ffmpegCaptureArgs(config) {
   if (process.platform === "win32") {
     ffmpegArgs.push("-f", "gdigrab", "-framerate", fps);
 
+    if (windowTarget && (config.region || config.videoInput)) {
+      fail("--window-id cannot be combined with --region or --video-input.");
+    }
+
     if (region) {
       ffmpegArgs.push(
         "-offset_x",
@@ -422,10 +585,14 @@ function ffmpegCaptureArgs(config) {
       );
     }
 
-    ffmpegArgs.push("-i", "desktop");
+    ffmpegArgs.push("-i", windowTarget ? `hwnd=${windowTarget.hwnd}` : "desktop");
 
     if (config.audioDevice) {
       ffmpegArgs.push("-f", "dshow", "-i", `audio=${config.audioDevice}`);
+    }
+
+    if (windowTarget) {
+      ffmpegArgs.push("-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2");
     }
   } else if (process.platform === "linux") {
     const display = config.videoInput || process.env.DISPLAY;
@@ -813,7 +980,25 @@ async function start() {
     recordingId: randomUUID(),
   };
 
-  ffmpegCaptureArgs(config);
+  let windowTarget;
+
+  if (options["window-id"] !== undefined) {
+    if (process.platform !== "win32") fail("--window-id is only supported on Windows.");
+
+    if (typeof options["window-id"] !== "string" || !windowIdPattern.test(options["window-id"])) {
+      fail("--window-id must be an ID returned by the Windows windows command.");
+    }
+
+    if (config.region || config.videoInput) {
+      fail("--window-id cannot be combined with --region or --video-input.");
+    }
+
+    requireGdigrabWindowSupport();
+    windowTarget = resolveWindowId(options["window-id"]);
+    config.windowId = options["window-id"];
+  }
+
+  ffmpegCaptureArgs(config, windowTarget);
 
   let lockFd;
   let lockIdentity;
@@ -909,9 +1094,45 @@ function captureWorker() {
     fail("recording worker startup ownership changed; refusing capture");
   }
 
+  let windowTarget;
+
+  if (config.windowId !== undefined) {
+    try {
+      if (process.platform !== "win32" || typeof config.windowId !== "string" ||
+        !windowIdPattern.test(config.windowId) || config.region || config.videoInput) {
+        throw new Error("Invalid Windows window capture configuration.");
+      }
+
+      requireGdigrabWindowSupport();
+      windowTarget = resolveWindowId(config.windowId);
+    } catch (error) {
+      const details = [`Could not resolve selected window before capture: ${error.message}`];
+
+      try {
+        writeFileSync(config.log, `${details[0]}\n`, { flag: "a", mode: 0o600 });
+      } catch (logError) {
+        details.push(`could not write worker log: ${logError.message}`);
+      }
+
+      try {
+        if (existsSync(config.lock)) {
+          if (readFileSync(config.lock, "utf8") === config.recordingId) {
+            rmSync(config.lock);
+          } else {
+            details.push("startup lock ownership changed; lock was preserved");
+          }
+        }
+      } catch (cleanupError) {
+        details.push(`could not release startup lock: ${cleanupError.message}`);
+      }
+
+      fail(details.join("; "));
+    }
+  }
+
   const logFd = openSync(config.log, "a", 0o600);
 
-  const ffmpeg = spawn("ffmpeg", ffmpegCaptureArgs(config), {
+  const ffmpeg = spawn("ffmpeg", ffmpegCaptureArgs(config, windowTarget), {
     stdio: ["pipe", "ignore", logFd],
     windowsHide: true,
   });
@@ -1459,9 +1680,10 @@ function usage() {
 Commands:
   doctor [--capture-only]
   devices [--json]
+  windows [--json]
   voices [--engine omlx|sapi|say|flite] [--model <name>]
   start --output <file> [--fps 30] [--region x,y,w,h]
-        [--audio-device <name>] [--video-input <source>]
+        [--audio-device <name>] [--video-input <source>] [--window-id <id>]
   status --output <file> [--recording-id <id>]
   stop --output <file> [--recording-id <id>] [--timeout 20]
        (timeout must be at most 120 seconds)
@@ -1480,6 +1702,9 @@ Commands:
 switch (command) {
   case "doctor":
     await doctor();
+    break;
+  case "windows":
+    windows();
     break;
   case "devices":
     devices();

@@ -8,6 +8,7 @@ import { Value } from "@sinclair/typebox/value";
 import {
   CaptureDiagnosticsSchema, DeviceDiscoverySchema, DiagnosticsInputSchema,
   RecordingStateSchema, RecordingTargetSchema, StartRecordingInputSchema, StopRecordingInputSchema,
+  WindowsDiscoverySchema,
   type RecordingTarget, type StartRecordingInput, type StopRecordingInput,
 } from "./domain.ts";
 
@@ -89,6 +90,14 @@ function startArgs(runtime: RecorderRuntime, input: StartRecordingInput): string
     throw new Error("Audio capture requires the user's explicit request and audioApproved=true.");
   }
 
+  if (input.windowId && process.platform !== "win32") {
+    throw new Error("Window capture is only supported on Windows.");
+  }
+
+  if (input.windowId && (input.videoInput !== undefined || input.region !== undefined)) {
+    throw new Error("windowId cannot be combined with videoInput or region; choose a window or desktop capture.");
+  }
+
   const args = ["start", "--output", workspaceOutput(runtime, input.output)];
 
   for (const [flag, value] of [
@@ -104,6 +113,8 @@ function startArgs(runtime: RecorderRuntime, input: StartRecordingInput): string
     const { x, y, width, height } = input.region;
     args.push("--region", `${x},${y},${width},${height}`);
   }
+
+  if (input.windowId) args.push("--window-id", input.windowId);
 
   return args;
 }
@@ -140,6 +151,10 @@ export function createRecordingTools(runtime: RecorderRuntime = defaultRuntime()
       "Check local FFmpeg/FFprobe and capture backend availability with bounded subprocesses. Does not capture, contact narration services, or verify OS privacy permission.",
       DiagnosticsInputSchema, CaptureDiagnosticsSchema,
       () => ({ args: ["doctor", "--capture-only"], timeout: 12000 })),
+    tool(runtime, "screen_record_windows",
+      "List visible, non-minimized, non-cloaked top-level windows on Windows for selected-window capture. Titles, process names, process IDs, and bounds are returned to help choose a target; titles may contain private document names. Does not capture, change focus, or verify capture permission. Pass a returned windowId to screen_record_start; requires an FFmpeg build with gdigrab HWND support.",
+      DiagnosticsInputSchema, WindowsDiscoverySchema,
+      () => ({ args: ["windows", "--json"], timeout: 15000 })),
     tool(runtime, "screen_record_devices",
       "List local capture inputs. AVFoundation/DirectShow discovery can trigger an OS permission prompt; do not grant it or bypass privacy controls without user approval. Listing does not prove capture permission.",
       DiagnosticsInputSchema, DeviceDiscoverySchema,
@@ -147,7 +162,7 @@ export function createRecordingTools(runtime: RecorderRuntime = defaultRuntime()
     tool(runtime, "screen_record_start",
       "Start a detached screen recording only after the user's explicit capture request. Require separate audio approval when audioDevice is set. Preserve sources; never overwrite output. Returns persistent recordingId and log/state paths. The recording survives tool cancellation and extension/session restart. On interruption, query status before retrying. Does not drive apps or grant OS permissions.",
       StartRecordingInputSchema, RecordingStateSchema,
-      (input) => ({ args: startArgs(runtime, input), timeout: 8000 })),
+      (input) => ({ args: startArgs(runtime, input), timeout: input.windowId ? 30000 : 8000 })),
     tool(runtime, "screen_record_status",
       "Read persistent recording state by output, optionally checking recordingId. Use after tool cancellation or extension restart. Reports stale state without killing processes.",
       RecordingTargetSchema, RecordingStateSchema,

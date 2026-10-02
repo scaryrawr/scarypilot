@@ -81,7 +81,30 @@ async function stop(runtime: RecorderRuntime, value: RecordingState, timeoutSeco
   return call(runtime, "screen_record_stop", { output: value.output, recordingId: value.recordingId, timeoutSeconds });
 }
 
-test("bundle freshness tolerates CRLF manifests but still rejects changed helper contents", async () => {
+function fixtureWindows(count = 2) {
+  return Array.from({ length: count }, (_, index) => ({
+    hwnd: `0x${(index + 1).toString(16)}`,
+    processId: 4321,
+    processStartTime: "133999999999999999",
+    threadId: 100 + index,
+    className: "DemoWindow",
+    title: index < 2 ? `Demo — Same title ' " --help\r\n` : `Demo window ${index + 1}`,
+    processName: "Demo",
+    clientWidth: 800 + index,
+    clientHeight: 600,
+    windowLeft: -100 + index * 20,
+    windowTop: 40 + index * 20,
+    windowWidth: 820 + index,
+    windowHeight: 640,
+    foreground: index === 0,
+  }));
+}
+
+function setWindowsFixture(runtime: RecorderRuntime, windows: ReturnType<typeof fixtureWindows>) {
+  runtime.env.RECORDER_FIXTURE_WINDOWS_JSON = JSON.stringify({ windows, uninspectableCount: 0 });
+}
+
+test("bundle writes preserve CRLF manifests and stale helper contents are rejected", async () => {
   const fixture = await setup();
 
   try {
@@ -98,20 +121,31 @@ test("bundle freshness tolerates CRLF manifests but still rejects changed helper
 
     await writeFile(manifest, (await readFile(manifest, "utf8")).replace(/\r\n/g, "\n").replace(/\n/g, "\r\n"));
 
-    const check = () => spawnSync(process.execPath, [join(extension, "tools", "check-bundle.mjs"), "check"], {
-      encoding: "utf8",
-      timeout: 10000,
-      windowsHide: true,
-    });
+    const runBundleCheck = (mode: "check" | "write" = "check") => spawnSync(
+      process.execPath, [join(extension, "tools", "check-bundle.mjs"), mode], {
+        encoding: "utf8",
+        timeout: 10000,
+        windowsHide: true,
+      });
 
-    const fresh = check();
+    const fresh = runBundleCheck();
 
     assert.ifError(fresh.error);
     assert.equal(fresh.status, 0, fresh.stderr);
 
+    const recorded = runBundleCheck("write");
+
+    assert.ifError(recorded.error);
+    assert.equal(recorded.status, 0, recorded.stderr);
+
+    const rewrittenManifest = await readFile(manifest, "utf8");
+
+    assert.ok(rewrittenManifest.includes("\r\n"));
+    assert.equal(rewrittenManifest.replace(/\r\n/g, "").includes("\n"), false);
+
     await appendFile(join(copiedPlugin, "skills", "screen-record", "scripts", "screen-record.mjs"), "\n");
 
-    const stale = check();
+    const stale = runBundleCheck();
 
     assert.ifError(stale.error);
     assert.notEqual(stale.status, 0);
@@ -194,6 +228,7 @@ test("intent, paths, options, and existing sources are guarded before capture", 
       { output: "source.mp4", captureApproved: true, videoInput: "0" },
       { output: "raw.mp4", captureApproved: true, fps: 121 },
       { output: "raw.mp4", captureApproved: true, videoInput: "--help" },
+      { output: "raw.mp4", captureApproved: true, windowId: "title=Notepad" },
       { output: "raw.mp4", captureApproved: true, region: { x: 0, y: 0, width: 3, height: 2 } },
     ]) {
       const result = await call(fixture.runtime, "screen_record_start", input);
@@ -246,6 +281,168 @@ test("approved capture options map to the existing platform recorder without ext
     if (recording) await stop(fixture.runtime, recording);
     await fixture.cleanup();
   }
+});
+
+test("Windows window discovery returns bounded selectable IDs without exposing handles", async () => {
+  const fixture = await setup();
+
+  try {
+    setWindowsFixture(fixture.runtime, fixtureWindows(130));
+    const result = await call(fixture.runtime, "screen_record_windows", {});
+
+    if (process.platform !== "win32") {
+      assert.equal(result.resultType, "failure");
+      assert.match(result.textResultForLlm, /only supported on Windows/);
+
+      return;
+    }
+
+    assert.equal(result.resultType, "success", result.textResultForLlm);
+    const discovery = JSON.parse(result.textResultForLlm);
+    const serialized = JSON.stringify(discovery);
+
+    assert.equal(discovery.platform, "win32");
+    assert.equal(discovery.windows.length, 128);
+    assert.equal(discovery.truncated, true);
+    assert.equal(discovery.uninspectableCount, 0);
+    assert.equal(discovery.permissionsVerified, false);
+    assert.equal(discovery.windows[0].title, discovery.windows[1].title);
+    assert.notEqual(discovery.windows[0].windowId, discovery.windows[1].windowId);
+    assert.match(discovery.windows[0].windowId, /^w1_[A-Za-z0-9_-]{43}$/);
+    assert.ok(discovery.windows[0].title.includes("--help"));
+    assert.ok(!/[\r\n]/.test(discovery.windows[0].title));
+    assert.deepEqual(discovery.windows[1].bounds, { x: -80, y: 60, width: 821, height: 640 });
+    assert.deepEqual(discovery.windows[1].clientArea, { width: 801, height: 600 });
+    assert.equal(discovery.windows[0].foreground, true);
+    assert.ok(!serialized.includes('"hwnd"'));
+    assert.ok(!serialized.includes('"processStartTime"'));
+    assert.ok(!serialized.includes("0x1"));
+  } finally { await fixture.cleanup(); }
+});
+
+test("a selected Windows window reaches gdigrab by its opaque ID and stops normally", async () => {
+  const fixture = await setup("argument-contract");
+  let recording: RecordingState | undefined;
+
+  try {
+    setWindowsFixture(fixture.runtime, fixtureWindows());
+
+    if (process.platform !== "win32") {
+      const result = await call(fixture.runtime, "screen_record_start", {
+        output: "window.mp4", captureApproved: true, windowId: `w1_${"a".repeat(43)}`,
+      });
+
+      assert.equal(result.resultType, "failure");
+      assert.match(result.textResultForLlm, /only supported on Windows/);
+
+      return;
+    }
+
+    const listed = await call(fixture.runtime, "screen_record_windows", {});
+
+    assert.equal(listed.resultType, "success", listed.textResultForLlm);
+
+    const discovery = JSON.parse(listed.textResultForLlm);
+    const selected = discovery.windows[1];
+
+    const started = await call(fixture.runtime, "screen_record_start", {
+      output: "window.mp4", captureApproved: true, windowId: selected.windowId,
+    });
+
+    assert.equal(started.resultType, "success", started.textResultForLlm);
+    recording = state(started.textResultForLlm);
+    assert.equal(recording.status, "recording");
+
+    const args: unknown = JSON.parse(await readFile(`${recording.output}.args.json`, "utf8"));
+
+    assert.ok(Value.Check(Type.Array(Type.String()), args));
+    assert.equal(args[args.indexOf("-i") + 1], "hwnd=0x2");
+    assert.equal(args[args.indexOf("-vf") + 1], "pad=ceil(iw/2)*2:ceil(ih/2)*2");
+    assert.ok(!args.join(" ").includes("--help"));
+    assert.ok(!args.includes("desktop"));
+
+    const stopped = await stop(fixture.runtime, recording);
+
+    assert.equal(stopped.resultType, "success", stopped.textResultForLlm);
+    assert.equal(state(stopped.textResultForLlm).status, "stopped");
+    recording = undefined;
+  } finally {
+    if (recording) await stop(fixture.runtime, recording);
+    await fixture.cleanup();
+  }
+});
+
+test("window selections reject desktop-only options and stale IDs before taking a lock", async () => {
+  const fixture = await setup("argument-contract");
+
+  try {
+    setWindowsFixture(fixture.runtime, fixtureWindows());
+
+    if (process.platform !== "win32") return;
+
+    const listed = await call(fixture.runtime, "screen_record_windows", {});
+
+    assert.equal(listed.resultType, "success", listed.textResultForLlm);
+
+    const selected = JSON.parse(listed.textResultForLlm).windows[0].windowId;
+
+    const conflict = await call(fixture.runtime, "screen_record_start", {
+      output: "conflict.mp4", captureApproved: true, windowId: selected,
+      region: { x: 0, y: 0, width: 800, height: 600 },
+    });
+
+    assert.equal(conflict.resultType, "failure");
+    assert.match(conflict.textResultForLlm, /cannot be combined with videoInput or region/);
+
+    const stale = await call(fixture.runtime, "screen_record_start", {
+      output: "stale.mp4", captureApproved: true, windowId: `w1_${"a".repeat(43)}`,
+    });
+
+    assert.equal(stale.resultType, "failure");
+    assert.match(stale.textResultForLlm, /selected window is stale or unavailable/);
+    await assert.rejects(readFile(resolve(fixture.runtime.cwd, "stale.mp4")), { code: "ENOENT" });
+  } finally { await fixture.cleanup(); }
+});
+
+test("worker revalidates a selected window and releases only its startup lock if it disappears", async () => {
+  const fixture = await setup("window-disappears-worker");
+
+  try {
+    setWindowsFixture(fixture.runtime, fixtureWindows());
+
+    if (process.platform !== "win32") return;
+
+    const listed = await call(fixture.runtime, "screen_record_windows", {});
+
+    assert.equal(listed.resultType, "success", listed.textResultForLlm);
+
+    const output = resolve(fixture.runtime.cwd, "disappeared.mp4");
+    const selected = JSON.parse(listed.textResultForLlm).windows[0].windowId;
+
+    const lock = join(
+      fixture.runtime.env.TMPDIR!,
+      "scarypilot-screen-record",
+      `${stateId(output)}.lock`,
+    );
+
+    const logPath = join(
+      fixture.runtime.env.TMPDIR!,
+      "scarypilot-screen-record",
+      `${stateId(output)}.log`,
+    );
+
+    const result = await call(fixture.runtime, "screen_record_start", {
+      output: "disappeared.mp4", captureApproved: true, windowId: selected,
+    });
+
+    const log = await readFile(logPath, "utf8");
+
+    assert.equal(result.resultType, "failure", log);
+    assert.match(result.textResultForLlm, /selected window is stale or unavailable/);
+    assert.match(log, /selected window is stale or unavailable/);
+    await assert.rejects(readFile(lock), { code: "ENOENT" });
+    await assert.rejects(readFile(output), { code: "ENOENT" });
+  } finally { await fixture.cleanup(); }
 });
 
 test("dangling and existing output leaf symlinks are rejected before recorder invocation", async () => {

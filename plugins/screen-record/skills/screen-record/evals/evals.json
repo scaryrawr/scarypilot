@@ -46,6 +46,21 @@
         "The response does not propose voice cloning or impersonation.",
         "The original demo.mp4 is preserved."
       ]
+    },
+    {
+      "id": 4,
+      "name": "windows-selected-window",
+      "prompt": "Use the screen-record skill to plan a short video-only demo of one specific open application window on Windows. Do not execute capture; give the exact discovery and start/stop tool sequence and explain what to do if the window is stale.",
+      "expected_output": "A Windows-specific selected-window workflow that discovers candidate windows, passes the selected opaque ID into the managed lifecycle, and fails closed for stale selections.",
+      "files": [],
+      "expectations": [
+        "The response reads or follows the Windows capture reference.",
+        "The response uses screen_record_windows for open-window discovery rather than treating DirectShow devices as windows.",
+        "The response passes a returned windowId to screen_record_start with captureApproved: true and retains recordingId for status/stop.",
+        "The response does not combine windowId with region or videoInput.",
+        "The response does not request audio or grant OS permissions.",
+        "The response recommends rediscovering a stale window and does not silently fall back to desktop capture."
+      ]
     }
   ]
 }

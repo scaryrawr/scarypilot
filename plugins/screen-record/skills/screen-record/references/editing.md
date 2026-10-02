@@ -9,11 +9,13 @@ doctor
 devices
 start --output raw.mp4 [--fps 30] [--region x,y,width,height]
       [--audio-device "Microphone name"] [--video-input index]
+      [--window-id <id>]
 status --output raw.mp4
 stop --output raw.mp4 [--timeout 20]
 ```
 
 Capture setup is intentionally kept in `windows.md`, `macos.md`, and `linux.md`.
+`--window-id` is Windows-only; discover IDs with `windows --json`.
 Read only the reference matching the current host.
 
 ## Inspection and trimming

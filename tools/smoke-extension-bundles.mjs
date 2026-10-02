@@ -84,7 +84,7 @@ for (const extension of extensions) {
     if (extension === "plugins/screen-record/extensions/screen-record" &&
       JSON.stringify(registration.toolNames.toSorted()) !== JSON.stringify([
         "screen_record_devices", "screen_record_doctor", "screen_record_start",
-        "screen_record_status", "screen_record_stop",
+        "screen_record_status", "screen_record_stop", "screen_record_windows",
       ])) {
       throw new Error(`${extension}: missing expected capture lifecycle tools`);
     }

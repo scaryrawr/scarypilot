@@ -2,6 +2,13 @@ import { Type, type Static } from "@sinclair/typebox";
 
 const Text = Type.String({ minLength: 1, maxLength: 4096 });
 
+const WindowId = Type.String({
+  minLength: 46,
+  maxLength: 46,
+  pattern: "^w1_[A-Za-z0-9_-]{43}$",
+  description: "Windows-only selection returned by screen_record_windows. Omit to capture the desktop.",
+});
+
 const Platform = Type.Union([Type.Literal("darwin"), Type.Literal("linux"), Type.Literal("win32")]);
 
 const CaptureDevice = Type.Union([Type.Literal("avfoundation"), Type.Literal("x11grab"), Type.Literal("gdigrab")]);
@@ -22,6 +29,7 @@ export const StartRecordingInputSchema = Type.Object({
   fps: Type.Optional(Type.Integer({ minimum: 1, maximum: 120 })),
   videoInput: Type.Optional(Text),
   audioDevice: Type.Optional(Text),
+  windowId: Type.Optional(WindowId),
   region: Type.Optional(Type.Object({
     x: Type.Integer(),
     y: Type.Integer(),
@@ -86,3 +94,31 @@ export const DeviceDiscoverySchema = Type.Object({
 });
 
 export type DeviceDiscovery = Static<typeof DeviceDiscoverySchema>;
+
+export const WindowsWindowSchema = Type.Object({
+  windowId: WindowId,
+  title: Type.String({ minLength: 1, maxLength: 1024 }),
+  processName: Type.String({ minLength: 1, maxLength: 260 }),
+  processId: Type.Integer({ minimum: 1 }),
+  bounds: Type.Object({
+    x: Type.Integer(),
+    y: Type.Integer(),
+    width: Type.Integer({ minimum: 1 }),
+    height: Type.Integer({ minimum: 1 }),
+  }, { additionalProperties: false }),
+  clientArea: Type.Object({
+    width: Type.Integer({ minimum: 1 }),
+    height: Type.Integer({ minimum: 1 }),
+  }, { additionalProperties: false }),
+  foreground: Type.Boolean(),
+}, { additionalProperties: false });
+
+export const WindowsDiscoverySchema = Type.Object({
+  platform: Type.Literal("win32"),
+  windows: Type.Array(WindowsWindowSchema, { maxItems: 128 }),
+  truncated: Type.Boolean(),
+  uninspectableCount: Type.Integer({ minimum: 0 }),
+  permissionsVerified: Type.Literal(false),
+}, { additionalProperties: false });
+
+export type WindowsDiscovery = Static<typeof WindowsDiscoverySchema>;
