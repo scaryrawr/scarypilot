@@ -11,7 +11,7 @@ const run = promisify(execFile);
 const root = fileURLToPath(new URL("../", import.meta.url));
 
 describe("extension registration", () => {
-  it("registers the read-only snapshot tool with the existing canvas and command in the packaged entry point", async () => {
+  it("registers exactly the snapshot and three Boards tools with the canvas and command through the SDK stub", async () => {
     const scratch = await mkdtemp(path.join(os.tmpdir(), "ado-registration-"));
 
     try {
@@ -21,7 +21,7 @@ describe("extension registration", () => {
         timeout: 20_000,
       });
 
-      expect(stdout).toContain("Bundle registers its canvas and snapshot tool without installed Node dependencies");
+      expect(stdout).toContain("SDK stub smoke registers its canvas and exactly four read-only tools without installed Node dependencies");
     } finally {
       await rm(scratch, { recursive: true, force: true });
     }

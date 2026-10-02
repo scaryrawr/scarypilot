@@ -28,8 +28,13 @@ const registration = getOptions();
 
 const tool = registration.tools[0];
 
-if (registration.tools.length !== 1 || tool.name !== "azure_devops_pr_snapshot") {
-  throw new Error("Installed bundle did not register exactly the read-only snapshot tool.");
+const expectedTools = [
+  "azure_devops_pr_snapshot", "azure_devops_work_item_search",
+  "azure_devops_work_item_query", "azure_devops_work_item_get",
+];
+
+if (JSON.stringify(registration.tools.map((registered) => registered.name)) !== JSON.stringify(expectedTools)) {
+  throw new Error("Installed bundle did not register exactly the four read-only Azure DevOps tools.");
 }
 
 const snapshots = [];

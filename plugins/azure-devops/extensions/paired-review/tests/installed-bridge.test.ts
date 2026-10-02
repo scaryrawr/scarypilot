@@ -99,7 +99,10 @@ describe("installed source and bundle bridge", () => {
 
         const registration = Value.Parse(HostSchema, JSON.parse(stdout));
 
-        expect(registration.tools).toEqual(["azure_devops_pr_snapshot"]);
+        expect(registration.tools).toEqual([
+          "azure_devops_pr_snapshot", "azure_devops_work_item_search",
+          "azure_devops_work_item_query", "azure_devops_work_item_get",
+        ]);
         expect(registration.canvases).toBe(1);
         expect(registration.commands).toBe(1);
         expect(registration.snapshots.map((snapshot) => snapshot.revision.sourceCommit)).toEqual(["source-1", "source-2"]);

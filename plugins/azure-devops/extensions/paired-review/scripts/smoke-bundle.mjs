@@ -75,8 +75,17 @@ try {
 
   const snapshotTool = sessionOptions.tools?.[0];
 
-  if (sessionOptions.tools?.length !== 1 || snapshotTool?.name !== "azure_devops_pr_snapshot") {
-    throw new Error("Bundled extension must register only the read-only PR snapshot tool");
+  const toolNames = sessionOptions.tools?.map((tool) => tool.name);
+
+  const expectedTools = [
+    "azure_devops_pr_snapshot",
+    "azure_devops_work_item_search",
+    "azure_devops_work_item_query",
+    "azure_devops_work_item_get",
+  ];
+
+  if (JSON.stringify(toolNames) !== JSON.stringify(expectedTools)) {
+    throw new Error("Bundled extension must register exactly the snapshot and three read-only Boards tools");
   }
 
   if (sessionOptions.canvases?.[0] !== canvas || sessionOptions.commands?.length !== 1) {
@@ -92,6 +101,19 @@ try {
 
   if (invalidSnapshot?.resultType !== "failure") {
     throw new Error("Bundled snapshot tool did not reject an unsupported URL");
+  }
+
+  for (const tool of sessionOptions.tools.slice(1)) {
+    if (tool.parameters?.additionalProperties !== false ||
+        !tool.parameters?.required?.includes("org") || !tool.parameters?.required?.includes("project")) {
+      throw new Error("Bundled Boards tools must require organization and project with strict input schemas");
+    }
+
+    const invalid = await tool.handler({ org: "example", project: "project", unexpected: true });
+
+    if (invalid?.resultType !== "failure") {
+      throw new Error("Bundled Boards tool did not reject invalid input before bridge invocation");
+    }
   }
 
   const opened = await canvas.open({
@@ -112,7 +134,7 @@ try {
 
   if (!shutdown) throw new Error("Bundled extension did not register shutdown cleanup");
   await shutdown({ type: "session.shutdown", data: { shutdownType: "routine" } });
-  console.log("Bundle registers its canvas and snapshot tool without installed Node dependencies");
+  console.log("SDK stub smoke registers its canvas and exactly four read-only tools without installed Node dependencies");
 } finally {
   delete process.env.PAIRED_REVIEW_DISABLE_AUTOLOAD;
   delete globalThis.__pairedReviewCanvas;
