@@ -865,6 +865,7 @@ test("heartbeat persistence failures gracefully stop media and surface failure w
 
       fixture.runtime.env.RECORDER_FIXTURE_PERSISTENCE_MARKER = marker;
       fixture.runtime.env.RECORDER_FIXTURE_DELAY_CONTROLLER_EXIT = "1";
+      fixture.runtime.env.RECORDER_FIXTURE_DELAY_TERMINAL_STATE = "1";
       recording = await start(fixture.runtime);
       assert.ok("workerPid" in recording);
 
@@ -902,11 +903,18 @@ test("heartbeat persistence failures gracefully stop media and surface failure w
 
       assert.match(await readFile(recording.logPath, "utf8"), /fixture heartbeat .* failure/);
 
-      const final: { status: string; exitCode?: number } = JSON.parse(current.textResultForLlm);
+      const finalResult = await call(fixture.runtime, "screen_record_status", { output: recording.output });
+
+      assert.equal(finalResult.resultType, "success", finalResult.textResultForLlm);
+
+      const final = state(finalResult.textResultForLlm);
 
       assert.equal(final.status, mode === "heartbeat-write-failure" ? "failed" : "stale");
 
-      if (final.status === "failed") assert.equal(final.exitCode, 1);
+      if (final.status === "failed") {
+        assert.ok("exitCode" in final);
+        assert.equal(final.exitCode, 1);
+      }
     } finally {
       if (recording) await stop(fixture.runtime, recording);
       await fixture.cleanup();

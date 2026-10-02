@@ -116,6 +116,11 @@ function failPersistence(path, operation) {
 fs.writeFileSync = (path, ...args) => {
   failPersistence(path, "write");
 
+  if (process.argv.includes("_capture") && process.env.RECORDER_FIXTURE_DELAY_TERMINAL_STATE === "1" &&
+    /\.json\..+\.tmp$/.test(String(path)) && JSON.parse(args[0]).status === "failed") {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
+  }
+
   return writeFile(path, ...args);
 };
 
