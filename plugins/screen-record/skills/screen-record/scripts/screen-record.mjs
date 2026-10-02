@@ -1022,6 +1022,8 @@ function stop() {
     final = readState(paths.state);
   }
 
+  final = readState(paths.state);
+
   if (final && ["recording", "stopping"].includes(final.status) && pidRunning(state.workerPid)) {
     fail(`graceful stop timed out; recording may still be active. Run status; inspect ${paths.log}. No process was killed.`);
   }

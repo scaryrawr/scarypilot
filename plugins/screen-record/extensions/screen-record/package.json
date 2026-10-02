@@ -1,13 +1,13 @@
 {
   "name": "screen-record",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Typed tools for detached local screen recording.",
   "type": "module",
   "scripts": {
     "build": "tsdown && node tools/check-bundle.mjs write",
     "check:bundle": "node tools/check-bundle.mjs check",
-    "test": "node --test --experimental-strip-types tests/*.test.ts",
+    "test": "node tools/test-contracts.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

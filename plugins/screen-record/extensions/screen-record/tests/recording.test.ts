@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmod, copyFile, mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,25 +14,24 @@ import { RecordingStateSchema, type RecordingState } from "../src/domain.ts";
 
 const script = fileURLToPath(new URL("../../../skills/screen-record/scripts/screen-record.mjs", import.meta.url));
 
-const fixture = fileURLToPath(new URL("./fixtures/ffmpeg.mjs", import.meta.url));
+const mediaPreload = new URL("./fixtures/media-subprocess.mjs", import.meta.url).href;
 
 const invocation = { sessionId: "fixture", toolCallId: "fixture", toolName: "fixture" };
 
 async function setup(mode = "") {
-  const root = await mkdtemp(join(tmpdir(), "screen-record-test-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "screen-record-test-")));
   const cwd = join(root, "workspace");
-  const bin = join(root, "bin");
   const temporary = join(root, "temporary");
-  await Promise.all([mkdir(cwd), mkdir(bin), mkdir(temporary)]);
-
-  for (const name of ["ffmpeg", "ffprobe"]) {
-    await copyFile(fixture, join(bin, name));
-    await chmod(join(bin, name), 0o755);
-  }
+  await Promise.all([mkdir(cwd), mkdir(temporary)]);
 
   const runtime: RecorderRuntime = {
     script, cwd: await realpath(cwd),
-    env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, TMPDIR: temporary, TMP: temporary, TEMP: temporary, DISPLAY: ":fixture", RECORDER_FIXTURE_MODE: mode },
+    env: {
+      ...process.env,
+      NODE_OPTIONS: `--import=${mediaPreload}`,
+      TMPDIR: temporary, TMP: temporary, TEMP: temporary,
+      DISPLAY: ":fixture", RECORDER_FIXTURE_MODE: mode,
+    },
   };
 
   return { root, runtime, cleanup: () => rm(root, { recursive: true, force: true }) };
@@ -78,14 +77,29 @@ async function stop(runtime: RecorderRuntime, value: RecordingState, timeoutSeco
   return call(runtime, "screen_record_stop", { output: value.output, recordingId: value.recordingId, timeoutSeconds });
 }
 
-test("diagnostics and device discovery return bounded typed results without capture or narration", { skip: process.platform === "win32" }, async () => {
+test("diagnostics and device discovery return bounded typed results without capture or narration", async () => {
   const fixture = await setup();
 
   try {
     for (const name of ["screen_record_doctor", "screen_record_devices"]) {
       const result = await call(fixture.runtime, name, {});
       assert.equal(result.resultType, "success", result.textResultForLlm);
-      assert.equal(JSON.parse(result.textResultForLlm).permissionsVerified, false);
+      const diagnostic = JSON.parse(result.textResultForLlm);
+
+      assert.equal(diagnostic.permissionsVerified, false);
+      assert.equal(diagnostic.platform, process.platform);
+      assert.ok(process.platform === "darwin" || process.platform === "linux" || process.platform === "win32");
+      assert.equal(diagnostic.captureDevice, name === "screen_record_devices" && process.platform === "win32"
+        ? "dshow"
+        : { darwin: "avfoundation", linux: "x11grab", win32: "gdigrab" }[process.platform]);
+
+      if (name === "screen_record_doctor") {
+        assert.equal(diagnostic.captureAvailable, true);
+      } else if (process.platform === "linux") {
+        assert.match(diagnostic.listing, /DISPLAY=:fixture/);
+      } else {
+        assert.match(diagnostic.listing, /Fixture screen|Fixture audio/);
+      }
     }
 
     const idle = await call(fixture.runtime, "screen_record_status", { output: "raw.mp4" });
@@ -93,7 +107,7 @@ test("diagnostics and device discovery return bounded typed results without capt
   } finally { await fixture.cleanup(); }
 });
 
-test("recording survives command return and a new tool instance; stop is graceful and idempotent", { skip: process.platform === "win32" }, async () => {
+test("recording survives command return and a new tool instance; stop is graceful and idempotent", async () => {
   const fixture = await setup();
   let recording: RecordingState | undefined;
 
@@ -123,12 +137,12 @@ test("recording survives command return and a new tool instance; stop is gracefu
   }
 });
 
-test("intent, paths, options, and existing sources are guarded before capture", { skip: process.platform === "win32" }, async () => {
+test("intent, paths, options, and existing sources are guarded before capture", async () => {
   const fixture = await setup();
 
   try {
     await writeFile(join(fixture.runtime.cwd, "source.mp4"), "original source");
-    await symlink(fixture.root, join(fixture.runtime.cwd, "escape"));
+    await symlink(fixture.root, join(fixture.runtime.cwd, "escape"), process.platform === "win32" ? "junction" : "dir");
 
     for (const input of [
       { output: "raw.mp4", videoInput: "0" },
@@ -148,7 +162,7 @@ test("intent, paths, options, and existing sources are guarded before capture", 
   } finally { await fixture.cleanup(); }
 });
 
-test("approved capture options map to the existing platform recorder without extra commands", { skip: process.platform === "win32" }, async () => {
+test("approved capture options map to the existing platform recorder without extra commands", async () => {
   const fixture = await setup("argument-contract");
   let recording: RecordingState | undefined;
 
@@ -173,10 +187,18 @@ test("approved capture options map to the existing platform recorder without ext
     if (process.platform === "darwin") {
       assert.equal(value[value.indexOf("-i") + 1], "0:1");
       assert.equal(value[value.indexOf("-vf") + 1], "crop=1280:720:100:80");
-    } else {
+    } else if (process.platform === "linux") {
       assert.equal(value[value.indexOf("-i") + 1], "0+100,80");
       assert.equal(value[value.indexOf("-video_size") + 1], "1280x720");
       assert.ok(value.includes("pulse"));
+    } else {
+      assert.equal(value[value.indexOf("-f") + 1], "gdigrab");
+      assert.equal(value[value.indexOf("-i") + 1], "desktop");
+      assert.equal(value[value.indexOf("-offset_x") + 1], "100");
+      assert.equal(value[value.indexOf("-offset_y") + 1], "80");
+      assert.equal(value[value.indexOf("-video_size") + 1], "1280x720");
+      assert.ok(value.includes("dshow"));
+      assert.ok(value.includes("audio=1"));
     }
   } finally {
     if (recording) await stop(fixture.runtime, recording);
@@ -184,7 +206,7 @@ test("approved capture options map to the existing platform recorder without ext
   }
 });
 
-test("dangling and existing output leaf symlinks are rejected before recorder invocation", { skip: process.platform === "win32" }, async () => {
+test("dangling and existing output leaf symlinks are rejected before recorder invocation", async () => {
   const fixture = await setup();
 
   try {
@@ -196,9 +218,9 @@ test("dangling and existing output leaf symlinks are rejected before recorder in
     await writeFile(markerScript, `import { writeFileSync } from "node:fs";
 writeFileSync(${JSON.stringify(invoked)}, "invoked");
 `);
-    await symlink(join(outside, "missing.mp4"), join(fixture.runtime.cwd, "dangling.mp4"));
+    await symlink(join(outside, "missing.mp4"), join(fixture.runtime.cwd, "dangling.mp4"), "file");
     await writeFile(join(outside, "existing.mp4"), "outside source");
-    await symlink(join(outside, "existing.mp4"), join(fixture.runtime.cwd, "existing-link.mp4"));
+    await symlink(join(outside, "existing.mp4"), join(fixture.runtime.cwd, "existing-link.mp4"), "file");
 
     for (const output of ["dangling.mp4", "existing-link.mp4"]) {
       const result = await call({ ...fixture.runtime, script: markerScript }, "screen_record_start", {
@@ -215,7 +237,7 @@ writeFileSync(${JSON.stringify(invoked)}, "invoked");
   } finally { await fixture.cleanup(); }
 });
 
-test("validated canonical parents give aliases one recording identity", { skip: process.platform === "win32" }, async () => {
+test("validated canonical parents give aliases one recording identity", async () => {
   const fixture = await setup();
   let recording: RecordingState | undefined;
 
@@ -223,7 +245,7 @@ test("validated canonical parents give aliases one recording identity", { skip: 
     const directory = join(fixture.runtime.cwd, "real");
 
     await mkdir(directory);
-    await symlink(directory, join(fixture.runtime.cwd, "alias"));
+    await symlink(directory, join(fixture.runtime.cwd, "alias"), process.platform === "win32" ? "junction" : "dir");
     recording = await start(fixture.runtime, "alias/raw.mp4");
     assert.equal(recording.output, join(directory, "raw.mp4"));
 
@@ -242,7 +264,7 @@ test("validated canonical parents give aliases one recording identity", { skip: 
   }
 });
 
-test("confirmed worker spawn failure preserves its error, removes its owned lock, and permits retry", { skip: process.platform === "win32" }, async () => {
+test("confirmed worker spawn failure preserves its error, removes its owned lock, and permits retry", async () => {
   const fixture = await setup();
   let recording: RecordingState | undefined;
 
@@ -275,7 +297,7 @@ test("confirmed worker spawn failure preserves its error, removes its owned lock
   }
 });
 
-test("spawn failure never removes a lock whose owner changed", { skip: process.platform === "win32" }, async () => {
+test("spawn failure never removes a lock whose owner changed", async () => {
   const fixture = await setup();
 
   try {
@@ -298,7 +320,7 @@ test("spawn failure never removes a lock whose owner changed", { skip: process.p
   } finally { await fixture.cleanup(); }
 });
 
-test("an interrupted startup lock is actionable and never silently replaced", { skip: process.platform === "win32" }, async () => {
+test("an interrupted startup lock is actionable and never silently replaced", async () => {
   const fixture = await setup();
 
   try {
@@ -323,7 +345,7 @@ test("an interrupted startup lock is actionable and never silently replaced", { 
   } finally { await fixture.cleanup(); }
 });
 
-test("diagnostic timeout and device failures are failures, not empty success", { skip: process.platform === "win32" }, async () => {
+test("diagnostic timeout and device failures are failures, not empty success", async () => {
   const fixture = await setup("diagnostic-timeout");
 
   try {
@@ -341,7 +363,7 @@ test("diagnostic timeout and device failures are failures, not empty success", {
   } finally { await fixture.cleanup(); }
 });
 
-test("timed-out command does not kill the detached worker; graceful stop timeout can be retried", { skip: process.platform === "win32" }, async () => {
+test("timed-out command does not kill the detached worker; graceful stop timeout can be retried", async () => {
   const fixture = await setup("slow-stop");
   let recording: RecordingState | undefined;
 
@@ -369,7 +391,7 @@ setTimeout(() => process.exit(0), 5000);
   }
 });
 
-test("persisted stale and corrupt states are diagnosed without signalling arbitrary processes", { skip: process.platform === "win32" }, async () => {
+test("persisted stale and corrupt states are diagnosed without signalling arbitrary processes", async () => {
   const fixture = await setup();
 
   try {
@@ -395,7 +417,39 @@ test("persisted stale and corrupt states are diagnosed without signalling arbitr
   } finally { await fixture.cleanup(); }
 });
 
-test("SDK invocation cancellation ends only the command wait, not the detached recording", { skip: process.platform === "win32" }, async () => {
+test("stop rereads terminal state when the worker exits during its last liveness check", async () => {
+  const fixture = await setup("slow-stop");
+  let recording: RecordingState | undefined;
+
+  try {
+    recording = await start(fixture.runtime, "exit-race.mp4");
+    assert.ok("workerPid" in recording);
+
+    const marker = join(fixture.root, "race-observed");
+
+    const racing: RecorderRuntime = {
+      ...fixture.runtime,
+      script: fileURLToPath(new URL("./fixtures/stop-exit-race.mjs", import.meta.url)),
+      env: {
+        ...fixture.runtime.env,
+        RECORDER_FIXTURE_SCRIPT: script,
+        RECORDER_FIXTURE_WORKER_PID: String(recording.workerPid),
+        RECORDER_FIXTURE_RACE_MARKER: marker,
+      },
+    };
+
+    const result = await stop(racing, recording);
+
+    assert.equal(await readFile(marker, "utf8"), "worker exited after cached state was read");
+    assert.equal(result.resultType, "success", result.textResultForLlm);
+    assert.equal(state(result.textResultForLlm).status, "stopped");
+  } finally {
+    if (recording) await stop(fixture.runtime, recording);
+    await fixture.cleanup();
+  }
+});
+
+test("SDK invocation cancellation ends only the command wait, not the detached recording", async () => {
   const fixture = await setup();
   let recording: RecordingState | undefined;
 
@@ -450,7 +504,7 @@ setTimeout(() => process.exit(0), 5000);
   }
 });
 
-test("concurrent CLI starts cannot replace startup ownership", { skip: process.platform === "win32" }, async () => {
+test("concurrent CLI starts cannot replace startup ownership", async () => {
   const fixture = await setup();
   let recording: RecordingState | undefined;
 
@@ -472,7 +526,7 @@ test("concurrent CLI starts cannot replace startup ownership", { skip: process.p
   }
 });
 
-test("standalone CLI remains usable and capture errors retain actionable logs", { skip: process.platform === "win32" }, async () => {
+test("standalone CLI remains usable and capture errors retain actionable logs", async () => {
   const fixture = await setup("capture-failure");
 
   try {

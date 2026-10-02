@@ -112,8 +112,32 @@ From `extensions/screen-record`, run `npm install`, `npm run build`,
 `npm test`, `npm run typecheck`, and `npm run check:bundle`.
 Commit generated `dist/` and `bundle-manifest.json` with source changes.
 The local bundle check includes the reused CLI and SAPI helper in its freshness
-inputs. Process tests use fake FFmpeg executables and never capture screen or
-audio. Real capture requires explicit user approval and OS permission.
+inputs. Process tests use fixture media subprocesses and never capture screen
+or audio. Real capture requires explicit user approval and OS permission.
+
+The dedicated [screen recording CI workflow](../../.github/workflows/screen-record-ci.yml)
+runs the capture-free contract suite on Ubuntu, macOS, and Windows with pinned
+Node.js 22.18.0. It checks locked dependencies, types, shipped helper-aware bundle
+freshness, rebuilds, and reproducible generated artifacts. Pull requests and
+pushes touching this plugin or its workflow trigger the matrix. Manual dispatch
+is also available. The workflow token is read-only.
+
+The suite starts the real native tool adapter, CLI, and detached worker.
+A test-only Node preload replaces only FFmpeg/FFprobe execution with real Node
+subprocesses that return deterministic device listings, media output, and exit
+codes. The preload is inherited by worker processes. No FFmpeg installation,
+display, microphone, PowerShell, or Unix executable wrapper is required.
+All hosts run lifecycle, cancellation, timeout, identity, lock, stale-state,
+source safety, and failure regression cases without blanket platform skips.
+`npm test` fails if the suite skips or cancels any test and caps the whole
+subprocess run at two minutes. It uses an explicit test path, not shell globbing.
+Platform-specific argument assertions cover AVFoundation, X11/PulseAudio, and
+GDI/DirectShow on their respective hosts. Symlink tests require file-symlink
+privileges on Windows and fail explicitly if the runner lacks them.
+
+These tests validate process contracts, not actual AVFoundation, X11, or Windows
+capture, codec behavior, OS privacy grants, or real video/audio finalization.
+Native capture still requires an explicitly approved smoke test on each OS.
 
 ## Resources
 

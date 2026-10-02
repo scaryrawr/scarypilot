@@ -12,6 +12,7 @@ const extensions = [
   "plugins/copilot-local-llm/extensions/copilot-local-llm",
   "plugins/digivolution/extensions/digivolution",
   "plugins/omlx-media/extensions/omlx-media",
+  "plugins/screen-record/extensions/screen-record",
 ];
 
 const [mode = "check", selected] = process.argv.slice(2);
@@ -73,6 +74,13 @@ for (const extension of selected ? [selected] : extensions) {
     inputs.push(
       "../../skills/poteto-mode/scripts/plan-rules.mjs",
       "../../skills/poteto-mode/scripts/orch/store.ts",
+    );
+  }
+
+  if (extension === "plugins/screen-record/extensions/screen-record") {
+    inputs.push(
+      "../../skills/screen-record/scripts/screen-record.mjs",
+      "../../skills/screen-record/scripts/sapi-narrate.ps1",
     );
   }
 

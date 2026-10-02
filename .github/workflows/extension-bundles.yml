@@ -10,6 +10,8 @@ on:
       - "external_plugins/*/extensions/**"
       - "external_plugins/pstack/skills/poteto-mode/scripts/plan-rules.mjs"
       - "external_plugins/pstack/skills/poteto-mode/scripts/orch/store.ts"
+      - "plugins/screen-record/skills/screen-record/scripts/screen-record.mjs"
+      - "plugins/screen-record/skills/screen-record/scripts/sapi-narrate.ps1"
   push:
     branches:
       - main
@@ -21,6 +23,8 @@ on:
       - "external_plugins/*/extensions/**"
       - "external_plugins/pstack/skills/poteto-mode/scripts/plan-rules.mjs"
       - "external_plugins/pstack/skills/poteto-mode/scripts/orch/store.ts"
+      - "plugins/screen-record/skills/screen-record/scripts/screen-record.mjs"
+      - "plugins/screen-record/skills/screen-record/scripts/sapi-narrate.ps1"
 
 permissions:
   contents: read
