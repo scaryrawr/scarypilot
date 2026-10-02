@@ -974,6 +974,80 @@ test("startup lock write and close failures release only this attempt's lock and
   }
 });
 
+test("a corrupt stale log directory releases the startup lock before reporting failure and allows retry", async () => {
+  const fixture = await setup();
+  let recording: RecordingState | undefined;
+
+  try {
+    const output = resolve(fixture.runtime.cwd, "corrupt-log.mp4");
+    const directory = join(fixture.runtime.env.TMPDIR!, stateDirectoryName());
+    const log = join(directory, `${stateId(output)}.log`);
+    const lock = log.replace(/\.log$/, ".lock");
+    await mkdir(log, { recursive: true });
+
+    const result = await call(fixture.runtime, "screen_record_start", { output, captureApproved: true, videoInput: "0" });
+    assert.equal(result.resultType, "failure");
+    assert.match(result.textResultForLlm, /EISDIR|ERR_FS_EISDIR|EPERM/);
+    await assert.rejects(readFile(lock), { code: "ENOENT" });
+    await assert.rejects(readFile(output), { code: "ENOENT" });
+    await rm(log, { recursive: true });
+    recording = await start(fixture.runtime, output);
+  } finally {
+    if (recording) await stop(fixture.runtime, recording);
+    await fixture.cleanup();
+  }
+});
+
+test("every post-claim setup failure rolls back only the owned file and surfaces rollback errors", async () => {
+  for (const scenario of [
+    { artifact: "json" }, { artifact: "stop" }, { artifact: "log" },
+    { artifact: "log", replacement: "identity" }, { artifact: "log", replacement: "owner" },
+    { artifact: "log", rollback: "read" }, { artifact: "log", rollback: "remove" },
+  ]) {
+    const fixture = await setup();
+    let recording: RecordingState | undefined;
+
+    try {
+      const output = resolve(fixture.runtime.cwd, "setup-failure.mp4");
+      const lock = join(fixture.runtime.env.TMPDIR!, stateDirectoryName(), `${stateId(output)}.lock`);
+      const spawned = join(fixture.root, "spawned");
+
+      const failing: RecorderRuntime = {
+        ...fixture.runtime,
+        script: fileURLToPath(new URL("./fixtures/setup-failure.mjs", import.meta.url)),
+        env: {
+          ...fixture.runtime.env, RECORDER_FIXTURE_SCRIPT: script,
+          RECORDER_FIXTURE_SETUP_ARTIFACT: scenario.artifact,
+          RECORDER_FIXTURE_SETUP_REPLACEMENT: scenario.replacement ?? "",
+          RECORDER_FIXTURE_ROLLBACK_ERROR: scenario.rollback ?? "",
+          RECORDER_FIXTURE_SPAWN_MARKER: spawned,
+        },
+      };
+
+      const result = await call(failing, "screen_record_start", { output, captureApproved: true, videoInput: "0" });
+      assert.equal(result.resultType, "failure");
+      assert.match(result.textResultForLlm, /fixture stale artifact removal failed with EIO/);
+      await assert.rejects(readFile(spawned), { code: "ENOENT" });
+      await assert.rejects(readFile(output), { code: "ENOENT" });
+
+      if (scenario.replacement === "identity") {
+        assert.equal(await readFile(lock, "utf8"), await readFile(`${lock}.original`, "utf8"));
+      } else if (scenario.replacement === "owner") {
+        assert.equal(await readFile(lock, "utf8"), "replacement-owner");
+      } else if (scenario.rollback) {
+        assert.match(result.textResultForLlm, /lock cleanup failed: fixture rollback .* failed with EACCES/);
+        assert.match(await readFile(lock, "utf8"), /^[0-9a-f-]{36}$/);
+      } else {
+        await assert.rejects(readFile(lock), { code: "ENOENT" });
+        recording = await start(fixture.runtime, output);
+      }
+    } finally {
+      if (recording) await stop(fixture.runtime, recording);
+      await fixture.cleanup();
+    }
+  }
+});
+
 test("confirmed worker spawn failure preserves its error, removes its owned lock, and permits retry", async () => {
   const fixture = await setup();
   let recording: RecordingState | undefined;

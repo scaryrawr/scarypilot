@@ -1063,31 +1063,45 @@ async function start() {
     fail(`cannot claim recording startup: ${error.message}${cleanupErrors.length ? `; ${cleanupErrors.join("; ")}` : ""}; inspect ${paths.lock} before recovery`);
   }
 
-  rmSync(paths.state, { force: true });
-  rmSync(paths.stop, { force: true });
-  rmSync(paths.log, { force: true });
-  const encoded = Buffer.from(JSON.stringify(config), "utf8").toString("base64url");
+  let worker;
 
-  const worker = await new Promise((accept, reject) => {
-    const child = spawn(
-      process.execPath,
-      [resolve(process.argv[1]), "_capture", "--config", encoded],
-      {
-        detached: true,
-        stdio: "ignore",
-        windowsHide: true,
-      },
-    );
+  try {
+    rmSync(paths.state, { force: true });
+    rmSync(paths.stop, { force: true });
+    rmSync(paths.log, { force: true });
+    const encoded = Buffer.from(JSON.stringify(config), "utf8").toString("base64url");
 
-    child.once("spawn", () => accept(child));
-    child.once("error", reject);
-  }).catch((error) => {
-    if (existsSync(paths.lock) && readFileSync(paths.lock, "utf8") === config.recordingId) {
-      rmSync(paths.lock, { force: true });
+    worker = await new Promise((accept, reject) => {
+      const child = spawn(
+        process.execPath,
+        [resolve(process.argv[1]), "_capture", "--config", encoded],
+        {
+          detached: true,
+          stdio: "ignore",
+          windowsHide: true,
+        },
+      );
+
+      child.once("spawn", () => accept(child));
+      child.once("error", reject);
+    });
+  } catch (error) {
+    const cleanupErrors = [];
+
+    try {
+      const current = lstatSync(paths.lock, { throwIfNoEntry: false });
+
+      if (current?.isFile() &&
+        current.dev === lockIdentity.dev && current.ino === lockIdentity.ino &&
+        readFileSync(paths.lock, "utf8") === config.recordingId) {
+        rmSync(paths.lock);
+      }
+    } catch (cleanupError) {
+      cleanupErrors.push(`lock cleanup failed: ${cleanupError.message}`);
     }
 
-    fail(`could not start detached recording worker: ${error.message}`);
-  });
+    fail(`could not start detached recording worker: ${error.message}${cleanupErrors.length ? `; ${cleanupErrors.join("; ")}` : ""}`);
+  }
 
   worker.unref();
 

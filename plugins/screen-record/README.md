@@ -139,8 +139,11 @@ are reported. Stale state and interrupted startup locks require inspection and
 user-approved recovery, not automatic PID-based killing or deletion.
 State writes are atomic, and active workers refresh their state. FFmpeg uses
 no-overwrite mode even if another file appears after startup validation.
-Worker startup waits for the spawn result before readiness polling. A confirmed
-spawn failure reports the original error and releases only its own startup lock.
+Worker startup waits for the spawn result before readiness polling. Failures
+during stale-artifact cleanup, configuration encoding, or worker spawn report
+the original error and release only the startup lock with the same file identity
+and recording UUID. Replacement locks are preserved; rollback errors are
+reported alongside the original failure.
 Successful startup means the FFmpeg process is running, not that the first
 frame or requested audio has been verified. Probe and review the resulting file.
 
