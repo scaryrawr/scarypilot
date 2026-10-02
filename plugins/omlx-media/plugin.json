@@ -1,8 +1,7 @@
 {
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "omlx-media",
   "description": "Generate images and speech, transcribe audio, or turn recordings into grounded written content with local OMLX models.",
-  "version": "0.3.3",
+  "version": "0.4.1",
   "author": {
     "name": "Mike Wallio",
     "url": "https://github.com/scaryrawr"

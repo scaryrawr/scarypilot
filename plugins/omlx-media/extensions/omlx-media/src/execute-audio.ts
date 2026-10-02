@@ -9,6 +9,7 @@ import {
   type SpeechFormat,
 } from "./domain.ts";
 import { OmlxClient } from "./omlx-client.ts";
+import { guardPluginOutput } from "./media-io.ts";
 
 export interface AudioDependencies {
   environment?: NodeJS.ProcessEnv;
@@ -34,6 +35,7 @@ async function outputPath(value: string, extension: string): Promise<string> {
     throw new OmlxToolError("INVALID_OUTPUT", `Audio output must use a ${extension} extension`);
   }
 
+  await guardPluginOutput(output);
   await mkdir(path.dirname(output), { recursive: true });
 
   try {
