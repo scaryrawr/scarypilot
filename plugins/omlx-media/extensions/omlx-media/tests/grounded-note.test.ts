@@ -200,7 +200,7 @@ test("requires complete contiguous source coverage within one sample before work
 
 test("renders worker block markers and multiline source indentation as literal text", async () => {
   const f = await fixture();
-  const source = "- list\n+ list\n1. list\n---\n===\n    code\n\tcode";
+  const source = "- list\r+ list\r\n1. list\n---\r===\r\n    code\n\tcode";
   f.payload.chunks[0].text = source;
   const bytes = JSON.stringify(f.payload);
   await writeFile(f.manifest, bytes);

@@ -238,7 +238,7 @@ function render(draft: GroundedDraft, chunks: SourceChunk[]): string {
 
     for (const citation of claim.citations) {
       const source = chunks.find((chunk) => chunk.index === citation.chunk)!;
-      lines.push(...`"${literalMarkdown(citation.quote)}"`.split(/\r?\n/).map((line) => `> ${line}`),
+      lines.push(...`"${literalMarkdown(citation.quote)}"`.split(/\r\n|\r|\n/).map((line) => `> ${line}`),
         `Source chunk ${source.index} (${source.start_seconds.toFixed(3)}s - ${source.end_seconds.toFixed(3)}s).`, "");
     }
   }
