@@ -58,7 +58,7 @@
       "expected_output": "The plan sends flat WIQL to the native query tool and surfaces the cooldown without switching to CLI, MCP, or another request owner.",
       "expectations": [
         "The plan uses azure_devops_work_item_query with explicit org example and project Widgets and top between 1 and 100.",
-        "The WIQL uses System.AssignedTo = @Me and an exact Active state predicate, not keyword search or CONTAINS.",
+        "The WIQL includes [System.TeamProject] = @Project applying to every OR branch, System.AssignedTo = @Me, and an exact Active state predicate, not keyword search or CONTAINS.",
         "The plan recognizes that WIQL returns ID references and uses get only if field values are needed.",
         "The failure response surfaces retryAt and does not treat the failed query as an empty successful result.",
         "The plan does not switch to raw Azure CLI, a generic HTTP tool, or another MCP transport to bypass the cooldown.",
