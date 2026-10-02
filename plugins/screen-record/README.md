@@ -117,8 +117,9 @@ Start returns a `recordingId`, output, worker and FFmpeg PIDs, timestamps, and
 state/log paths. The worker is detached from the tool and extension. A recording
 continues after cancellation, extension reload, or session exit until stopped
 or FFmpeg exits. After an interrupted start or stop, query status with the same
-output before retrying. Stop checks the recording identity so a delayed call
-cannot stop a replacement recording.
+output and retained recordingId when available before retrying. Do not adopt a
+replacement recording's ID. Stop checks the recording identity so a delayed
+call cannot stop a replacement recording.
 
 Stop sends `q` through FFmpeg's stdin and retains the final stopped or failed
 state. Repeating a successful stop is safe. A timeout never force-kills the
@@ -139,8 +140,13 @@ run `node scripts/screen-record.mjs <command>`. The existing `doctor`, `devices`
 `windows`, `start`, `status`, and `stop` commands remain available. The
 `doctor --capture-only`, `devices --json`, and Windows-only `windows --json`
 invocations provide the native tools' machine-readable results.
-CLI `status` and `stop` also accept `--recording-id`. Native stop requires an ID;
-for a legacy recording without one, use the standalone CLI's graceful stop.
+Retain the `recordingId` returned by CLI `start`. CLI `stop` requires
+`--recording-id <retained-id>` whenever persisted state has an ID, including
+terminal state and state in a legacy directory. Use that same ID with
+`status --output <raw.mp4> --recording-id <retained-id>` before retrying after
+interruption; do not adopt a replacement recording's ID. Native stop always
+requires an ID. Only for legacy persisted state genuinely lacking `recordingId`,
+use the standalone CLI's ID-less `stop --output <raw.mp4>`.
 Editing, media probing, voices, and narration remain standalone commands.
 The extension invokes `node` from `PATH`, not its host's `process.execPath`.
 Packaged Copilot hosts can use the Copilot executable as `process.execPath`.

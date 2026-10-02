@@ -10,9 +10,13 @@ devices
 start --output raw.mp4 [--fps 30] [--region x,y,width,height]
       [--audio-device "Microphone name"] [--video-input index]
       [--window-id <id>]
-status --output raw.mp4
-stop --output raw.mp4 [--timeout 20]
+status --output raw.mp4 [--recording-id <retained-id>]
+stop --output raw.mp4 --recording-id <retained-id> [--timeout 20]
 ```
+
+Retain the `recordingId` returned by start and use that same ID for stop and
+recovery status checks; never adopt a replacement recording's ID. ID-less stop
+is supported only for legacy persisted state that genuinely lacks `recordingId`.
 
 Capture setup is intentionally kept in `windows.md`, `macos.md`, and `linux.md`.
 `--window-id` is Windows-only; discover IDs with `windows --json`.

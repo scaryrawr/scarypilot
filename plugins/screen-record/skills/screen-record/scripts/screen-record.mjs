@@ -1361,8 +1361,8 @@ function stop() {
     fail(`no active recording found for ${output}`);
   }
 
-  if (options["recording-id"] && options["recording-id"] !== state.recordingId) {
-    fail("recording identity does not match; refusing to stop a different recording");
+  if (options["recording-id"] !== state.recordingId) {
+    fail("recording identity does not match; pass --recording-id retained from start; refusing to stop a different recording");
   }
 
   if (state.status === "stopped") {
@@ -1776,7 +1776,8 @@ Commands:
         [--audio-device <name>] [--video-input <source>] [--window-id <id>]
   status --output <file> [--recording-id <id>]
   stop --output <file> [--recording-id <id>] [--timeout 20]
-       (timeout must be at most 120 seconds)
+       (recording-id required unless persisted legacy state has no ID;
+        timeout must be at most 120 seconds)
   probe --input <file>
   trim --input <file> --output <file> --start <time>
        (--end <time> | --duration <time>) [--copy]

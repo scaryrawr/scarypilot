@@ -166,11 +166,11 @@ export function createRecordingTools(runtime: RecorderRuntime = defaultRuntime()
       StartRecordingInputSchema, RecordingStateSchema,
       (input) => ({ args: startArgs(runtime, input), timeout: input.windowId ? 30000 : 8000 })),
     tool(runtime, "screen_record_status",
-      "Read persistent recording state by output, optionally checking recordingId. Use after tool cancellation or extension restart. Reports stale state without killing processes.",
+      "Read persistent recording state by output, optionally checking recordingId. Use after tool cancellation or extension restart with the retained recordingId when available; do not adopt a replacement recording's ID. Reports stale state without killing processes.",
       RecordingTargetSchema, RecordingStateSchema,
       (input) => ({ args: ["status", ...targetArgs(runtime, input)], timeout: 3000 })),
     tool(runtime, "screen_record_stop",
-      "Gracefully stop the identified recording through FFmpeg stdin and retain its final state. Requires the recordingId from start/status. Idempotent after successful stop. Timeout leaves the recording alone; inspect status/logs and obtain user approval before any manual recovery. Never force-kills.",
+      "Gracefully stop the identified recording through FFmpeg stdin and retain its final state. Requires the recordingId retained from start, or recovered through status only after confirming it is the intended recording. Do not adopt a replacement recording's ID. Idempotent after successful stop. Timeout leaves the recording alone; inspect status/logs and obtain user approval before any manual recovery. Never force-kills.",
       StopRecordingInputSchema, RecordingStateSchema,
       (input: StopRecordingInput) => ({
         args: ["stop", ...targetArgs(runtime, input), "--timeout", String(input.timeoutSeconds ?? 20)],

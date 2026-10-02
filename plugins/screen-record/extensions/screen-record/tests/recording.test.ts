@@ -220,6 +220,128 @@ test("recording survives command return and a new tool instance; stop is gracefu
   }
 });
 
+test("standalone stop requires the retained ID before requesting stop or returning terminal state", async () => {
+  const fixture = await setup();
+  let recording: RecordingState | undefined;
+
+  try {
+    const original = await start(fixture.runtime);
+
+    recording = original;
+    assert.equal((await stop(fixture.runtime, original)).resultType, "success");
+    await rm(original.output);
+    recording = await start(fixture.runtime);
+    assert.ok("recordingId" in recording && recording.recordingId && "statePath" in recording);
+    assert.notEqual(recording.recordingId, original.recordingId);
+
+    for (const id of [undefined, original.recordingId]) {
+      const result = spawnSync(process.execPath, [
+        script, "stop", "--output", recording.output,
+        ...(id ? ["--recording-id", id] : []),
+      ], {
+        cwd: fixture.runtime.cwd, env: fixture.runtime.env,
+        encoding: "utf8", timeout: 5000, windowsHide: true,
+      });
+
+      assert.ifError(result.error);
+      assert.notEqual(result.status, 0, "a delayed caller must not stop the replacement");
+      assert.match(result.stderr, /recording identity does not match/);
+      await assert.rejects(readFile(recording.statePath.replace(/\.json$/, ".stop")), { code: "ENOENT" });
+      assert.equal(await readFile(recording.statePath.replace(/\.json$/, ".lock"), "utf8"), recording.recordingId);
+      const current = await call(fixture.runtime, "screen_record_status", { output: recording.output });
+
+      assert.equal(state(current.textResultForLlm).status, "recording");
+    }
+
+    const missingNative = await call(fixture.runtime, "screen_record_stop", { output: recording.output });
+
+    assert.equal(missingNative.resultType, "failure");
+    assert.match(missingNative.textResultForLlm, /recordingId/);
+
+    const stopped = await runRecorder(fixture.runtime, [
+      "stop", "--output", recording.output, "--recording-id", recording.recordingId,
+    ], 5000, RecordingStateSchema);
+
+    assert.equal(stopped.status, "stopped");
+
+    await assert.rejects(runRecorder(fixture.runtime, [
+      "stop", "--output", recording.output,
+    ], 5000, RecordingStateSchema), /recording identity does not match/);
+
+    const repeated = await runRecorder(fixture.runtime, [
+      "stop", "--output", recording.output, "--recording-id", recording.recordingId,
+    ], 5000, RecordingStateSchema);
+
+    assert.deepEqual(repeated, stopped);
+  } finally {
+    if (recording) await stop(fixture.runtime, recording);
+    await fixture.cleanup();
+  }
+});
+
+test("standalone ID-less stop remains graceful only for genuinely ID-less legacy state", async () => {
+  const fixture = await setup();
+  const output = resolve(fixture.runtime.cwd, "legacy.mp4");
+  const directory = join(fixture.runtime.env.TMPDIR!, "scarypilot-screen-record");
+  const statePath = join(directory, `${stateId(output)}.json`);
+  const workerScript = fileURLToPath(new URL("./fixtures/legacy-worker.mjs", import.meta.url));
+  let worker: ReturnType<typeof spawn> | undefined;
+  let ended: Promise<void> | undefined;
+
+  try {
+    await mkdir(directory);
+    worker = spawn(process.execPath, [workerScript, statePath, output], {
+      env: fixture.runtime.env, stdio: "ignore", windowsHide: true,
+    });
+
+    ended = new Promise<void>((resolve, reject) => {
+      worker!.once("error", reject);
+      worker!.once("exit", (code) => code === 0 ? resolve() : reject(new Error(`Legacy fixture exited ${code}`)));
+    });
+
+    const deadline = Date.now() + 3000;
+
+    while (true) {
+      try {
+        await readFile(statePath);
+        break;
+      } catch (error) {
+        if (Date.now() >= deadline) throw error;
+        await sleep(50);
+      }
+    }
+
+    const current = await call(fixture.runtime, "screen_record_status", { output });
+
+    assert.equal(current.resultType, "success", current.textResultForLlm);
+    assert.equal(state(current.textResultForLlm).status, "recording");
+    assert.equal("recordingId" in JSON.parse(current.textResultForLlm), false);
+
+    await assert.rejects(runRecorder(fixture.runtime, [
+      "stop", "--output", output, "--recording-id", "unrelated-id",
+    ], 5000, RecordingStateSchema), /recording identity does not match/);
+    await assert.rejects(readFile(statePath.replace(/\.json$/, ".stop")), { code: "ENOENT" });
+
+    const stopped = await runRecorder(fixture.runtime, ["stop", "--output", output], 5000, RecordingStateSchema);
+
+    assert.equal(stopped.status, "stopped");
+    assert.equal("recordingId" in stopped, false);
+    assert.equal(await readFile(output, "utf8"), "legacy fixture recording");
+    await ended;
+
+    const repeated = await runRecorder(fixture.runtime, ["stop", "--output", output], 5000, RecordingStateSchema);
+
+    assert.deepEqual(repeated, stopped);
+  } finally {
+    if (worker && worker.exitCode === null) {
+      await writeFile(statePath.replace(/\.json$/, ".stop"), "fixture cleanup");
+      await ended;
+    }
+
+    await fixture.cleanup();
+  }
+});
+
 test("intent, paths, options, and existing sources are guarded before capture", async () => {
   const fixture = await setup();
 
@@ -541,6 +663,11 @@ test("foreign legacy state cannot block user-scoped recording and same-owner sta
 
     assert.equal(current.resultType, "success", current.textResultForLlm);
     assert.equal(state(current.textResultForLlm).status, "recording");
+
+    await assert.rejects(runRecorder(fixture.runtime, [
+      "stop", "--output", oldOutput,
+    ], 5000, RecordingStateSchema), /recording identity does not match/);
+    await assert.rejects(readFile(recording.statePath.replace(/\.json$/, ".stop")), { code: "ENOENT" });
 
     const legacyStop = await stop(fixture.runtime, recording);
 

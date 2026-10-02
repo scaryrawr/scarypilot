@@ -51,7 +51,8 @@ Read exactly one capture reference for the current host:
    after meaningful state changes, and before stopping.
 4. Stop gracefully with `screen_record_stop`, passing `output` and
    `recordingId`. After cancellation, timeout, or extension/session restart,
-   run `screen_record_status` with the same output before retrying. Detached
+   run `screen_record_status` with the same output and retained `recordingId`
+   before retrying. Do not adopt a replacement recording's ID. Detached
    recordings intentionally outlive tool calls and session exit. Stale state
    or interrupted startup requires inspection and user-approved recovery.
    Never kill FFmpeg automatically.
@@ -63,10 +64,12 @@ start verifies process liveness, not captured frames or audio. Review the raw
 file before editing or reporting success.
 
 For the standalone fallback, use `doctor --capture-only`, `devices`, and
-`start --output <raw.mp4>`. Stop with `stop --output <raw.mp4>`, optionally
-adding `--recording-id <id>`. After interruption, use
-`status --output <raw.mp4>`. Do not replace the managed lifecycle with an
-unmanaged FFmpeg process.
+`start --output <raw.mp4>` and retain its returned `recordingId`. Stop with
+`stop --output <raw.mp4> --recording-id <retained-id>`. After interruption, use
+`status --output <raw.mp4> --recording-id <retained-id>` before retrying; do not
+adopt a replacement recording's ID. Omit `--recording-id` from stop only for
+legacy state that genuinely has no `recordingId`, not just state in a legacy
+directory. Do not replace the managed lifecycle with an unmanaged FFmpeg process.
 
 ## Edit
 
