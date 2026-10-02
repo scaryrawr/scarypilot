@@ -13,7 +13,9 @@ import sys
 import urllib.parse
 from typing import Any
 
+from shared import ado
 from shared.ado import normalize_organization, request_json
+from shared.boards import BoardsClient, integer, organization_name, project_name, string, string_list, validate_request
 from shared.transport import AdoError, Deferred, Transport
 
 
@@ -104,24 +106,35 @@ def auth_headers(content_type: str | None = None) -> dict[str, str]:
 
 def query_work_items(args: argparse.Namespace) -> None:
     """Execute WIQL through coordinated REST, preserving the service result."""
-    normalized = normalize_organization(args.org)
-    project = urllib.parse.quote(args.project, safe="")
-    if not args.wiql.strip():
-        raise AdoError("WIQL query is required")
-    payload = request_json(
-        f"{normalized['organizationUrl']}/{project}/_apis/wit/wiql?api-version=7.1",
-        method="POST",
-        body=json.dumps({"query": args.wiql}).encode("utf-8"),
-        headers=auth_headers("application/json"),
-        replay_safe=True,
-    )
+    org = organization_name(args.org)
+    project = urllib.parse.quote(project_name(args.project), safe="")
+    string(args.wiql, "WIQL", 32768)
+    transport = ado.Transport()
+    with transport.budget(60):
+        payload = transport.json(
+            f"https://dev.azure.com/{org}/{project}/_apis/wit/wiql?api-version=7.1",
+            method="POST",
+            body=json.dumps({"query": args.wiql}).encode("utf-8"),
+            headers=auth_headers("application/json"),
+            replay_safe=True,
+        )
     print(json.dumps(payload, indent=2))
 
 
 def search_work_items(args: argparse.Namespace) -> None:
     """Search work items with the Azure DevOps work item search API."""
-    normalized = normalize_organization(args.org)
-    top = args.top if args.top > 0 else 25
+    org = organization_name(args.org)
+    normalized = {"organization": org, "organizationUrl": f"https://dev.azure.com/{org}"}
+    top = integer(25 if type(args.top) is int and args.top <= 0 else args.top, "top", 100)
+    string(args.text, "search text", 4096)
+    if args.type:
+        string_list(args.type, "types")
+    if args.area:
+        string_list(args.area, "areas")
+    if args.project:
+        string_list(args.project, "projects")
+        for project in args.project:
+            project_name(project)
     filters: dict[str, list[str]] = {}
     if args.type:
         filters["System.WorkItemType"] = args.type
@@ -132,18 +145,20 @@ def search_work_items(args: argparse.Namespace) -> None:
     body: dict[str, Any] = {"searchText": args.text, "$top": top}
     if filters:
         body["filters"] = filters
-    payload = request_json(
-        f"https://almsearch.dev.azure.com/{normalized['organization']}/_apis/search/workitemsearchresults?api-version=7.1",
-        method="POST",
-        body=json.dumps(body).encode("utf-8"),
-        headers=auth_headers("application/json"),
-        replay_safe=True,
-    )
+    transport = ado.Transport()
+    with transport.budget(60):
+        payload = transport.json(
+            f"https://almsearch.dev.azure.com/{normalized['organization']}/_apis/search/workitemsearchresults?api-version=7.1",
+            method="POST",
+            body=json.dumps(body).encode("utf-8"),
+            headers=auth_headers("application/json"),
+            replay_safe=True,
+        )
     results = []
     for result in payload.get("results", []):
         fields = result.get("fields") or {}
         item_id = fields.get("system.id")
-        project_name = (result.get("project") or {}).get("name") or ""
+        result_project = (result.get("project") or {}).get("name") or ""
         results.append(
             {
                 "id": int(item_id) if item_id else None,
@@ -152,15 +167,23 @@ def search_work_items(args: argparse.Namespace) -> None:
                 "title": fields.get("system.title"),
                 "assignedTo": fields.get("system.assignedto"),
                 "areaPath": fields.get("system.areapath"),
-                "project": project_name,
+                "project": result_project,
                 "url": (
-                    f"{normalized['organizationUrl']}/{urllib.parse.quote(project_name, safe='')}/_workitems/edit/{item_id}"
+                    f"{normalized['organizationUrl']}/{urllib.parse.quote(result_project, safe='')}/_workitems/edit/{item_id}"
                     if item_id
                     else None
                 ),
             }
         )
     print(json.dumps({"count": payload.get("count", len(results)), "results": results}, indent=2))
+
+
+def get_work_item(args: argparse.Namespace) -> None:
+    request = {"operation": "workItemGet", "org": args.org, "project": args.project, "id": args.id}
+    if args.fields is not None:
+        request["fields"] = args.fields.split(",")
+    validate_request(request)
+    print(json.dumps(BoardsClient(args.org).execute(request), indent=2))
 
 
 def required_fields(args: argparse.Namespace) -> None:
@@ -255,6 +278,11 @@ def main() -> None:
     search.add_argument("--project", action="append", default=[])
     search.add_argument("--area", action="append", default=[])
     search.add_argument("--top", type=int, default=25)
+    get = subparsers.add_parser("get", help="Read a bounded work item and verify its project ownership")
+    get.add_argument("--org", required=True)
+    get.add_argument("--project", required=True)
+    get.add_argument("--id", type=int, required=True)
+    get.add_argument("--fields", help="Comma-separated field references; project ownership is verified internally")
     required = subparsers.add_parser("required-fields")
     required.add_argument("--org", required=True)
     required.add_argument("--project", required=True)
@@ -277,6 +305,8 @@ def main() -> None:
         query_work_items(args)
     elif args.command == "search":
         search_work_items(args)
+    elif args.command == "get":
+        get_work_item(args)
     elif args.command == "required-fields":
         required_fields(args)
     elif args.command == "link-pr":

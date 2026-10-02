@@ -43,6 +43,11 @@ gh skill install scaryrawr/scarypilot plugins/azure-devops/skills/ado-agent-merg
 The `ado-agent-merge` skill expects the sibling `azure-devops` skill and its
 bundled helpers, so install the complete plugin for that workflow.
 
+The manifest uses Copilot's legacy format because native extension paths use
+the legacy `extensions` array. Declaring the canonical Agent Plugins `$schema`
+selects different semantics and rejects that array on CLI 1.0.91.
+See [legacy manifest fields](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference#legacy-manifest-fields).
+
 If `azure-devops` was previously installed from `scaryrawr/agentic`, add
 `--force` once to replace its source-tracking metadata.
 
@@ -52,6 +57,17 @@ The plugin supports Azure DevOps pull request creation, inspection, review,
 commenting, voting, checkout, attachment uploads, and end-to-end merge readiness
 with safe squash auto-complete. It also supports Azure Boards queries, work item
 creation and updates, WIQL, and work item links.
+
+Boards reads use typed native extension tools. `azure_devops_work_item_search`
+returns keyword matches, `azure_devops_work_item_query` runs flat WIQL and returns
+ID references, and `azure_devops_work_item_get` reads selected work item fields.
+Each tool requires an explicit organization and project. Search and query return
+at most 100 items per call and report truncation. All three tools validate inputs
+and results, cap serialized results at 1 MiB, and share the existing Python
+authentication, pacing, retries, and cooldown handling. The skill keeps query
+interpretation and filter choices. Coordinated CLI read helpers remain available
+when native tools are unavailable. Installing a skill alone does not install
+these extension tools.
 
 Example prompts:
 
