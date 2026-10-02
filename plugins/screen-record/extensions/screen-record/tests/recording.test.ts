@@ -191,7 +191,7 @@ test("diagnostics and device discovery return bounded typed results without capt
 });
 
 test("recording survives command return and a new tool instance; stop is graceful and idempotent", async () => {
-  const fixture = await setup();
+  const fixture = await setup("log-close-delay");
   let recording: RecordingState | undefined;
 
   try {
@@ -677,6 +677,35 @@ test("foreign legacy state cannot block user-scoped recording and same-owner sta
     if (recording) await stop(fixture.runtime, recording);
     await fixture.cleanup();
   }
+});
+
+test("controller retains ownership through log-close failure persistence", async () => {
+  const fixture = await setup("log-close-failure");
+
+  try {
+    const marker = join(fixture.root, "log-close");
+
+    fixture.runtime.env.RECORDER_FIXTURE_CLOSE_MARKER = marker;
+
+    const result = await call(fixture.runtime, "screen_record_start", {
+      output: "raw.mp4", captureApproved: true, videoInput: "0",
+    });
+
+    assert.equal(result.resultType, "failure");
+    assert.equal(await readFile(marker, "utf8"), "owned");
+
+    const current = await call(fixture.runtime, "screen_record_status", { output: "raw.mp4" });
+
+    assert.equal(current.resultType, "success", current.textResultForLlm);
+
+    const terminal = state(current.textResultForLlm);
+
+    assert.equal(terminal.status, "failed");
+    assert.ok("exitCode" in terminal);
+    assert.equal(terminal.exitCode, 1);
+    assert.ok("statePath" in terminal);
+    await assert.rejects(readFile(terminal.statePath.replace(/\.json$/, ".lock")), { code: "ENOENT" });
+  } finally { await fixture.cleanup(); }
 });
 
 test("heartbeat persistence failures gracefully stop media and surface failure without orphaning capture", async () => {

@@ -28,7 +28,7 @@ if (args.includes("-version")) {
 
   if (mode === "argument-contract") writeFileSync(`${output}.args.json`, JSON.stringify(args));
 
-  if (mode === "capture-failure") {
+  if (mode === "capture-failure" || mode === "log-close-failure") {
     console.error("fixture capture denied by OS permission");
     process.exit(3);
   }

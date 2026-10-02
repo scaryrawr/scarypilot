@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, renameSync, writeFileSync } from "node:fs";
 
 const [statePath, output] = process.argv.slice(2);
 
@@ -13,7 +13,14 @@ const state = {
 
 writeFileSync(state.logPath, "");
 
-writeFileSync(statePath, JSON.stringify(state));
+function persist() {
+  const temporary = `${statePath}.fixture.tmp`;
+
+  writeFileSync(temporary, JSON.stringify(state));
+  renameSync(temporary, statePath);
+}
+
+persist();
 
 const deadline = Date.now() + 10000;
 
@@ -27,5 +34,5 @@ const interval = setInterval(() => {
   }
 
   state.updatedAt = new Date().toISOString();
-  writeFileSync(statePath, JSON.stringify(state));
+  persist();
 }, 50);

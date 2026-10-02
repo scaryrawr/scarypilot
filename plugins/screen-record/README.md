@@ -112,6 +112,9 @@ shutdown before further persistence attempts. If terminal state can be saved, it
 reports `failed` even when FFmpeg exits cleanly; if storage remains unavailable,
 status may remain `stale`. Inspect the controller log and retained output rather
 than assuming a successful recording. No process is force-killed.
+The controller keeps its ownership lock until log-close handling and all terminal
+state writes finish. Stop waits for ownership release, not just terminal state, so
+its successful return includes final cleanup.
 
 Start returns a `recordingId`, output, worker and FFmpeg PIDs, timestamps, and
 state/log paths. The worker is detached from the tool and extension. A recording

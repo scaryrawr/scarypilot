@@ -15,6 +15,37 @@ const writeFile = fs.writeFileSync;
 
 const rename = fs.renameSync;
 
+const open = fs.openSync;
+
+const close = fs.closeSync;
+
+let controllerLog;
+
+fs.openSync = (path, ...args) => {
+  const fd = open(path, ...args);
+
+  if (process.argv.includes("_capture") && String(path).endsWith(".log")) {
+    controllerLog = { fd, path: String(path) };
+  }
+
+  return fd;
+};
+
+fs.closeSync = (fd) => {
+  if (fd === controllerLog?.fd && process.env.RECORDER_FIXTURE_MODE === "log-close-delay") {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
+  }
+
+  if (fd === controllerLog?.fd && process.env.RECORDER_FIXTURE_MODE === "log-close-failure") {
+    const lock = controllerLog.path.replace(/\.log$/, ".lock");
+
+    writeFile(process.env.RECORDER_FIXTURE_CLOSE_MARKER, fs.existsSync(lock) ? "owned" : "released");
+    throw new Error("fixture controller log close failed");
+  }
+
+  return close(fd);
+};
+
 let persistenceFailed = false;
 
 function failPersistence(path, operation) {

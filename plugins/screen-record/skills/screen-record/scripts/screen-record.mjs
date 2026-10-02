@@ -1268,20 +1268,6 @@ function captureWorker() {
     }
 
     try {
-      if (existsSync(config.lock) && readFileSync(config.lock, "utf8") === config.recordingId) {
-        rmSync(config.lock);
-      }
-    } catch (cleanupError) {
-      recordFailure(cleanupError, "lock cleanup");
-
-      if (ffmpeg.pid) {
-        state.status = "failed";
-        state.exitCode = 1;
-        persistState();
-      }
-    }
-
-    try {
       closeSync(logFd);
     } catch (closeError) {
       recordFailure(closeError, "log close");
@@ -1291,6 +1277,15 @@ function captureWorker() {
         state.exitCode = 1;
         persistState();
       }
+    }
+
+    try {
+      if (existsSync(config.lock) && readFileSync(config.lock, "utf8") === config.recordingId) {
+        rmSync(config.lock);
+      }
+    } catch (cleanupError) {
+      console.error(`Recording controller lock cleanup failed: ${cleanupError.message}`);
+      controllerError ??= cleanupError;
     }
 
     process.exit(controllerError ? 1 : code);
@@ -1365,31 +1360,42 @@ function stop() {
     fail("recording identity does not match; pass --recording-id retained from start; refusing to stop a different recording");
   }
 
-  if (state.status === "stopped") {
+  const ownsLock = () =>
+    state.recordingId && existsSync(paths.lock) && readFileSync(paths.lock, "utf8") === state.recordingId;
+
+  if (state.status === "stopped" && !ownsLock()) {
     if (!existsSync(output)) fail(`stopped recording output is missing: ${output}`);
     console.log(JSON.stringify(state));
 
     return;
   }
 
-  if (!activeState(state)) fail(`recording is ${state.status === "failed" ? "failed" : "stale"}; inspect ${paths.log}`);
+  if (!activeState(state) && !(state.status === "stopped" && ownsLock() && pidRunning(state.workerPid))) {
+    fail(`recording is ${state.status === "failed" ? "failed" : "stale"}; inspect ${paths.log}`);
+  }
 
-  const stopTemporary = `${paths.stop}.${randomUUID()}.tmp`;
-  writeFileSync(stopTemporary, `${state.recordingId ?? new Date().toISOString()}\n`, { mode: 0o600, flag: "wx" });
-  renameSync(stopTemporary, paths.stop);
+  if (state.status !== "stopped") {
+    const stopTemporary = `${paths.stop}.${randomUUID()}.tmp`;
+    writeFileSync(stopTemporary, `${state.recordingId ?? new Date().toISOString()}\n`, { mode: 0o600, flag: "wx" });
+    renameSync(stopTemporary, paths.stop);
+  }
 
   const deadline = Date.now() + timeout * 1000;
 
   let final = readState(paths.state);
 
-  while (Date.now() < deadline && final && ["recording", "stopping"].includes(final.status) && pidRunning(state.workerPid)) {
+  const finalizationPending = () =>
+    (final && ["recording", "stopping"].includes(final.status)) ||
+    ownsLock();
+
+  while (Date.now() < deadline && finalizationPending() && pidRunning(state.workerPid)) {
     sleep(200);
     final = readState(paths.state);
   }
 
   final = readState(paths.state);
 
-  if (final && ["recording", "stopping"].includes(final.status) && pidRunning(state.workerPid)) {
+  if (finalizationPending() && pidRunning(state.workerPid)) {
     fail(`graceful stop timed out; recording may still be active. Run status; inspect ${paths.log}. No process was killed.`);
   }
 
