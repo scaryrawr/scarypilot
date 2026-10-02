@@ -198,6 +198,37 @@ test("requires complete contiguous source coverage within one sample before work
   }
 });
 
+test("renders worker block markers and multiline source indentation as literal text", async () => {
+  const f = await fixture();
+  const source = "- list\n+ list\n1. list\n---\n===\n    code\n\tcode";
+  f.payload.chunks[0].text = source;
+  const bytes = JSON.stringify(f.payload);
+  await writeFile(f.manifest, bytes);
+  const claims = ["- list", "+ list", "1. list", "---", "===", "    code"];
+
+  const d = { claims: claims.map((text, index) => ({
+    id: `c${index + 1}`, text, citations: [{ chunk: 1, quote: source }],
+  })) };
+
+  const r = { verdicts: d.claims.map(({ id }) => ({ id, supported: true, reason: "Literal source text." })) };
+
+  const h = harness({ ...f.args, expected_manifest_sha256: createHash("sha256").update(bytes).digest("hex") },
+    [JSON.stringify(d), JSON.stringify(r)]);
+
+  const result = await runGroundedNote(h.ctx);
+  const escaped = "\\- list\n\\+ list\n1\\. list\n\\---\n\\===\n&#32;&#32;&#32;&#32;code\n&#9;code";
+  const expected = ["# Grounded note", "", "User review required. Publication is not approved.", ""];
+
+  for (const claim of ["\\- list", "\\+ list", "1\\. list", "\\---", "\\===", "&#32;&#32;&#32;&#32;code"]) {
+    expected.push(claim, "", ...`"${escaped}"`.split("\n").map((line) => `> ${line}`),
+      "Source chunk 1 (0.000s - 10.000s).", "");
+  }
+
+  expected.push("- Generated with AI 🤖", "");
+  assert.equal(result.markdown, expected.join("\n"));
+  assert.deepEqual(result.draft, d);
+});
+
 test("full validation rejects null, malformed JSON, extras, empty fields, bounds and duplicate citations before checker", async () => {
   const f = await fixture();
 

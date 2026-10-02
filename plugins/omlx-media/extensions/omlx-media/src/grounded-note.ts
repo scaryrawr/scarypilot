@@ -224,7 +224,10 @@ function literalMarkdown(text: string): string {
     .replace(/[\\`*_[\]{}()#!|~]/g, "\\$&")
     .replace(/\b([a-z][a-z0-9+.-]*):\/\//gi, "$1&#58;//")
     .replace(/\b(www)\./gi, "$1&#46;")
-    .replace(/@/g, "&#64;");
+    .replace(/@/g, "&#64;")
+    .replace(/^[+=-]/gm, "\\$&")
+    .replace(/^(\d+)\./gm, "$1\\.")
+    .replace(/^[ \t]+/gm, (spaces) => spaces.replace(/ /g, "&#32;").replace(/\t/g, "&#9;"));
 }
 
 function render(draft: GroundedDraft, chunks: SourceChunk[]): string {

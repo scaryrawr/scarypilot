@@ -10,7 +10,7 @@
     "src/execute-image.ts": "aa31fc2eb417f450859c3615e4ad10f5a7484621ac3040f2109fd79a8184f4ed",
     "src/extension.ts": "8c707f1601c168f57a4c48101342bee1f0a5ca8c31fc5cd150c722b6e5c061dc",
     "src/frame-tool.ts": "284d82816b32c208091ded8c20f8ebe5564610d3551235dc4c1138f6a4cc5d8a",
-    "src/grounded-note.ts": "d238c451a4e7cc9fa25f5fb8652214b1af1152df0a0c208b0a46f011c320ddbf",
+    "src/grounded-note.ts": "54e60bd5ecd0d00a660ce0c74892d1a92285a0d3d6ad963da6b52f84c375a1d8",
     "src/grounded-registration.ts": "30411206a7bb15bc35cfcd4a39e3ca3f9819c2a807e3e83310122aa4e6be83f3",
     "src/image-tool.ts": "06f8d8e5d8f5badd3e5a18d67a45e2f475fe22a6f55a5753b5ca53333987cf49",
     "src/media-domain.ts": "005396acf50ff95b2266d68cd147fd5541a5cbb73d292ec4b81f546cd8033f92",
@@ -22,6 +22,6 @@
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
   },
   "outputs": {
-    "dist/extension.mjs": "18b16b225f9fee58d721bf4a148c88af60d722139c7ad035785e2038c07dd4b6"
+    "dist/extension.mjs": "9584596044e9d6a362f96f09bc91bcae240ca31dfffbdfed8edf87640980a607"
   }
 }
