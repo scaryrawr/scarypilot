@@ -120,6 +120,52 @@ test("semantic rejection throws instead of emitting a user-ready artifact", asyn
   assert.deepEqual(await readdir(f.root), ["manifest.json"]);
 });
 
+test("accepts producer sample rounding without changing projected timestamps", async () => {
+  for (const [start, end, actualEnd] of [
+    [0, 0.123354, 0.123375],
+    [0, 10, 10 + 1 / 16000],
+    [7199, 7200, 7200 + 1 / 16000],
+  ]) {
+    const f = await fixture();
+    f.payload.source_duration_seconds = end;
+    f.payload.source_audio_range = { start, end };
+    Object.assign(f.payload.chunks[0], { start_seconds: start, end_seconds: actualEnd });
+    const bytes = JSON.stringify(f.payload);
+    await writeFile(f.manifest, bytes);
+    const h = harness({ ...f.args, expected_manifest_sha256: createHash("sha256").update(bytes).digest("hex") });
+    const result = await runGroundedNote(h.ctx);
+    assert.equal(h.calls.length, 2);
+    assert.equal(result.source_chunks[0].end_seconds, actualEnd);
+  }
+});
+
+test("permits only one sample of endpoint rounding or adjacent chunk overlap", async () => {
+  for (const samples of [1, 2]) {
+    for (const overlap of [false, true]) {
+      const f = await fixture();
+      f.payload.source_duration_seconds = 20;
+      f.payload.source_audio_range.end = 20;
+      const first = f.payload.chunks[0];
+      const second = { ...first, index: 2, audio: path.join(f.root, "chunk-002.wav"), start_seconds: 10, end_seconds: 20 };
+      first.end_seconds = 10 + (overlap ? samples / 16000 : 0);
+      second.end_seconds += overlap ? 0 : samples / 16000;
+      f.payload.chunks.push(second);
+      f.payload.artifacts.audio.push(second.audio);
+      const bytes = JSON.stringify(f.payload);
+      await writeFile(f.manifest, bytes);
+      const h = harness({ ...f.args, expected_manifest_sha256: createHash("sha256").update(bytes).digest("hex") });
+
+      if (samples === 1) {
+        assert.deepEqual((await runGroundedNote(h.ctx)).source_chunks.map((chunk) => chunk.end_seconds), [first.end_seconds, second.end_seconds]);
+        assert.equal(h.calls.length, 2);
+      } else {
+        await assert.rejects(runGroundedNote(h.ctx), /INVALID_SOURCE/);
+        assert.equal(h.calls.length, 0);
+      }
+    }
+  }
+});
+
 test("full validation rejects null, malformed JSON, extras, empty fields, bounds and duplicate citations before checker", async () => {
   const f = await fixture();
 

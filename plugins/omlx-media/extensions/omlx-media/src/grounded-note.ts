@@ -21,6 +21,8 @@ const ChunkIndex = Type.Integer({ minimum: 1, maximum: 12 });
 
 const Seconds = Type.Number({ minimum: 0, maximum: 7200 });
 
+const AudioSampleSeconds = 1 / 16000;
+
 export const GroundedArgsSchema = Type.Object({
   manifest: PathText,
   expected_manifest_sha256: Hash,
@@ -47,7 +49,8 @@ export const ReviewSchema = Type.Object({
 }, { additionalProperties: false });
 
 const ChunkSchema = Type.Object({
-  index: ChunkIndex, start_seconds: Seconds, end_seconds: Seconds, audio: PathText,
+  index: ChunkIndex, start_seconds: Seconds,
+  end_seconds: Type.Number({ minimum: 0, maximum: 7200 + AudioSampleSeconds }), audio: PathText,
   text: Type.String({ minLength: 1, maxLength: 16384, pattern: "\\S" }),
 }, { additionalProperties: false });
 
@@ -162,8 +165,9 @@ async function loadSource(args: GroundedArgs, signal: AbortSignal): Promise<Sour
     textBytes += Buffer.byteLength(chunk.text);
 
     if (chunk.index !== position + 1 || !Number.isFinite(chunk.start_seconds) || !Number.isFinite(chunk.end_seconds) ||
-        chunk.start_seconds < previousEnd || chunk.start_seconds >= chunk.end_seconds ||
-        chunk.end_seconds > range.end || chunk.audio !== manifest.artifacts.audio[position]) {
+        chunk.start_seconds < range.start || chunk.start_seconds + AudioSampleSeconds < previousEnd ||
+        chunk.start_seconds >= chunk.end_seconds || chunk.end_seconds > range.end + AudioSampleSeconds ||
+        chunk.audio !== manifest.artifacts.audio[position]) {
       groundedError("INVALID_SOURCE", "Chunk ids, timestamps or audio references are inconsistent");
     }
 

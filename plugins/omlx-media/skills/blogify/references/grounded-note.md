@@ -50,6 +50,8 @@ native tools. The workflow does not prepare media or write an article.
 ## Bounds and failures
 
 The complete manifest must be at most 64 KiB with at most 12 sequential chunks.
+Chunk endpoints and adjacent boundaries allow only the preparation producer's
+one-sample (1/16,000 second) resampling tolerance; projected timestamps are not changed.
 Projected transcript text is limited to 32 KiB in total.
 Each chunk has at most 16,384 characters.
 Audience, tone, and scope each have at most 256 characters.
