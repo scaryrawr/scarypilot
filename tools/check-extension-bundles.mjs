@@ -12,6 +12,7 @@ const extensions = [
   "plugins/copilot-local-llm/extensions/copilot-local-llm",
   "plugins/digivolution/extensions/digivolution",
   "plugins/omlx-media/extensions/omlx-media",
+  "plugins/ollama-decisions/extensions/ollama-decisions",
 ];
 
 const [mode = "check", selected] = process.argv.slice(2);
