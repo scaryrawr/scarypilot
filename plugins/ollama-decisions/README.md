@@ -32,7 +32,8 @@ Copilot supplies the SDK at runtime. The checked-in bundle includes TypeBox, so 
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | HTTP or HTTPS server base URL. A path prefix is supported. Embedded credentials, queries, and fragments are rejected. |
 | `OLLAMA_API_KEY` | Unset | Optional bearer token for a protected server or proxy. Local Ollama does not require a key. |
 
-Set variables before starting Copilot. The extension requests access to `OLLAMA_API_KEY` through the host's environment-variable permission flow.
+Set variables before starting Copilot. The extension requests `OLLAMA_BASE_URL` and `OLLAMA_API_KEY` through the host's environment-variable permission flow.
+The host prompts only for configured variables it filters from extensions. Tools read configuration after `joinSession` grants access.
 When an API key is configured, remote endpoints require HTTPS before any network request.
 Authenticated HTTP is allowed only for the exact URL hosts `localhost`, `127.0.0.1`, and `[::1]`.
 Redirects are rejected so credentials and state cannot follow a redirect to another server.

@@ -1,12 +1,26 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
 import { mock, test } from "node:test";
 import type { Tool } from "@github/copilot-sdk";
 import { invalidDurationNumbers, invalidDurationStrings, validDurationNumbers, validDurationStrings } from "./keep-alive-cases.ts";
 
-test("source and shipped tools register and validate durations before fetching", async (t) => {
+test("source and shipped tools use granted configuration and validate durations before fetching", async (t) => {
   t.after(() => mock.restoreAll());
+  const environment = process.env;
+
+  const previous = {
+    OLLAMA_BASE_URL: environment.OLLAMA_BASE_URL,
+    OLLAMA_API_KEY: environment.OLLAMA_API_KEY,
+  };
+
+  t.after(() => {
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) delete environment[name];
+      else environment[name] = value;
+    }
+  });
   const registrations: { tools: Tool[]; requestedEnvironmentVariables: string[] }[] = [];
-  const fetched: { path: string; body?: unknown }[] = [];
+  const fetched: { path: string; authorization?: string; body?: unknown }[] = [];
 
   const input = {
     model: "installed:latest",
@@ -20,33 +34,76 @@ test("source and shipped tools register and validate durations before fetching",
     usage: { input_tokens: 1, output_tokens: 1 },
   };
 
-  mock.method(globalThis, "fetch", async (url: string | URL | Request, init?: RequestInit) => {
-    const path = new URL(String(url)).pathname;
-    const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+  const http = createServer(async (request, res) => {
+    let text = "";
 
-    fetched.push({ path, body });
-    assert.ok(path === "/api/tags" || path === "/v1/systemone");
+    for await (const chunk of request) text += chunk;
+    const path = request.url ?? "";
+    const body = text ? JSON.parse(text) : undefined;
 
-    return Response.json(path === "/api/tags"
+    fetched.push({ path, authorization: request.headers.authorization, body });
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify(path === "/proxy/api/tags"
       ? { models: [{ name: input.model, capabilities: ["decision"] }] }
-      : response);
+      : response));
+  });
+
+  await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
+  t.after(async () => {
+    http.closeAllConnections();
+    await new Promise<void>((resolve, reject) => http.close((error) => error ? reject(error) : resolve()));
+  });
+  const address = http.address();
+  assert.ok(address && typeof address === "object");
+  const baseUrl = `http://127.0.0.1:${address.port}/proxy/`;
+  const grants = { OLLAMA_BASE_URL: baseUrl, OLLAMA_API_KEY: "synthetic-test-key" };
+  const fetch = globalThis.fetch;
+
+  mock.method(globalThis, "fetch", async (url: string | URL | Request, init?: RequestInit) => {
+    assert.equal(new URL(String(url)).origin, new URL(baseUrl).origin,
+      "configuration granted during joinSession must route to the custom fixture, not localhost");
+
+    return fetch(url, init);
   });
   mock.module("@github/copilot-sdk/extension", {
     namedExports: {
       joinSession: async (options: { tools: Tool[]; requestedEnvironmentVariables: string[] }) => {
         registrations.push(options);
+        assert.equal(process.env, environment);
+        assert.equal(environment.OLLAMA_BASE_URL, undefined);
+        assert.equal(environment.OLLAMA_API_KEY, undefined);
+        await Promise.resolve();
+
+        for (const [name, value] of Object.entries(grants)) {
+          if (options.requestedEnvironmentVariables.includes(name)) environment[name] = value;
+        }
 
         return {};
       },
     },
   });
-  await import("../src/extension.ts");
-  await import(new URL("../extension.mjs", import.meta.url).href);
+
+  for (const entry of ["../src/extension.ts", "../extension.mjs"]) {
+    delete environment.OLLAMA_BASE_URL;
+    delete environment.OLLAMA_API_KEY;
+    await import(new URL(entry, import.meta.url).href);
+    const registration = registrations.at(-1);
+    assert.ok(registration);
+    const handler = registration.tools[1].handler;
+    assert.ok(handler);
+    assert.deepEqual(await handler(input, {
+      sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: input,
+    }), {
+      textResultForLlm: JSON.stringify(response),
+      resultType: "success",
+    }, `${entry} routes inference with configuration granted after tool creation`);
+  }
+
   assert.equal(registrations.length, 2);
 
   for (const [index, registration] of registrations.entries()) {
     assert.deepEqual(Object.keys(registration).sort(), ["requestedEnvironmentVariables", "tools"]);
-    assert.deepEqual(registration.requestedEnvironmentVariables, ["OLLAMA_API_KEY"]);
+    assert.deepEqual(registration.requestedEnvironmentVariables, ["OLLAMA_BASE_URL", "OLLAMA_API_KEY"]);
     assert.deepEqual(registration.tools.map((tool) => tool.name), [
       "ollama_decision_models", "ollama_decide",
     ]);
@@ -87,8 +144,8 @@ test("source and shipped tools register and validate durations before fetching",
         resultType: "success",
       });
       assert.deepEqual(fetched, [
-        { path: "/api/tags", body: undefined },
-        { path: "/v1/systemone", body: args },
+        { path: "/proxy/api/tags", authorization: `Bearer ${grants.OLLAMA_API_KEY}`, body: undefined },
+        { path: "/proxy/v1/systemone", authorization: `Bearer ${grants.OLLAMA_API_KEY}`, body: args },
       ]);
     }
   }
