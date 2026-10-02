@@ -185,6 +185,9 @@ codes. The preload is inherited by worker processes. No FFmpeg installation,
 display, microphone, PowerShell, or Unix executable wrapper is required.
 All hosts run lifecycle, cancellation, timeout, identity, lock, stale-state,
 source safety, and failure regression cases without blanket platform skips.
+Persistence-failure tests delay controller cleanup after terminal state
+publication and require both fixture media and controller processes to exit
+within a bounded wait; terminal state alone is not proof of process exit.
 `npm test` fails if the suite skips or cancels any test and caps the whole
 subprocess run at two minutes. It uses an explicit test path, not shell globbing.
 Platform-specific argument assertions cover AVFoundation, X11/PulseAudio, and

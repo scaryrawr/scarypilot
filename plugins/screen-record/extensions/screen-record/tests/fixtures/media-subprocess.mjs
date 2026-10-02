@@ -70,7 +70,8 @@ fs.openSync = (path, ...args) => {
 };
 
 fs.closeSync = (fd) => {
-  if (fd === controllerLog?.fd && process.env.RECORDER_FIXTURE_MODE === "log-close-delay") {
+  if (fd === controllerLog?.fd && (process.env.RECORDER_FIXTURE_MODE === "log-close-delay" ||
+    process.env.RECORDER_FIXTURE_DELAY_CONTROLLER_EXIT === "1")) {
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
   }
 

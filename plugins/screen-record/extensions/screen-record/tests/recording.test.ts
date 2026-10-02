@@ -797,6 +797,7 @@ test("heartbeat persistence failures gracefully stop media and surface failure w
       const marker = join(fixture.root, "fail-heartbeat");
 
       fixture.runtime.env.RECORDER_FIXTURE_PERSISTENCE_MARKER = marker;
+      fixture.runtime.env.RECORDER_FIXTURE_DELAY_CONTROLLER_EXIT = "1";
       recording = await start(fixture.runtime);
       assert.ok("workerPid" in recording);
 
@@ -815,6 +816,20 @@ test("heartbeat persistence failures gracefully stop media and surface failure w
       assert.equal(await readFile(`${recording.output}.stop-requested`, "utf8"), "graceful stdin stop");
 
       for (const pid of [recording.workerPid, recording.ffmpegPid]) {
+        const exitDeadline = Date.now() + 4000;
+
+        while (Date.now() < exitDeadline) {
+          try {
+            process.kill(pid, 0);
+          } catch (error) {
+            assert.ok(error instanceof Error && "code" in error);
+            assert.equal(error.code, "ESRCH");
+            break;
+          }
+
+          await sleep(25);
+        }
+
         assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
       }
 
