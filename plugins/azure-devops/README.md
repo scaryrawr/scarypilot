@@ -85,8 +85,14 @@ Boards tools with credential/HTTP fixtures in disposable profiles, both through
 exact PR artifacts. No loader or SDK stub was used for these standalone checks.
 An earlier invocation exposed no extensions; its cause remains
 unestablished and that failure did not reproduce in the disposable profiles.
-Installation from the published ScaryPilot marketplace and authenticated Azure
-service behavior remain unverified. If your host does not expose the tools, use
+A user-authorized authenticated smoke on `9ac8b4d` passed all three native Boards
+tools in standalone CLI `1.0.91`: selected-field get, title-based top-1 search,
+and project/known-ID constrained top-1 WIQL with ownership verification.
+These checks used no fixtures or remote writes; private response evidence remains
+local. The later Unicode-validation fix in `c26c491` passed local tests but has
+not had a real-service rerun. Downloading and caching this build from the public
+GitHub ScaryPilot marketplace remain untested.
+If your host does not expose the tools, use
 the coordinated `ado-work-items.py search`, `query`, and `get` helpers described in
 [work item operations](skills/azure-devops/references/work-items.md).
 
