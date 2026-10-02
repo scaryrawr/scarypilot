@@ -182,18 +182,31 @@ class BatchItemsTests(unittest.TestCase):
 
     def test_independent_batch_owners_still_share_four_global_permits(self):
         active = maximum = 0
-        lock = threading.Lock()
+        condition = threading.Condition()
+        release = threading.Event()
+        waiting = set()
+
+        def wait_for_permit(_delay):
+            with condition:
+                waiting.add(threading.get_ident())
+                condition.notify_all()
+            self.assertTrue(release.wait(15), "admission waiter was not released")
+
+        self.state.sleep = wait_for_permit
 
         def send(*args):
             nonlocal active, maximum
-            with lock:
+            with condition:
                 active += 1
                 maximum = max(maximum, active)
+                condition.notify_all()
+            try:
                 with self.state.connect() as db:
                     self.assertLessEqual(db.execute("SELECT count(*) FROM admission").fetchone()[0], 4)
-            time.sleep(0.04)
-            with lock:
-                active -= 1
+                self.assertTrue(release.wait(15), "active request was not released")
+            finally:
+                with condition:
+                    active -= 1
             return Response(200, {}, b'{"content":"ok"}')
 
         def run(index):
@@ -201,11 +214,28 @@ class BatchItemsTests(unittest.TestCase):
             batch["items"][0]["path"] = f"/owner-{index}"
             return bridge.dispatch(batch, self.client(send))
 
-        with ThreadPoolExecutor(max_workers=6) as workers:
-            results = list(workers.map(run, range(6)))
+        with patch.object(self.state, "lock", wraps=self.state.lock) as cache_locks, \
+                ThreadPoolExecutor(max_workers=6) as workers:
+            futures = [workers.submit(run, index) for index in range(6)]
+            try:
+                with condition:
+                    self.assertTrue(condition.wait_for(
+                        lambda: active == 4 and len(waiting) == 2, timeout=10,
+                    ), "expected four active requests and two admission waiters")
+                    self.assertEqual(maximum, 4)
+                # Distinct cache stripes ensure the other owners wait for admission, not cache locks.
+                self.assertEqual(len({call.args[0] for call in cache_locks.call_args_list}), 6)
+                with self.state.connect() as db:
+                    self.assertEqual(db.execute(
+                        "SELECT count(*), count(DISTINCT owner) FROM admission",
+                    ).fetchone(), (4, 4))
+            finally:
+                release.set()
+            results = [future.result(timeout=15) for future in futures]
         self.assertEqual(results, [{"results": [{"kind": "text", "content": "ok"}]}] * 6)
-        self.assertLessEqual(maximum, 4)
-        self.assertGreater(maximum, 1)
+        self.assertEqual(maximum, 4)
+        with self.state.connect() as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM admission").fetchone()[0], 0)
 
 
 if __name__ == "__main__":
