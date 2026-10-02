@@ -815,12 +815,39 @@ async function start() {
 
   ffmpegCaptureArgs(config);
 
+  let lockFd;
+  let lockIdentity;
+
   try {
-    const lockFd = openSync(paths.lock, "wx", 0o600);
+    lockFd = openSync(paths.lock, "wx", 0o600);
+    lockIdentity = fstatSync(lockFd);
     writeFileSync(lockFd, config.recordingId);
     closeSync(lockFd);
+    lockFd = undefined;
   } catch (error) {
-    fail(`cannot claim recording startup: ${error.message}; inspect ${paths.lock} before recovery`);
+    const cleanupErrors = [];
+
+    if (lockFd !== undefined) {
+      try {
+        closeSync(lockFd);
+      } catch (closeError) {
+        if (closeError.code !== "EBADF") cleanupErrors.push(`descriptor cleanup failed: ${closeError.message}`);
+      }
+    }
+
+    try {
+      const current = lstatSync(paths.lock, { throwIfNoEntry: false });
+
+      if (lockIdentity && current?.isFile() &&
+        current.dev === lockIdentity.dev && current.ino === lockIdentity.ino &&
+        config.recordingId.startsWith(readFileSync(paths.lock, "utf8"))) {
+        rmSync(paths.lock);
+      }
+    } catch (cleanupError) {
+      cleanupErrors.push(`lock cleanup failed: ${cleanupError.message}`);
+    }
+
+    fail(`cannot claim recording startup: ${error.message}${cleanupErrors.length ? `; ${cleanupErrors.join("; ")}` : ""}; inspect ${paths.lock} before recovery`);
   }
 
   rmSync(paths.state, { force: true });

@@ -306,6 +306,54 @@ test("validated canonical parents give aliases one recording identity", async ()
   }
 });
 
+test("startup lock write and close failures release only this attempt's lock and allow retry", async () => {
+  for (const failure of ["write", "close", "replacement"]) {
+    const fixture = await setup();
+    let recording: RecordingState | undefined;
+
+    try {
+      const output = resolve(fixture.runtime.cwd, "lock-failure.mp4");
+
+      const lock = join(fixture.runtime.env.TMPDIR!, "scarypilot-screen-record", `${stateId(output)}.lock`);
+
+      const closed = join(fixture.root, "closed");
+
+      const spawned = join(fixture.root, "spawned");
+
+      const failing: RecorderRuntime = {
+        ...fixture.runtime,
+        script: fileURLToPath(new URL("./fixtures/lock-failure.mjs", import.meta.url)),
+        env: {
+          ...fixture.runtime.env, RECORDER_FIXTURE_SCRIPT: script,
+          RECORDER_FIXTURE_LOCK_FAILURE: failure,
+          RECORDER_FIXTURE_CLOSED_MARKER: closed, RECORDER_FIXTURE_SPAWN_MARKER: spawned,
+          RECORDER_FIXTURE_REPLACE_LOCK: failure === "replacement" ? "1" : "0",
+        },
+      };
+
+      const result = await call(failing, "screen_record_start", {
+        output, captureApproved: true, videoInput: "0",
+      });
+
+      assert.equal(result.resultType, "failure");
+      assert.match(result.textResultForLlm, failure === "close" ? /fixture lock close failed with EIO/ : /fixture lock write failed with ENOSPC/);
+      assert.equal(await readFile(closed, "utf8"), "owned descriptor closed");
+      await assert.rejects(readFile(spawned), { code: "ENOENT" });
+      await assert.rejects(readFile(output), { code: "ENOENT" });
+
+      if (failure === "replacement") {
+        assert.equal(await readFile(lock, "utf8"), "replacement-owner");
+      } else {
+        await assert.rejects(readFile(lock), { code: "ENOENT" });
+        recording = await start(fixture.runtime, output);
+      }
+    } finally {
+      if (recording) await stop(fixture.runtime, recording);
+      await fixture.cleanup();
+    }
+  }
+});
+
 test("confirmed worker spawn failure preserves its error, removes its owned lock, and permits retry", async () => {
   const fixture = await setup();
   let recording: RecordingState | undefined;

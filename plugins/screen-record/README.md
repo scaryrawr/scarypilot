@@ -92,7 +92,9 @@ cannot stop a replacement recording.
 
 Stop sends `q` through FFmpeg's stdin and retains the final stopped or failed
 state. Repeating a successful stop is safe. A timeout never force-kills the
-worker. Stale state and interrupted startup locks require inspection and
+worker. A failed startup lock write or close releases only the lock file
+created by that attempt; replacement ownership is preserved and cleanup errors
+are reported. Stale state and interrupted startup locks require inspection and
 user-approved recovery, not automatic PID-based killing or deletion.
 State writes are atomic, and active workers refresh their state. FFmpeg uses
 no-overwrite mode even if another file appears after startup validation.
