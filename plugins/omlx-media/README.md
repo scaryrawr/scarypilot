@@ -7,15 +7,18 @@ plugin includes native image and audio tools plus three skills:
 | --- | --- |
 | `omlx_image` tool + `image-gen` skill | Generate PNG images or edit existing images while keeping model discovery, API calls, and file handling out of the prompt workflow. |
 | `omlx_speech` and `omlx_transcribe` tools + `audio` skill | Generate speech with a local TTS model or transcribe a local audio file with an STT model through OpenAI-compatible audio REST endpoints. |
-| `blogify` skill | Turn video or audio recordings into transcripts, takeaways, selected frames, and grounded written content. |
+| `omlx_transcribe` recording mode and `omlx_prepare_frames` tool + `blogify` skill | Prepare timestamped transcripts and candidate frames locally. Keep takeaways, final screenshot selection, and grounded writing in the skill. |
+| Optional `blogify-grounded-note` dynamic workflow | Return a bounded claim note with an independent factual check. Hosted Copilot workers require separate transcript-transmission consent. |
 
 ## Prerequisites
 
 - A current GitHub Copilot CLI release with plugin and skill support.
-- [`uv`](https://docs.astral.sh/uv/) and Python for `blogify` and the image skill's legacy direct-install fallback.
+- [`uv`](https://docs.astral.sh/uv/) and Python for optional `blogify`
+  classification, direct-installed `blogify`, and the image skill's legacy fallback.
 - A running OMLX OpenAI-compatible media endpoint. Set `OMLX_BASE_URL` when it
   is not available at `http://127.0.0.1:8000`.
-- `ffmpeg`, `ffprobe`, and ImageMagick for the `blogify` video workflow.
+- `ffmpeg` and `ffprobe` for native recording preparation. Legacy frame
+  deduplication and cropping also need ImageMagick.
 
 Set `OMLX_API_KEY` only when the endpoint requires authentication.
 
@@ -57,7 +60,7 @@ Standalone audio workflows:
 - "Speak this paragraph using a loaded OMLX TTS model and save it as a WAV file."
 - "Transcribe this local audio clip with OMLX and save the transcript."
 
-Both skills keep inputs and outputs in the user's workspace. Plugin-based image
+The skills keep inputs and outputs in the user's workspace. Plugin-based image
 generation uses the native `omlx_image` tool, which discovers a capable model,
 authenticates with `OMLX_API_KEY` when set, and saves fresh results without
 returning image bytes to the model. `blogify` uses local models by default;
@@ -71,8 +74,59 @@ appropriate `audio_tts` or `audio_stt` type from `/v1/models/status`, then fall
 back to an installed model that OMLX loads on demand. A specified model takes
 priority. Use absolute paths for inputs/outputs; outputs must be
 new files. The audio tools handle complete requests, not realtime WebSocket
-transcription or streamed speech playback. For long recordings that need chunk
-timestamps and silence detection, use `blogify` instead.
+transcription or streamed speech playback.
+
+For recording preparation, `omlx_transcribe` accepts `output_dir` instead of
+`output`. This mode extracts audio from video or audio recordings and writes
+`transcript.md`, chunk metadata, and a manifest. Chunk offsets refer to the
+original recording. They are not word timestamps or speaker labels. Native
+preparation uses fixed chunks, not silence detection. The optional bundled
+Python transcription script retains its silence-aware pipeline.
+
+`omlx_prepare_frames` requires no model or network service. It extracts a
+bounded set of candidate frames, or frames at explicit `seconds`, with a
+manifest of their source timestamps and file paths. Optional typed crop geometry
+removes overlays before scaling. Sampling is not classification, deduplication,
+or editorial selection.
+Sampling uses the selected video stream's range, including a delayed start,
+not a longer audio/container timeline. Missing video duration is measured
+locally within the operation deadline.
+
+Both preparation modes require a fresh absolute `output_dir` with an existing
+parent. They never
+replace an existing directory or modify the input recording. Native preparation
+refuses output paths inside the plugin. Failed calls report actionable errors
+and retain incomplete artifacts for inspection. Use a new output directory
+when retrying. See the blogify references for
+[transcription](skills/blogify/references/transcription.md) and
+[frame preparation](skills/blogify/references/frames.md).
+
+### Optional independent factual check
+
+`blogify-grounded-note` accepts an absolute complete recording manifest, its
+pinned SHA256, bounded audience/tone/scope intent, and explicit
+`allow_agent_transmission: true`. Local preparation consent does not authorize
+sending transcript text to hosted Copilot workers. The workflow sends only
+projected transcript chunks and bounded intent, not audio, images, or local
+source paths.
+
+One no-tool writer returns cited claims. One independent no-tool checker
+accepts or rejects each claim. Rejection produces an error, not a reviewed
+note. Exact quotes are validated in code; semantic support is a fallible model
+judgment. The transcript's accuracy is not independently established.
+
+The returned JSON contains the draft, verdicts, projected source, and
+deterministically rendered Markdown. Copilot's host owns this durable artifact.
+The extension writes no files and needs no output directory. Successful results
+always remain `user_review_required` with `publication_approved: false`.
+Jargon corrections, images, new prose, and publication approval stay with the
+skill and user.
+
+This workflow is experimental and optional. Enable experimental features in
+CLI and confirm registration before use. If unavailable, use ordinary blogify
+authoring. Direct skill installation does not install the workflow.
+This adds a mandatory independent factual gate, not a demonstrated prose,
+speed, or cost improvement. See the [grounded-note instructions and bounds](skills/blogify/references/grounded-note.md).
 
 ## Development
 
@@ -80,6 +134,13 @@ In `plugins/omlx-media/extensions/omlx-media`, install dependencies and run
 `npm run build`, `npm run typecheck`, and `npm test` after changes. Commit the
 generated `dist/` and `bundle-manifest.json`. Installed plugins use that bundle
 without requiring `npm install`; Copilot supplies the SDK at runtime.
+
+The manifest deliberately omits the Agent Plugins v1 `$schema`. Its top-level
+`skills` and `extensions` arrays use the CLI's documented
+[legacy manifest fields](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference#legacy-manifest-fields).
+CLI 1.0.91 ignores those fields when that `$schema` selects the canonical v1
+format. Keep the legacy manifest until its paths are migrated together to a
+client-compatible canonical configuration.
 
 ## Resources
 

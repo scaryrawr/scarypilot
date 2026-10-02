@@ -2,7 +2,7 @@ import type { CopilotSession } from "@github/copilot-sdk";
 import { joinSession } from "@github/copilot-sdk/extension";
 import { createPstackCommand } from "./command.ts";
 import { createCwdRef } from "./extension-context.ts";
-import { pstackWorkflows, pstackWorkflowAgents } from "./workflows/index.ts";
+import { createPstackWorkflows, pstackWorkflowAgents } from "./workflows/index.ts";
 import { handoffAdditionalContext } from "./handoff.ts";
 import { createPstackService } from "./service.ts";
 import { createCapabilitiesTool } from "./tools/capabilities.ts";
@@ -11,6 +11,7 @@ import { createInspectWorktreesTool } from "./tools/inspect-worktrees.ts";
 import { createRecordVerificationTool } from "./tools/record-verification.ts";
 import { createStatusTool } from "./tools/status.ts";
 import { createValidatePlanTool } from "./tools/validate-plan.ts";
+import { createValidateArtifactTool } from "./tools/validate-artifact.ts";
 
 type SessionOptions = NonNullable<Parameters<typeof joinSession>[0]>;
 
@@ -70,13 +71,14 @@ export function createPstackExtensionRegistration(): PstackExtensionRegistration
       createStatusTool(service),
       createCapabilitiesTool(service),
       createValidatePlanTool(service),
+      createValidateArtifactTool(cwdRef),
       createRecordVerificationTool(service),
       createInspectWorktreesTool(service),
       createHandoffTool(service),
     ],
     commands: [command],
     customAgents: pstackWorkflowAgents,
-    workflows: pstackWorkflows,
+    workflows: createPstackWorkflows(cwdRef),
   };
 
   return {
