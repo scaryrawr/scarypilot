@@ -79,11 +79,15 @@ a native scope failure.
 
 Native registration and handler execution were verified in the Copilot app's
 `1.0.90-0` host through a temporary scoped loader and local HTTP fixtures.
-Marketplace installation and standalone CLI discovery are not verified.
-Standalone CLI `1.0.91` exposed no native tools through `--plugin-dir` during
-verification, even with the legacy manifest correction. If your host does not
-expose the tools, use the coordinated `ado-work-items.py search`, `query`, and
-`get` helpers described in
+Standalone CLI `1.0.91` also discovered the actual plugin and completed all three
+Boards tools with credential/HTTP fixtures in disposable profiles, both through
+`--plugin-dir` and installation from a local test marketplace containing the
+exact PR artifacts. No loader or SDK stub was used for these standalone checks.
+An earlier invocation exposed no extensions; its cause remains
+unestablished and that failure did not reproduce in the disposable profiles.
+Installation from the published ScaryPilot marketplace and authenticated Azure
+service behavior remain unverified. If your host does not expose the tools, use
+the coordinated `ado-work-items.py search`, `query`, and `get` helpers described in
 [work item operations](skills/azure-devops/references/work-items.md).
 
 Example prompts:
