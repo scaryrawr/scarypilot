@@ -143,8 +143,35 @@ Read-only swarms use `run_dynamic_workflow` and `dynamic_workflows_manage`.
 The host must expose these experimental tools; a CLI version alone does not
 guarantee they are enabled.
 The extension targets SDK 1.0.16 and registers its worker and workflow together
-through `joinSession({ customAgents, workflows })`. The workflow name and v1
-argument/result contracts are unchanged.
+through `joinSession({ customAgents, workflows })`. The workflow name and
+legacy v1 arguments and results remain supported.
+
+The optional v1 `inputFiles` manifest pins 1-128 explicitly declared workspace
+files. For example, add `"inputFiles": ["src/api.ts", "tests/api.test.ts"]`
+to the swarm arguments. Missing files, directories, symlinks, outside paths,
+URLs, traversal, and duplicate canonical targets raise workflow errors before
+worker admission. Pinned reads use the same native confined reader as artifact
+validation and require macOS or Linux.
+
+Pinned results add `pinnedInputSnapshot` with `schemaVersion: 1`,
+`workspace: { root, dev, ino }`, and
+`files: [{ path, sha256 }]` in manifest order. `root` and `path` are canonical
+absolute paths. Directory device and inode identifiers are decimal strings.
+Digests cover exact file bytes, not decoded text. The first attempt journals
+that snapshot. Fresh reads outside the journal precede worker admission,
+aggregation, and result return, including on resume. Drift in workspace
+identity, canonical paths, or declared bytes raises an error rather than
+returning memoized results. Unchanged inputs allow existing workers and
+aggregate results to replay. Changed inputs require a new run.
+
+This guarantee covers only declared file bytes and workspace identity at
+workflow boundaries. It does not cover the whole repository, undeclared
+reads, or a transient edit restored between checks. It does not provide
+immutable worker inputs. Legacy runs without a manifest have no freshness
+guarantee. Neither a recorded SHA, digest, path, evidence string, nor a
+`PASS` proves truth. `ISSUES` still counts as completed coverage, and empty
+evidence still needs caller review. The swarm skill's Phase C remains the
+evidence-acceptance boundary.
 
 Artifact validation is a separate read-only increment. The CLI and native
 tool share [`artifact-rules.mjs`](./skills/pstack-schema-validate/scripts/artifact-rules.mjs)

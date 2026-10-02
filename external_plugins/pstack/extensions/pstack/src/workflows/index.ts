@@ -1,5 +1,8 @@
-import { pstackSwarmWorkflow, pstackSwarmWorkerAgent } from "./swarm.ts";
+import type { CwdRef } from "../extension-context.ts";
+import { createPstackSwarmWorkflow, pstackSwarmWorkerAgent } from "./swarm.ts";
 
-export const pstackWorkflows = [pstackSwarmWorkflow];
+export function createPstackWorkflows(cwdRef: CwdRef) {
+  return [createPstackSwarmWorkflow(cwdRef)];
+}
 
 export const pstackWorkflowAgents = [pstackSwarmWorkerAgent];
