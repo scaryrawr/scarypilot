@@ -118,6 +118,10 @@ export function checkBoardsValue<S extends TSchema>(schema: S, value: BridgeJson
 }
 
 export function validateBoardsScope(projectName: string): void {
+  if (/[\ud800-\udfff]/u.test(projectName)) {
+    throw new Error("Invalid Azure Boards project Unicode");
+  }
+
   let decoded = projectName;
 
   for (let pass = 0; pass < 4; pass++) {

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createBridgeTransport, type BridgeJson } from "../src/ado-bridge.ts";
+import { validateBoardsScope } from "../src/boards-schema.ts";
 import { createAdoWorkItemGetTool, createAdoWorkItemQueryTool, createAdoWorkItemSearchTool } from "../src/boards-tools.ts";
 
 const scope = { org: "example", project: "Project & 日本語" };
@@ -102,6 +103,7 @@ describe("caller-visible Azure Boards tools", () => {
     { project: "" }, { project: "  " }, { project: "." }, { project: ".." }, { project: "one/two" },
     { project: "one\\two" }, { project: "%2Fescape" }, { project: "%252e%252e" }, { project: "Project\n" },
     { project: "%2f%" }, { project: "%2f%ff" }, { project: "%255c%" },
+    { project: "\ud800" }, { project: "\udfff" }, { project: "Project\ud800X" },
   ])("rejects unsafe scope on all three caller boundaries %#", async (invalid) => {
     for (const [factory, input] of [
       [createAdoWorkItemSearchTool, searchInput], [createAdoWorkItemQueryTool, queryInput], [createAdoWorkItemGetTool, getInput],
@@ -118,9 +120,23 @@ describe("caller-visible Azure Boards tools", () => {
     await expect(bridge({ operation: "workItemSearch", ...scope, text: " ", top: 25 })).rejects.toThrow("Invalid Azure Boards data");
     await expect(bridge({ operation: "workItemGet", ...scope, id: 0 })).rejects.toThrow("Invalid Azure Boards data");
     await expect(bridge({ operation: "workItemQuery", ...scope, project: "%2f", wiql: "SELECT" })).rejects.toThrow("project path");
+    await expect(bridge({ operation: "workItemQuery", ...scope, project: "\ud800", wiql: "SELECT" })).rejects.toThrow("project");
     const unknownProperties = { operation: "workItemGet" as const, ...scope, id: 42, unexpected: true };
     await expect(bridge(unknownProperties)).rejects.toThrow("Invalid Azure Boards data");
     expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it("accepts well-formed supplementary Unicode project names without rejecting surrogate pairs", async () => {
+    const project = "Project \ud83d\ude80";
+
+    expect(() => validateBoardsScope(project)).not.toThrow();
+
+    const bridge = vi.fn(async (): Promise<BridgeJson> => queryResult);
+
+    expect(await invoke(createAdoWorkItemQueryTool(bridge), { ...queryInput, project })).toMatchObject({
+      resultType: "success",
+    });
+    expect(bridge).toHaveBeenCalledExactlyOnceWith({ operation: "workItemQuery", ...queryInput, project, top: 25 });
   });
 
   it.each([

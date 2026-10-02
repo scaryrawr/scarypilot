@@ -30,6 +30,8 @@ def string(value: Any, label: str, limit: int, *, blank: bool = False) -> str:
 
 def project_name(value: Any) -> str:
     value = string(value, "project", 4096)
+    if any(0xD800 <= ord(char) <= 0xDFFF for char in value):
+        raise AdoError("invalid Azure Boards project Unicode")
     decoded = value
     for _ in range(4):
         next_value = urllib.parse.unquote(decoded)

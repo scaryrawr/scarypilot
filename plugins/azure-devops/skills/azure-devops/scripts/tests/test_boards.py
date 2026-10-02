@@ -111,6 +111,7 @@ class BoardsTests(unittest.TestCase):
             {"project": "one/two"}, {"project": "one\\two"}, {"project": "%2Fescape"},
             {"project": "%252e%252e"}, {"project": "Project\n"}, {"extra": True},
             {"project": "%2f%"}, {"project": "%2f%ff"}, {"project": "%255c%"},
+            {"project": "\ud800"}, {"project": "\udfff"}, {"project": "Project\ud800X"},
         ]
         invalid = [{**request, **change} for request in (SEARCH, QUERY, GET) for change in invalid_scope]
         invalid.extend({**SEARCH, **change} for change in [
@@ -132,6 +133,13 @@ class BoardsTests(unittest.TestCase):
                 with self.assertRaises(AdoError):
                     bridge.dispatch(request)
         self.assertEqual((self.auth_calls, self.calls), (0, []))
+
+    def test_supplementary_unicode_project_is_valid_and_encodes_before_request(self):
+        project = "Project \U0001f680"
+        result = self.dispatch({**GET, "project": project},
+                               response(get_result(fields={"System.TeamProject": project, "System.Title": "Unicode"})))
+        self.assertEqual(result["fields"], {"System.Title": "Unicode"})
+        self.assertIn("/Project%20%F0%9F%9A%80/_apis/", self.calls[0][0])
 
     def test_search_exact_shape_total_count_and_encoded_project_url(self):
         result = self.dispatch({**SEARCH, "types": ["Bug"], "areas": [PROJECT + "\\Client"], "top": 1},
