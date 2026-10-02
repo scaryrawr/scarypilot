@@ -3,8 +3,10 @@ import { fileURLToPath } from "node:url";
 
 const tests = fileURLToPath(new URL("../tests/recording.test.ts", import.meta.url));
 
+const outputTests = fileURLToPath(new URL("../tests/output.test.ts", import.meta.url));
+
 const result = spawnSync(process.execPath, [
-  "--test", "--experimental-strip-types", "--test-reporter=tap", tests,
+  "--test", "--experimental-strip-types", "--test-reporter=tap", tests, outputTests,
 ], {
   encoding: "utf8",
   timeout: 120000,

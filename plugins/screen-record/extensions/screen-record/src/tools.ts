@@ -26,12 +26,19 @@ export function defaultRuntime(): RecorderRuntime {
   };
 }
 
+// JSON can use six ASCII bytes per UTF-16 unit (controls/lone surrogates).
+// The device listing dominates even the 128-entry, pretty-printed Windows schema.
+export const RECORDER_MAX_BUFFER = 6 * DeviceDiscoverySchema.properties.listing.maxLength! +
+  Buffer.byteLength(JSON.stringify({
+    platform: "darwin", captureDevice: "avfoundation", listing: "", permissionsVerified: false,
+  })) + 1;
+
 export function runRecorder<S extends TSchema>(
   runtime: RecorderRuntime, args: string[], timeout: number, schema: S, signal?: AbortSignal,
 ): Promise<Static<S>> {
   return new Promise((accept, reject) => {
     execFile("node", [runtime.script, ...args], {
-      cwd: runtime.cwd, env: runtime.env, timeout, maxBuffer: 262144, windowsHide: true, signal,
+      cwd: runtime.cwd, env: runtime.env, timeout, maxBuffer: RECORDER_MAX_BUFFER, windowsHide: true, signal,
     }, (error, stdout, stderr) => {
       if (error) {
         reject(new Error(

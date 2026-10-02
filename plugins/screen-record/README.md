@@ -181,6 +181,22 @@ SAPI helper in its freshness inputs. Process tests use fixture media
 subprocesses and never capture screen or audio. Real capture requires explicit
 user approval and OS permission.
 
+The native CLI transport allows **1,572,958 bytes per output stream**:
+`6 * 262144 + 93 + 1`. JSON escaping can consume six ASCII bytes per UTF-16
+unit (control characters or lone surrogates), which also covers UTF-8's
+three-byte BMP and four-byte supplementary characters. The longest device
+envelope (`darwin`/`avfoundation`, empty listing) is 93 bytes, plus the CLI
+newline. Inner FFmpeg listing bounds remain 256 KiB and schema limits are
+unchanged. The pretty-printed Windows schema maximum is 1,050,132 bytes:
+128 entries with 46-character IDs, 1024-character titles, 260-character
+process names, maximally escaped strings, longest serialized integer fields
+(up to 24 bytes including a sign), and the fixed envelope/newline. Diagnostics
+and recording-state shapes are smaller. The PowerShell subprocess remains
+bounded at 1 MiB; arbitrary oversized output still fails at the transport cap.
+Capture-free contracts exercise both real discovery CLI serializers through
+the native adapter, invalid/oversized output, and isolated shipped-bundle
+dispatch. Discovery-only platform fixtures do not claim real OS capture proof.
+
 The dedicated [screen recording CI workflow](../../.github/workflows/screen-record-ci.yml)
 runs the capture-free contract suite on Ubuntu, macOS, and Windows with pinned
 Node.js 22.18.0. It checks locked dependencies, types, shipped helper-aware bundle

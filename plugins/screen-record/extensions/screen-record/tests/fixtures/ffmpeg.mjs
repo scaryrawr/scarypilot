@@ -11,7 +11,16 @@ if (args.includes("-version")) {
 } else if (args.includes("-devices")) {
   console.log(" D  avfoundation AVFoundation input\n D  x11grab X11 input\n D  gdigrab desktop input");
 } else if (args.includes("-list_devices")) {
-  if (mode === "device-enumeration-error-only") {
+  if (mode === "device-escaping-limit" || mode === "device-output-overflow") {
+    const marker = "AVFoundation video devices:\nDirectShow video devices\n";
+    const pattern = '"\\\0\u0001漢';
+    const size = 262144 + (mode === "device-output-overflow" ? 1 : 0);
+    const tail = pattern.repeat(Math.ceil(size / Buffer.byteLength(pattern)));
+    const bytes = Buffer.from(marker + tail);
+
+    process.stderr.write(bytes.subarray(0, size));
+    process.exitCode = 1;
+  } else if (mode === "device-enumeration-error-only") {
     console.error("Could not enumerate video devices (or none found).\nCould not enumerate audio devices (or none found).");
     process.exitCode = 1;
   } else if (mode === "device-failure") {

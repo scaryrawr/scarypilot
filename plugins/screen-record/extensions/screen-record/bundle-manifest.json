@@ -2,17 +2,17 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "77b00203f6668d0dea1ccf1cbe42c67f8c92c73409c1881f9035d1558377f89b",
-    "package.json": "f737addfbf5c145922f9454fb80fc3fb7f32e1cb9c5b4c25bb742fd47b6eede4",
+    "package-lock.json": "15c23061ac6936de519c09fb7f0bf7ad4dc26225e2496dc02d7e4c096770efd3",
+    "package.json": "e2fb621e928cf49ff15ebb8c5de9e30615bb93e9f3ecabba687421f2a93d8c7c",
     "src/domain.ts": "96dab4746b0ecb55d8bd675154867bd4b4d50e32833cc60a7321ee2838448be7",
     "src/extension.ts": "353b1145275f91aafe1aa0aea850e7ffbad3bca9acfa8bc43b2fbc5e06085d38",
-    "src/tools.ts": "2f7fc5835a655fef67e24d083c1c9b65854807266d9bc2254eac22f5cde432c9",
+    "src/tools.ts": "bc24fa791289a9a242d94c8872d46d3e5a9e38818b6375d89df0a813581b2368",
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5",
     "../../skills/screen-record/scripts/sapi-narrate.ps1": "c9930a8c7c088074d08c7914d18450c5a4b47b0930c4a5ef178642b6b847e156",
     "../../skills/screen-record/scripts/screen-record.mjs": "3523fe5e65e593f0829a1b92a4cc0fa433e7f5c8170543197f96dbd7e69a3bdf",
     "../../skills/screen-record/scripts/windows-enumerate.ps1": "673851dbe5681b02fc9ea33a98c9ad4d4b2b8658ca93e97383b1b83e29c9bbb7"
   },
   "outputs": {
-    "dist/extension.mjs": "cd837635e34d141084f6cde550061e1011e03e9822e77b5194fc978f266966ae"
+    "dist/extension.mjs": "e8268718813e0fda21bf0f1058449934e74da7f2aa1ae1de911bb3f32b836ccf"
   }
 }

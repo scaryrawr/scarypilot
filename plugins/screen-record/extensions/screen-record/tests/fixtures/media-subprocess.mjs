@@ -9,6 +9,12 @@ const spawnSync = childProcess.spawnSync;
 
 const mediaFixture = fileURLToPath(new URL("./ffmpeg.mjs", import.meta.url));
 
+if (process.env.RECORDER_FIXTURE_DISCOVERY_PLATFORM && (
+  process.argv.includes("devices") || process.argv.includes("windows")
+)) {
+  Object.defineProperty(process, "platform", { value: process.env.RECORDER_FIXTURE_DISCOVERY_PLATFORM });
+}
+
 if (process.env.RECORDER_FIXTURE_UNKNOWN_OWNER === "1") process.getuid = undefined;
 
 const lstat = fs.lstatSync;
@@ -153,7 +159,8 @@ childProcess.spawnSync = (command, args = [], options) => {
 };
 
 function fixturePowerShell(command, args, options) {
-  if (process.env.RECORDER_FIXTURE_WINDOWS_JSON === undefined ||
+  if ((process.env.RECORDER_FIXTURE_WINDOWS_JSON === undefined &&
+    process.env.RECORDER_FIXTURE_WINDOWS_FILE === undefined) ||
     !["pwsh.exe", "powershell.exe"].includes(command.split(/[\\/]/).at(-1).toLowerCase())) {
     return undefined;
   }
@@ -174,7 +181,9 @@ function fixturePowerShell(command, args, options) {
   const windows = process.env.RECORDER_FIXTURE_MODE === "window-disappears-worker" &&
       process.argv.includes("_capture")
     ? JSON.stringify({ windows: [], uninspectableCount: 0 })
-    : process.env.RECORDER_FIXTURE_WINDOWS_JSON;
+    : process.env.RECORDER_FIXTURE_WINDOWS_FILE
+      ? readFile(process.env.RECORDER_FIXTURE_WINDOWS_FILE, "utf8")
+      : process.env.RECORDER_FIXTURE_WINDOWS_JSON;
 
   return { pid: process.pid, output: [null, windows, ""], stdout: windows, stderr: "", status: 0, signal: null };
 }
