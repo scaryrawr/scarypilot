@@ -60,6 +60,21 @@ ScaryPilot changed the integration layer for GitHub Copilot:
   and the trims assume a specific upstream model's behavior.
 - Migrated the native swarm to Copilot SDK 1.0.16's dynamic workflow API and
   updated its tool instructions while preserving the v1 swarm contract.
+- Added the read-only `pstack_validate_artifact` tool for snapshots, receipts,
+  handoffs, and plans. Extracted shared JSON validation rules from the
+  Copilot-owned schema-validation CLI and kept the existing shared plan rules.
+  Preserved `pstack_validate_plan`, its callers, and the standalone validator's
+  positional handling. Confined native reads use
+  macOS all-component no-follow opens or Linux pinned directory descriptors.
+  Unsupported platforms fail explicitly.
+  Updated the Copilot-owned schema-validation skill to prefer the native tool
+  with a CLI fallback.
+  `contracts`, `extensions`, and `skills/pstack-schema-validate` remain
+  Copilot-owned in `upstream-sync.json`. The upstream revision is unchanged.
+- Removed the canonical Agent Plugins `$schema` selector from the Copilot
+  manifest. Copilot's legacy format supports the existing native extension
+  paths and root agent and skill fields. The canonical selector gives
+  `extensions` a different namespace-based meaning.
 
 The upstream guide is included with Copilot-specific installation, agent,
 automation, path, and verification instructions. Cursor-only screenshots and

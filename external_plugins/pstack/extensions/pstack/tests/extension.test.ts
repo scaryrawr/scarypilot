@@ -25,6 +25,7 @@ describe("pstack extension", () => {
       "pstack_status",
       "pstack_capabilities",
       "pstack_validate_plan",
+      "pstack_validate_artifact",
       "pstack_record_verification",
       "pstack_inspect_worktrees",
       "pstack_handoff",

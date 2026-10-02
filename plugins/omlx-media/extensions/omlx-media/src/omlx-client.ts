@@ -16,6 +16,13 @@ import {
 
 const REQUEST_TIMEOUT_MS = 300_000;
 
+export interface OmlxClientOptions {
+  signal?: AbortSignal;
+  requestTimeoutMs?: number;
+  maxResponseBytes?: number;
+  recording?: { allowRemote: boolean };
+}
+
 const JsonValueSchema = Type.Recursive((self) =>
   Type.Union([
     Type.Boolean(),
@@ -188,14 +195,37 @@ export class OmlxClient {
   private readonly baseUrl: string;
   private readonly apiKey?: string;
   private readonly fetchImplementation: FetchImplementation;
+  private readonly options: OmlxClientOptions;
 
   constructor(
     environment: NodeJS.ProcessEnv,
     fetchImplementation: FetchImplementation = fetch,
+    options: OmlxClientOptions = {},
   ) {
     this.baseUrl = (environment.OMLX_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
     this.apiKey = environment.OMLX_API_KEY;
     this.fetchImplementation = fetchImplementation;
+    this.options = options;
+
+    if (options.recording) {
+      let endpoint: URL;
+
+      try {
+        endpoint = new URL(this.baseUrl);
+      } catch {
+        throw new OmlxToolError("INVALID_ENDPOINT", "OMLX_BASE_URL must be an absolute HTTP(S) URL");
+      }
+
+      if (!["http:", "https:"].includes(endpoint.protocol) || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
+        throw new OmlxToolError("INVALID_ENDPOINT", "OMLX_BASE_URL must be HTTP(S) without credentials, query or fragment");
+      }
+
+      const loopback = endpoint.hostname === "[::1]" || /^127(?:\.\d{1,3}){3}$/.test(endpoint.hostname);
+
+      if (!loopback && !options.recording.allowRemote) {
+        throw new OmlxToolError("REMOTE_ENDPOINT_FORBIDDEN", "Recording preparation requires a literal loopback OMLX endpoint (127.0.0.0/8 or ::1). Set allow_remote=true only with explicit consent to send audio remotely.");
+      }
+    }
   }
 
   private headers(json: boolean): HeadersInit {
@@ -210,13 +240,24 @@ export class OmlxClient {
 
   private async request(url: string, init: RequestInit): Promise<Response> {
     let response: Response;
+    const signal = this.requestSignal(init.signal);
 
     try {
       response = await this.fetchImplementation(url, {
         ...init,
-        signal: init.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        redirect: this.options.recording ? "error" : init.redirect,
+        signal,
       });
     } catch (error) {
+      if (this.options.signal?.aborted) {
+        if (this.options.signal.reason instanceof OmlxToolError) throw this.options.signal.reason;
+        throw new OmlxToolError("CANCELLED", "Media preparation was cancelled");
+      }
+
+      if (this.options.recording && error instanceof Error && error.name === "TimeoutError") {
+        throw new OmlxToolError("REQUEST_TIMEOUT", "OMLX request exceeded its deadline");
+      }
+
       throw new OmlxToolError(
         "OMLX_UNREACHABLE",
         `Could not reach OMLX at ${this.baseUrl}: ${error instanceof Error ? error.message : String(error)}`,
@@ -224,7 +265,7 @@ export class OmlxClient {
     }
 
     if (!response.ok) {
-      const text = await response.text();
+      const text = await this.responseText(response, signal);
       let message = response.statusText || `HTTP ${response.status}`;
 
       try {
@@ -246,8 +287,9 @@ export class OmlxClient {
   }
 
   private async requestJson(url: string, init: RequestInit): Promise<JsonValue> {
-    const response = await this.request(url, init);
-    const text = await response.text();
+    const signal = this.requestSignal(init.signal);
+    const response = await this.request(url, { ...init, signal });
+    const text = await this.responseText(response, signal);
     let payload: JsonValue;
 
     try {
@@ -269,6 +311,73 @@ export class OmlxClient {
     return payload;
   }
 
+  private requestSignal(signal?: AbortSignal | null): AbortSignal {
+    const signals = [AbortSignal.timeout(this.options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS)];
+
+    if (this.options.signal) signals.push(this.options.signal);
+
+    if (signal) signals.push(signal);
+
+    return AbortSignal.any(signals);
+  }
+
+  private async responseText(response: Response, signal?: AbortSignal): Promise<string> {
+    if (!this.options.maxResponseBytes) return response.text();
+    const reader = response.body?.getReader();
+
+    if (!reader) return "";
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    let cancellation: Promise<void> | undefined;
+    const abort = () => { cancellation = reader.cancel(); };
+
+    signal?.addEventListener("abort", abort, { once: true });
+
+    try {
+      signal?.throwIfAborted();
+
+      while (true) {
+        const part = await reader.read();
+
+        signal?.throwIfAborted();
+
+        if (part.done) break;
+        size += part.value.byteLength;
+
+        if (size > this.options.maxResponseBytes) {
+          await reader.cancel();
+          throw new OmlxToolError("RESPONSE_SIZE_LIMIT", "OMLX JSON response exceeded its 1 MiB limit");
+        }
+
+        chunks.push(part.value);
+      }
+
+      return Buffer.concat(chunks).toString("utf8");
+    } catch (error) {
+      if (this.options.signal?.aborted) {
+        if (this.options.signal.reason instanceof OmlxToolError) throw this.options.signal.reason;
+        throw new OmlxToolError("CANCELLED", "Media preparation was cancelled");
+      }
+
+      if (this.options.recording && (
+        (signal?.aborted && signal.reason instanceof Error && signal.reason.name === "TimeoutError") ||
+        (error instanceof Error && error.name === "TimeoutError")
+      )) {
+        throw new OmlxToolError("REQUEST_TIMEOUT", "OMLX response exceeded its deadline");
+      }
+
+      throw error;
+    } finally {
+      signal?.removeEventListener("abort", abort);
+
+      try {
+        await cancellation;
+      } finally {
+        reader.releaseLock();
+      }
+    }
+  }
+
   private async models(): Promise<ModelInfo[]> {
     const payload = await this.requestJson(`${this.baseUrl}/v1/models/status`, {
       method: "GET",
@@ -281,6 +390,10 @@ export class OmlxClient {
 
     return payload.models.flatMap((model) => {
       const parsed = parseModel(model);
+
+      if (this.options.recording && (!parsed || !parsed.id.trim())) {
+        throw new OmlxToolError("INVALID_MODEL_STATUS", "OMLX model status contained malformed model metadata");
+      }
 
       return parsed ? [parsed] : [];
     });
@@ -352,6 +465,7 @@ export class OmlxClient {
     } catch (error) {
       if (
         requested &&
+        !this.options.recording &&
         error instanceof OmlxToolError &&
         ["INVALID_MODEL_STATUS", "OMLX_REQUEST_FAILED"].includes(error.code)
       ) {
@@ -421,7 +535,7 @@ export class OmlxClient {
     return audio;
   }
 
-  async transcribe(args: OmlxTranscriptionArgs, model: string): Promise<string> {
+  async transcribe(args: Omit<OmlxTranscriptionArgs, "output">, model: string): Promise<string> {
     const form = new FormData();
     form.set("model", model);
     form.set("response_format", "json");
