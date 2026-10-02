@@ -102,8 +102,16 @@ window or that capture permissions are available.
 Recording state lives in a user-scoped temporary directory (UID on Unix, user identity
 hash on Windows). Existing same-owner legacy state for that output remains
 readable in its original directory; foreign legacy directories are not adopted.
+Legacy lookup also recognizes the original resolve-based path key for recordings
+started through a symlinked parent; supply that original path to status/stop.
 PowerShell candidate probes have a one-second timeout and 16 KiB output bound;
 non-missing probe errors are reported before trying the next candidate.
+
+Controller state-write or stop-request-read failures trigger graceful FFmpeg
+shutdown before further persistence attempts. If terminal state can be saved, it
+reports `failed` even when FFmpeg exits cleanly; if storage remains unavailable,
+status may remain `stale`. Inspect the controller log and retained output rather
+than assuming a successful recording. No process is force-killed.
 
 Start returns a `recordingId`, output, worker and FFmpeg PIDs, timestamps, and
 state/log paths. The worker is detached from the tool and extension. A recording

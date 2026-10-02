@@ -79,8 +79,10 @@ function workspaceOutput(runtime: RecorderRuntime, value: string): string {
 }
 
 function targetArgs(runtime: RecorderRuntime, input: RecordingTarget): string[] {
+  workspaceOutput(runtime, input.output);
+
   return [
-    "--output", workspaceOutput(runtime, input.output),
+    "--output", resolve(runtime.cwd, input.output),
     ...(input.recordingId ? ["--recording-id", input.recordingId] : []),
   ];
 }

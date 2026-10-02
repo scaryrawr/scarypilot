@@ -11,6 +11,42 @@ const mediaFixture = fileURLToPath(new URL("./ffmpeg.mjs", import.meta.url));
 
 const lstat = fs.lstatSync;
 
+const writeFile = fs.writeFileSync;
+
+const rename = fs.renameSync;
+
+let persistenceFailed = false;
+
+function failPersistence(path, operation) {
+  if (!process.argv.includes("_capture") || !process.env.RECORDER_FIXTURE_PERSISTENCE_MARKER ||
+    !fs.existsSync(process.env.RECORDER_FIXTURE_PERSISTENCE_MARKER) ||
+    !/\.json\..+\.tmp$/.test(String(path))) return;
+
+  const mode = process.env.RECORDER_FIXTURE_MODE;
+
+  if ((mode === "heartbeat-write-failure" && operation === "write" && !persistenceFailed) ||
+    (mode === "heartbeat-rename-failure" && operation === "rename")) {
+    persistenceFailed = true;
+
+    const error = new Error(`fixture heartbeat ${operation} failure`);
+
+    error.code = operation === "write" ? "ENOSPC" : "EACCES";
+    throw error;
+  }
+}
+
+fs.writeFileSync = (path, ...args) => {
+  failPersistence(path, "write");
+
+  return writeFile(path, ...args);
+};
+
+fs.renameSync = (source, destination) => {
+  failPersistence(source, "rename");
+
+  return rename(source, destination);
+};
+
 fs.lstatSync = (path, options) => {
   const result = lstat(path, options);
 

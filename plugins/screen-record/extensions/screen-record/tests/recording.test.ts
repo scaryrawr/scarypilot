@@ -552,6 +552,88 @@ test("foreign legacy state cannot block user-scoped recording and same-owner sta
   }
 });
 
+test("heartbeat persistence failures gracefully stop media and surface failure without orphaning capture", async () => {
+  for (const mode of ["heartbeat-write-failure", "heartbeat-rename-failure"]) {
+    const fixture = await setup(mode);
+    let recording: RecordingState | undefined;
+
+    try {
+      const marker = join(fixture.root, "fail-heartbeat");
+
+      fixture.runtime.env.RECORDER_FIXTURE_PERSISTENCE_MARKER = marker;
+      recording = await start(fixture.runtime);
+      assert.ok("workerPid" in recording);
+
+      await writeFile(marker, "inject persistence failure after readiness");
+
+      const deadline = Date.now() + 4000;
+
+      let current = await call(fixture.runtime, "screen_record_status", { output: recording.output });
+
+      while (Date.now() < deadline && ["recording", "stopping"].includes(JSON.parse(current.textResultForLlm).status)) {
+        await sleep(100);
+        current = await call(fixture.runtime, "screen_record_status", { output: recording.output });
+      }
+
+      assert.equal(current.resultType, "success", current.textResultForLlm);
+      assert.equal(await readFile(`${recording.output}.stop-requested`, "utf8"), "graceful stdin stop");
+
+      for (const pid of [recording.workerPid, recording.ffmpegPid]) {
+        assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+      }
+
+      assert.match(await readFile(recording.logPath, "utf8"), /fixture heartbeat .* failure/);
+
+      const final: { status: string; exitCode?: number } = JSON.parse(current.textResultForLlm);
+
+      assert.equal(final.status, mode === "heartbeat-write-failure" ? "failed" : "stale");
+
+      if (final.status === "failed") assert.equal(final.exitCode, 1);
+    } finally {
+      if (recording) await stop(fixture.runtime, recording);
+      await fixture.cleanup();
+    }
+  }
+});
+
+test("legacy resolve-based symlink identities remain discoverable and stoppable", async () => {
+  const fixture = await setup();
+
+  try {
+    const directory = join(fixture.runtime.cwd, "real");
+    const alias = join(fixture.runtime.cwd, "alias");
+    const output = join(alias, "legacy.mp4");
+    const legacy = join(fixture.runtime.env.TMPDIR!, "scarypilot-screen-record");
+    const oldId = createHash("sha256").update(resolve(output)).digest("hex").slice(0, 16);
+
+    await mkdir(directory);
+    await symlink(directory, alias, process.platform === "win32" ? "junction" : "dir");
+    await mkdir(legacy);
+    await writeFile(join(legacy, `${oldId}.log`), "");
+
+    const cli = spawnSync(process.execPath, [script, "start", "--output", output, "--video-input", "0"], {
+      cwd: fixture.runtime.cwd, env: fixture.runtime.env, encoding: "utf8", timeout: 7000,
+    });
+
+    assert.equal(cli.status, 0, cli.stderr);
+
+    const recording = state(cli.stdout);
+
+    assert.ok("statePath" in recording);
+    assert.equal(recording.statePath, join(legacy, `${oldId}.json`));
+
+    const current = await call(fixture.runtime, "screen_record_status", { output });
+
+    assert.equal(current.resultType, "success", current.textResultForLlm);
+    assert.equal(state(current.textResultForLlm).status, "recording");
+
+    const stopped = await stop(fixture.runtime, recording);
+
+    assert.equal(stopped.resultType, "success", stopped.textResultForLlm);
+    assert.equal(state(stopped.textResultForLlm).status, "stopped");
+  } finally { await fixture.cleanup(); }
+});
+
 test("PowerShell probe timeout and output overflow are bounded and fall back explicitly", async () => {
   const fixture = await setup();
 

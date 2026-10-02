@@ -37,6 +37,10 @@ if (args.includes("-version")) {
   writeFileSync(output, "fixture raw recording", { flag: "wx" });
   process.stdin.setEncoding("utf8");
   process.stdin.on("data", (text) => {
+    if (text.includes("q") && mode?.startsWith("heartbeat-")) {
+      writeFileSync(`${output}.stop-requested`, "graceful stdin stop");
+    }
+
     if (text.includes("q") && mode !== "slow-stop") process.exit(0);
 
     if (text.includes("q") && mode === "slow-stop") setTimeout(() => process.exit(0), 1200);

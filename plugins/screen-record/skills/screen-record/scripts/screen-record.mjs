@@ -16,6 +16,7 @@ import {
   rmSync,
   statSync,
   writeFileSync,
+  writeSync,
 } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { dirname, extname, relative, resolve } from "node:path";
@@ -251,7 +252,7 @@ function recordingKey(output) {
 }
 
 function recordingPaths(output) {
-  const id = createHash("sha256").update(recordingKey(output)).digest("hex").slice(0, 16);
+  let id = createHash("sha256").update(recordingKey(output)).digest("hex").slice(0, 16);
 
   const user = process.getuid ? String(process.getuid()) :
     createHash("sha256").update(`${userInfo().username}\0${userInfo().homedir}`).digest("hex").slice(0, 16);
@@ -263,8 +264,14 @@ function recordingPaths(output) {
   const ownLegacy = oldDirectory?.isDirectory() &&
     (!process.getuid || oldDirectory.uid === process.getuid());
 
-  const root = ownLegacy && ["json", "lock", "log", "stop"].some((suffix) => existsSync(resolve(legacy, `${id}.${suffix}`)))
-    ? legacy : resolve(tmpdir(), `scarypilot-screen-record-${user}`);
+  const oldId = createHash("sha256").update(resolve(output)).digest("hex").slice(0, 16);
+
+  const legacyId = ownLegacy && [id, oldId].find((candidate) =>
+    ["json", "lock", "log", "stop"].some((suffix) => existsSync(resolve(legacy, `${candidate}.${suffix}`))));
+
+  const root = legacyId ? legacy : resolve(tmpdir(), `scarypilot-screen-record-${user}`);
+
+  if (legacyId) id = legacyId;
 
   mkdirSync(root, { recursive: true, mode: 0o700 });
   const directory = lstatSync(root);
@@ -1172,27 +1179,62 @@ function captureWorker() {
 
   let stopping = false;
   let finalized = false;
+  let controllerError;
+
+  const recordFailure = (error, operation) => {
+    controllerError ??= error;
+
+    const message = `Recording controller ${operation} failed: ${error.message}\n`;
+
+    try {
+      writeSync(logFd, message);
+    } catch (logError) {
+      console.error(`${message.trim()}; could not write controller log: ${logError.message}`);
+    }
+  };
+
+  const persistState = () => {
+    try {
+      writeState(config.state, state);
+    } catch (error) {
+      recordFailure(error, "state persistence");
+      requestStop();
+    }
+  };
 
   const requestStop = () => {
+    if (finalized) return;
+
     if (!stopping && ffmpeg.stdin?.writable) {
       stopping = true;
       state.status = "stopping";
       state.updatedAt = new Date().toISOString();
-      writeState(config.state, state);
-      ffmpeg.stdin.write("q\n");
+
+      try {
+        ffmpeg.stdin.write("q\n");
+      } catch (error) {
+        recordFailure(error, "graceful stop");
+      }
+
+      persistState();
     }
   };
 
   const interval = setInterval(() => {
-    if (existsSync(config.stop)) {
-      const request = readFileSync(config.stop, "utf8").trim();
+    try {
+      if (existsSync(config.stop)) {
+        const request = readFileSync(config.stop, "utf8").trim();
 
-      if (request === config.recordingId || !config.recordingId) requestStop();
-    }
+        if (request === config.recordingId || !config.recordingId) requestStop();
+      }
 
-    if (ffmpeg.pid) {
-      state.updatedAt = new Date().toISOString();
-      writeState(config.state, state);
+      if (ffmpeg.pid && !controllerError) {
+        state.updatedAt = new Date().toISOString();
+        persistState();
+      }
+    } catch (error) {
+      recordFailure(error, "stop request");
+      requestStop();
     }
   }, 200);
 
@@ -1208,31 +1250,58 @@ function captureWorker() {
     clearInterval(interval);
 
     if (error) {
-      writeFileSync(config.log, `Could not start ffmpeg: ${error.message}\n`, {
-        flag: "a",
-      });
+      recordFailure(error, "FFmpeg startup");
     }
 
-    closeSync(logFd);
-    rmSync(config.stop, { force: true });
+    try {
+      rmSync(config.stop, { force: true });
+    } catch (cleanupError) {
+      recordFailure(cleanupError, "stop-file cleanup");
+    }
 
     if (ffmpeg.pid) {
-      state.status = code === 0 && existsSync(config.output) ? "stopped" : "failed";
+      state.status = !controllerError && code === 0 && existsSync(config.output) ? "stopped" : "failed";
       state.endedAt = new Date().toISOString();
       state.updatedAt = state.endedAt;
-      state.exitCode = code;
-      writeState(config.state, state);
+      state.exitCode = controllerError ? 1 : code;
+      persistState();
     }
 
-    rmSync(config.lock, { force: true });
-    process.exit(code);
+    try {
+      if (existsSync(config.lock) && readFileSync(config.lock, "utf8") === config.recordingId) {
+        rmSync(config.lock);
+      }
+    } catch (cleanupError) {
+      recordFailure(cleanupError, "lock cleanup");
+
+      if (ffmpeg.pid) {
+        state.status = "failed";
+        state.exitCode = 1;
+        persistState();
+      }
+    }
+
+    try {
+      closeSync(logFd);
+    } catch (closeError) {
+      recordFailure(closeError, "log close");
+
+      if (ffmpeg.pid) {
+        state.status = "failed";
+        state.exitCode = 1;
+        persistState();
+      }
+    }
+
+    process.exit(controllerError ? 1 : code);
   };
 
   ffmpeg.once("spawn", () => {
-    writeState(config.state, state);
+    persistState();
   });
   ffmpeg.stdin.on("error", (error) => {
-    writeFileSync(config.log, `Could not request graceful stop: ${error.message}\n`, { flag: "a" });
+    recordFailure(error, "graceful stop");
+    requestStop();
   });
   ffmpeg.once("error", (error) => {
     finish(1, error);
