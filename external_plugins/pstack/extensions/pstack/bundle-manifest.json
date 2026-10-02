@@ -26,8 +26,8 @@
     "src/types.ts": "d0705a485718db032881351961a6787827158b867dae96371b7ba01b9b51cee5",
     "src/watch-reader.ts": "b11e63d38e88309266f6edf207aac4cfc10180831a8f7f994866e9a33f83c870",
     "src/workflows/index.ts": "c138bcf7f79fcdceb9d4086d8ec57392eaa3ec0db8dac03df0ac29ae6ca1dd71",
-    "src/workflows/swarm.ts": "4cad12f7bc10fcfc85104e5c950dae37095a8a09025e5b269f22c382d8852e0b",
-    "src/workspace-reader.ts": "3489e7121357fd359b425d8fa68fedfd924a5d3a5f69b005517feb29681a7531",
+    "src/workflows/swarm.ts": "e8b820047ed991fea389397d20d4b578c18dfb10063e2d23a261e44c07ef4301",
+    "src/workspace-reader.ts": "008bca07163364eb85322f1ff9625e84b432d2387d7408086139a756af3c93c5",
     "src/worktrees.ts": "f3a3a019c01663caf78c9a7e2efc9b5142f0d5aff56b2a7fa0b902815ed8bcd8",
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5",
     "../../skills/poteto-mode/scripts/orch/store.ts": "cb865c8db6025ee334b4b3829960445e7d6d957d05ae5a2e8cfad6766c235836",
@@ -35,6 +35,6 @@
     "../../skills/pstack-schema-validate/scripts/artifact-rules.mjs": "7584b25ee79bb5b47bf3e519bda5758dd7e9393d6ff9055e31bfef068fca773d"
   },
   "outputs": {
-    "dist/extension.mjs": "d6ce898218ca662b23ff321eb9a6d4d14a3960d05caf41235ccccd1f33fe0bd3"
+    "dist/extension.mjs": "73905f02d300f8437adcc1ca091e725eb7aa58a2d125c512c8ada11d4792984d"
   }
 }

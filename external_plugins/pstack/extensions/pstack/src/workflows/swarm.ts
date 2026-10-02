@@ -6,10 +6,9 @@ import {
 } from "@github/copilot-sdk/extension";
 import { Type, type Static } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
-import { createHash } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import type { CwdRef } from "../extension-context.ts";
-import { openConfinedFile, readWorkspaceFile, validateWorkspaceFilePath } from "../workspace-reader.ts";
+import { hashWorkspaceFile, openConfinedFile, validateWorkspaceFilePath } from "../workspace-reader.ts";
 
 const CONTRACT_VERSION = 1;
 
@@ -78,7 +77,7 @@ const workerReportSchema = Type.Object({
   ]),
   summary: Type.String(),
   evidence: Type.Array(Type.String()),
-}, { additionalProperties: false }) satisfies WorkflowJsonSchema;
+}) satisfies WorkflowJsonSchema;
 
 const SwarmWorkerResultSchema = Type.Object({
   id: Type.String(),
@@ -273,12 +272,12 @@ async function snapshotInputs(
   const seen = new Set<string>();
 
   for (const path of paths) {
-    const file = await readWorkspaceFile(cwd, path, undefined, true);
+    const file = await hashWorkspaceFile(cwd, path, signal, undefined, true);
     signal.throwIfAborted();
 
     if (seen.has(file.path)) throw new Error(`duplicate canonical input target: ${file.path}`);
     seen.add(file.path);
-    files.push({ path: file.path, sha256: createHash("sha256").update(file.bytes).digest("hex") });
+    files.push(file);
   }
 
   const after = await workspaceIdentity(cwd);

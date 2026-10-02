@@ -269,19 +269,21 @@ describe("pstack-swarm workflow", () => {
     });
   });
 
-  it("blocks reports with extra keys instead of treating them as coverage", async () => {
-    const { ctx, logs } = context(args(), [
+  it("preserves legacy metadata compatibility while stripping extra fields", async () => {
+    const { ctx } = context(args(), [
       { status: "PASS", summary: "Covered.", evidence: [], accepted: true },
       { status: "ISSUES", summary: "Problem.", evidence: ["problem.ts:1"] },
     ]);
 
-    await expect(runSwarmWorkflow(ctx)).resolves.toMatchObject({
-      status: "partial", gaps: ["api"],
+    const result = await runSwarmWorkflow(ctx);
+
+    expect(result).toMatchObject({
+      status: "complete", gaps: [],
       workers: [
-        { id: "api", status: "BLOCKED" },
+        { id: "api", status: "PASS" },
         { id: "tests", status: "ISSUES" },
       ],
     });
-    expect(logs).toContain("Worker api returned an invalid report; BLOCKED.");
+    expect(result.workers[0]).not.toHaveProperty("accepted");
   });
 });

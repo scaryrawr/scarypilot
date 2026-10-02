@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { open, realpath } from "node:fs/promises";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
@@ -48,12 +49,12 @@ export async function openConfinedFile(path: string, openFile: typeof open = ope
   }
 }
 
-export async function readWorkspaceFile(
+async function openWorkspaceFile(
   cwd: string,
   path: string,
   openFile: typeof open = open,
   rejectSymlinks = false,
-): Promise<{ path: string; bytes: Buffer }> {
+) {
   validateWorkspaceFilePath(path);
   const root = await realpath(cwd);
   const target = resolve(cwd, path);
@@ -71,8 +72,60 @@ export async function readWorkspaceFile(
   try {
     if (!(await file.stat()).isFile()) throw new Error("path must name a regular file");
 
-    return { path: resolved, bytes: await file.readFile() };
-  } finally {
+    return { path: resolved, file };
+  } catch (error) {
     await file.close();
+    throw error;
+  }
+}
+
+export async function readWorkspaceFile(
+  cwd: string,
+  path: string,
+  openFile: typeof open = open,
+  rejectSymlinks = false,
+): Promise<{ path: string; bytes: Buffer }> {
+  const authorized = await openWorkspaceFile(cwd, path, openFile, rejectSymlinks);
+
+  try {
+    return { path: authorized.path, bytes: await authorized.file.readFile() };
+  } finally {
+    await authorized.file.close();
+  }
+}
+
+export async function hashWorkspaceFile(
+  cwd: string,
+  path: string,
+  signal: AbortSignal,
+  openFile: typeof open = open,
+  rejectSymlinks = false,
+): Promise<{ path: string; sha256: string }> {
+  signal.throwIfAborted();
+  const authorized = await openWorkspaceFile(cwd, path, openFile, rejectSymlinks);
+
+  try {
+    signal.throwIfAborted();
+    const hash = createHash("sha256");
+    const buffer = Buffer.allocUnsafe(64 * 1024);
+
+    while (true) {
+      signal.throwIfAborted();
+
+      const { bytesRead } = await authorized.file.read({
+        buffer, offset: 0, length: buffer.length, position: null,
+      });
+
+      signal.throwIfAborted();
+
+      if (bytesRead === 0) break;
+      hash.update(buffer.subarray(0, bytesRead));
+    }
+
+    signal.throwIfAborted();
+
+    return { path: authorized.path, sha256: hash.digest("hex") };
+  } finally {
+    await authorized.file.close();
   }
 }

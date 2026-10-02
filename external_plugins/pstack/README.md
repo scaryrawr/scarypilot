@@ -157,7 +157,12 @@ Pinned results add `pinnedInputSnapshot` with `schemaVersion: 1`,
 `workspace: { root, dev, ino }`, and
 `files: [{ path, sha256 }]` in manifest order. `root` and `path` are canonical
 absolute paths. Directory device and inode identifiers are decimal strings.
-Digests cover exact file bytes, not decoded text. The first attempt journals
+Digests cover exact file bytes, not decoded text. Pinning hashes through
+bounded 64 KiB reads and checks cancellation between reads instead of
+buffering whole files. Raw worker reports may include extra metadata;
+normalization retains only status, summary, and evidence. Journaled
+snapshots and normalized aggregate results remain strict.
+The first attempt journals
 that snapshot. Fresh reads outside the journal precede worker admission,
 aggregation, and result return, including on resume. Drift in workspace
 identity, canonical paths, or declared bytes raises an error rather than

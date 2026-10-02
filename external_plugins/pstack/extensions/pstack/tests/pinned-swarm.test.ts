@@ -109,6 +109,17 @@ async function inventory(cwd: string): Promise<Record<string, string>> {
 }
 
 describe("pinned swarm caller contract", () => {
+  it("normalizes extra worker metadata for pinned runs without storing it", async () => {
+    const cwd = await workspace();
+    const { ctx } = journalContext(input(["input.bin"]));
+    vi.mocked(ctx.agent).mockResolvedValue({ ...pass, accepted: true });
+    const result = await runSwarmWorkflow(ctx, cwd);
+
+    expect(result.status).toBe("complete");
+    expect(result.gaps).toEqual([]);
+    expect(result.workers).toEqual([{ id: "first", ...pass }, { id: "second", ...pass }]);
+  });
+
   it("returns ordered canonical paths, directory identity and exact-byte SHA256 without writes", async () => {
     const bytes = Buffer.from([0, 255, 128, 13, 10]);
     const cwd = await workspace(bytes);
