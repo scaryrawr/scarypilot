@@ -8,6 +8,7 @@ plugin includes native image and audio tools plus three skills:
 | `omlx_image` tool + `image-gen` skill | Generate PNG images or edit existing images while keeping model discovery, API calls, and file handling out of the prompt workflow. |
 | `omlx_speech` and `omlx_transcribe` tools + `audio` skill | Generate speech with a local TTS model or transcribe a local audio file with an STT model through OpenAI-compatible audio REST endpoints. |
 | `omlx_transcribe` recording mode and `omlx_prepare_frames` tool + `blogify` skill | Prepare timestamped transcripts and candidate frames locally. Keep takeaways, final screenshot selection, and grounded writing in the skill. |
+| Optional `blogify-grounded-note` dynamic workflow | Return a bounded claim note with an independent factual check. Hosted Copilot workers require separate transcript-transmission consent. |
 
 ## Prerequisites
 
@@ -99,6 +100,33 @@ and retain incomplete artifacts for inspection. Use a new output directory
 when retrying. See the blogify references for
 [transcription](skills/blogify/references/transcription.md) and
 [frame preparation](skills/blogify/references/frames.md).
+
+### Optional independent factual check
+
+`blogify-grounded-note` accepts an absolute complete recording manifest, its
+pinned SHA256, bounded audience/tone/scope intent, and explicit
+`allow_agent_transmission: true`. Local preparation consent does not authorize
+sending transcript text to hosted Copilot workers. The workflow sends only
+projected transcript chunks and bounded intent, not audio, images, or local
+source paths.
+
+One no-tool writer returns cited claims. One independent no-tool checker
+accepts or rejects each claim. Rejection produces an error, not a reviewed
+note. Exact quotes are validated in code; semantic support is a fallible model
+judgment. The transcript's accuracy is not independently established.
+
+The returned JSON contains the draft, verdicts, projected source, and
+deterministically rendered Markdown. Copilot's host owns this durable artifact.
+The extension writes no files and needs no output directory. Successful results
+always remain `user_review_required` with `publication_approved: false`.
+Jargon corrections, images, new prose, and publication approval stay with the
+skill and user.
+
+This workflow is experimental and optional. Enable experimental features in
+CLI and confirm registration before use. If unavailable, use ordinary blogify
+authoring. Direct skill installation does not install the workflow.
+This adds a mandatory independent factual gate, not a demonstrated prose,
+speed, or cost improvement. See the [grounded-note instructions and bounds](skills/blogify/references/grounded-note.md).
 
 ## Development
 

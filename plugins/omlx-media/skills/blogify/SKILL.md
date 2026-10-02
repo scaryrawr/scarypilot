@@ -7,7 +7,7 @@ description: >-
   and grounded drafting from local OpenAI-compatible media models. Not for
   real-time transcription, generic video editing, or non-generative media
   processing.
-allowed-tools: omlx_transcribe omlx_prepare_frames Bash(mkdir:*) Bash(uv run scripts/transcribe.py:*) Bash(uv run scripts/classify_frames.py:*) Bash(uv run scripts/sample_frames.py:*) Bash(uv run scripts/dedupe_frames.py:*) Bash(uv run scripts/extract_frame.py:*) Bash(uv run scripts/crop_frames.py:*)
+allowed-tools: omlx_transcribe omlx_prepare_frames dynamic_workflows_manage run_dynamic_workflow Bash(shasum:*) Bash(mkdir:*) Bash(uv run scripts/transcribe.py:*) Bash(uv run scripts/classify_frames.py:*) Bash(uv run scripts/sample_frames.py:*) Bash(uv run scripts/dedupe_frames.py:*) Bash(uv run scripts/extract_frame.py:*) Bash(uv run scripts/crop_frames.py:*)
 ---
 
 # Blogify workflow
@@ -58,6 +58,14 @@ before drafting. Use `references/authoring.md` for the authoring checklist.
    the reader's voice. Correct mistranscribed jargon against ground truth
    (slides, repo names). Stay grounded. Never invent claims. For long
    recordings, fan out per-topic synthesis to sub-agents.
+   For an optional bounded note with a mandatory independent factual check,
+   follow [the grounded-note workflow](references/grounded-note.md). Confirm
+   `blogify-grounded-note` is registered before invoking it. Obtain separate
+   explicit consent to send this transcript text to hosted Copilot workers.
+   Local OMLX preparation consent does not grant that permission. Use the
+   ordinary skill-guided path when the experimental workflow is unavailable,
+   consent is absent, or the recording exceeds its bounds. Never silently
+   fall back after a factual rejection or validation error.
 3. **Prepare candidate frames** (in parallel with transcription). Prefer
    `omlx_prepare_frames` with `input` and a fresh `output_dir`. It samples a
    bounded set of frames or extracts explicit `seconds`. Read `manifest.json`
@@ -101,6 +109,10 @@ before drafting. Use `references/authoring.md` for the authoring checklist.
 6. **Author the output.** Draft the doc/blog per the requested intent. Add a
    screenshot only where it makes the text easier to understand, placed next to
    the concept, with descriptive alt text. Use `references/authoring.md`.
+   A grounded-note result remains `user_review_required` with
+   `publication_approved: false`. Its independent verdicts cover only the
+   returned claims. Added prose, corrected jargon, images, and final editorial
+   approval still belong here and require their own review.
 7. **If in a repo, wire and validate.** Follow the repo's image/LFS conventions,
    optionally embed the recording/slides, run its markdown lint / link / TOC
    checks, and respect its PR conventions (some repos want changes left in the
