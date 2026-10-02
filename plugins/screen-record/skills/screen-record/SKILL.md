@@ -12,8 +12,10 @@ description: >-
 # Screen recording workflow
 
 Keep source recordings and edited outputs in the user's workspace. Never
-overwrite a source recording. Run `node scripts/screen-record.mjs doctor` before
-the first capture in a session.
+overwrite a source recording. Prefer the native `screen_record_*` tools for
+capture. Run `screen_record_doctor` before the first capture in a session.
+If native tools are unavailable, use the bundled CLI from this skill's
+directory. Editing and narration remain bundled CLI commands.
 
 Read exactly one capture reference for the current host:
 
@@ -33,21 +35,34 @@ Read exactly one capture reference for the current host:
 
 ## Capture
 
-1. Discover inputs when needed:
-   `node scripts/screen-record.mjs devices`.
-2. Start a managed recording:
-   `node scripts/screen-record.mjs start --output <raw.mp4>`.
-   Add platform-specific input options only as documented in the current host's
-   reference.
+1. Discover inputs with `screen_record_devices` when needed. Device discovery
+   can trigger an OS permission prompt. Never grant permissions or bypass OS
+   privacy controls without user approval.
+2. Start with `screen_record_start` only after the user's explicit capture
+   request. Set `output` and `captureApproved: true`. Set `audioDevice` and
+   `audioApproved: true` only if the user requests audio. Use `videoInput`,
+   `fps`, or a `region` object only as documented in the current host's
+   reference. Keep the returned `recordingId`.
 3. Drive the rehearsed shot list. Leave a short pause before the first action,
    after meaningful state changes, and before stopping.
-4. Stop gracefully:
-   `node scripts/screen-record.mjs stop --output <raw.mp4>`.
-   If interrupted, run `status --output <raw.mp4>` before attempting another
-   recording. Do not kill FFmpeg unless graceful stop has failed and the user
-   approves recovery.
+4. Stop gracefully with `screen_record_stop`, passing `output` and
+   `recordingId`. After cancellation, timeout, or extension/session restart,
+   run `screen_record_status` with the same output before retrying. Detached
+   recordings intentionally outlive tool calls and session exit. Stale state
+   or interrupted startup requires inspection and user-approved recovery.
+   Never kill FFmpeg automatically.
 5. Inspect the raw file:
    `node scripts/screen-record.mjs probe --input <raw.mp4>`.
+
+Native diagnostics do not verify screen or microphone permission. A successful
+start verifies process liveness, not captured frames or audio. Review the raw
+file before editing or reporting success.
+
+For the standalone fallback, use `doctor --capture-only`, `devices`, and
+`start --output <raw.mp4>`. Stop with `stop --output <raw.mp4>`, optionally
+adding `--recording-id <id>`. After interruption, use
+`status --output <raw.mp4>`. Do not replace the managed lifecycle with an
+unmanaged FFmpeg process.
 
 ## Edit
 

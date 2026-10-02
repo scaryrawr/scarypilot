@@ -3,14 +3,20 @@
 import { spawn, spawnSync } from "node:child_process";
 import {
   closeSync,
+  chmodSync,
   existsSync,
+  fstatSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readFileSync,
+  readSync,
+  renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { dirname, extname, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -225,12 +231,20 @@ function ensureInput(path) {
 function recordingPaths(output) {
   const id = createHash("sha256").update(resolve(output)).digest("hex").slice(0, 16);
   const root = resolve(tmpdir(), "scarypilot-screen-record");
-  mkdirSync(root, { recursive: true });
+  mkdirSync(root, { recursive: true, mode: 0o700 });
+  const directory = lstatSync(root);
+
+  if (!directory.isDirectory() || (process.getuid && directory.uid !== process.getuid())) {
+    fail(`recording state directory is not a directory owned by this user: ${root}`);
+  }
+
+  if (process.platform !== "win32") chmodSync(root, 0o700);
 
   return {
     state: resolve(root, `${id}.json`),
     stop: resolve(root, `${id}.stop`),
     log: resolve(root, `${id}.log`),
+    lock: resolve(root, `${id}.lock`),
   };
 }
 
@@ -240,7 +254,25 @@ function readState(path) {
   }
 
   try {
-    return JSON.parse(readFileSync(path, "utf8"));
+    if (statSync(path).size > 65536) {
+      throw new Error("state exceeds 64 KiB");
+    }
+
+    const state = JSON.parse(readFileSync(path, "utf8"));
+
+    if (
+      !state ||
+      !["recording", "stopping", "stopped", "failed"].includes(state.status) ||
+      typeof state.output !== "string" ||
+      !Number.isSafeInteger(state.workerPid) || state.workerPid <= 0 ||
+      !Number.isSafeInteger(state.ffmpegPid) || state.ffmpegPid <= 0 ||
+      typeof state.startedAt !== "string" ||
+      (state.recordingId !== undefined && typeof state.recordingId !== "string")
+    ) {
+      throw new Error("unsupported recording state; inspect the state file before recovery");
+    }
+
+    return state;
   } catch (error) {
     fail(`invalid recording state ${path}: ${error.message}`);
   }
@@ -251,9 +283,39 @@ function pidRunning(pid) {
     process.kill(pid, 0);
 
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (error.code === "ESRCH") return false;
+
+    if (error.code === "EPERM") return true;
+    throw error;
   }
+}
+
+function writeState(path, state) {
+  const temporary = `${path}.${randomUUID()}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600, flag: "wx" });
+  renameSync(temporary, path);
+}
+
+function logTail(path) {
+  if (!existsSync(path)) return "";
+  const fd = openSync(path, "r");
+
+  try {
+    const size = fstatSync(fd).size;
+    const buffer = Buffer.alloc(Math.min(size, 16384));
+    readSync(fd, buffer, 0, buffer.length, Math.max(0, size - buffer.length));
+
+    return buffer.toString("utf8");
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function activeState(state) {
+  return ["recording", "stopping"].includes(state.status) &&
+    pidRunning(state.workerPid) && pidRunning(state.ffmpegPid) &&
+    (!state.updatedAt || Date.now() - Date.parse(state.updatedAt) < 5000);
 }
 
 function sleep(milliseconds) {
@@ -297,7 +359,7 @@ async function narrationEngine() {
 }
 
 function ffmpegCaptureArgs(config) {
-  const ffmpegArgs = ["-hide_banner", "-y"];
+  const ffmpegArgs = ["-hide_banner", "-n"];
   const fps = String(config.fps);
   let region;
 
@@ -405,6 +467,43 @@ function ffmpegCaptureArgs(config) {
 }
 
 async function doctor() {
+  if (options["capture-only"]) {
+    const checks = ["ffmpeg", "ffprobe"].map((name) => {
+      const result = spawnSync(name, ["-version"], {
+        encoding: "utf8", windowsHide: true, timeout: 3000, maxBuffer: 262144,
+      });
+
+      if (result.error) fail(`could not check ${name}: ${result.error.message}`);
+
+      if (result.status !== 0) fail(`${name} -version exited with code ${result.status}`);
+
+      return true;
+    });
+
+    const result = spawnSync("ffmpeg", ["-hide_banner", "-devices"], {
+      encoding: "utf8", windowsHide: true, timeout: 3000, maxBuffer: 262144,
+    });
+
+    if (result.error) fail(`could not discover FFmpeg devices: ${result.error.message}`);
+
+    if (result.status !== 0) fail(`FFmpeg device discovery exited with code ${result.status}`);
+    const captureDevice = { win32: "gdigrab", linux: "x11grab", darwin: "avfoundation" }[process.platform];
+
+    if (!captureDevice) fail(`screen capture is not supported on ${process.platform}`);
+
+    const available = new RegExp(`^\\s*D\\S*\\s+${captureDevice}\\s`, "m")
+      .test(`${result.stdout ?? ""}\n${result.stderr ?? ""}`);
+
+    console.log(JSON.stringify({
+      platform: process.platform, ffmpeg: checks[0], ffprobe: checks[1],
+      captureDevice, captureAvailable: available, permissionsVerified: false,
+    }));
+
+    if (!available) fail(`FFmpeg does not provide the ${captureDevice} input on this system`);
+
+    return;
+  }
+
   const ffmpeg = executableWorks("ffmpeg");
   const ffprobe = executableWorks("ffprobe");
 
@@ -590,10 +689,10 @@ function devices() {
     const result = spawnSync(
       "ffmpeg",
       ["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"],
-      { encoding: "utf8", windowsHide: true },
+      { encoding: "utf8", windowsHide: true, timeout: 5000, maxBuffer: 262144 },
     );
 
-    process.stdout.write(result.stderr ?? "");
+    printDeviceListing(result, "dshow");
 
     return;
   }
@@ -602,10 +701,22 @@ function devices() {
     const result = spawnSync(
       "ffmpeg",
       ["-hide_banner", "-f", "avfoundation", "-list_devices", "true", "-i", ""],
-      { encoding: "utf8" },
+      { encoding: "utf8", timeout: 5000, maxBuffer: 262144 },
     );
 
-    process.stdout.write(result.stderr ?? "");
+    printDeviceListing(result, "avfoundation");
+
+    return;
+  }
+
+  if (!["linux"].includes(process.platform)) fail(`screen capture is not supported on ${process.platform}`);
+
+  if (options.json) {
+    console.log(JSON.stringify({
+      platform: process.platform, captureDevice: "x11grab",
+      listing: `DISPLAY=${process.env.DISPLAY ?? "(unset)"}; pass videoInput for X11 and audioDevice for a PulseAudio source.`,
+      permissionsVerified: false,
+    }));
 
     return;
   }
@@ -623,18 +734,39 @@ function devices() {
   );
 }
 
-function start() {
+function printDeviceListing(result, captureDevice) {
+  if (result.error) fail(`device discovery failed: ${result.error.message}`);
+  const listing = result.stderr ?? "";
+
+  const marker = captureDevice === "avfoundation"
+    ? /AVFoundation (?:video|audio) devices:/
+    : /DirectShow (?:video|audio) devices|\((?:video|audio)\)|Could not enumerate (?:video|audio) devices/;
+
+  if (![0, 1].includes(result.status) || !marker.test(listing)) {
+    fail(`device discovery did not return a device list (exit ${result.status}): ${listing.trim()}`);
+  }
+
+  if (options.json) {
+    console.log(JSON.stringify({
+      platform: process.platform, captureDevice, listing, permissionsVerified: false,
+    }));
+  } else {
+    process.stdout.write(listing);
+  }
+}
+
+async function start() {
   const output = ensureNewOutput(requireOption("output"));
   const paths = recordingPaths(output);
   const existing = readState(paths.state);
 
-  if (existing && pidRunning(existing.workerPid)) {
+  if (existing && activeState(existing)) {
     fail(`a recording is already active for ${output}`);
   }
 
-  rmSync(paths.state, { force: true });
-  rmSync(paths.stop, { force: true });
-  rmSync(paths.log, { force: true });
+  if (existing && ["recording", "stopping"].includes(existing.status)) {
+    fail(`stale recording state for ${output}; inspect ${paths.state} and ${paths.log} before recovery`);
+  }
 
   const fps = Number(options.fps ?? 30);
 
@@ -651,20 +783,44 @@ function start() {
     videoInput:
       typeof options["video-input"] === "string" ? options["video-input"] : null,
     ...paths,
+    recordingId: randomUUID(),
   };
 
   ffmpegCaptureArgs(config);
+
+  try {
+    const lockFd = openSync(paths.lock, "wx", 0o600);
+    writeFileSync(lockFd, config.recordingId);
+    closeSync(lockFd);
+  } catch (error) {
+    fail(`cannot claim recording startup: ${error.message}; inspect ${paths.lock} before recovery`);
+  }
+
+  rmSync(paths.state, { force: true });
+  rmSync(paths.stop, { force: true });
+  rmSync(paths.log, { force: true });
   const encoded = Buffer.from(JSON.stringify(config), "utf8").toString("base64url");
 
-  const worker = spawn(
-    process.execPath,
-    [resolve(process.argv[1]), "_capture", "--config", encoded],
-    {
-      detached: true,
-      stdio: "ignore",
-      windowsHide: true,
-    },
-  );
+  const worker = await new Promise((accept, reject) => {
+    const child = spawn(
+      process.execPath,
+      [resolve(process.argv[1]), "_capture", "--config", encoded],
+      {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+      },
+    );
+
+    child.once("spawn", () => accept(child));
+    child.once("error", reject);
+  }).catch((error) => {
+    if (existsSync(paths.lock) && readFileSync(paths.lock, "utf8") === config.recordingId) {
+      rmSync(paths.lock, { force: true });
+    }
+
+    fail(`could not start detached recording worker: ${error.message}`);
+  });
 
   worker.unref();
 
@@ -673,28 +829,33 @@ function start() {
     const state = readState(paths.state);
 
     if (
-      state?.status === "recording" &&
-      pidRunning(state.workerPid) &&
-      pidRunning(state.ffmpegPid)
+      state?.recordingId === config.recordingId &&
+      state.status === "recording" && activeState(state) &&
+      Date.now() - Date.parse(state.startedAt) >= 300
     ) {
       console.log(JSON.stringify(state, null, 2));
 
       return;
     }
 
-    if (!pidRunning(worker.pid)) {
-      const log = existsSync(paths.log) ? readFileSync(paths.log, "utf8") : "";
+    if (state?.status === "failed" || !worker.pid || !pidRunning(worker.pid)) {
+      const log = logTail(paths.log);
       fail(`recording failed to start${log ? `\n${log}` : ""}`);
     }
   }
 
-  fail(`recording did not become ready; inspect ${paths.log}`);
+  fail(`recording readiness timed out; the detached worker may still be active. Run status for ${output}; inspect ${paths.log}`);
 }
 
 function captureWorker() {
   const encoded = requireOption("config");
   const config = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
-  const logFd = openSync(config.log, "a");
+
+  if (!existsSync(config.lock) || readFileSync(config.lock, "utf8") !== config.recordingId) {
+    fail("recording worker startup ownership changed; refusing capture");
+  }
+
+  const logFd = openSync(config.log, "a", 0o600);
 
   const ffmpeg = spawn("ffmpeg", ffmpegCaptureArgs(config), {
     stdio: ["pipe", "ignore", logFd],
@@ -709,6 +870,8 @@ function captureWorker() {
     startedAt: new Date().toISOString(),
     statePath: config.state,
     logPath: config.log,
+    recordingId: config.recordingId,
+    updatedAt: new Date().toISOString(),
   };
 
   let stopping = false;
@@ -717,13 +880,23 @@ function captureWorker() {
   const requestStop = () => {
     if (!stopping && ffmpeg.stdin?.writable) {
       stopping = true;
+      state.status = "stopping";
+      state.updatedAt = new Date().toISOString();
+      writeState(config.state, state);
       ffmpeg.stdin.write("q\n");
     }
   };
 
   const interval = setInterval(() => {
     if (existsSync(config.stop)) {
-      requestStop();
+      const request = readFileSync(config.stop, "utf8").trim();
+
+      if (request === config.recordingId || !config.recordingId) requestStop();
+    }
+
+    if (ffmpeg.pid) {
+      state.updatedAt = new Date().toISOString();
+      writeState(config.state, state);
     }
   }, 200);
 
@@ -746,12 +919,24 @@ function captureWorker() {
 
     closeSync(logFd);
     rmSync(config.stop, { force: true });
-    rmSync(config.state, { force: true });
+
+    if (ffmpeg.pid) {
+      state.status = code === 0 && existsSync(config.output) ? "stopped" : "failed";
+      state.endedAt = new Date().toISOString();
+      state.updatedAt = state.endedAt;
+      state.exitCode = code;
+      writeState(config.state, state);
+    }
+
+    rmSync(config.lock, { force: true });
     process.exit(code);
   };
 
   ffmpeg.once("spawn", () => {
-    writeFileSync(config.state, `${JSON.stringify(state, null, 2)}\n`);
+    writeState(config.state, state);
+  });
+  ffmpeg.stdin.on("error", (error) => {
+    writeFileSync(config.log, `Could not request graceful stop: ${error.message}\n`, { flag: "a" });
   });
   ffmpeg.once("error", (error) => {
     finish(1, error);
@@ -767,9 +952,19 @@ function status() {
   const state = readState(paths.state);
 
   if (!state) {
+    if (existsSync(paths.lock)) {
+      fail(`recording startup is pending or interrupted; inspect ${paths.lock} and ${paths.log}`);
+    }
+
     console.log(JSON.stringify({ status: "not-recording", output }, null, 2));
 
     return;
+  }
+
+  if (state.output !== output) fail(`recording state output does not match ${output}`);
+
+  if (options["recording-id"] && options["recording-id"] !== state.recordingId) {
+    fail("recording identity does not match; run status and use the current recordingId");
   }
 
   console.log(
@@ -777,9 +972,8 @@ function status() {
       {
         ...state,
         status:
-          pidRunning(state.workerPid) && pidRunning(state.ffmpegPid)
-            ? state.status
-            : "stale",
+          ["stopped", "failed"].includes(state.status) || activeState(state)
+            ? state.status : "stale",
       },
       null,
       2,
@@ -792,36 +986,55 @@ function stop() {
   const paths = recordingPaths(output);
   const state = readState(paths.state);
 
-  if (
-    !state ||
-    !pidRunning(state.workerPid) ||
-    !pidRunning(state.ffmpegPid)
-  ) {
+  const timeout = Number(options.timeout ?? 20);
+
+  if (!Number.isFinite(timeout) || timeout <= 0 || timeout > 120) {
+    fail("--timeout must be a positive number of seconds no greater than 120");
+  }
+
+  if (!state || state.output !== output) {
     fail(`no active recording found for ${output}`);
   }
 
-  writeFileSync(paths.stop, `${new Date().toISOString()}\n`);
-  const timeout = Number(options.timeout ?? 20);
-
-  if (!Number.isFinite(timeout) || timeout <= 0) {
-    fail("--timeout must be a positive number of seconds");
+  if (options["recording-id"] && options["recording-id"] !== state.recordingId) {
+    fail("recording identity does not match; refusing to stop a different recording");
   }
+
+  if (state.status === "stopped") {
+    if (!existsSync(output)) fail(`stopped recording output is missing: ${output}`);
+    console.log(JSON.stringify(state));
+
+    return;
+  }
+
+  if (!activeState(state)) fail(`recording is ${state.status === "failed" ? "failed" : "stale"}; inspect ${paths.log}`);
+
+  const stopTemporary = `${paths.stop}.${randomUUID()}.tmp`;
+  writeFileSync(stopTemporary, `${state.recordingId ?? new Date().toISOString()}\n`, { mode: 0o600, flag: "wx" });
+  renameSync(stopTemporary, paths.stop);
 
   const deadline = Date.now() + timeout * 1000;
 
-  while (Date.now() < deadline && pidRunning(state.workerPid)) {
+  let final = readState(paths.state);
+
+  while (Date.now() < deadline && final && ["recording", "stopping"].includes(final.status) && pidRunning(state.workerPid)) {
     sleep(200);
+    final = readState(paths.state);
   }
 
-  if (pidRunning(state.workerPid)) {
-    fail(`graceful stop timed out; inspect ${paths.log}`);
+  if (final && ["recording", "stopping"].includes(final.status) && pidRunning(state.workerPid)) {
+    fail(`graceful stop timed out; recording may still be active. Run status; inspect ${paths.log}. No process was killed.`);
   }
+
+  if (final?.status === "failed") fail(`FFmpeg failed with exit ${final.exitCode}; inspect ${paths.log}`);
+
+  if (final && final.status !== "stopped") fail(`recording worker ended without final state; inspect ${paths.log}`);
 
   if (!existsSync(output)) {
     fail(`recording stopped without producing ${output}; inspect ${paths.log}`);
   }
 
-  console.log(JSON.stringify({ status: "stopped", output }, null, 2));
+  console.log(JSON.stringify(final ?? { status: "stopped", output }, null, 2));
 }
 
 function probe() {
@@ -1188,13 +1401,14 @@ function usage() {
   console.log(`Usage: node scripts/screen-record.mjs <command> [options]
 
 Commands:
-  doctor
-  devices
+  doctor [--capture-only]
+  devices [--json]
   voices [--engine omlx|sapi|say|flite] [--model <name>]
   start --output <file> [--fps 30] [--region x,y,w,h]
         [--audio-device <name>] [--video-input <source>]
-  status --output <file>
-  stop --output <file> [--timeout 20]
+  status --output <file> [--recording-id <id>]
+  stop --output <file> [--recording-id <id>] [--timeout 20]
+       (timeout must be at most 120 seconds)
   probe --input <file>
   trim --input <file> --output <file> --start <time>
        (--end <time> | --duration <time>) [--copy]
@@ -1218,7 +1432,7 @@ switch (command) {
     await voices();
     break;
   case "start":
-    start();
+    await start();
     break;
   case "_capture":
     captureWorker();

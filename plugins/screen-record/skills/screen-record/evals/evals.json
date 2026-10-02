@@ -9,7 +9,8 @@
       "files": [],
       "expectations": [
         "The workflow rehearses and prepares the application before recording.",
-        "The workflow uses the bundled start and stop commands rather than an unmanaged FFmpeg process.",
+        "The workflow prefers screen_record_start and screen_record_stop, retaining recordingId, or uses the managed bundled CLI when native tools are unavailable.",
+        "The workflow requires explicit screen and optional audio intent, preserves OS privacy controls, and queries screen_record_status after cancellation or restart.",
         "The workflow coordinates application driving through computer-use tools.",
         "The raw recording is preserved and trimming writes a new output.",
         "The final file is probed or otherwise checked for duration, dimensions, and audio."
