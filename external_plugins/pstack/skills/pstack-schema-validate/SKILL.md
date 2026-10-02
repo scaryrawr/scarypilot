@@ -5,11 +5,33 @@ description: Validate pstack snapshots, verification receipts, durable handoffs,
 
 # Validate pstack contracts
 
-Run the bundled validator rather than inspecting pstack artifacts by eye.
+Use `pstack_validate_artifact` when the host exposes it. Pass the artifact's
+`kind` and `path`. For `plan`, optionally pass `profile` as `basic` or
+`verified-stack`. The default is `verified-stack`. Omit `profile` for JSON
+artifacts.
 
-## Commands
+The native tool reads one file inside the current workspace. Relative paths
+resolve against the host's current working directory. Outside paths and
+symlink escapes are rejected. Do not copy outside files into the workspace
+to bypass this boundary.
 
-Resolve `scripts/validate.mjs` relative to this skill directory.
+Report every finding with its `path` or `line`, `rule`, and `message`.
+Treat `ok: false` as a contract failure. Invalid arguments, unreadable files,
+and malformed JSON are tool errors, not successful validation.
+
+Keep using `pstack_validate_plan` for callers that need its existing
+`plan_path` input and `{ ok, profile, findings, report }` output.
+
+## CLI fallback
+
+If the native tool is unavailable or reports an unsupported platform,
+report that limit and resolve `scripts/validate.mjs` relative
+to this skill directory. Read only an explicitly requested artifact inside
+the approved workspace. The CLI uses the same contract rules but does not
+enforce the native tool's workspace boundary.
+
+The CLI preserves its legacy ignored third argument for JSON kinds.
+Do not pass a profile for new JSON validation calls.
 
 ```sh
 node scripts/validate.mjs snapshot <snapshot.json>
@@ -20,4 +42,5 @@ node scripts/validate.mjs plan <plan.md> [basic|verified-stack]
 
 The command exits `0` on success, `1` for contract violations, and `2` for
 invalid invocation or unreadable input. Report every finding with its path or
-line number. Do not reinterpret a failed contract as a warning.
+line number. Malformed JSON is an input error. Do not reinterpret a failed
+contract as a warning.

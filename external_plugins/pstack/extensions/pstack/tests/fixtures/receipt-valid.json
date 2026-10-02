@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "0123456789abcdef0123",
+  "pr": 1,
+  "sha": "fixture-only-not-a-real-head",
+  "verdict": "unit-test-verified",
+  "verifier": "fixture",
+  "summary": "Synthetic validation data, not evidence for a real pull request.",
+  "evidence": [
+    {
+      "kind": "note",
+      "value": "Hand-authored safe fixture."
+    }
+  ],
+  "createdAt": "2026-10-02T01:00:00.000Z"
+}

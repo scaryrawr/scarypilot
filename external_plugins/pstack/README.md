@@ -11,7 +11,7 @@ planning, delegation, review, and verification.
   `arena`, `swarm`, `interrogate`, `tdd`, `deslop`, `unslop`, and the pstack
   principles.
 - The `poteto-agent` and `comment-sicko` custom agents.
-- Native `pstack_status`, capability, plan-validation, verification-receipt,
+- Native `pstack_status`, capability, artifact-validation, plan-validation, verification-receipt,
   handoff, and worktree-inspection tools plus the `/pstack` command.
 - PR watching, orchestration, decision-log, and worktree-audit helpers used by
   advanced playbooks.
@@ -72,6 +72,38 @@ state database. Verification receipts and handoffs are durable JSON artifacts
 under the repository Git state directory. Their schemas live in
 [`contracts/`](./contracts/).
 
+Validate an explicitly requested workspace artifact with
+`pstack_validate_artifact`. Its input is `{ kind, path, profile? }`.
+`kind` is `snapshot`, `receipt`, `handoff`, or `plan`. Only plans accept
+`profile`, either `basic` or `verified-stack`, defaulting to `verified-stack`.
+
+JSON results contain `{ kind, path, schemaVersion: 1, ok, findings }`.
+Each finding has `{ path, rule, message }`. Plan results contain
+`{ kind, path, profile, ok, findings, report }`. Each plan finding has
+`{ line, rule, message }`. Contract violations return `ok: false`.
+Invalid arguments, unreadable paths, and malformed JSON raise tool errors.
+The result's `path` is the canonical absolute file path. The TypeScript
+input and output contracts are exported from the
+[native tool module](./extensions/pstack/src/tools/validate-artifact.ts).
+
+The tool reads only the selected file inside the current workspace.
+It rejects outside paths and symlink escapes, and never reads evidence paths
+or runs commands. Native confined reads require macOS or Linux.
+macOS rejects symlinks throughout the canonical open path with `O_NOFOLLOW_ANY`.
+Linux opens each path component through a pinned directory descriptor in
+`/proc/self/fd`, with `O_NOFOLLOW`. A replaced ancestor symlink cannot redirect
+the read. Other platforms raise an explicit unsupported-platform error.
+Validation checks artifact shape, not the truth of recorded
+verification claims, snapshot hashes, or permission to perform later actions.
+`pstack_validate_plan` retains its existing `plan_path` input, defaults,
+output, and path behavior.
+
+The [schema-validation skill](./skills/pstack-schema-validate/SKILL.md)
+routes to the native tool and provides a CLI fallback using the same pure
+validation rules. The standalone CLI does not enforce workspace confinement.
+It preserves legacy positional handling, including an ignored optional third
+argument for JSON kinds. Native JSON inputs reject `profile`.
+
 Configure Task models across Copilot projects:
 
 ```text
@@ -84,6 +116,12 @@ instruction across repositories. Without it, pstack lets Copilot select each
 Task agent's default model.
 
 ## Copilot adaptation
+
+The manifest omits the canonical Agent Plugins `$schema` selector so Copilot
+uses its legacy manifest format. This preserves the native `extensions`
+directory paths and the existing root `agents` and `skills` fields.
+With the canonical selector, `extensions` instead contains client namespaces.
+See the [CLI plugin reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference#legacy-manifest-fields).
 
 The upstream skills use the Agent Skills format, but their orchestration layer
 assumes Cursor-specific model IDs, cloud-agent parameters, transcript paths,
@@ -107,6 +145,11 @@ guarantee they are enabled.
 The extension targets SDK 1.0.16 and registers its worker and workflow together
 through `joinSession({ customAgents, workflows })`. The workflow name and v1
 argument/result contracts are unchanged.
+
+Artifact validation is a separate read-only increment. The CLI and native
+tool share [`artifact-rules.mjs`](./skills/pstack-schema-validate/scripts/artifact-rules.mjs)
+and the existing plan rules. The adaptation keeps orch, watch-pr, setup, and
+recall unchanged.
 
 Cursor's `automations/benny` pack is not included because Copilot plugins do
 not provide the Cursor Automations runtime. See [`NOTICE.md`](./NOTICE.md) for
