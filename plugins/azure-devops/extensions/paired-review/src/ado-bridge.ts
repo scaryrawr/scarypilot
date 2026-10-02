@@ -3,6 +3,7 @@ import { access } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { Type, type Static } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
+import { BoardsRequestSchema, MAX_BOARDS_OUTPUT_BYTES, checkBoardsValue, validateBoardsScope, type BoardsRequest } from "./boards-schema.ts";
 
 const JsonValueSchema = Type.Recursive((self) =>
   Type.Union([
@@ -61,6 +62,7 @@ export const ReadItemsResponseSchema = Type.Object({
 export type ReadItemsRequest = Static<typeof ReadItemsRequestSchema>;
 
 export type BridgeRequest =
+  | BoardsRequest
   | ReadItemsRequest
   | (BridgeScope & {
       operation: "read";
@@ -203,7 +205,14 @@ export function createBridgeTransport(
     write: (record) => { process.stderr.write(`${JSON.stringify(record)}\n`); },
   },
 ): BridgeRunner {
-  return async (request, maxBuffer = request.operation === "readItems" ? MAX_ITEM_BATCH_OUTPUT_BYTES : 32 * 1024 * 1024) => {
+  return async (request, maxBuffer = request.operation === "readItems" ? MAX_ITEM_BATCH_OUTPUT_BYTES
+    : ["workItemSearch", "workItemQuery", "workItemGet"].includes(request.operation) ? MAX_BOARDS_OUTPUT_BYTES + 1024
+      : 32 * 1024 * 1024) => {
+    if (request.operation === "workItemSearch" || request.operation === "workItemQuery" || request.operation === "workItemGet") {
+      const boards = checkBoardsValue(BoardsRequestSchema, request);
+      validateBoardsScope(boards.project);
+    }
+
     if (request.operation === "readItems") {
       Value.Assert(ReadItemsRequestSchema, request);
 

@@ -43,6 +43,11 @@ gh skill install scaryrawr/scarypilot plugins/azure-devops/skills/ado-agent-merg
 The `ado-agent-merge` skill expects the sibling `azure-devops` skill and its
 bundled helpers, so install the complete plugin for that workflow.
 
+The manifest uses Copilot's legacy format because native extension paths use
+the legacy `extensions` array. Declaring the canonical Agent Plugins `$schema`
+selects different semantics and rejects that array on CLI 1.0.91.
+See [legacy manifest fields](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference#legacy-manifest-fields).
+
 If `azure-devops` was previously installed from `scaryrawr/agentic`, add
 `--force` once to replace its source-tracking metadata.
 
@@ -52,6 +57,44 @@ The plugin supports Azure DevOps pull request creation, inspection, review,
 commenting, voting, checkout, attachment uploads, and end-to-end merge readiness
 with safe squash auto-complete. It also supports Azure Boards queries, work item
 creation and updates, WIQL, and work item links.
+
+On hosts that expose the extension tools, Boards reads use typed native tools.
+`azure_devops_work_item_search`
+returns keyword matches, `azure_devops_work_item_query` runs flat WIQL and returns
+ID references, and `azure_devops_work_item_get` reads selected work item fields.
+Each tool requires an explicit organization and project. Search and query return
+at most 100 items per call and report truncation. All three tools validate inputs
+and results, cap serialized results at 1 MiB, and share the existing Python
+authentication, pacing, retries, and cooldown handling. The skill keeps query
+interpretation and filter choices. Native query verifies every fetched reference's
+project ownership at the query's `asOf`, including the `top + 1` truncation
+sentinel, and fails the whole call on cross-project or unverifiable ownership.
+It never rewrites arbitrary WIQL or filters a polluted page. The local `wiql`
+builder emits `[System.TeamProject] = @Project`; callers must keep that predicate
+applicable to every OR branch. Coordinated CLI read helpers remain available
+when native tools are unavailable. Installing a skill alone does not install
+these extension tools. Legacy CLI `query` preserves raw responses and WIQL;
+`--project` supplies context, not ownership enforcement. Do not use it to bypass
+a native scope failure.
+
+Native registration and handler execution were verified in the Copilot app's
+`1.0.90-0` host through a temporary scoped loader and local HTTP fixtures.
+Standalone CLI `1.0.91` also discovered the actual plugin and completed all three
+Boards tools with credential/HTTP fixtures in disposable profiles, both through
+`--plugin-dir` and installation from a local test marketplace containing the
+exact PR artifacts. No loader or SDK stub was used for these standalone checks.
+An earlier invocation exposed no extensions; its cause remains
+unestablished and that failure did not reproduce in the disposable profiles.
+A user-authorized authenticated smoke on `9ac8b4d` passed all three native Boards
+tools in standalone CLI `1.0.91`: selected-field get, title-based top-1 search,
+and project/known-ID constrained top-1 WIQL with ownership verification.
+These checks used no fixtures or remote writes; private response evidence remains
+local. The later Unicode-validation fix in `c26c491` passed local tests but has
+not had a real-service rerun. Downloading and caching this build from the public
+GitHub ScaryPilot marketplace remain untested.
+If your host does not expose the tools, use
+the coordinated `ado-work-items.py search`, `query`, and `get` helpers described in
+[work item operations](skills/azure-devops/references/work-items.md).
 
 Example prompts:
 

@@ -37,8 +37,9 @@ import re
 import sys
 from typing import Any
 
+from shared.boards import BoardsClient, OPERATIONS as BOARDS_OPERATIONS, validate_request as validate_boards_request
 from shared.pr import PrClient, Publisher, Scope, positive_id
-from shared.transport import AdoError, Deferred, organization
+from shared.transport import AdoError, Deferred, Transport, organization
 
 MAX_ITEM_BATCH_SIZE = 8
 MAX_ITEM_CONTENT_BYTES = 2 * 1024 * 1024
@@ -103,9 +104,14 @@ def read_items(request: dict[str, Any], client: PrClient) -> dict[str, Any]:
     return {"results": results}
 
 
-def dispatch(request: Any, client: PrClient | None = None) -> Any:
+def dispatch(request: Any, client: PrClient | None = None, *, transport: Transport | None = None) -> Any:
     if not isinstance(request, dict):
         raise AdoError("bridge request must be an object")
+    if isinstance(request.get("operation"), str) and request["operation"] in BOARDS_OPERATIONS:
+        validate_boards_request(request)
+        if client is not None and client.org != organization(request["org"]):
+            raise AdoError("bridge client organization mismatch")
+        return BoardsClient(request["org"], transport or (client.transport if client else None)).execute(request)
     org = request.get("org")
     if not isinstance(org, str):
         raise AdoError("bridge organization is required")
@@ -143,7 +149,7 @@ def main() -> int:
         except (ValueError, UnicodeDecodeError) as exc:
             raise AdoError("invalid bridge JSON") from exc
         result = dispatch(request)
-        if request.get("operation") == "readItems":
+        if request.get("operation") == "readItems" or request.get("operation") in BOARDS_OPERATIONS:
             json.dump(result, sys.stdout, ensure_ascii=True, separators=(",", ":"))
             sys.stdout.write("\n")
         else:

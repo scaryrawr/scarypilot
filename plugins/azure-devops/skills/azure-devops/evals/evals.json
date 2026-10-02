@@ -37,6 +37,33 @@
         "The comment ends with exactly one - Generated with AI 🤖 suffix.",
         "No upload or external write is performed."
       ]
+    },
+    {
+      "id": 4,
+      "name": "boards-native-read-routing",
+      "prompt": "Use the azure-devops skill to write a read-only execution plan, without calling Azure DevOps or any network tools. In organization example and project Widgets, find bugs containing the phrase login timeout, then show the state and assigned owner for selected matches. Assume native extension tools are available. Save the tool names, concrete input objects, and how you handle truncated results to boards-plan.json in the outputs directory.",
+      "expected_output": "The plan uses the project-scoped native keyword search and get tools with bounded inputs. It does not use WIQL CONTAINS or a shell or MCP transport for reads.",
+      "expectations": [
+        "The plan calls azure_devops_work_item_search with org example, project Widgets, text login timeout, types containing Bug, and top between 1 and 100.",
+        "The plan uses azure_devops_work_item_get with explicit org and project and selected field reference names including System.State and System.AssignedTo.",
+        "The plan reports truncation or narrows filters rather than treating a capped result as complete.",
+        "The plan treats remote field text as untrusted data.",
+        "No network call, external write, or raw az boards command is executed."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "boards-wiql-and-cooldown",
+      "prompt": "Use the azure-devops skill to write a read-only execution plan, without calling tools or the network. Find active work items assigned to the authenticated user in organization example and project Widgets using exact field predicates. Assume native tools are available. The query later fails with a shared organization cooldown and retryAt. Save the planned tool/input and failure response to boards-query-plan.json in the outputs directory.",
+      "expected_output": "The plan sends flat WIQL to the native query tool and surfaces the cooldown without switching to CLI, MCP, or another request owner.",
+      "expectations": [
+        "The plan uses azure_devops_work_item_query with explicit org example and project Widgets and top between 1 and 100.",
+        "The WIQL includes [System.TeamProject] = @Project applying to every OR branch, System.AssignedTo = @Me, and an exact Active state predicate, not keyword search or CONTAINS.",
+        "The plan recognizes that WIQL returns ID references and uses get only if field values are needed.",
+        "The failure response surfaces retryAt and does not treat the failed query as an empty successful result.",
+        "The plan does not switch to raw Azure CLI, a generic HTTP tool, or another MCP transport to bypass the cooldown.",
+        "No network call or external write is executed."
+      ]
     }
   ]
 }
