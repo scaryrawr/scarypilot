@@ -397,6 +397,13 @@ test("diagnostic timeout and device failures are failures, not empty success", a
       const failed = await call(fixture.runtime, "screen_record_devices", {});
       assert.equal(failed.resultType, "failure");
       assert.match(failed.textResultForLlm, /enumeration failed/);
+
+      fixture.runtime.env.RECORDER_FIXTURE_MODE = "device-enumeration-error-only";
+
+      const errorOnly = await call(fixture.runtime, "screen_record_devices", {});
+
+      assert.equal(errorOnly.resultType, "failure");
+      assert.match(errorOnly.textResultForLlm, /Could not enumerate video devices/);
     }
   } finally { await fixture.cleanup(); }
 });
@@ -453,6 +460,47 @@ test("persisted stale and corrupt states are diagnosed without signalling arbitr
     assert.equal(corrupt.resultType, "failure");
     assert.match(corrupt.textResultForLlm, /invalid recording state/);
   } finally { await fixture.cleanup(); }
+});
+
+test("malformed terminal state is rejected consistently by native tools and standalone CLI", async () => {
+  const fixture = await setup();
+  let recording: RecordingState | undefined;
+
+  try {
+    recording = await start(fixture.runtime);
+
+    const stopped = await stop(fixture.runtime, recording);
+
+    assert.equal(stopped.resultType, "success", stopped.textResultForLlm);
+
+    const saved = state(stopped.textResultForLlm);
+
+    assert.ok("statePath" in saved);
+
+    for (const missing of ["statePath", "logPath", "endedAt", "exitCode"]) {
+      await writeFile(saved.statePath, JSON.stringify(Object.fromEntries(
+        Object.entries(saved).filter(([key]) => key !== missing),
+      )));
+
+      const native = await call(fixture.runtime, "screen_record_status", { output: saved.output });
+
+      assert.equal(native.resultType, "failure");
+      assert.match(native.textResultForLlm, /invalid recording state/);
+
+      const standalone = spawnSync(process.execPath, [script, "status", "--output", saved.output], {
+        env: fixture.runtime.env, encoding: "utf8", timeout: 10000, windowsHide: true,
+      });
+
+      assert.ifError(standalone.error);
+      assert.notEqual(standalone.status, 0);
+      assert.match(standalone.stderr, /invalid recording state/);
+    }
+
+    await writeFile(saved.statePath, JSON.stringify(saved));
+  } finally {
+    if (recording) await stop(fixture.runtime, recording);
+    await fixture.cleanup();
+  }
 });
 
 test("stop rereads terminal state when the worker exits during its last liveness check", async () => {

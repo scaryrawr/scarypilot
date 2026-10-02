@@ -11,7 +11,10 @@ if (args.includes("-version")) {
 } else if (args.includes("-devices")) {
   console.log(" D  avfoundation AVFoundation input\n D  x11grab X11 input\n D  gdigrab desktop input");
 } else if (args.includes("-list_devices")) {
-  if (mode === "device-failure") {
+  if (mode === "device-enumeration-error-only") {
+    console.error("Could not enumerate video devices (or none found).\nCould not enumerate audio devices (or none found).");
+    process.exitCode = 1;
+  } else if (mode === "device-failure") {
     console.error("fixture device enumeration failed");
     process.exitCode = 2;
   } else {

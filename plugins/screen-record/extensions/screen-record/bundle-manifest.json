@@ -2,14 +2,14 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "8dc26d89da233e0fcf2e5a3732b89f6e8babae32d21a15818231d23675f40137",
-    "package.json": "bac6a734aafbcc9a28796d11361c5ba259254e0efbe1db70deb5a707185f01f7",
+    "package-lock.json": "ac39ca2d54332ebb2b4cfcb91268148e8470f289c1989e5504015022e15e612b",
+    "package.json": "80119afe63717a3ef583e57523ca602c01907b7b65c96c7d344ea3f817d6f8aa",
     "src/domain.ts": "3b5214bd39edbcc57b00bbdef343dbea8f1caf8686bf718df3b6ff8be4c98d10",
     "src/extension.ts": "353b1145275f91aafe1aa0aea850e7ffbad3bca9acfa8bc43b2fbc5e06085d38",
     "src/tools.ts": "c3dcdfb871300a807eb389ca4eef6cafefa19fec72642a0fc940ae4b4ec099f8",
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5",
     "../../skills/screen-record/scripts/sapi-narrate.ps1": "c9930a8c7c088074d08c7914d18450c5a4b47b0930c4a5ef178642b6b847e156",
-    "../../skills/screen-record/scripts/screen-record.mjs": "0124456d50fb108b958f73467ad11f28a4f6f3a6049f02cbf849fbc5c2ec8e7d"
+    "../../skills/screen-record/scripts/screen-record.mjs": "f23ee074fd46e08691ac5de5b3b12b455561b9ef2273b9eb9a70a2a668a666c7"
   },
   "outputs": {
     "dist/extension.mjs": "a92752e65dfbbd9ed5874a30d67fb68b8e9b1682bf93955b473ca20055234541"

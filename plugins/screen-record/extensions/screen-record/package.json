@@ -1,6 +1,6 @@
 {
   "name": "screen-record",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "Typed tools for detached local screen recording.",
   "type": "module",

@@ -267,7 +267,17 @@ function readState(path) {
       !Number.isSafeInteger(state.workerPid) || state.workerPid <= 0 ||
       !Number.isSafeInteger(state.ffmpegPid) || state.ffmpegPid <= 0 ||
       typeof state.startedAt !== "string" ||
-      (state.recordingId !== undefined && typeof state.recordingId !== "string")
+      !state.startedAt || state.startedAt.length > 4096 ||
+      typeof state.statePath !== "string" || !state.statePath || state.statePath.length > 4096 ||
+      typeof state.logPath !== "string" || !state.logPath || state.logPath.length > 4096 ||
+      !state.output || state.output.length > 4096 ||
+      (["stopped", "failed"].includes(state.status) &&
+        (typeof state.endedAt !== "string" || !state.endedAt || state.endedAt.length > 4096 ||
+          !Number.isInteger(state.exitCode))) ||
+      (state.updatedAt !== undefined &&
+        (typeof state.updatedAt !== "string" || !state.updatedAt || state.updatedAt.length > 4096)) ||
+      (state.recordingId !== undefined &&
+        (typeof state.recordingId !== "string" || !state.recordingId || state.recordingId.length > 4096))
     ) {
       throw new Error("unsupported recording state; inspect the state file before recovery");
     }
@@ -740,7 +750,7 @@ function printDeviceListing(result, captureDevice) {
 
   const marker = captureDevice === "avfoundation"
     ? /AVFoundation (?:video|audio) devices:/
-    : /DirectShow (?:video|audio) devices|\((?:video|audio)\)|Could not enumerate (?:video|audio) devices/;
+    : /DirectShow (?:video|audio) devices|\((?:video|audio)\)/;
 
   if (![0, 1].includes(result.status) || !marker.test(listing)) {
     fail(`device discovery did not return a device list (exit ${result.status}): ${listing.trim()}`);
