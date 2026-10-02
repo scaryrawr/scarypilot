@@ -239,6 +239,7 @@ class BoardsClient:
         return {"count": count, "results": results, "returnedCount": len(results), "limit": top, "truncated": count > len(results)}
 
     def query(self, request: dict[str, Any]) -> dict[str, Any]:
+        project = self.project(request["project"])
         top = request.get("top", 25)
         payload = object_response(self.transport.json(
             self.url(request["project"], "wit/wiql", **{"$top": top + 1}), "POST",
@@ -270,6 +271,35 @@ class BoardsClient:
             references.append({"id": item_id, "url": result_url(item.get("url"), self.org, item_id)})
         if len({item["id"] for item in references}) != len(references):
             raise AdoError("duplicate Azure Boards WIQL IDs")
+        if references:
+            ownership = object_response(self.transport.json(
+                self.url("", "wit/workitemsbatch"), "POST",
+                json.dumps({"ids": [item["id"] for item in references], "fields": ["System.TeamProject"],
+                            "asOf": as_of, "errorPolicy": "Fail"}).encode("utf-8"),
+                {"Content-Type": "application/json"}, replay_safe=True,
+            ), "WIQL ownership")
+            owners = ownership.get("value")
+            count = integer(ownership.get("count"), "WIQL ownership count", top + 1, 0)
+            if not isinstance(owners, list) or count != len(owners) or count != len(references):
+                raise AdoError("incomplete Azure Boards WIQL ownership result", code="incomplete_read")
+            verified_ids = set()
+            for owner in owners:
+                owner = object_response(owner, "WIQL ownership item")
+                item_id = integer(owner.get("id"), "WIQL ownership ID", 2147483647)
+                if item_id in verified_ids:
+                    raise AdoError("duplicate Azure Boards WIQL ownership IDs")
+                verified_ids.add(item_id)
+                fields = object_response(owner.get("fields"), "WIQL ownership fields")
+                if fields.keys() != {"System.TeamProject"}:
+                    raise AdoError("malformed Azure Boards WIQL ownership fields")
+                if project_name(fields["System.TeamProject"]).casefold() != project.casefold():
+                    raise AdoError(
+                        "Azure Boards query project mismatch; narrow WIQL with "
+                        "[System.TeamProject] = @Project applying to every OR branch",
+                        code="unsupported_query",
+                    )
+            if verified_ids != {item["id"] for item in references}:
+                raise AdoError("Azure Boards WIQL ownership ID mismatch")
         return {"queryType": "flat", "queryResultType": "workItem", "asOf": as_of, "columns": columns,
                 "workItems": references[:top], "returnedCount": min(top, len(references)), "limit": top,
                 "truncated": len(references) > top}

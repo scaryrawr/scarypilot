@@ -4,12 +4,12 @@
     "../../skills/azure-devops/scripts/ado-bridge.py": "01ac5301be435ce066e0279fec0e1286d531eaa5311bc2b333b8880f7a31583a",
     "../../skills/azure-devops/scripts/ado-cli.py": "1ab15aacf0b72502aa242c503f003bf19bfad582cd4980d417914a51c7d32058",
     "../../skills/azure-devops/scripts/ado-pr.py": "229f92be4b558c8414d3b5d1d43e70b95f503928f80db4975ac67ab9e276289b",
-    "../../skills/azure-devops/scripts/ado-work-items.py": "ff75e867f82c2ebbf5ccd537accef157f8db48e3431ade3fec804daefd7b1c92",
+    "../../skills/azure-devops/scripts/ado-work-items.py": "b7f224b71a27fa5dc4752756b5ec0934bd140c7953759c0e3528cfb59e204cc8",
     "../../skills/azure-devops/scripts/make-pr.py": "c7972abae896c7d0e0d4dbee8aa2088c6fe5c63ac4540222b7b1ef53b5c80d84",
     "../../skills/azure-devops/scripts/review-pr.py": "66dbc311f56179c2065db436592015d6a8ff7d0fb152d84bd56a12683fd26427",
     "../../skills/azure-devops/scripts/shared/__init__.py": "531ade2640028f38442d2711989ecdb62c67513cb1e02642aa7e0c8f1fab266d",
     "../../skills/azure-devops/scripts/shared/ado.py": "5a19d564656f6326931521ee3480ead604e62ff260697623e3b6c0e45c4fc38b",
-    "../../skills/azure-devops/scripts/shared/boards.py": "feea64f40366a7c912150d5019ca3e4b6fa4694f15c78b184e92f5590816fc2f",
+    "../../skills/azure-devops/scripts/shared/boards.py": "2ea1d62a3010e801d8de3958481632b25ca391bcf2fe083fca2301332df4ff23",
     "../../skills/azure-devops/scripts/shared/pr.py": "421e050d39807bd1dfa53fee781be85084a6cb557013e2977aaacd1d02b815a4",
     "../../skills/azure-devops/scripts/shared/transport.py": "fb5333cdfaf0ac8eee8c1a5b69c209fc6b5d8520362bb250f373e69f283f03e8",
     "index.html": "082572d9dc35ccb5e6f0e89bd379ba8565235822b465a26f9f701f04253abfa4",
@@ -18,7 +18,7 @@
     "src/ado-loader.ts": "d6a00b761787947fa84cb0f5b55b41e24cc97c111e20685a7b20039760464fc6",
     "src/ado-tools.ts": "586caf41075f4356f2ea982c95661aad64564f1ef99932dbfb6ae31695db61bb",
     "src/boards-schema.ts": "ce3d04a529c4bd589a4aecf742f108315051277b5c64eb51aadf351cb1e49d85",
-    "src/boards-tools.ts": "09ba8b96488c7684704f49cb838395f241c67067e5e6f4eb82d5f30d42491dba",
+    "src/boards-tools.ts": "3866854f5ef29b35f3c609d842bd3abeab7d2cfed1afdd0598eeb5088ced70c0",
     "src/client/ChangedFileTree.tsx": "50861ddc9bdad5883f42ef2c1c14cc8cb15b9d24c502be6b85d3859219b58b4e",
     "src/client/file-tree-interaction.ts": "6582a95ca79445ace7f617445224b3c7949c15b5a2e4962d1a3b40b15ee032e5",
     "src/client/file-tree-model.ts": "8665ee19e21e471287615a9374f0c990c1b18a401e6df759403d44f5c97e28a8",
@@ -35,7 +35,7 @@
     "vite.config.ts": "9878acad507425f4f0303cf43507c83f8962638baf82fb5a76f281d56fc48974"
   },
   "outputs": {
-    "dist/extension.mjs": "c84c6aa4b8b792faba743a3e51ac303526395a84f01070a047afa7646aeefe35",
+    "dist/extension.mjs": "b1a68f5994f5e19bc6ee73aaffd842ff73bd1bd7449ddf4c849f1b4d404b3de8",
     "public/assets/app.js": "5cade0987e2e9c78ec97f3dcc0ef112aa7e1b24038882aa0b4bf8ca732ade0f0",
     "public/assets/index.css": "c8d2b32c4be48d4feb2595eb4c4705afbfb9e7482ae1c7b6a7b257652ed0181e",
     "public/index.html": "d31fab13763f3ac9a17295d810e9bf9f8df7f2a77f68896f6cb057b3e95c53ad"

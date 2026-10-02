@@ -66,9 +66,16 @@ Each tool requires an explicit organization and project. Search and query return
 at most 100 items per call and report truncation. All three tools validate inputs
 and results, cap serialized results at 1 MiB, and share the existing Python
 authentication, pacing, retries, and cooldown handling. The skill keeps query
-interpretation and filter choices. Coordinated CLI read helpers remain available
+interpretation and filter choices. Native query verifies every fetched reference's
+project ownership at the query's `asOf`, including the `top + 1` truncation
+sentinel, and fails the whole call on cross-project or unverifiable ownership.
+It never rewrites arbitrary WIQL or filters a polluted page. The local `wiql`
+builder emits `[System.TeamProject] = @Project`; callers must keep that predicate
+applicable to every OR branch. Coordinated CLI read helpers remain available
 when native tools are unavailable. Installing a skill alone does not install
-these extension tools.
+these extension tools. Legacy CLI `query` preserves raw responses and WIQL;
+`--project` supplies context, not ownership enforcement. Do not use it to bypass
+a native scope failure.
 
 Native registration and handler execution were verified in the Copilot app's
 `1.0.90-0` host through a temporary scoped loader and local HTTP fixtures.

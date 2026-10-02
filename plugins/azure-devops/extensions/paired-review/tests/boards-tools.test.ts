@@ -230,4 +230,39 @@ describe("caller-visible Azure Boards tools", () => {
       expect(bridge).toHaveBeenCalledTimes(1);
     }
   });
+
+  it("passes nested WIQL and literal/comment decoys unchanged to the ownership-enforcing bridge", async () => {
+    const wiql = "SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @Project AND " +
+      "([System.Title] = 'OR [System.TeamProject] = ''Other''' OR [System.State] = 'Active') " +
+      "/* WHERE [System.TeamProject] = 'Other' */";
+
+    const bridge = vi.fn(async (): Promise<BridgeJson> => queryResult);
+
+    expect(await invoke(createAdoWorkItemQueryTool(bridge), { ...queryInput, wiql })).toEqual({
+      resultType: "success", textResultForLlm: JSON.stringify(queryResult),
+    });
+    expect(bridge).toHaveBeenCalledExactlyOnceWith({ operation: "workItemQuery", ...queryInput, wiql, top: 25 });
+  });
+
+  it.each([
+    'Azure DevOps bridge request failed: {"error":"Azure Boards query project mismatch","code":"unsupported_query"}',
+    'Azure DevOps bridge request failed: {"error":"incomplete Azure Boards WIQL ownership result","code":"incomplete_read"}',
+    "Azure DevOps HTTP 400",
+  ])("exposes query scope and verification failures without returning partial references %s", async (message) => {
+    const bridge = vi.fn(async () => { throw new Error(message); });
+    expect(await invoke(createAdoWorkItemQueryTool(bridge), queryInput)).toEqual({
+      resultType: "failure", textResultForLlm: message,
+    });
+    expect(bridge).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects oversized query metadata rather than returning sliced references or columns", async () => {
+    const result = { ...queryResult, columns: Array.from({ length: 16 }, (_, index) => ({
+      referenceName: `Custom.F${index}`, name: "x".repeat(65536),
+    })) };
+
+    expect(await invoke(createAdoWorkItemQueryTool(async () => result), queryInput)).toMatchObject({
+      resultType: "failure", textResultForLlm: expect.stringContaining("exceeds 1 MiB"),
+    });
+  });
 });

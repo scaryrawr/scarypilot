@@ -29,8 +29,21 @@ Build common WIQL with the `wiql` helper below, then pass its `wiql` value to th
 query tool. The query tool supports flat work-item queries, not link or tree
 queries. It returns ID references. Read selected fields with get when needed.
 
+The project endpoint supplies `@Project` context; it does not enforce scope.
+The native query bridge leaves WIQL unchanged and verifies `System.TeamProject`
+for **all** fetched references (up to `top + 1`, including the truncation sentinel)
+in one read-only batch at the query's `asOf` timestamp. Project GUIDs are resolved
+to names for comparison. Missing, malformed, inaccessible, or cross-project
+ownership fails the entire call, with no partial references. It never filters
+foreign items or fills a polluted `top`, so a successful bounded result and its
+truncation flag cannot include another project's items. Empty results require
+no ownership batch. Link/tree queries remain unsupported.
+
 Keep filters faithful to the request. Use `@Me` only for the authenticated user's
 assignment. Include `[System.TeamProject] = @Project` for the explicit project.
+Apply this constraint to every OR branch, for example
+`[System.TeamProject] = @Project AND (predicateA OR predicateB)`.
+Do not fall back to the raw CLI query after a native scope/ownership failure.
 Do not interpret a search
 index failure or a truncated result as "no matching items." Report truncation
 and narrow filters if a complete answer is required.
@@ -45,6 +58,9 @@ owner by switching to raw Azure CLI or another MCP server after a failure.
 When native tools are unavailable, use the coordinated `search`, `query`, and
 `get` helpers below. URL parsing and WIQL assembly remain local CLI operations.
 Mutation helpers retain their existing permission requirements.
+The legacy CLI `query` preserves arbitrary WIQL and raw service response shapes;
+its `--project` is macro context, **not** ownership enforcement. Callers must
+scope every OR branch themselves. Prefer the native query for enforced reads.
 
 Run these non-interactive helpers with `uv run` from the skill directory using the `./scripts/...` paths shown below. The helpers print JSON to stdout and diagnostics to stderr. Run `uv run ./scripts/ado-work-items.py --help` to confirm flags or subcommands.
 
@@ -70,6 +86,12 @@ Use the helper to assemble common WIQL queries instead of rewriting the `WHERE` 
 uv run ./scripts/ado-work-items.py wiql --assigned-to "@Me" --exclude-state Closed --type Bug --fields System.Id,System.Title,System.State
 ```
 
+Every generated query starts its `WHERE` clause with
+`[System.TeamProject] = @Project`, including queries with no other filters.
+Each `--extra-clause` is grouped in parentheses before conjunction with the
+project predicate. Extra clauses are trusted WIQL expressions, not parsed or
+validated by the builder; native ownership verification still applies.
+
 The script returns:
 
 - `wiql`: the query text
@@ -91,7 +113,7 @@ Execute WIQL through the shared request owner so safe read retries and
 organization cooldowns apply:
 
 ```text
-uv run ./scripts/ado-work-items.py query --org {org-or-url} --project {project} --wiql "SELECT [System.Id], [System.Title] FROM workitems WHERE [System.AssignedTo] = @Me"
+uv run ./scripts/ado-work-items.py query --org {org-or-url} --project {project} --wiql "SELECT [System.Id], [System.Title] FROM workitems WHERE [System.TeamProject] = @Project AND [System.AssignedTo] = @Me"
 ```
 
 Resolve organization and project from `parse-url` or repository context. Pass
@@ -175,7 +197,7 @@ az boards work-item update --id {workItemId} --state "Active" --detect true
 Run WIQL:
 
 ```text
-uv run ./scripts/ado-work-items.py query --org {org-or-url} --project {project} --wiql "SELECT [System.Id], [System.Title] FROM workitems WHERE [System.AssignedTo] = @Me"
+uv run ./scripts/ado-work-items.py query --org {org-or-url} --project {project} --wiql "SELECT [System.Id], [System.Title] FROM workitems WHERE [System.TeamProject] = @Project AND [System.AssignedTo] = @Me"
 ```
 
 Manage relations:

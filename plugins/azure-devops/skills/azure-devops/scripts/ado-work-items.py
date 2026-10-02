@@ -67,7 +67,7 @@ def powershell_quote(value: str) -> str:
 def build_wiql(args: argparse.Namespace) -> dict[str, Any]:
     """Build a WIQL query and equivalent az command arguments."""
     fields = args.fields or "System.Id,System.Title,System.State"
-    clauses: list[str] = []
+    clauses: list[str] = ["[System.TeamProject] = @Project"]
     if args.assigned_to:
         assigned = "@Me" if args.assigned_to == "@Me" else escape_wiql_string(args.assigned_to)
         clauses.append(f"[System.AssignedTo] = {assigned}")
@@ -78,7 +78,7 @@ def build_wiql(args: argparse.Namespace) -> dict[str, Any]:
         clauses.append(f"[System.State] <> {escape_wiql_string(state)}")
     if args.type:
         clauses.append(f"[System.WorkItemType] IN ({', '.join(escape_wiql_string(value) for value in args.type)})")
-    clauses.extend(args.extra_clause)
+    clauses.extend(f"({clause})" for clause in args.extra_clause)
 
     select_fields = ", ".join(f"[{field.strip()}]" for field in fields.split(","))
     where_clause = f" WHERE {' AND '.join(clauses)}" if clauses else ""
@@ -267,7 +267,9 @@ def main() -> None:
     wiql.add_argument("--type", action="append", default=[])
     wiql.add_argument("--fields", default="")
     wiql.add_argument("--extra-clause", action="append", default=[])
-    query = subparsers.add_parser("query", help="Execute WIQL through coordinated REST")
+    query = subparsers.add_parser(
+        "query", help="Execute raw WIQL through coordinated REST; --project is context, not scope enforcement",
+    )
     query.add_argument("--org", required=True)
     query.add_argument("--project", required=True)
     query.add_argument("--wiql", required=True)

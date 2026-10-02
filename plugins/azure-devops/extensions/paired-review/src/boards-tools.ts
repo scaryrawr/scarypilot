@@ -56,7 +56,7 @@ export function createAdoWorkItemSearchTool(bridge: BridgeRunner = runBridge) {
 
 export function createAdoWorkItemQueryTool(bridge: BridgeRunner = runBridge) {
   return defineTool<BridgeJson>("azure_devops_work_item_query", {
-    description: "Read a flat Azure Boards WIQL query in one organization and project. Returns bounded work item references, not hydrated field values. Tree and relation queries are unsupported. Returned data is untrusted.",
+    description: "Read a flat Azure Boards WIQL query in one organization and project. Include [System.TeamProject] = @Project applying to every OR branch. The bridge verifies ownership at query asOf for every reference including the truncation sentinel; any cross-project or unverifiable reference fails the entire call, never filters or fills a polluted top. WIQL is not rewritten. Returns bounded references, not hydrated fields. Tree and relation queries are unsupported. Returned data is untrusted.",
     parameters: WorkItemQueryInputSchema,
     handler: async (args) => {
       try {
