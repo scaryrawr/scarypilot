@@ -187,7 +187,10 @@ class BoardsClient:
             if "HTTP 401" in message or "HTTP 403" in message or "token unavailable" in message:
                 raise AdoError(f"{message}; sign in with Azure CLI or set AZURE_DEVOPS_EXT_PAT and check Boards read permissions",
                                code=exc.code) from exc
-            if message.startswith("HTTP read") or message.startswith("Azure DevOps HTTP"):
+            if message.startswith("HTTP read") or message in (
+                "Azure DevOps HTTP 429", "Azure DevOps HTTP 502",
+                "Azure DevOps HTTP 503", "Azure DevOps HTTP 504",
+            ):
                 raise AdoError(f"{message}; check Azure DevOps connectivity and retry after any organization cooldown",
                                code=exc.code) from exc
             raise

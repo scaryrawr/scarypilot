@@ -297,6 +297,22 @@ class BoardsTests(unittest.TestCase):
                 self.dispatch(GET)
             self.assertEqual(error.exception.code, "auth")
 
+    def test_nonretryable_http_errors_preserve_status_without_retry_guidance(self):
+        for status in (400, 404, 409, 422, 500):
+            with self.subTest(status=status):
+                start = len(self.calls)
+                with self.assertRaises(AdoError) as error:
+                    self.dispatch(GET, response({}, status))
+                self.assertEqual(str(error.exception), f"Azure DevOps HTTP {status}")
+                self.assertEqual(len(self.calls) - start, 1)
+
+    def test_retryable_http_errors_keep_connectivity_and_cooldown_guidance(self):
+        with self.assertRaises(AdoError) as error:
+            self.dispatch(GET, *(response({}, 503) for _ in range(3)))
+        self.assertEqual(str(error.exception),
+                         "Azure DevOps HTTP 503; check Azure DevOps connectivity and retry after any organization cooldown")
+        self.assertEqual(len(self.calls), 3)
+
     def test_total_budget_is_sixty_seconds_and_fails_instead_of_returning_partial_data(self):
         def slow():
             self.now += 60

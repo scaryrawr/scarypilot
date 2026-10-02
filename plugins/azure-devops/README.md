@@ -58,7 +58,8 @@ commenting, voting, checkout, attachment uploads, and end-to-end merge readiness
 with safe squash auto-complete. It also supports Azure Boards queries, work item
 creation and updates, WIQL, and work item links.
 
-Boards reads use typed native extension tools. `azure_devops_work_item_search`
+On hosts that expose the extension tools, Boards reads use typed native tools.
+`azure_devops_work_item_search`
 returns keyword matches, `azure_devops_work_item_query` runs flat WIQL and returns
 ID references, and `azure_devops_work_item_get` reads selected work item fields.
 Each tool requires an explicit organization and project. Search and query return
@@ -68,6 +69,15 @@ authentication, pacing, retries, and cooldown handling. The skill keeps query
 interpretation and filter choices. Coordinated CLI read helpers remain available
 when native tools are unavailable. Installing a skill alone does not install
 these extension tools.
+
+Native registration and handler execution were verified in the Copilot app's
+`1.0.90-0` host through a temporary scoped loader and local HTTP fixtures.
+Marketplace installation and standalone CLI discovery are not verified.
+Standalone CLI `1.0.91` exposed no native tools through `--plugin-dir` during
+verification, even with the legacy manifest correction. If your host does not
+expose the tools, use the coordinated `ado-work-items.py search`, `query`, and
+`get` helpers described in
+[work item operations](skills/azure-devops/references/work-items.md).
 
 Example prompts:
 
