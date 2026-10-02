@@ -10,6 +10,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  realpathSync,
   readSync,
   renameSync,
   rmSync,
@@ -17,7 +18,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
-import { dirname, extname, resolve } from "node:path";
+import { dirname, extname, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
@@ -228,8 +229,21 @@ function ensureInput(path) {
   return input;
 }
 
+function recordingKey(output) {
+  const resolved = resolve(output);
+  let ancestor = dirname(resolved);
+
+  while (!existsSync(ancestor)) ancestor = dirname(ancestor);
+
+  const canonical = existsSync(resolved)
+    ? realpathSync(resolved)
+    : resolve(realpathSync(ancestor), relative(ancestor, resolved));
+
+  return process.platform === "win32" ? canonical.toLowerCase() : canonical;
+}
+
 function recordingPaths(output) {
-  const id = createHash("sha256").update(resolve(output)).digest("hex").slice(0, 16);
+  const id = createHash("sha256").update(recordingKey(output)).digest("hex").slice(0, 16);
   const root = resolve(tmpdir(), "scarypilot-screen-record");
   mkdirSync(root, { recursive: true, mode: 0o700 });
   const directory = lstatSync(root);
@@ -971,7 +985,7 @@ function status() {
     return;
   }
 
-  if (state.output !== output) fail(`recording state output does not match ${output}`);
+  if (recordingKey(state.output) !== recordingKey(output)) fail(`recording state output does not match ${output}`);
 
   if (options["recording-id"] && options["recording-id"] !== state.recordingId) {
     fail("recording identity does not match; run status and use the current recordingId");
@@ -1002,7 +1016,7 @@ function stop() {
     fail("--timeout must be a positive number of seconds no greater than 120");
   }
 
-  if (!state || state.output !== output) {
+  if (!state || recordingKey(state.output) !== recordingKey(output)) {
     fail(`no active recording found for ${output}`);
   }
 

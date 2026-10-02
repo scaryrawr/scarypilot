@@ -71,8 +71,14 @@ proves that capture is allowed. Do not bypass OS prompts or privacy controls.
 
 Choose an output inside the current workspace. The native tools reject parent
 directory and symlink escapes, including dangling output leaf symlinks. They
-pass the validated canonical parent path to the recorder so in-workspace aliases
-share recording identity. `region` contains integer `x`, `y`, `width`, and
+pass validated canonical paths to the recorder so in-workspace aliases share
+recording identity. Windows lifecycle keys conservatively ignore path casing,
+including before the output exists, so `Raw.mp4` and `raw.mp4` cannot claim
+separate locks. Case-distinct files in an explicitly case-sensitive Windows
+directory also share a lifecycle key; use distinct names rather than casing
+alone. Stop recordings started with earlier pre-release Windows lifecycle
+keys before upgrading this increment; it does not migrate their persisted state.
+`region` contains integer `x`, `y`, `width`, and
 `height` fields. Width and height must be positive even numbers. On macOS,
 `videoInput` is the explicit AVFoundation screen index, and region offsets
 cannot be negative. Device indices can change between captures.

@@ -18,6 +18,10 @@ const mediaPreload = new URL("./fixtures/media-subprocess.mjs", import.meta.url)
 
 const invocation = { sessionId: "fixture", toolCallId: "fixture", toolName: "fixture" };
 
+function stateId(output: string) {
+  return createHash("sha256").update(process.platform === "win32" ? output.toLowerCase() : output).digest("hex").slice(0, 16);
+}
+
 async function setup(mode = "") {
   const root = await realpath(await mkdtemp(join(tmpdir(), "screen-record-test-")));
   const cwd = join(root, "workspace");
@@ -308,7 +312,7 @@ test("confirmed worker spawn failure preserves its error, removes its owned lock
 
   try {
     const output = resolve(fixture.runtime.cwd, "spawn-failure.mp4");
-    const id = createHash("sha256").update(output).digest("hex").slice(0, 16);
+    const id = stateId(output);
     const lock = join(fixture.runtime.env.TMPDIR!, "scarypilot-screen-record", `${id}.lock`);
 
     const failing: RecorderRuntime = {
@@ -340,7 +344,7 @@ test("spawn failure never removes a lock whose owner changed", async () => {
 
   try {
     const output = resolve(fixture.runtime.cwd, "replaced-lock.mp4");
-    const id = createHash("sha256").update(output).digest("hex").slice(0, 16);
+    const id = stateId(output);
     const lock = join(fixture.runtime.env.TMPDIR!, "scarypilot-screen-record", `${id}.lock`);
 
     const failing: RecorderRuntime = {
@@ -362,20 +366,22 @@ test("an interrupted startup lock is actionable and never silently replaced", as
   const fixture = await setup();
 
   try {
-    const output = resolve(fixture.runtime.cwd, "pending.mp4");
-    const id = createHash("sha256").update(output).digest("hex").slice(0, 16);
+    const output = resolve(fixture.runtime.cwd, process.platform === "win32" ? "Pending.mp4" : "pending.mp4");
+    const id = stateId(output);
     const directory = join(fixture.runtime.env.TMPDIR!, "scarypilot-screen-record");
     const lock = join(directory, `${id}.lock`);
 
     await mkdir(directory);
     await writeFile(lock, "interrupted-start");
 
-    const current = await call(fixture.runtime, "screen_record_status", { output });
+    const alias = resolve(fixture.runtime.cwd, "pending.mp4");
+
+    const current = await call(fixture.runtime, "screen_record_status", { output: alias });
 
     assert.equal(current.resultType, "failure");
     assert.match(current.textResultForLlm, /pending or interrupted/);
 
-    const duplicate = await call(fixture.runtime, "screen_record_start", { output, captureApproved: true, videoInput: "0" });
+    const duplicate = await call(fixture.runtime, "screen_record_start", { output: alias, captureApproved: true, videoInput: "0" });
 
     assert.equal(duplicate.resultType, "failure");
     assert.match(duplicate.textResultForLlm, /cannot claim recording startup/);
@@ -441,7 +447,7 @@ test("persisted stale and corrupt states are diagnosed without signalling arbitr
 
   try {
     const output = resolve(fixture.runtime.cwd, "raw.mp4");
-    const id = createHash("sha256").update(output).digest("hex").slice(0, 16);
+    const id = stateId(output);
     const directory = join(fixture.runtime.env.TMPDIR!, "scarypilot-screen-record");
     await mkdir(directory);
     const statePath = join(directory, `${id}.json`);
@@ -596,7 +602,7 @@ test("concurrent CLI starts cannot replace startup ownership", async () => {
 
   try {
     const results = await Promise.all([
-      call(fixture.runtime, "screen_record_start", { output: "raw.mp4", captureApproved: true, videoInput: "0" }),
+      call(fixture.runtime, "screen_record_start", { output: process.platform === "win32" ? "Raw.mp4" : "raw.mp4", captureApproved: true, videoInput: "0" }),
       call(fixture.runtime, "screen_record_start", { output: "raw.mp4", captureApproved: true, videoInput: "0" }),
     ]);
 
@@ -604,6 +610,29 @@ test("concurrent CLI starts cannot replace startup ownership", async () => {
     const success = results.find((result) => result.resultType === "success");
     assert.ok(success);
     recording = state(success.textResultForLlm);
+
+    const alias = resolve(fixture.runtime.cwd, "raw.mp4");
+
+    const current = await call(fixture.runtime, "screen_record_status", { output: alias });
+
+    assert.equal(current.resultType, "success", current.textResultForLlm);
+    assert.ok("recordingId" in recording);
+    assert.equal(state(current.textResultForLlm).output, recording.output);
+
+    const cli = spawnSync(process.execPath, [script, "status", "--output", alias], {
+      env: fixture.runtime.env, encoding: "utf8", timeout: 10000, windowsHide: true,
+    });
+
+    assert.ifError(cli.error);
+    assert.equal(cli.status, 0, cli.stderr);
+    assert.equal(state(cli.stdout).output, recording.output);
+
+    const aliasedStop = await call(fixture.runtime, "screen_record_stop", {
+      output: alias, recordingId: recording.recordingId,
+    });
+
+    assert.equal(aliasedStop.resultType, "success", aliasedStop.textResultForLlm);
+
     const final = await stop(fixture.runtime, recording);
     assert.equal(final.resultType, "success", final.textResultForLlm);
   } finally {

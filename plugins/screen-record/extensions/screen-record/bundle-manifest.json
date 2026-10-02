@@ -2,16 +2,16 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "ac39ca2d54332ebb2b4cfcb91268148e8470f289c1989e5504015022e15e612b",
-    "package.json": "80119afe63717a3ef583e57523ca602c01907b7b65c96c7d344ea3f817d6f8aa",
+    "package-lock.json": "c4734981eda0a49fe6f91fb3e806fb072c273e038979d41a910d6b9de3b4f3b5",
+    "package.json": "a610fced15a3b8a172a7625c4700c81023a1605399fdb432f3cb79d26d200876",
     "src/domain.ts": "3b5214bd39edbcc57b00bbdef343dbea8f1caf8686bf718df3b6ff8be4c98d10",
     "src/extension.ts": "353b1145275f91aafe1aa0aea850e7ffbad3bca9acfa8bc43b2fbc5e06085d38",
-    "src/tools.ts": "c3dcdfb871300a807eb389ca4eef6cafefa19fec72642a0fc940ae4b4ec099f8",
+    "src/tools.ts": "832172b72ef3030f76852faf1c96614b69e68e37a5c6e97d21b0d0084da44b47",
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5",
     "../../skills/screen-record/scripts/sapi-narrate.ps1": "c9930a8c7c088074d08c7914d18450c5a4b47b0930c4a5ef178642b6b847e156",
-    "../../skills/screen-record/scripts/screen-record.mjs": "f23ee074fd46e08691ac5de5b3b12b455561b9ef2273b9eb9a70a2a668a666c7"
+    "../../skills/screen-record/scripts/screen-record.mjs": "6c5d2ea87251843629695710001d220525f51d1d76cc48b0590a268ea9601c7c"
   },
   "outputs": {
-    "dist/extension.mjs": "a92752e65dfbbd9ed5874a30d67fb68b8e9b1682bf93955b473ca20055234541"
+    "dist/extension.mjs": "206362a42423b65dbd9b6f5821e6df93f9ac04cb9bd70f6e7ba103d00da8c155"
   }
 }

@@ -63,7 +63,11 @@ function workspaceOutput(runtime: RecorderRuntime, value: string): string {
   let ancestor = dirname(output);
 
   while (!existsSync(ancestor)) ancestor = dirname(ancestor);
-  const canonical = resolve(realpathSync(ancestor), relative(ancestor, output));
+
+  const canonical = existsSync(output)
+    ? realpathSync(output)
+    : resolve(realpathSync(ancestor), relative(ancestor, output));
+
   const fromRoot = relative(root, canonical);
 
   if (!fromRoot || fromRoot === ".." || fromRoot.startsWith(`..${sep}`) || isAbsolute(fromRoot)) {
