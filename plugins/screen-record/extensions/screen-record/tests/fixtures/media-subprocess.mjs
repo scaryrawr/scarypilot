@@ -9,6 +9,8 @@ const spawnSync = childProcess.spawnSync;
 
 const mediaFixture = fileURLToPath(new URL("./ffmpeg.mjs", import.meta.url));
 
+if (process.env.RECORDER_FIXTURE_UNKNOWN_OWNER === "1") process.getuid = undefined;
+
 const lstat = fs.lstatSync;
 
 const writeFile = fs.writeFileSync;

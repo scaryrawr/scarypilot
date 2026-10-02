@@ -100,10 +100,13 @@ The list is metadata only and does not verify that FFmpeg can capture every
 window or that capture permissions are available.
 
 Recording state lives in a user-scoped temporary directory (UID on Unix, user identity
-hash on Windows). Existing same-owner legacy state for that output remains
-readable in its original directory; foreign legacy directories are not adopted.
+hash on Windows). On Unix, existing UID-verified same-owner legacy state for that
+output remains readable in its original directory. Windows does not automatically
+adopt the fixed legacy directory because Node cannot establish its owner here.
+Stop existing Windows legacy recordings with their installed pre-upgrade recorder
+before upgrading; no recording is killed or state migrated by this update.
 Legacy lookup also recognizes the original resolve-based path key for recordings
-started through a symlinked parent; supply that original path to status/stop.
+started through a symlinked parent on Unix; supply that original path to status/stop.
 PowerShell candidate probes have a one-second timeout and 16 KiB output bound;
 non-missing probe errors are reported before trying the next candidate.
 

@@ -11,6 +11,11 @@ description: >-
 
 # Screen recording workflow
 
+Before upgrading on Windows, stop recordings managed by the old recorder.
+The new tools do not adopt the old fixed state directory when its ownership
+cannot be verified. Use the installed pre-upgrade recorder and retained identity
+for graceful stop; do not remove state or kill capture processes as a workaround.
+
 Keep source recordings and edited outputs in the user's workspace. Never
 overwrite a source recording. Prefer the native `screen_record_*` tools for
 capture. Run `screen_record_doctor` before the first capture in a session.

@@ -261,8 +261,8 @@ function recordingPaths(output) {
 
   const oldDirectory = lstatSync(legacy, { throwIfNoEntry: false });
 
-  const ownLegacy = oldDirectory?.isDirectory() &&
-    (!process.getuid || oldDirectory.uid === process.getuid());
+  const ownLegacy = !!process.getuid && oldDirectory?.isDirectory() &&
+    oldDirectory.uid === process.getuid();
 
   const oldId = createHash("sha256").update(resolve(output)).digest("hex").slice(0, 16);
 

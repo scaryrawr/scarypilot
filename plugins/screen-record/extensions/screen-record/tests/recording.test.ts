@@ -22,8 +22,8 @@ function stateId(output: string) {
   return createHash("sha256").update(process.platform === "win32" ? output.toLowerCase() : output).digest("hex").slice(0, 16);
 }
 
-function stateDirectoryName() {
-  const user = process.getuid ? String(process.getuid()) :
+function stateDirectoryName(ownershipKnown = !!process.getuid) {
+  const user = ownershipKnown && process.getuid ? String(process.getuid()) :
     createHash("sha256").update(`${userInfo().username}\0${userInfo().homedir}`).digest("hex").slice(0, 16);
 
   return `scarypilot-screen-record-${user}`;
@@ -282,7 +282,7 @@ test("standalone stop requires the retained ID before requesting stop or returni
 test("standalone ID-less stop remains graceful only for genuinely ID-less legacy state", async () => {
   const fixture = await setup();
   const output = resolve(fixture.runtime.cwd, "legacy.mp4");
-  const directory = join(fixture.runtime.env.TMPDIR!, "scarypilot-screen-record");
+  const directory = join(fixture.runtime.env.TMPDIR!, process.getuid ? "scarypilot-screen-record" : stateDirectoryName());
   const statePath = join(directory, `${stateId(output)}.json`);
   const workerScript = fileURLToPath(new URL("./fixtures/legacy-worker.mjs", import.meta.url));
   let worker: ReturnType<typeof spawn> | undefined;
@@ -632,6 +632,35 @@ test("validated canonical parents give aliases one recording identity", async ()
   }
 });
 
+test("unverifiable legacy ownership is never adopted even when matching artifacts are readable", async () => {
+  const fixture = await setup();
+  let recording: RecordingState | undefined;
+
+  try {
+    const legacy = join(fixture.runtime.env.TMPDIR!, "scarypilot-screen-record");
+    const output = resolve(fixture.runtime.cwd, "raw.mp4");
+    const oldLock = join(legacy, `${stateId(output)}.lock`);
+
+    await mkdir(legacy);
+    await writeFile(oldLock, "unverified-owner");
+    fixture.runtime.env.RECORDER_FIXTURE_UNKNOWN_OWNER = "1";
+
+    const current = await call(fixture.runtime, "screen_record_status", { output });
+
+    assert.equal(current.resultType, "success", current.textResultForLlm);
+    assert.equal(state(current.textResultForLlm).status, "not-recording");
+
+    recording = await start(fixture.runtime);
+    assert.ok("statePath" in recording);
+    assert.equal(basename(resolve(recording.statePath, "..")), stateDirectoryName(false));
+    assert.equal((await stop(fixture.runtime, recording)).resultType, "success");
+    assert.equal(await readFile(oldLock, "utf8"), "unverified-owner");
+  } finally {
+    if (recording) await stop(fixture.runtime, recording);
+    await fixture.cleanup();
+  }
+});
+
 test("foreign legacy state cannot block user-scoped recording and same-owner state stays readable", async () => {
   const fixture = await setup();
   let recording: RecordingState | undefined;
@@ -657,7 +686,7 @@ test("foreign legacy state cannot block user-scoped recording and same-owner sta
     await writeFile(join(legacy, `${stateId(oldOutput)}.log`), "");
     recording = await start(fixture.runtime, "legacy.mp4");
     assert.ok("statePath" in recording);
-    assert.equal(basename(resolve(recording.statePath, "..")), "scarypilot-screen-record");
+    assert.equal(basename(resolve(recording.statePath, "..")), process.getuid ? "scarypilot-screen-record" : stateDirectoryName());
 
     const current = await call(fixture.runtime, "screen_record_status", { output: oldOutput });
 
@@ -827,7 +856,13 @@ test("legacy resolve-based symlink identities remain discoverable and stoppable"
     const recording = state(cli.stdout);
 
     assert.ok("statePath" in recording);
-    assert.equal(recording.statePath, join(legacy, `${oldId}.json`));
+    assert.equal(recording.statePath, process.getuid
+      ? join(legacy, `${oldId}.json`)
+      : join(fixture.runtime.env.TMPDIR!, stateDirectoryName(), `${stateId(await realpath(output))}.json`));
+
+    if (!process.getuid) {
+      assert.equal(await readFile(join(legacy, `${oldId}.log`), "utf8"), "");
+    }
 
     const current = await call(fixture.runtime, "screen_record_status", { output });
 
@@ -986,7 +1021,7 @@ test("an interrupted startup lock is actionable and never silently replaced", as
   try {
     const output = resolve(fixture.runtime.cwd, process.platform === "win32" ? "Pending.mp4" : "pending.mp4");
     const id = stateId(output);
-    const directory = join(fixture.runtime.env.TMPDIR!, "scarypilot-screen-record");
+    const directory = join(fixture.runtime.env.TMPDIR!, process.getuid ? "scarypilot-screen-record" : stateDirectoryName());
     const lock = join(directory, `${id}.lock`);
 
     await mkdir(directory);
@@ -1075,7 +1110,7 @@ test("persisted stale and corrupt states are diagnosed without signalling arbitr
   try {
     const output = resolve(fixture.runtime.cwd, "raw.mp4");
     const id = stateId(output);
-    const directory = join(fixture.runtime.env.TMPDIR!, "scarypilot-screen-record");
+    const directory = join(fixture.runtime.env.TMPDIR!, process.getuid ? "scarypilot-screen-record" : stateDirectoryName());
     await mkdir(directory);
     const statePath = join(directory, `${id}.json`);
     await writeFile(statePath, JSON.stringify({
