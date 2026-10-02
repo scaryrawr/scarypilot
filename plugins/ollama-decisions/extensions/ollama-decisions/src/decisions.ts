@@ -1,6 +1,7 @@
 import type { Tool, ToolResultObject } from "@github/copilot-sdk";
 import type { Static, TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
+import { isOllamaDuration } from "./duration.ts";
 import {
   DecisionRequestSchema,
   DecisionResponseSchema,
@@ -320,6 +321,10 @@ export function createDecisionTools(client = new DecisionClient()) {
       handler: (args, invocation) => result(async () => {
         if (!Value.Check(DecisionRequestSchema, args)) {
           throw new DecisionError("Invalid decision request. Supply an explicit model, nonempty state, and 1-64 named questions with valid instructions and criteria.");
+        }
+
+        if (typeof args.keep_alive === "string" && !isOllamaDuration(args.keep_alive)) {
+          throw new DecisionError("Invalid decision request. keep_alive must fit Go's signed 64-bit nanosecond duration range.");
         }
 
         return client.decide(args, invocation.signal);

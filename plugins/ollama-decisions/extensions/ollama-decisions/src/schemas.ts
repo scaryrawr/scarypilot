@@ -1,4 +1,5 @@
 import { Type, type Static } from "@sinclair/typebox";
+import { durationPattern } from "./duration.ts";
 
 const nonblank = Type.String({ pattern: "\\S" });
 
@@ -50,7 +51,7 @@ export const DecisionRequestSchema = Type.Object({
     maxProperties: 64,
     additionalProperties: false,
   }),
-  keep_alive: Type.Optional(Type.Union([Type.String(), Type.Number()])),
+  keep_alive: Type.Optional(Type.Union([Type.String({ pattern: durationPattern }), Type.Number()])),
 }, strict);
 
 export type DecisionRequest = Static<typeof DecisionRequestSchema>;

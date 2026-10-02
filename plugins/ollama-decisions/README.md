@@ -89,6 +89,10 @@ The extension checks the byte limit before inference. Input is never truncated.
 `noul` has optional criteria containing only `true` and `false` string descriptions. Either description can be omitted.
 `score` has an array of 2-26 string descriptions, ordered from lowest to highest.
 `keep_alive` is optional and accepts an Ollama duration string or a number of seconds. Negative values keep the model loaded.
+Duration strings use Go's `time.ParseDuration` syntax, including signs, compound values such as `"1h30m"`, fractions such as `".5s"`, and `"0"`.
+Supported units are `ns`, `us`, both Unicode microsecond spellings, `ms`, `s`, `m`, and `h`.
+Strings must parse successfully under Go's signed 64-bit nanosecond rules. Invalid strings fail locally before any metadata or inference request.
+Zero unloads the model after the request. The string `"-0.1ns"` parses as zero and does not keep the model loaded indefinitely.
 Images, videos, and generation options are not accepted.
 
 The result preserves upstream `model`, `answers`, and `usage` with integer `input_tokens` and `output_tokens`.
@@ -140,3 +144,5 @@ It never pulls a model. Live extension-host registration must be checked separat
 - [System One API reference](https://docs.ollama.com/api/systemone).
 - [Authoritative decision wire types](https://github.com/ollama/ollama/blob/main/decision/types.go).
 - [Upstream question validation and answer construction](https://github.com/ollama/ollama/blob/main/decision/systemone.go).
+- [Ollama duration decoding](https://github.com/ollama/ollama/blob/main/api/types.go).
+- [Go duration syntax](https://pkg.go.dev/time#ParseDuration).

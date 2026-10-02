@@ -4,6 +4,7 @@ import { test, type TestContext } from "node:test";
 import { Value } from "@sinclair/typebox/value";
 import { DecisionClient, createDecisionTools } from "../src/decisions.ts";
 import { DecisionRequestSchema, DecisionResponseSchema, type DecisionRequest, type Question } from "../src/schemas.ts";
+import { invalidDurationStrings, validDurationStrings } from "./keep-alive-cases.ts";
 
 type ObservedRequest = { path: string; method: string; authorization?: string; body?: unknown };
 
@@ -478,6 +479,9 @@ const invalidRequests: [string, unknown][] = [
   ["invented question field", { ...request, questions: { q: { ...request.questions.refund, confidence: 0.5 } } }],
   ["boolean keep alive", { ...request, keep_alive: false }],
   ["nonfinite keep alive", { ...request, keep_alive: NaN }],
+  ...invalidDurationStrings.map((duration): [string, unknown] => [
+    `keep_alive ${JSON.stringify(duration)}`, { ...request, keep_alive: duration },
+  ]),
 ];
 
 for (const [label, input] of invalidRequests) {
@@ -500,6 +504,35 @@ for (const [label, input] of invalidRequests) {
     assert.equal(fetches, 0);
   });
 }
+
+test("keep_alive accepts Go duration strings and numeric seconds without changing wire values", async (t) => {
+  for (const keep_alive of [...validDurationStrings, 0, -1, 0.5]) {
+    await t.test(JSON.stringify(keep_alive), async (t) => {
+      const expected = { ...request, keep_alive };
+
+      const http = await server(t, (req, res) => {
+        if (req.path === "/api/tags") json(res, installed);
+        else {
+          assert.equal(req.path, "/v1/systemone");
+          assert.deepEqual(req.body, expected);
+          json(res, response);
+        }
+      });
+
+      const tools = createDecisionTools(new DecisionClient({
+        environment: { OLLAMA_BASE_URL: http.url },
+      }));
+
+      const result = await tools[1].handler(expected, {
+        sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: expected,
+      });
+
+      assert.equal(result.resultType, "success");
+      assert.deepEqual(JSON.parse(result.textResultForLlm), response);
+      assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/v1/systemone"]);
+    });
+  }
+});
 
 for (const endpoint of ["/api/tags", "/api/show", "/v1/systemone"]) {
   for (const declared of [true, false]) {
