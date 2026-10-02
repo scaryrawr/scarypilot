@@ -1104,6 +1104,153 @@ test("spawn failure never removes a lock whose owner changed", async () => {
   } finally { await fixture.cleanup(); }
 });
 
+test("worker startup log and spawn failures release ownership, persist diagnostics, and allow retry", async () => {
+  for (const failure of ["log", "spawn-sync", "spawn-async"]) {
+    const fixture = await setup();
+    let recording: RecordingState | undefined;
+
+    try {
+      const output = resolve(fixture.runtime.cwd, "worker-startup.mp4");
+      const directory = join(fixture.runtime.env.TMPDIR!, stateDirectoryName());
+      const base = join(directory, stateId(output));
+      const recordingId = "11111111-1111-4111-8111-111111111111";
+
+      const config = {
+        output, recordingId, fps: 30, videoInput: "0",
+        lock: `${base}.lock`, log: `${base}.log`, state: `${base}.json`, stop: `${base}.stop`,
+      };
+
+      const spawned = join(fixture.root, "spawned");
+      const closed = join(fixture.root, "closed");
+      await mkdir(directory);
+      await writeFile(config.lock, recordingId);
+
+      const result = spawnSync(process.execPath, [
+        script, "_capture", "--config", Buffer.from(JSON.stringify(config)).toString("base64url"),
+      ], {
+        cwd: fixture.runtime.cwd, encoding: "utf8", timeout: 5000,
+        env: {
+          ...fixture.runtime.env,
+          NODE_OPTIONS: `${fixture.runtime.env.NODE_OPTIONS} --import=${new URL("./fixtures/worker-startup-failure.mjs", import.meta.url).href}`,
+          RECORDER_FIXTURE_STARTUP_FAILURE: failure,
+          RECORDER_FIXTURE_SPAWN_MARKER: spawned, RECORDER_FIXTURE_CLOSED_MARKER: closed,
+        },
+      });
+
+      assert.ifError(result.error);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /fixture worker (log open|spawn) failed with EACCES/);
+      await assert.rejects(readFile(config.lock), { code: "ENOENT" });
+      await assert.rejects(readFile(output), { code: "ENOENT" });
+      const current = await call(fixture.runtime, "screen_record_status", { output });
+      assert.equal(current.resultType, "success", current.textResultForLlm);
+      const terminal = state(current.textResultForLlm);
+      assert.equal(terminal.status, "failed");
+      assert.equal(terminal.recordingId, recordingId);
+      assert.match(current.textResultForLlm, /fixture worker (log open|spawn) failed with EACCES/);
+
+      if (failure === "log") {
+        await assert.rejects(readFile(spawned), { code: "ENOENT" });
+      } else {
+        assert.equal(await readFile(closed, "utf8"), "log descriptor closed");
+      }
+
+      recording = await start(fixture.runtime, output);
+    } finally {
+      if (recording) await stop(fixture.runtime, recording);
+      await fixture.cleanup();
+    }
+  }
+});
+
+test("worker startup rollback preserves replacement files and reports cleanup failures", async () => {
+  for (const failure of ["log", "spawn-sync", "spawn-async"]) {
+    for (const scenario of ["identity", "owner", "read", "remove", "state", "close", "log"]) {
+      if (failure === "log" && scenario === "close") continue;
+      const fixture = await setup();
+
+      try {
+        const base = join(fixture.root, "controller");
+        const recordingId = "11111111-1111-4111-8111-111111111111";
+
+        const config = {
+          output: join(fixture.runtime.cwd, "absent.mp4"), recordingId, fps: 30, videoInput: "0",
+          lock: `${base}.lock`, log: `${base}.log`, state: `${base}.json`, stop: `${base}.stop`,
+        };
+
+        await writeFile(config.lock, recordingId);
+        const replacement = ["identity", "owner"].includes(scenario);
+
+        const result = spawnSync(process.execPath, [
+          script, "_capture", "--config", Buffer.from(JSON.stringify(config)).toString("base64url"),
+        ], {
+          cwd: fixture.runtime.cwd, encoding: "utf8", timeout: 5000,
+          env: {
+            ...fixture.runtime.env,
+            NODE_OPTIONS: `${fixture.runtime.env.NODE_OPTIONS} --import=${new URL("./fixtures/worker-startup-failure.mjs", import.meta.url).href}`,
+            RECORDER_FIXTURE_STARTUP_FAILURE: failure,
+            RECORDER_FIXTURE_STARTUP_REPLACEMENT: replacement ? scenario : "",
+            RECORDER_FIXTURE_STARTUP_CLEANUP: replacement ? "" : scenario,
+            RECORDER_FIXTURE_SPAWN_MARKER: `${base}.spawned`,
+            RECORDER_FIXTURE_CLOSED_MARKER: `${base}.closed`,
+          },
+        });
+
+        assert.ifError(result.error);
+        assert.equal(result.status, 1);
+        assert.match(result.stderr, /fixture worker (log open|spawn) failed with EACCES/);
+
+        if (replacement) {
+          assert.equal(await readFile(config.lock, "utf8"), scenario === "owner" ? "replacement-owner" : recordingId);
+          assert.equal(await readFile(config.state, "utf8"), "replacement state");
+          assert.equal(await readFile(config.log, "utf8"), "replacement log");
+          assert.match(result.stderr, /ownership changed.*preserved/);
+        } else {
+          assert.match(result.stderr, new RegExp(`fixture startup ${{
+            read: "ownership read", remove: "lock removal", state: "state persistence", close: "log close", log: "log write",
+          }[scenario]} failed`));
+
+          if (scenario === "read" || scenario === "remove") {
+            assert.equal(await readFile(config.lock, "utf8"), recordingId);
+          } else {
+            await assert.rejects(readFile(config.lock), { code: "ENOENT" });
+          }
+
+          if (scenario === "remove" || scenario === "close" || scenario === "log") {
+            assert.match(await readFile(config.state, "utf8"), /fixture startup .* failed/);
+          }
+
+          if (scenario === "state" && failure !== "log") {
+            assert.match(await readFile(config.log, "utf8"), /fixture startup state persistence failed/);
+          }
+        }
+
+        await assert.rejects(readFile(config.output), { code: "ENOENT" });
+      } finally { await fixture.cleanup(); }
+    }
+  }
+});
+
+test("detached startup reports worker log-open failure instead of silently stranding ownership", async () => {
+  const fixture = await setup();
+
+  try {
+    fixture.runtime.env.NODE_OPTIONS += ` --import=${new URL("./fixtures/worker-startup-failure.mjs", import.meta.url).href}`;
+    fixture.runtime.env.RECORDER_FIXTURE_STARTUP_FAILURE = "log";
+
+    const result = await call(fixture.runtime, "screen_record_start", {
+      output: "log-failure.mp4", captureApproved: true, videoInput: "0",
+    });
+
+    assert.equal(result.resultType, "failure");
+    assert.match(result.textResultForLlm, /fixture worker log open failed with EACCES/);
+    fixture.runtime.env.RECORDER_FIXTURE_STARTUP_FAILURE = "";
+    const current = await call(fixture.runtime, "screen_record_status", { output: "log-failure.mp4" });
+    assert.equal(current.resultType, "success", current.textResultForLlm);
+    assert.equal(state(current.textResultForLlm).status, "failed");
+  } finally { await fixture.cleanup(); }
+});
+
 test("an interrupted startup lock is actionable and never silently replaced", async () => {
   const fixture = await setup();
 

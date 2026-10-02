@@ -307,7 +307,10 @@ function readState(path) {
       !["recording", "stopping", "stopped", "failed"].includes(state.status) ||
       typeof state.output !== "string" ||
       !Number.isSafeInteger(state.workerPid) || state.workerPid <= 0 ||
-      !Number.isSafeInteger(state.ffmpegPid) || state.ffmpegPid <= 0 ||
+      (state.ffmpegPid === undefined
+        ? state.status !== "failed" || typeof state.startupError !== "string" ||
+          !state.startupError || state.startupError.length > 4096 || state.exitCode !== 1
+        : !Number.isSafeInteger(state.ffmpegPid) || state.ffmpegPid <= 0) ||
       typeof state.startedAt !== "string" ||
       !state.startedAt || state.startedAt.length > 4096 ||
       typeof state.statePath !== "string" || !state.statePath || state.statePath.length > 4096 ||
@@ -347,6 +350,24 @@ function writeState(path, state) {
   const temporary = `${path}.${randomUUID()}.tmp`;
   writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600, flag: "wx" });
   renameSync(temporary, path);
+}
+
+function startupLockMatches(path, identity, recordingId, partial = false) {
+  const current = lstatSync(path, { throwIfNoEntry: false });
+
+  if (!identity || !current?.isFile() ||
+    current.dev !== identity.dev || current.ino !== identity.ino) return false;
+
+  const owner = readFileSync(path, "utf8");
+
+  return partial ? recordingId.startsWith(owner) : owner === recordingId;
+}
+
+function releaseStartupLock(path, identity, recordingId, partial = false) {
+  if (!startupLockMatches(path, identity, recordingId, partial)) return false;
+  rmSync(path);
+
+  return true;
 }
 
 function logTail(path) {
@@ -1049,13 +1070,7 @@ async function start() {
     }
 
     try {
-      const current = lstatSync(paths.lock, { throwIfNoEntry: false });
-
-      if (lockIdentity && current?.isFile() &&
-        current.dev === lockIdentity.dev && current.ino === lockIdentity.ino &&
-        config.recordingId.startsWith(readFileSync(paths.lock, "utf8"))) {
-        rmSync(paths.lock);
-      }
+      releaseStartupLock(paths.lock, lockIdentity, config.recordingId, true);
     } catch (cleanupError) {
       cleanupErrors.push(`lock cleanup failed: ${cleanupError.message}`);
     }
@@ -1089,13 +1104,7 @@ async function start() {
     const cleanupErrors = [];
 
     try {
-      const current = lstatSync(paths.lock, { throwIfNoEntry: false });
-
-      if (current?.isFile() &&
-        current.dev === lockIdentity.dev && current.ino === lockIdentity.ino &&
-        readFileSync(paths.lock, "utf8") === config.recordingId) {
-        rmSync(paths.lock);
-      }
+      releaseStartupLock(paths.lock, lockIdentity, config.recordingId);
     } catch (cleanupError) {
       cleanupErrors.push(`lock cleanup failed: ${cleanupError.message}`);
     }
@@ -1120,7 +1129,18 @@ async function start() {
     }
 
     if (state?.status === "failed" || !worker.pid || !pidRunning(worker.pid)) {
-      const log = logTail(paths.log);
+      let log;
+
+      try {
+        log = logTail(paths.log);
+      } catch (error) {
+        log = `could not read worker log: ${error.message}`;
+      }
+
+      if (state?.recordingId === config.recordingId && state.startupError) {
+        fail(`recording failed to start: ${state.startupError}${log ? `\n${log}` : ""}`);
+      }
+
       fail(`recording failed to start${log ? `\n${log}` : ""}`);
     }
   }
@@ -1128,18 +1148,22 @@ async function start() {
   fail(`recording readiness timed out; the detached worker may still be active. Run status for ${output}; inspect ${paths.log}`);
 }
 
-function captureWorker() {
+async function captureWorker() {
   const encoded = requireOption("config");
   const config = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
 
-  if (!existsSync(config.lock) || readFileSync(config.lock, "utf8") !== config.recordingId) {
+  const lockIdentity = lstatSync(config.lock, { throwIfNoEntry: false });
+
+  if (!startupLockMatches(config.lock, lockIdentity, config.recordingId)) {
     fail("recording worker startup ownership changed; refusing capture");
   }
 
   let windowTarget;
+  let logFd;
+  let ffmpeg;
 
-  if (config.windowId !== undefined) {
-    try {
+  try {
+    if (config.windowId !== undefined) {
       if (process.platform !== "win32" || typeof config.windowId !== "string" ||
         !windowIdPattern.test(config.windowId) || config.region || config.videoInput) {
         throw new Error("Invalid Windows window capture configuration.");
@@ -1147,37 +1171,85 @@ function captureWorker() {
 
       requireGdigrabWindowSupport();
       windowTarget = resolveWindowId(config.windowId);
-    } catch (error) {
-      const details = [`Could not resolve selected window before capture: ${error.message}`];
-
-      try {
-        writeFileSync(config.log, `${details[0]}\n`, { flag: "a", mode: 0o600 });
-      } catch (logError) {
-        details.push(`could not write worker log: ${logError.message}`);
-      }
-
-      try {
-        if (existsSync(config.lock)) {
-          if (readFileSync(config.lock, "utf8") === config.recordingId) {
-            rmSync(config.lock);
-          } else {
-            details.push("startup lock ownership changed; lock was preserved");
-          }
-        }
-      } catch (cleanupError) {
-        details.push(`could not release startup lock: ${cleanupError.message}`);
-      }
-
-      fail(details.join("; "));
     }
+
+    logFd = openSync(config.log, "a", 0o600);
+    ffmpeg = await new Promise((accept, reject) => {
+      const child = spawn("ffmpeg", ffmpegCaptureArgs(config, windowTarget), {
+        stdio: ["pipe", "ignore", logFd],
+        windowsHide: true,
+      });
+
+      child.once("error", reject);
+      child.once("spawn", () => {
+        child.removeListener("error", reject);
+        accept(child);
+      });
+    });
+  } catch (error) {
+    const details = [`Recording worker startup failed: ${error.message}`];
+
+    try {
+      if (startupLockMatches(config.lock, lockIdentity, config.recordingId)) {
+        if (logFd === undefined) {
+          writeFileSync(config.log, `${details[0]}\n`, { flag: "a", mode: 0o600 });
+        } else {
+          writeSync(logFd, `${details[0]}\n`);
+        }
+      } else {
+        details.push("startup lock ownership changed; replacement artifacts were preserved");
+      }
+    } catch (logError) {
+      details.push(`could not write worker log: ${logError.message}`);
+    }
+
+    if (logFd !== undefined) {
+      try {
+        closeSync(logFd);
+      } catch (closeError) {
+        details.push(`could not close worker log: ${closeError.message}`);
+      }
+    }
+
+    const endedAt = new Date().toISOString();
+
+    const failedState = {
+      status: "failed", output: config.output, recordingId: config.recordingId,
+      workerPid: process.pid, startedAt: endedAt, endedAt, updatedAt: endedAt,
+      statePath: config.state, logPath: config.log, exitCode: 1,
+    };
+
+    const persistFailure = () => {
+      try {
+        if (startupLockMatches(config.lock, lockIdentity, config.recordingId)) {
+          writeState(config.state, { ...failedState, startupError: details.join("; ").slice(0, 4096) });
+        }
+      } catch (stateError) {
+        details.push(`could not persist worker startup failure: ${stateError.message}`);
+
+        try {
+          if (startupLockMatches(config.lock, lockIdentity, config.recordingId)) {
+            writeFileSync(config.log, `${details.join("; ")}\n`, { flag: "a", mode: 0o600 });
+          }
+        } catch (logError) {
+          details.push(`could not write worker failure diagnostics: ${logError.message}`);
+        }
+      }
+    };
+
+    persistFailure();
+
+    try {
+      if (!releaseStartupLock(config.lock, lockIdentity, config.recordingId)) {
+        details.push("startup lock ownership changed; replacement artifacts were preserved");
+      }
+    } catch (cleanupError) {
+      details.push(`could not release startup lock: ${cleanupError.message}`);
+      persistFailure();
+    }
+
+    fail(details.join("; "));
   }
-
-  const logFd = openSync(config.log, "a", 0o600);
-
-  const ffmpeg = spawn("ffmpeg", ffmpegCaptureArgs(config, windowTarget), {
-    stdio: ["pipe", "ignore", logFd],
-    windowsHide: true,
-  });
 
   const state = {
     status: "recording",
@@ -1305,9 +1377,6 @@ function captureWorker() {
     process.exit(controllerError ? 1 : code);
   };
 
-  ffmpeg.once("spawn", () => {
-    persistState();
-  });
   ffmpeg.stdin.on("error", (error) => {
     recordFailure(error, "graceful stop");
     requestStop();
@@ -1318,6 +1387,7 @@ function captureWorker() {
   ffmpeg.once("close", (code) => {
     finish(code ?? 1);
   });
+  persistState();
 }
 
 function status() {
@@ -1843,7 +1913,7 @@ switch (command) {
     await start();
     break;
   case "_capture":
-    captureWorker();
+    await captureWorker();
     break;
   case "status":
     status();

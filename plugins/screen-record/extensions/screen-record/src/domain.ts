@@ -63,6 +63,14 @@ export const RecordingStateSchema = Type.Union([
   Type.Object({ status: Type.Literal("not-recording"), output: Text }),
   Type.Object({
     ...SavedRecording,
+    status: Type.Literal("failed"),
+    ffmpegPid: Type.Optional(Type.Never()),
+    startupError: Text,
+    endedAt: Text,
+    exitCode: Type.Literal(1),
+  }),
+  Type.Object({
+    ...SavedRecording,
     status: Type.Union([Type.Literal("recording"), Type.Literal("stopping"), Type.Literal("stale")]),
   }),
   Type.Object({

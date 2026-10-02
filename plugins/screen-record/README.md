@@ -144,6 +144,13 @@ during stale-artifact cleanup, configuration encoding, or worker spawn report
 the original error and release only the startup lock with the same file identity
 and recording UUID. Replacement locks are preserved; rollback errors are
 reported alongside the original failure.
+Worker log-open, window-revalidation, and FFmpeg spawn failures use the same
+identity-and-UUID rollback checks. They preserve replacement locks, state, and
+logs, close any opened log descriptor, and retain a `failed` startup state with
+`startupError` when storage is writable. That state has no `ffmpegPid` because
+FFmpeg never started. Start and status expose the original error; cleanup and
+persistence failures remain explicit diagnostics. No state is written after
+successful ownership release.
 Successful startup means the FFmpeg process is running, not that the first
 frame or requested audio has been verified. Probe and review the resulting file.
 
