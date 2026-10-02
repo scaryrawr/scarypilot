@@ -166,6 +166,7 @@ async function loadSource(args: GroundedArgs, signal: AbortSignal): Promise<Sour
 
     if (chunk.index !== position + 1 || !Number.isFinite(chunk.start_seconds) || !Number.isFinite(chunk.end_seconds) ||
         chunk.start_seconds < range.start || chunk.start_seconds + AudioSampleSeconds < previousEnd ||
+        chunk.start_seconds > previousEnd + AudioSampleSeconds ||
         chunk.start_seconds >= chunk.end_seconds || chunk.end_seconds > range.end + AudioSampleSeconds ||
         chunk.audio !== manifest.artifacts.audio[position]) {
       groundedError("INVALID_SOURCE", "Chunk ids, timestamps or audio references are inconsistent");
@@ -175,6 +176,10 @@ async function loadSource(args: GroundedArgs, signal: AbortSignal): Promise<Sour
 
     return { index: chunk.index, start_seconds: chunk.start_seconds, end_seconds: chunk.end_seconds, text: chunk.text };
   });
+
+  if (previousEnd + AudioSampleSeconds < range.end) {
+    groundedError("INVALID_SOURCE", "Chunks do not cover the complete source audio range");
+  }
 
   if (textBytes > 32768) groundedError("INVALID_SOURCE", "Projected transcript exceeds 32 KiB");
 

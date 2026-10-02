@@ -166,6 +166,38 @@ test("permits only one sample of endpoint rounding or adjacent chunk overlap", a
   }
 });
 
+test("requires complete contiguous source coverage within one sample before workers", async () => {
+  for (const samples of [1, 2, 16000]) {
+    for (const gap of ["start", "middle", "end"]) {
+      const f = await fixture();
+      const first = f.payload.chunks[0];
+      first.end_seconds = 5;
+      const second = { ...first, index: 2, audio: path.join(f.root, "chunk-002.wav"), start_seconds: 5, end_seconds: 10 };
+
+      if (gap === "start") first.start_seconds += samples / 16000;
+
+      if (gap === "middle") first.end_seconds -= samples / 16000;
+
+      if (gap === "end") second.end_seconds -= samples / 16000;
+      f.payload.chunks.push(second);
+      f.payload.artifacts.audio.push(second.audio);
+      const bytes = JSON.stringify(f.payload);
+      await writeFile(f.manifest, bytes);
+      const h = harness({ ...f.args, expected_manifest_sha256: createHash("sha256").update(bytes).digest("hex") });
+
+      if (samples === 1) {
+        const result = await runGroundedNote(h.ctx);
+        assert.equal(result.source_chunks[0].start_seconds, first.start_seconds);
+        assert.equal(result.source_chunks[1].end_seconds, second.end_seconds);
+        assert.equal(h.calls.length, 2);
+      } else {
+        await assert.rejects(runGroundedNote(h.ctx), /INVALID_SOURCE/);
+        assert.equal(h.calls.length, 0);
+      }
+    }
+  }
+});
+
 test("full validation rejects null, malformed JSON, extras, empty fields, bounds and duplicate citations before checker", async () => {
   const f = await fixture();
 
@@ -309,7 +341,7 @@ test("bounds real byte reads and projected text without truncating an oversized 
   const chunk = f.payload.chunks[0];
 
   const chunks = Array.from({ length: 3 }, (_, i) => ({
-    ...chunk, index: i + 1, start_seconds: i * 3, end_seconds: (i + 1) * 3,
+    ...chunk, index: i + 1, start_seconds: i * 3, end_seconds: i === 2 ? 10 : (i + 1) * 3,
     text: "a".repeat(12000), audio: path.join(f.root, `chunk-${i + 1}.wav`),
   }));
 
