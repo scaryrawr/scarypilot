@@ -1,6 +1,8 @@
 # Make it yours
 
-poteto-mode is one person's style. The machinery underneath, playbooks, routing, model roles, works just as well wearing yours. This page covers generating a personal mode, capturing lessons from a session, authoring a focused skill, and testing a skill change before you trust it.
+poteto-mode is one person's style. The machinery underneath, playbooks, routing, model roles, works just as well wearing yours. This page covers generating a personal mode, capturing lessons from a session, fixing the repo so agents stop repeating mistakes, authoring a focused skill, and testing a skill change before you trust it.
+
+Start smaller than you think. You don't need many skills on day one, or even this whole plugin. Prompt plainly, watch where agents fail, and add a skill or check when the same failure shows up twice.
 
 ## Generate your own mode with `/automate-me`
 
@@ -28,6 +30,25 @@ Right after a task that taught you something, run:
 
 [`/reflect`](../../skills/reflect/SKILL.md) sends the transcript to three parallel reviewers, then a synthesizer sorts the proposals into `Accepted`, `Rejected`, and `Backlog` and waits for your approval before any skill changes. Approve a proposal only if it would change a future decision. One weird session is an anecdote, not a rule.
 
+## Fix the environment with `/correct`
+
+When you correct agents for the same mistake again and again, the fix belongs in the repo, not in your next prompt. Rank the options by how well they hold:
+
+1. Make the mistake impossible with architecture or a better data structure.
+2. Block it with types, or with a lint or CI check whose error names the fix.
+3. Catch it with a test.
+4. Write it down as a doc or agent rule. Nothing fails when an agent skips a rule, so this comes last.
+
+A reviewer who must catch the same mistake on every PR is the problem this fixes. [`/correct`](../../skills/correct/SKILL.md) does the work:
+
+```text
+/correct agents keep calling the database client directly instead of going through the repository layer
+```
+
+It reads available recent commits, reverts, review comments, and comments that explain workarounds, then groups mistakes into classes. A class counts once it has happened twice. It fixes the most frequent classes one verifiable unit each, at the highest level that works, and proves each new check fails on a real past mistake. It commits units only when authorized. It keeps a table in repository agent guidance pairing each rule with what enforces it, so unenforced rules stay visible. The reply lists each class, its evidence, the level chosen, and why a higher level didn't work.
+
+Run it with no argument to discover classes from accessible history. `/reflect` improves skills from one session. `/correct` changes the repo to prevent repeated mistakes. Pair it with `/architect` when the fix is a new boundary. [Coordinate several bodies of work](./07-overnight.md#coordinate-several-bodies-of-work) has a gated planning prompt that combines them.
+
 ## Author a focused skill
 
 When you already know the workflow you want to capture:
@@ -52,11 +73,19 @@ Skills aren't the only prose you ship. For docs, RFCs, readmes, PR descriptions,
 
 ## Test a skill change blind
 
-A skill edit affects every future session, so test it like the experiment it is:
+A skill edit affects every future session, so test it like the experiment it is. The same goes for adopting someone else's skill. Check that it improves the agent on your work before you keep it.
 
 ```text
 /poteto-mode run the eval playbook on this skill change. same task for both variants, candidates stay blind.
 ```
+
+When a skill keeps missing and you know what it should do, change and test it in one task:
+
+```text
+/poteto-mode update the review skill so it flags missing migrations, and eval the change.
+```
+
+Asking for the eval up front keeps the edit honest. A fix written from one bad session tends to overfit that session, and repeated edits can make the skill drift. The eval catches drift before it ships.
 
 The [Eval playbook](../../skills/poteto-mode/playbooks/eval.md) is built around one failure mode, the observer effect. An agent that knows it's being evaluated behaves differently. So candidate agents get an organic-looking task in sanitized directories, never the words "eval" or "candidate", and never each other's existence. One judge scores all outputs under neutral labels, and chain-following gets graded from which files each candidate actually read, not from what it claims.
 

@@ -1,7 +1,18 @@
 # Understand the code before changing it
 
-Editing code you don't understand is how subtle regressions ship. pstack gives you four ways in. `/how` explains what the code does now. `/why` digs up the reasons it's shaped that way. `/teach` blends both into one explanation. `/recall` rebuilds your own recent context on a topic.
+Editing code you don't understand is how subtle regressions ship, and that's as true for the agent as for you. Agents usually fail in one of two ways. They misread what you want, or they lack the context to do the work right. [What goes in a prompt](./02-poteto-mode.md#what-goes-in-a-prompt) handles the first. This page handles the second.
 
+pstack gives you four ways in. `/how` explains what the code does now. `/why` digs up the reasons it's shaped that way. `/teach` blends both into one explanation. `/recall` rebuilds your own recent context on a topic. Each one also makes the agent explain itself in words you can check.
+
+## Start with a read-only investigation
+
+When the cause is unclear, ask for findings, not a fix:
+
+```text
+/poteto-mode investigate why background jobs time out every few hours. give me what we know, what data you used, and your best hypotheses. don't change any code yet.
+```
+
+"don't change any code yet" routes this to the [Investigation playbook](../../skills/poteto-mode/playbooks/investigation.md). It runs `/how`, adds `/why` for questions about motivation, and returns a cited explanation. For a choice between options, it returns a recommendation with a trade-offs table. Asking "what data you used" makes the agent separate its evidence from its guesses. When the findings point at a fix, start the fix as a new task.
 
 ## Trace behavior with `/how`
 
@@ -29,13 +40,27 @@ The two compose naturally. `do why first then how` is a perfectly good prompt wh
 
 [`/teach`](../../skills/teach/SKILL.md) is for when a summary isn't enough. It runs `/how` and `/why`, for a small change maybe just one of them, and weaves the findings into a plain explanation that builds up diagram by diagram. The "convince me" framing is worth stealing. It turns the explanation into an argument you can poke at instead of a tour.
 
+It works on the agent's own choices too:
+
+```text
+/teach me why you implemented it this way and not with a queue. what did you trade off, and why?
+```
+
+Teaching helps the agent as much as you. An agent that has to explain its work must read the code and back each claim with evidence instead of stating it confidently and moving on.
+
 ## Rebuild your own context with `/recall`
 
 ```text
 /recall catch me up on the export work from last week
 ```
 
-[`/recall`](../../skills/recall/SKILL.md) mines your own recent chats plus the shared record (issues, prior fixes, errors still firing) and hands back a brief on where things stand and what's next. Use it when you're returning to a topic cold. If you want to resume one specific chat, that's the Session pickup playbook below, not `/recall`.
+[`/recall`](../../skills/recall/SKILL.md) mines available session history plus the accessible shared record (issues, prior fixes, errors still firing) and hands back a brief on where things stand and what's next. Your old chats hold context that a fresh agent lacks, so start new work on an old topic by loading it first, then hand over the new input:
+
+```text
+/recall my work on the virtualized list from yesterday, then read this bug report.
+```
+
+Session history and external sources depend on the current host's tools and access. Missing sources are limits to report, not permission to guess. If you want to resume one specific chat, that's the Session pickup playbook below, not `/recall`.
 
 ## Take over prior work with Session pickup
 
@@ -46,6 +71,8 @@ When another agent (or you, last week) left a branch mid-flight:
 ```
 
 The [Session pickup playbook](../../skills/poteto-mode/playbooks/session-pickup.md) treats the prior trail as authoritative. It reconstructs the branch state and decisions, names the resume point, and verifies inherited claims against the original goal instead of re-deriving everything from scratch.
+
+For deterministic inspection first, `/pstack resume` reads existing handoff and state facts without starting workers or resuming the task itself. The recorded claims still need verification before you act on them.
 
 **Pitfall:** don't skip this page's skills because "the agent will read the code anyway." An agent that starts editing without a traced model tends to fix the symptom at the first plausible spot. `/how` first is cheaper than the second bug.
 

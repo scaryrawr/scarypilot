@@ -17,7 +17,11 @@ const SUB_BLOCKS = [
 
 const PROGRAM_H3 = ["Arm the program", "Spawn owners", "PR mechanics", "Verdict and merge", "Boot recipe"];
 
-const PROGRAM_MARKERS = ["decision-trail", /30[- ]minute/, "status message"];
+const PROGRAM_MARKERS = ["decision-trail", "status message"];
+
+const AUDIT_CADENCE = /\b(?:30[- ]minute|hourly)\b/i;
+
+const AUDIT_MARKER = /\b(?:audit[- ]tick|status message)\b/i;
 
 const HOW_TO_READ_MARKERS = [
   "One box is one unit of work",
@@ -44,13 +48,24 @@ function preparedLines(rawText) {
   }
 
   const lines = [];
-  let fence = false;
+  let fence = null;
 
   for (let i = start; i < raw.length; i++) {
     const text = raw[i];
+    const delimiter = text.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    let code = fence !== null;
 
-    if (text.startsWith("```")) fence = !fence;
-    lines.push({ n: i + 1, text, code: fence });
+    if (fence !== null) {
+      if (delimiter && delimiter[1][0] === fence[0] &&
+          delimiter[1].length >= fence.length && /^[ \t]*$/.test(delimiter[2])) {
+        fence = null;
+      }
+    } else if (delimiter && (delimiter[1][0] === "~" || !delimiter[2].includes("`"))) {
+      fence = delimiter[1];
+      code = true;
+    }
+
+    lines.push({ n: i + 1, text, code });
   }
 
   return lines;
@@ -139,9 +154,16 @@ function strictFindings(lines) {
     }
 
     for (const marker of PROGRAM_MARKERS) {
-      const ok = marker instanceof RegExp ? marker.test(bodyText(program)) : bodyText(program).includes(marker);
+      if (!bodyText(program).includes(marker)) {
+        fail(program.n, "program-marker", `Program checklist lacks "${marker}"`);
+      }
+    }
 
-      if (!ok) fail(program.n, "program-marker", `Program checklist lacks "${marker}"`);
+    if (!program.body.some((line) =>
+      !line.code && AUDIT_CADENCE.test(line.text) && AUDIT_MARKER.test(line.text),
+    )) {
+      fail(program.n, "audit-cadence",
+        'Program checklist needs "hourly" or "30-minute" on the audit tick or status message line');
     }
   }
 

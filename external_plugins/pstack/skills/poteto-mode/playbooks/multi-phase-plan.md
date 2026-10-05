@@ -39,7 +39,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
   - [ ] `<project verification skill path or available control tool>`
   - [ ] `pstack/skills/poteto-mode/playbooks/opening-a-pr.md`
   - [ ] `pstack/skills/<each other leaf skill the program uses>`
-- [ ] Arm the 30-minute audit tick with the available terminal, workflow, or session mechanism. Never leave the cadence to memory.
+- [ ] On the operator's go, arm the hourly audit tick with an available and approved session automation, or a bounded timer while the session remains active. Record any inability to wake a closed session. Never leave the cadence to memory.
 - [ ] Use this tick prompt, verbatim. "Re-read the execution playbook and the decision-trail objective. Audit the operation against both and fix drift in this tick. Probe every active lane and judge progress by side effects only. Stand down a stuck lane and dispatch its replacement now. Then post a short status message to the operator in chat only when the audit found a tracked change that no earlier status message reported, such as a PR opened, a merge-ready head, a verdict, a merge, a stuck agent and the action taken, a blocker added or cleared, or a decision only the operator can make. Name every such change and nothing else. Do not repeat a table, the merged list, or an unchanged blocker. If the audit found none, end the turn with no reply text. Either way, log this tick's row in the decision trail. The row names the items reported, or none."
 - [ ] On the operator's hold or stand-down, send every owner a zero-writes order at once.
 
@@ -54,7 +54,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 
 ### PR mechanics, for every PR
 
-- [ ] Open the PR ready, never draft, with the repository's GitHub or review workflow.
+- [ ] Open the PR ready per **Opening a PR**, unless the user or repository workflow requires a draft. Use the host's built-in PR tool when it supports the exact operation, otherwise the repository's forge workflow. A stack child targets its parent branch.
 - [ ] Run the repo's lint and typecheck once before the PR-facing push. Push with hooks on.
 - [ ] Run `/deslop` before each commit and `/no-comments` before review.
 - [ ] Triage every Bugbot and security-reviewer comment per `../references/bugbot-triage.md`.
@@ -65,6 +65,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 - [ ] At the code-ready head SHA and at each later push that changes the patch, run the swarm per `pstack/skills/swarm/SKILL.md`. Include gate lanes, the live lanes from the PR's **Verify, live** block, the perf lane from its **Verify, perf** block, and one early audit lane that reads only the diff and distrusts the PR body. Keep these results provisional until the final receipt audit passes.
 - [ ] After the owner reports merge-ready, or STACK-READY in stack mode, the root separately audits that report and its final self-proof, CI, and babysit receipts against the reported head SHA and required pass predicates. Missing, stale, or failed evidence blocks acceptance. Repeat this audit for every updated ready report after a rewritten head.
 - [ ] Clean only when every required lane is `PASS` and the root's final receipt audit passes. Findings go back to the owner. A new head gets a fresh swarm and a fresh receipt audit, except for lane results that stay valid under the patch-id rule in `playbooks/shipping.md`.
+- [ ] Record the tested base and head SHAs. Any trunk or intended-parent movement requires fresh CI and required live/perf evidence on the combined new base and head per the base-freshness rule in `playbooks/shipping.md`. A clean merge or unchanged patch-id cannot preserve stale integration receipts.
 - [ ] <The merge or append rule from the execution playbook, with the patch-id rule from `playbooks/shipping.md`.>
 
 ### Boot recipe, for every live lane

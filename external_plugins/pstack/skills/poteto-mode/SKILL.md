@@ -23,6 +23,7 @@ Remaining triggers:
 - Before commit → the **deslop** skill over code. Apply **unslop** to prose and run the repository's existing formatter or linter.
 - Before review → the **no-comments** skill (`/no-comments`).
 - Shipping UI / IDE / CLI → the project's verification skill or the available browser, computer-use, terminal, or shell tools. For bug fixes, reproduce first on the same surface yourself; hand to the user only under the narrow Bug fix step 1 exception.
+- Running a benchmark, measuring perf yourself, or reporting a speedup or regression you measured → the **benchmark-checklist** skill before you report or act on the number.
 - Host-dependent workflow → call `pstack_capabilities` when available. Treat `unknown` as unavailable until the current Copilot host proves otherwise. Never infer Task agents, session history, browser automation, MCP tools, Graphite, or App sidebar state from another session.
 - Any PR-status request → the **Babysit** playbook (`playbooks/babysit.md`). That includes "babysit this", "get it green", "address the bugbot comments", and the commonest phrasing, "check on PR X" / "anything outstanding on X". Never trigger it merely because a PR was opened. Declare its mode before polling; the playbook's step 1 owns the request-to-mode mapping.
 - Asked to land or ship a green stack → the **Shipping** playbook (`playbooks/shipping.md`). Green is not safe. Nothing gets armed before an independent per-PR verdict, and only the contiguous verified run from the root lands.
@@ -62,6 +63,7 @@ Read the leaf skill in full for any principle you apply. Each entry names when i
 - **Fix Root Causes** (**principle-fix-root-causes**). Debugging. Trace each symptom to its root cause, reproduce first, ask why until you reach it.
 - **Sequence Work into Verifiable Units** (**principle-sequence-verifiable-units**). Multi-step work (sweeps, migrations, runs of similar edits) and how you stack commits and PRs. Break work into small units that each end in a check, verify each before the next, and order delivery so the sequence proves itself.
 - **Test Behavior, Not Implementation** (**principle-test-behavior-not-implementation**). Writing, changing, reviewing, or keeping a test in any language. Exercise a caller-visible contract, assert an independently specified outcome, and check that a plausible defect makes the test fail.
+- **Explain the Number** (**principle-explain-the-number**). Before you trust, report, or act on a number you measured (a speedup, a regression, a throughput, a latency, or an eval result). Find what limits it, and rule out that it measured something other than the work you think.
 
 **Delegation**
 
@@ -88,7 +90,9 @@ Read the leaf skill in full for any principle you apply. Each entry names when i
 
 **Defaults for every `Task` call.** Use `mode: "background"` only when the parent has independent work to do; otherwise prefer `mode: "sync"`. Pass file pointers instead of large inlined context. Model choices are configurable through `/setup-pstack`; omit `model` when a configured value is `inherit-parent` or `auto`. If no configuration exists, use the Task tool's default model rather than assuming every Copilot account exposes the same model catalog. Use `agent_type: "explore"` for read-only codebase exploration, `agent_type: "code-review"` for an existing diff, and `agent_type: "general-purpose"` for implementation or synthesis.
 
-You own every subagent's work. Review the diff and write your own summary, don't pass through what it said. Interrupt-chained resumes silently drop directives, so fire a fresh subagent with consolidated scope rather than trusting a "done" summary. A second opinion is the same prompt against a different model. Agreement is high-signal.
+You own every subagent's work. Review the diff and write your own summary, don't pass through what it said. A second opinion is the same prompt against a different model. Agreement is high-signal.
+
+**Fresh subagents for independent work.** Start a fresh agent for a new task or queue item with a complete brief, relevant directives, and any prior report and branch. Use `write_agent` only for same-task follow-ups where retained context is useful, such as its checkout, uncommitted changes, or a running server or watcher. A stop or hold order is not reuse. A PR-owner role outlives its agent; after that agent returns, a fresh agent can take the role's next round. Read results with the known agent ID. Interrupt-chained resumes can drop directives, so consolidate them instead of trusting a "done" summary. Do not replay a writing worker or duplicate work still running.
 
 ## Writing the reply
 

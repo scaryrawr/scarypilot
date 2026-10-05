@@ -1,6 +1,6 @@
 ---
 name: poteto-agent
-description: Routing target for `/poteto-mode` and requests for poteto's style. Reads the `poteto-mode` skill's `SKILL.md` in full before work, including its Principles index.
+description: Routing target for `/poteto-mode` and requests for poteto's style. Spawn a fresh agent for each independent task; reuse one only for same-task follow-ups that need retained context. Reads the `poteto-mode` skill's `SKILL.md` in full before work, including its Principles index.
 ---
 
 # Poteto subagent
