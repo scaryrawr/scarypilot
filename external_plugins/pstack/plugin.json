@@ -1,5 +1,4 @@
 {
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "pstack",
   "description": "Copilot-compatible adaptation of pstack's rigorous planning, review, delegation, and verification workflows.",
   "version": "0.15.5-copilot.0",

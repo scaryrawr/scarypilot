@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile, readdir, writeFile } from "node:fs/promises";
+import { EOL } from "node:os";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -12,6 +13,8 @@ const extensions = [
   "plugins/copilot-local-llm/extensions/copilot-local-llm",
   "plugins/digivolution/extensions/digivolution",
   "plugins/omlx-media/extensions/omlx-media",
+  "plugins/screen-record/extensions/screen-record",
+  "plugins/ollama-decisions/extensions/ollama-decisions",
 ];
 
 const [mode = "check", selected] = process.argv.slice(2);
@@ -44,6 +47,19 @@ if (JSON.stringify(discovered.sort()) !== JSON.stringify(expected.sort())) {
   throw new Error(`Extension inventory changed: expected ${expected}, found ${discovered}`);
 }
 
+for (const extension of selected ? [selected] : expected) {
+  const lock = JSON.parse(await readFile(path.join(root, extension, "package-lock.json"), "utf8"));
+  const sdk = lock.packages["node_modules/@github/copilot-sdk"];
+
+  for (const [name, version] of Object.entries(sdk.optionalDependencies)) {
+    const platform = lock.packages[`node_modules/${name}`];
+
+    if (platform?.version !== version || !platform.resolved || !platform.integrity) {
+      throw new Error(`${extension}: SDK platform package ${name}@${version} is not fully locked`);
+    }
+  }
+}
+
 for (const extension of selected ? [selected] : extensions) {
   const directory = path.join(root, extension);
 
@@ -60,6 +76,15 @@ for (const extension of selected ? [selected] : extensions) {
     inputs.push(
       "../../skills/poteto-mode/scripts/plan-rules.mjs",
       "../../skills/poteto-mode/scripts/orch/store.ts",
+      "../../skills/pstack-schema-validate/scripts/artifact-rules.mjs",
+    );
+  }
+
+  if (extension === "plugins/screen-record/extensions/screen-record") {
+    inputs.push(
+      "../../skills/screen-record/scripts/screen-record.mjs",
+      "../../skills/screen-record/scripts/windows-enumerate.ps1",
+      "../../skills/screen-record/scripts/sapi-narrate.ps1",
     );
   }
 
@@ -96,8 +121,8 @@ for (const extension of selected ? [selected] : extensions) {
   const manifestPath = path.join(directory, "bundle-manifest.json");
 
   if (mode === "write") {
-    await writeFile(manifestPath, serialized);
-  } else if ((await readFile(manifestPath, "utf8")) !== serialized) {
+    await writeManifest(manifestPath, serialized);
+  } else if ((await readFile(manifestPath, "utf8")).replace(/\r\n/g, "\n") !== serialized) {
     throw new Error(`${extension}: stale bundle; run npm run build and commit dist/ and bundle-manifest.json`);
   }
 
@@ -123,6 +148,20 @@ async function digest(files, directory) {
       createHash("sha256").update((await readFile(file, "utf8")).replace(/\r\n/g, "\n")).digest("hex"),
     ])),
   );
+}
+
+async function writeManifest(file, serialized) {
+  let current;
+
+  try {
+    current = await readFile(file, "utf8");
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+
+  const lineEnding = current === undefined ? EOL : current.includes("\r\n") ? "\r\n" : "\n";
+
+  await writeFile(file, serialized.replace(/\n/g, lineEnding));
 }
 
 function relativePath(from, to) {

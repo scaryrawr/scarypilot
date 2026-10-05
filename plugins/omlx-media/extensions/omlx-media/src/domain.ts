@@ -59,13 +59,7 @@ export interface OmlxSpeechArgs {
   response_format?: SpeechFormat;
 }
 
-export interface OmlxTranscriptionArgs {
-  input: string;
-  output: string;
-  model?: string;
-  language?: string;
-  prompt?: string;
-}
+export type { LegacyTranscriptionArgs as OmlxTranscriptionArgs } from "./media-domain.ts";
 
 export type FetchImplementation = (
   input: string | URL | Request,

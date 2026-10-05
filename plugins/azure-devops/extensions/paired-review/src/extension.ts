@@ -38,6 +38,8 @@ import {
   ReviewTargetSchema,
 } from "./review-schema.ts";
 import { startReviewServer } from "./server.ts";
+import { createAdoPullRequestStateTool } from "./ado-tools.ts";
+import { createAdoWorkItemGetTool, createAdoWorkItemQueryTool, createAdoWorkItemSearchTool } from "./boards-tools.ts";
 
 const CANVAS_ID = "azure-devops-paired-review";
 
@@ -381,6 +383,7 @@ const pairedReviewCommand: CommandDefinition = {
 };
 
 const session = await joinSession({
+  tools: [createAdoPullRequestStateTool(), createAdoWorkItemSearchTool(), createAdoWorkItemQueryTool(), createAdoWorkItemGetTool()],
   canvases: [pairedReviewCanvas],
   commands: [pairedReviewCommand],
   requestCanvasRenderer: true,

@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import sys
-from typing import Any
 
-from shared.ado import attribute_ai_text, build_thread_payload, resolve_out_file, run_json, scope_args, strip_refs_heads
+from shared.ado import build_thread_payload, resolve_out_file, strip_refs_heads
+from shared.pr import Publisher, Scope, cli_client
+from shared.transport import AdoError, Deferred
 
 
 def positive_int(value: str) -> int:
@@ -24,7 +24,7 @@ def positive_int(value: str) -> int:
 
 def context(args: argparse.Namespace) -> None:
     """Print compact context for an Azure DevOps pull request."""
-    details = run_json(["az", "repos", "pr", "show", "--id", args.id, *scope_args(args)])
+    details = cli_client(args).details(args.id)
     repo = details.get("repository") or {}
     project = repo.get("project") or {}
     payload = {
@@ -48,33 +48,9 @@ def context(args: argparse.Namespace) -> None:
 
 def list_threads(args: argparse.Namespace) -> None:
     """List Azure DevOps pull request threads, optionally filtering by status."""
-    details = run_json(["az", "repos", "pr", "show", "--id", args.id, *scope_args(args)])
-    repo = details.get("repository") or {}
-    project = repo.get("project") or {}
-    project_name = project.get("name")
-    repository_id = repo.get("id")
-    if not project_name or not repository_id:
-        sys.exit("error: could not determine project or repository for the pull request")
-
-    response = run_json(
-        [
-            "az",
-            "devops",
-            "invoke",
-            "--area",
-            "git",
-            "--resource",
-            "pullRequestThreads",
-            "--route-parameters",
-            f"project={project_name}",
-            f"repositoryId={repository_id}",
-            f"pullRequestId={args.id}",
-            "--api-version",
-            "7.1",
-            *scope_args(args),
-        ]
-    )
-    threads = response.get("value") or []
+    client = cli_client(args)
+    details = client.details(args.id)
+    threads = client.threads(Scope.from_details(client.org, details))["value"]
     if args.status:
         threads = [thread for thread in threads if thread.get("status") == args.status]
     print(json.dumps({"count": len(threads), "threads": threads}, indent=2))
@@ -82,147 +58,24 @@ def list_threads(args: argparse.Namespace) -> None:
 
 def list_builds(args: argparse.Namespace) -> None:
     """List pipeline runs for the pull request's current synthetic merge commit."""
-    details = run_json(["az", "repos", "pr", "show", "--id", args.id, *scope_args(args)])
-    repo = details.get("repository") or {}
-    project = repo.get("project") or {}
-    project_name = project.get("name")
-    repository_id = repo.get("id")
-    merge_commit_id = (details.get("lastMergeCommit") or {}).get("commitId")
-    if not project_name or not repository_id or not merge_commit_id:
-        sys.exit("error: could not determine project, repository, or current merge commit for the pull request")
-
-    merge_ref = f"refs/pull/{args.id}/merge"
-    response = run_json(
-        [
-            "az",
-            "devops",
-            "invoke",
-            "--area",
-            "build",
-            "--resource",
-            "builds",
-            "--route-parameters",
-            f"project={project_name}",
-            "--query-parameters",
-            f"branchName={merge_ref}",
-            f"repositoryId={repository_id}",
-            "repositoryType=TfsGit",
-            "queryOrder=queueTimeDescending",
-            f"$top={args.top}",
-            "--api-version",
-            "7.1",
-            *scope_args(args),
-        ]
-    )
-    current_builds = [
-        build for build in response.get("value") or [] if build.get("sourceVersion") == merge_commit_id
-    ]
-    builds = [
-        {
-            "id": build.get("id"),
-            "buildNumber": build.get("buildNumber"),
-            "status": build.get("status"),
-            "result": build.get("result"),
-            "definitionId": (build.get("definition") or {}).get("id"),
-            "definitionName": (build.get("definition") or {}).get("name"),
-            "sourceBranch": build.get("sourceBranch"),
-            "sourceVersion": build.get("sourceVersion"),
-            "queueTime": build.get("queueTime"),
-            "startTime": build.get("startTime"),
-            "finishTime": build.get("finishTime"),
-            "url": ((build.get("_links") or {}).get("web") or {}).get("href") or build.get("url"),
-        }
-        for build in current_builds
-    ]
-    failed_results = {"failed", "partiallySucceeded", "canceled"}
-    failed = [build for build in builds if build.get("result") in failed_results]
-    pending = [build for build in builds if build.get("status") != "completed"]
-    succeeded = [build for build in builds if build.get("result") == "succeeded"]
-    payload = {
-        "pullRequestId": details.get("pullRequestId"),
-        "mergeRef": merge_ref,
-        "mergeCommitId": merge_commit_id,
-        "hasFailures": bool(failed),
-        "hasPending": bool(pending),
-        "failed": failed,
-        "pending": pending,
-        "succeeded": succeeded,
-        "builds": builds,
-    }
+    client = cli_client(args)
+    details = client.details(args.id)
+    payload = client.builds(Scope.from_details(client.org, details), details, args.top)
     print(json.dumps(payload, indent=2))
-
-
-def invoke_thread_api(
-    args: argparse.Namespace,
-    *,
-    resource: str,
-    method: str,
-    payload: dict[str, Any],
-    thread_id: str,
-) -> Any:
-    """Invoke a PR thread API with a temporary JSON payload."""
-    details = run_json(["az", "repos", "pr", "show", "--id", args.id, *scope_args(args)])
-    repo = details.get("repository") or {}
-    project = repo.get("project") or {}
-    project_name = project.get("name")
-    repository_id = repo.get("id")
-    if not project_name or not repository_id:
-        sys.exit("error: could not determine project or repository for the pull request")
-
-    out_file = resolve_out_file("auto", "ado-pr-thread-")
-    try:
-        out_file.write_text(json.dumps(payload), encoding="utf-8")
-        route_parameters = [
-            f"project={project_name}",
-            f"repositoryId={repository_id}",
-            f"pullRequestId={args.id}",
-            f"threadId={thread_id}",
-        ]
-        return run_json(
-            [
-                "az",
-                "devops",
-                "invoke",
-                "--area",
-                "git",
-                "--resource",
-                resource,
-                "--route-parameters",
-                *route_parameters,
-                "--http-method",
-                method,
-                "--api-version",
-                "7.1",
-                "--in-file",
-                str(out_file),
-                *scope_args(args),
-            ]
-        )
-    finally:
-        shutil.rmtree(out_file.parent, ignore_errors=True)
 
 
 def reply_and_resolve(args: argparse.Namespace) -> None:
     """Reply to a pull request thread, then resolve it only after the reply succeeds."""
-    reply = invoke_thread_api(
-        args,
-        resource="pullRequestThreadComments",
-        method="POST",
-        payload={
-            "content": args.content if args.user_authored else attribute_ai_text(args.content),
-            "parentCommentId": 0,
-            "commentType": 1,
-        },
-        thread_id=args.thread_id,
+    client = cli_client(args)
+    details = client.details(args.id)
+    payload = Publisher(client, Scope.from_details(client.org, details)).reply_and_resolve(
+        args.thread_id, args.content, args.status, args.user_authored,
     )
-    resolved = invoke_thread_api(
-        args,
-        resource="pullRequestThreads",
-        method="PATCH",
-        payload={"status": args.status},
-        thread_id=args.thread_id,
-    )
-    print(json.dumps({"reply": reply, "thread": resolved}, indent=2))
+    print(json.dumps(payload, indent=2))
+
+
+def snapshot(args: argparse.Namespace) -> None:
+    print(json.dumps(cli_client(args).snapshot(args.id), indent=2))
 
 
 def add_scope_flags(parser: argparse.ArgumentParser) -> None:
@@ -237,6 +90,9 @@ def main() -> None:
     context_parser = subparsers.add_parser("context")
     context_parser.add_argument("--id", required=True)
     add_scope_flags(context_parser)
+    snapshot_parser = subparsers.add_parser("snapshot")
+    snapshot_parser.add_argument("--id", required=True)
+    add_scope_flags(snapshot_parser)
     threads_parser = subparsers.add_parser("list-threads")
     threads_parser.add_argument("--id", required=True)
     threads_parser.add_argument("--status", default="")
@@ -264,6 +120,8 @@ def main() -> None:
 
     if args.command == "context":
         context(args)
+    elif args.command == "snapshot":
+        snapshot(args)
     elif args.command == "list-threads":
         list_threads(args)
     elif args.command == "list-builds":
@@ -282,4 +140,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Deferred as exc:
+        print(json.dumps({"error": str(exc), "deferred": True, "retryAt": exc.retry_at}), file=sys.stderr)
+        sys.exit(2)
+    except AdoError as exc:
+        sys.exit(f"error: {exc}")

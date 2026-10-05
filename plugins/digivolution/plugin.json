@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "digivolution",
   "description": "Adaptive post-task reflection for keeping repository guidance accurate.",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "author": {
     "name": "Mike Wallio"
   },

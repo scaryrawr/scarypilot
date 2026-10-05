@@ -1,0 +1,25 @@
+{
+  "name": "screen-record",
+  "version": "0.4.10",
+  "private": true,
+  "description": "Typed tools for detached local screen recording.",
+  "type": "module",
+  "scripts": {
+    "build": "tsdown && node tools/check-bundle.mjs write",
+    "check:bundle": "node tools/check-bundle.mjs check",
+    "test": "node tools/test-contracts.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@github/copilot-sdk": "1.0.16",
+    "@sinclair/typebox": "^0.34.41"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2",
+    "tsdown": "^0.22.14",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  }
+}

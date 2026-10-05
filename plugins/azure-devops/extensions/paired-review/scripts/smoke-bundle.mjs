@@ -1,4 +1,4 @@
-import { cp, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -7,16 +7,27 @@ const root = path.resolve(import.meta.dirname, "..");
 
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "paired-review-bundle-"));
 
+const extensionRoot = path.join(temporaryRoot, "azure-devops", "extensions", "paired-review");
+
+const helperRoot = path.join(temporaryRoot, "azure-devops", "skills", "azure-devops", "scripts");
+
 try {
   process.env.PAIRED_REVIEW_DISABLE_AUTOLOAD = "1";
+  await mkdir(extensionRoot, { recursive: true });
   await Promise.all([
-    cp(path.join(root, "extension.mjs"), path.join(temporaryRoot, "extension.mjs")),
-    cp(path.join(root, "dist"), path.join(temporaryRoot, "dist"), { recursive: true }),
-    cp(path.join(root, "public"), path.join(temporaryRoot, "public"), { recursive: true }),
+    cp(path.join(root, "extension.mjs"), path.join(extensionRoot, "extension.mjs")),
+    cp(path.join(root, "dist"), path.join(extensionRoot, "dist"), { recursive: true }),
+    cp(path.join(root, "public"), path.join(extensionRoot, "public"), { recursive: true }),
+    cp(path.resolve(root, "../../skills/azure-devops/scripts"), helperRoot, {
+      recursive: true,
+      filter: (source) => !["tests", "__pycache__"].includes(path.basename(source)),
+    }),
   ]);
 
+  await access(path.join(helperRoot, "ado-bridge.py"));
+
   const sdkDirectory = path.join(
-    temporaryRoot,
+    extensionRoot,
     "node_modules",
     "@github",
     "copilot-sdk",
@@ -28,12 +39,15 @@ try {
     JSON.stringify({
       name: "@github/copilot-sdk",
       type: "module",
-      exports: { "./extension": "./extension.js" },
+      exports: { ".": "./extension.js", "./extension": "./extension.js" },
     }),
   );
   await writeFile(
     path.join(sdkDirectory, "extension.js"),
     [
+      "export function defineTool(name, options) {",
+      "  return { name, ...options };",
+      "}",
       "export function createCanvas(options) {",
       "  globalThis.__pairedReviewCanvas = options;",
       "  return options;",
@@ -51,13 +65,56 @@ try {
   );
 
   globalThis.__pairedReviewListeners = new Map();
-  await import(`${pathToFileURL(path.join(temporaryRoot, "extension.mjs")).href}?smoke=1`);
+  await import(`${pathToFileURL(path.join(extensionRoot, "extension.mjs")).href}?smoke=1`);
   const canvas = globalThis.__pairedReviewCanvas;
   const sessionOptions = globalThis.__pairedReviewSessionOptions;
 
   if (!canvas || !sessionOptions) throw new Error("Bundled extension did not register");
 
   if ("hooks" in sessionOptions) throw new Error("Bundled extension unexpectedly registered hooks");
+
+  const snapshotTool = sessionOptions.tools?.[0];
+
+  const toolNames = sessionOptions.tools?.map((tool) => tool.name);
+
+  const expectedTools = [
+    "azure_devops_pr_snapshot",
+    "azure_devops_work_item_search",
+    "azure_devops_work_item_query",
+    "azure_devops_work_item_get",
+  ];
+
+  if (JSON.stringify(toolNames) !== JSON.stringify(expectedTools)) {
+    throw new Error("Bundled extension must register exactly the snapshot and three read-only Boards tools");
+  }
+
+  if (sessionOptions.canvases?.[0] !== canvas || sessionOptions.commands?.length !== 1) {
+    throw new Error("Snapshot tool must share the canvas and command registration");
+  }
+
+  if (snapshotTool.parameters?.properties?.prUrl?.type !== "string" ||
+      !snapshotTool.parameters?.required?.includes("prUrl")) {
+    throw new Error("Snapshot tool must require a prUrl string");
+  }
+
+  const invalidSnapshot = await snapshotTool.handler({ prUrl: "https://example.invalid/not-ado" });
+
+  if (invalidSnapshot?.resultType !== "failure") {
+    throw new Error("Bundled snapshot tool did not reject an unsupported URL");
+  }
+
+  for (const tool of sessionOptions.tools.slice(1)) {
+    if (tool.parameters?.additionalProperties !== false ||
+        !tool.parameters?.required?.includes("org") || !tool.parameters?.required?.includes("project")) {
+      throw new Error("Bundled Boards tools must require organization and project with strict input schemas");
+    }
+
+    const invalid = await tool.handler({ org: "example", project: "project", unexpected: true });
+
+    if (invalid?.resultType !== "failure") {
+      throw new Error("Bundled Boards tool did not reject invalid input before bridge invocation");
+    }
+  }
 
   const opened = await canvas.open({
     instanceId: "bundle-smoke",
@@ -77,7 +134,7 @@ try {
 
   if (!shutdown) throw new Error("Bundled extension did not register shutdown cleanup");
   await shutdown({ type: "session.shutdown", data: { shutdownType: "routine" } });
-  console.log("Bundle runs without installed runtime dependencies");
+  console.log("SDK stub smoke registers its canvas and exactly four read-only tools without installed Node dependencies");
 } finally {
   delete process.env.PAIRED_REVIEW_DISABLE_AUTOLOAD;
   delete globalThis.__pairedReviewCanvas;

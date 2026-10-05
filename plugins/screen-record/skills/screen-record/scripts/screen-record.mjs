@@ -3,16 +3,24 @@
 import { spawn, spawnSync } from "node:child_process";
 import {
   closeSync,
+  chmodSync,
   existsSync,
+  fstatSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readFileSync,
+  realpathSync,
+  readSync,
+  renameSync,
   rmSync,
+  statSync,
   writeFileSync,
+  writeSync,
 } from "node:fs";
-import { createHash } from "node:crypto";
-import { dirname, extname, resolve } from "node:path";
-import { tmpdir } from "node:os";
+import { createHash, randomUUID } from "node:crypto";
+import { dirname, extname, relative, resolve } from "node:path";
+import { tmpdir, userInfo } from "node:os";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 
@@ -82,8 +90,16 @@ function findPowerShell() {
     const result = spawnSync(
       candidate,
       ["-NoProfile", "-NonInteractive", "-Command", "exit 0"],
-      { encoding: "utf8", windowsHide: true },
+      { encoding: "utf8", windowsHide: true, timeout: 1000, maxBuffer: 16384 },
     );
+
+    if (result.error) {
+      if (result.error.code !== "ENOENT") {
+        console.error(`screen-record: PowerShell probe ${candidate} failed: ${result.error.message}`);
+      }
+
+      continue;
+    }
 
     if (result.status === 0) {
       return candidate;
@@ -222,15 +238,60 @@ function ensureInput(path) {
   return input;
 }
 
+function recordingKey(output) {
+  const resolved = resolve(output);
+  let ancestor = dirname(resolved);
+
+  while (!existsSync(ancestor)) {
+    const parent = dirname(ancestor);
+
+    if (parent === ancestor) fail(`cannot resolve an existing filesystem ancestor for ${output}`);
+    ancestor = parent;
+  }
+
+  const canonical = existsSync(resolved)
+    ? realpathSync(resolved)
+    : resolve(realpathSync(ancestor), relative(ancestor, resolved));
+
+  return process.platform === "win32" ? canonical.toLowerCase() : canonical;
+}
+
 function recordingPaths(output) {
-  const id = createHash("sha256").update(resolve(output)).digest("hex").slice(0, 16);
-  const root = resolve(tmpdir(), "scarypilot-screen-record");
-  mkdirSync(root, { recursive: true });
+  let id = createHash("sha256").update(recordingKey(output)).digest("hex").slice(0, 16);
+
+  const user = process.getuid ? String(process.getuid()) :
+    createHash("sha256").update(`${userInfo().username}\0${userInfo().homedir}`).digest("hex").slice(0, 16);
+
+  const legacy = resolve(tmpdir(), "scarypilot-screen-record");
+
+  const oldDirectory = lstatSync(legacy, { throwIfNoEntry: false });
+
+  const ownLegacy = !!process.getuid && oldDirectory?.isDirectory() &&
+    oldDirectory.uid === process.getuid();
+
+  const oldId = createHash("sha256").update(resolve(output)).digest("hex").slice(0, 16);
+
+  const legacyId = ownLegacy && [id, oldId].find((candidate) =>
+    ["json", "lock", "log", "stop"].some((suffix) => existsSync(resolve(legacy, `${candidate}.${suffix}`))));
+
+  const root = legacyId ? legacy : resolve(tmpdir(), `scarypilot-screen-record-${user}`);
+
+  if (legacyId) id = legacyId;
+
+  mkdirSync(root, { recursive: true, mode: 0o700 });
+  const directory = lstatSync(root);
+
+  if (!directory.isDirectory() || (process.getuid && directory.uid !== process.getuid())) {
+    fail(`recording state directory is not a directory owned by this user: ${root}`);
+  }
+
+  if (process.platform !== "win32") chmodSync(root, 0o700);
 
   return {
     state: resolve(root, `${id}.json`),
     stop: resolve(root, `${id}.stop`),
     log: resolve(root, `${id}.log`),
+    lock: resolve(root, `${id}.lock`),
   };
 }
 
@@ -240,7 +301,38 @@ function readState(path) {
   }
 
   try {
-    return JSON.parse(readFileSync(path, "utf8"));
+    if (statSync(path).size > 65536) {
+      throw new Error("state exceeds 64 KiB");
+    }
+
+    const state = JSON.parse(readFileSync(path, "utf8"));
+
+    if (
+      !state ||
+      !["recording", "stopping", "stopped", "failed"].includes(state.status) ||
+      typeof state.output !== "string" ||
+      !Number.isSafeInteger(state.workerPid) || state.workerPid <= 0 ||
+      (state.ffmpegPid === undefined
+        ? state.status !== "failed" || typeof state.startupError !== "string" ||
+          !state.startupError || state.startupError.length > 4096 || state.exitCode !== 1
+        : !Number.isSafeInteger(state.ffmpegPid) || state.ffmpegPid <= 0) ||
+      typeof state.startedAt !== "string" ||
+      !state.startedAt || state.startedAt.length > 4096 ||
+      typeof state.statePath !== "string" || !state.statePath || state.statePath.length > 4096 ||
+      typeof state.logPath !== "string" || !state.logPath || state.logPath.length > 4096 ||
+      !state.output || state.output.length > 4096 ||
+      (["stopped", "failed"].includes(state.status) &&
+        (typeof state.endedAt !== "string" || !state.endedAt || state.endedAt.length > 4096 ||
+          !Number.isInteger(state.exitCode))) ||
+      (state.updatedAt !== undefined &&
+        (typeof state.updatedAt !== "string" || !state.updatedAt || state.updatedAt.length > 4096)) ||
+      (state.recordingId !== undefined &&
+        (typeof state.recordingId !== "string" || !state.recordingId || state.recordingId.length > 4096))
+    ) {
+      throw new Error("unsupported recording state; inspect the state file before recovery");
+    }
+
+    return state;
   } catch (error) {
     fail(`invalid recording state ${path}: ${error.message}`);
   }
@@ -251,9 +343,57 @@ function pidRunning(pid) {
     process.kill(pid, 0);
 
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (error.code === "ESRCH") return false;
+
+    if (error.code === "EPERM") return true;
+    throw error;
   }
+}
+
+function writeState(path, state) {
+  const temporary = `${path}.${randomUUID()}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600, flag: "wx" });
+  renameSync(temporary, path);
+}
+
+function startupLockMatches(path, identity, recordingId, partial = false) {
+  const current = lstatSync(path, { throwIfNoEntry: false });
+
+  if (!identity || !current?.isFile() ||
+    current.dev !== identity.dev || current.ino !== identity.ino) return false;
+
+  const owner = readFileSync(path, "utf8");
+
+  return partial ? recordingId.startsWith(owner) : owner === recordingId;
+}
+
+function releaseStartupLock(path, identity, recordingId, partial = false) {
+  if (!startupLockMatches(path, identity, recordingId, partial)) return false;
+  rmSync(path);
+
+  return true;
+}
+
+function logTail(path) {
+  if (!existsSync(path)) return "";
+  const fd = openSync(path, "r");
+
+  try {
+    const size = fstatSync(fd).size;
+    const buffer = Buffer.alloc(Math.min(size, 16384));
+    readSync(fd, buffer, 0, buffer.length, Math.max(0, size - buffer.length));
+
+    return buffer.toString("utf8");
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function activeState(state) {
+  return ["recording", "stopping"].includes(state.status) &&
+    pidRunning(state.workerPid) && pidRunning(state.ffmpegPid) &&
+    (!state.updatedAt || Date.now() - Date.parse(state.updatedAt) < 5000);
 }
 
 function sleep(milliseconds) {
@@ -296,8 +436,167 @@ async function narrationEngine() {
   return { engine: requested === "auto" ? nativeNarrationEngine() : requested };
 }
 
-function ffmpegCaptureArgs(config) {
-  const ffmpegArgs = ["-hide_banner", "-y"];
+const windowIdPattern = /^w1_[A-Za-z0-9_-]{43}$/;
+
+const windowHandlePattern = /^0x[0-9a-fA-F]{1,16}$/;
+
+function windowIdFor(window) {
+  const identity = [
+    window.hwnd,
+    window.processId,
+    window.processStartTime,
+    window.threadId,
+    window.className,
+    window.title,
+  ];
+
+  return `w1_${createHash("sha256").update(JSON.stringify(identity)).digest("base64url")}`;
+}
+
+function sanitizeWindowText(value, limit) {
+  return Array.from(value, (character) => {
+    const code = character.charCodeAt(0);
+
+    return code < 32 || (code >= 0x7f && code <= 0x9f) ? " " : character;
+  }).join("").trim().slice(0, limit);
+}
+
+function enumerateWindows() {
+  if (process.platform !== "win32") throw new Error("Windows window discovery is only supported on Windows.");
+
+  const powershell = findPowerShell();
+
+  if (!powershell) throw new Error("Windows window discovery requires pwsh.exe or powershell.exe on PATH.");
+
+  const script = resolve(process.argv[1], "..", "windows-enumerate.ps1");
+
+  const result = spawnSync(powershell, ["-NoProfile", "-NonInteractive", "-File", script], {
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 7000,
+    maxBuffer: 1048576,
+  });
+
+  if (result.error) throw new Error(`Could not enumerate Windows windows: ${result.error.message}`);
+
+  if (result.status !== 0) {
+    throw new Error(`Windows window enumeration failed: ${result.stderr.trim() || `PowerShell exited with code ${result.status}`}`);
+  }
+
+  let snapshot;
+
+  try {
+    snapshot = JSON.parse(result.stdout);
+  } catch (error) {
+    throw new Error(`PowerShell returned invalid window JSON: ${error.message}`);
+  }
+
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot) ||
+    !Array.isArray(snapshot.windows) ||
+    !Number.isSafeInteger(snapshot.uninspectableCount) || snapshot.uninspectableCount < 0 ||
+    snapshot.windows.length > 4096) {
+    throw new Error("PowerShell returned an unsupported window listing.");
+  }
+
+  for (const window of snapshot.windows) {
+    if (!window || typeof window !== "object" || Array.isArray(window) ||
+      typeof window.hwnd !== "string" || !windowHandlePattern.test(window.hwnd) ||
+      !Number.isSafeInteger(window.processId) || window.processId < 1 ||
+      typeof window.processStartTime !== "string" || !/^\d+$/.test(window.processStartTime) ||
+      !Number.isSafeInteger(window.threadId) || window.threadId < 1 ||
+      typeof window.className !== "string" || !window.className ||
+      typeof window.title !== "string" || !window.title ||
+      typeof window.processName !== "string" || !window.processName ||
+      !Number.isSafeInteger(window.clientWidth) || window.clientWidth < 1 ||
+      !Number.isSafeInteger(window.clientHeight) || window.clientHeight < 1 ||
+      !Number.isSafeInteger(window.windowLeft) ||
+      !Number.isSafeInteger(window.windowTop) ||
+      !Number.isSafeInteger(window.windowWidth) || window.windowWidth < 1 ||
+      !Number.isSafeInteger(window.windowHeight) || window.windowHeight < 1 ||
+      typeof window.foreground !== "boolean") {
+      throw new Error("PowerShell returned an invalid window entry.");
+    }
+  }
+
+  return snapshot;
+}
+
+function resolveWindowId(windowId) {
+  if (process.platform !== "win32") throw new Error("Window capture is only supported on Windows.");
+
+  if (typeof windowId !== "string" || !windowIdPattern.test(windowId)) {
+    throw new Error("Invalid windowId; rediscover windows and use an ID returned by the windows command.");
+  }
+
+  const snapshot = enumerateWindows();
+  const matches = snapshot.windows.filter((window) => windowIdFor(window) === windowId);
+
+  if (matches.length !== 1) {
+    throw new Error("The selected window is stale or unavailable; run the windows command again and select a current window.");
+  }
+
+  return matches[0];
+}
+
+function requireGdigrabWindowSupport() {
+  const result = spawnSync("ffmpeg", [
+    "-hide_banner", "-f", "gdigrab", "-i", "hwnd=not-a-window",
+    "-frames:v", "1", "-f", "null", "-",
+  ], {
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 3000,
+    maxBuffer: 262144,
+  });
+
+  const diagnostic = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+
+  if (result.error) throw new Error(`Could not check FFmpeg window-capture support: ${result.error.message}`);
+
+  if (!diagnostic.includes("Invalid window handle 'not-a-window'")) {
+    throw new Error("This FFmpeg build does not support gdigrab HWND capture; install FFmpeg 7.0 or newer or use desktop capture.");
+  }
+}
+
+function windows() {
+  if (process.platform !== "win32") fail("Windows window discovery is only supported on Windows.");
+
+  requireGdigrabWindowSupport();
+  const snapshot = enumerateWindows();
+
+  const candidates = snapshot.windows.flatMap((window) => {
+    const title = sanitizeWindowText(window.title, 1024);
+    const processName = sanitizeWindowText(window.processName, 260);
+
+    return title && processName
+      ? [{
+        windowId: windowIdFor(window),
+        title,
+        processName,
+        processId: window.processId,
+        bounds: {
+          x: window.windowLeft,
+          y: window.windowTop,
+          width: window.windowWidth,
+          height: window.windowHeight,
+        },
+        clientArea: { width: window.clientWidth, height: window.clientHeight },
+        foreground: window.foreground,
+      }]
+      : [];
+  });
+
+  console.log(JSON.stringify({
+    platform: "win32",
+    windows: candidates.slice(0, 128),
+    truncated: candidates.length > 128,
+    uninspectableCount: snapshot.uninspectableCount,
+    permissionsVerified: false,
+  }, null, 2));
+}
+
+function ffmpegCaptureArgs(config, windowTarget) {
+  const ffmpegArgs = ["-hide_banner", "-n"];
   const fps = String(config.fps);
   let region;
 
@@ -325,6 +624,10 @@ function ffmpegCaptureArgs(config) {
   if (process.platform === "win32") {
     ffmpegArgs.push("-f", "gdigrab", "-framerate", fps);
 
+    if (windowTarget && (config.region || config.videoInput)) {
+      fail("--window-id cannot be combined with --region or --video-input.");
+    }
+
     if (region) {
       ffmpegArgs.push(
         "-offset_x",
@@ -336,10 +639,14 @@ function ffmpegCaptureArgs(config) {
       );
     }
 
-    ffmpegArgs.push("-i", "desktop");
+    ffmpegArgs.push("-i", windowTarget ? `hwnd=${windowTarget.hwnd}` : "desktop");
 
     if (config.audioDevice) {
       ffmpegArgs.push("-f", "dshow", "-i", `audio=${config.audioDevice}`);
+    }
+
+    if (windowTarget) {
+      ffmpegArgs.push("-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2");
     }
   } else if (process.platform === "linux") {
     const display = config.videoInput || process.env.DISPLAY;
@@ -405,6 +712,43 @@ function ffmpegCaptureArgs(config) {
 }
 
 async function doctor() {
+  if (options["capture-only"]) {
+    const checks = ["ffmpeg", "ffprobe"].map((name) => {
+      const result = spawnSync(name, ["-version"], {
+        encoding: "utf8", windowsHide: true, timeout: 3000, maxBuffer: 262144,
+      });
+
+      if (result.error) fail(`could not check ${name}: ${result.error.message}`);
+
+      if (result.status !== 0) fail(`${name} -version exited with code ${result.status}`);
+
+      return true;
+    });
+
+    const result = spawnSync("ffmpeg", ["-hide_banner", "-devices"], {
+      encoding: "utf8", windowsHide: true, timeout: 3000, maxBuffer: 262144,
+    });
+
+    if (result.error) fail(`could not discover FFmpeg devices: ${result.error.message}`);
+
+    if (result.status !== 0) fail(`FFmpeg device discovery exited with code ${result.status}`);
+    const captureDevice = { win32: "gdigrab", linux: "x11grab", darwin: "avfoundation" }[process.platform];
+
+    if (!captureDevice) fail(`screen capture is not supported on ${process.platform}`);
+
+    const available = new RegExp(`^\\s*D\\S*\\s+${captureDevice}\\s`, "m")
+      .test(`${result.stdout ?? ""}\n${result.stderr ?? ""}`);
+
+    console.log(JSON.stringify({
+      platform: process.platform, ffmpeg: checks[0], ffprobe: checks[1],
+      captureDevice, captureAvailable: available, permissionsVerified: false,
+    }));
+
+    if (!available) fail(`FFmpeg does not provide the ${captureDevice} input on this system`);
+
+    return;
+  }
+
   const ffmpeg = executableWorks("ffmpeg");
   const ffprobe = executableWorks("ffprobe");
 
@@ -590,10 +934,10 @@ function devices() {
     const result = spawnSync(
       "ffmpeg",
       ["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"],
-      { encoding: "utf8", windowsHide: true },
+      { encoding: "utf8", windowsHide: true, timeout: 5000, maxBuffer: 262144 },
     );
 
-    process.stdout.write(result.stderr ?? "");
+    printDeviceListing(result, "dshow");
 
     return;
   }
@@ -602,10 +946,22 @@ function devices() {
     const result = spawnSync(
       "ffmpeg",
       ["-hide_banner", "-f", "avfoundation", "-list_devices", "true", "-i", ""],
-      { encoding: "utf8" },
+      { encoding: "utf8", timeout: 5000, maxBuffer: 262144 },
     );
 
-    process.stdout.write(result.stderr ?? "");
+    printDeviceListing(result, "avfoundation");
+
+    return;
+  }
+
+  if (!["linux"].includes(process.platform)) fail(`screen capture is not supported on ${process.platform}`);
+
+  if (options.json) {
+    console.log(JSON.stringify({
+      platform: process.platform, captureDevice: "x11grab",
+      listing: `DISPLAY=${process.env.DISPLAY ?? "(unset)"}; pass videoInput for X11 and audioDevice for a PulseAudio source.`,
+      permissionsVerified: false,
+    }));
 
     return;
   }
@@ -623,18 +979,42 @@ function devices() {
   );
 }
 
-function start() {
+function printDeviceListing(result, captureDevice) {
+  if (result.error) fail(`device discovery failed: ${result.error.message}`);
+  const listing = result.stderr ?? "";
+
+  const marker = captureDevice === "avfoundation"
+    ? /AVFoundation (?:video|audio) devices:/
+    : /DirectShow (?:video|audio) devices|\((?:video|audio)\)/;
+
+  const enumerationExit = [0, 1].includes(result.status) ||
+    (captureDevice === "avfoundation" && result.status === 251);
+
+  if (!enumerationExit || !marker.test(listing)) {
+    fail(`device discovery did not return a device list (exit ${result.status}): ${listing.trim()}`);
+  }
+
+  if (options.json) {
+    console.log(JSON.stringify({
+      platform: process.platform, captureDevice, listing, permissionsVerified: false,
+    }));
+  } else {
+    process.stdout.write(listing);
+  }
+}
+
+async function start() {
   const output = ensureNewOutput(requireOption("output"));
   const paths = recordingPaths(output);
   const existing = readState(paths.state);
 
-  if (existing && pidRunning(existing.workerPid)) {
+  if (existing && activeState(existing)) {
     fail(`a recording is already active for ${output}`);
   }
 
-  rmSync(paths.state, { force: true });
-  rmSync(paths.stop, { force: true });
-  rmSync(paths.log, { force: true });
+  if (existing && ["recording", "stopping"].includes(existing.status)) {
+    fail(`stale recording state for ${output}; inspect ${paths.state} and ${paths.log} before recovery`);
+  }
 
   const fps = Number(options.fps ?? 30);
 
@@ -651,55 +1031,232 @@ function start() {
     videoInput:
       typeof options["video-input"] === "string" ? options["video-input"] : null,
     ...paths,
+    recordingId: randomUUID(),
   };
 
-  ffmpegCaptureArgs(config);
-  const encoded = Buffer.from(JSON.stringify(config), "utf8").toString("base64url");
+  let windowTarget;
 
-  const worker = spawn(
-    process.execPath,
-    [resolve(process.argv[1]), "_capture", "--config", encoded],
-    {
-      detached: true,
-      stdio: "ignore",
-      windowsHide: true,
-    },
-  );
+  if (options["window-id"] !== undefined) {
+    if (process.platform !== "win32") fail("--window-id is only supported on Windows.");
+
+    if (typeof options["window-id"] !== "string" || !windowIdPattern.test(options["window-id"])) {
+      fail("--window-id must be an ID returned by the Windows windows command.");
+    }
+
+    if (config.region || config.videoInput) {
+      fail("--window-id cannot be combined with --region or --video-input.");
+    }
+
+    requireGdigrabWindowSupport();
+    windowTarget = resolveWindowId(options["window-id"]);
+    config.windowId = options["window-id"];
+  }
+
+  ffmpegCaptureArgs(config, windowTarget);
+
+  let lockFd;
+  let lockIdentity;
+
+  try {
+    lockFd = openSync(paths.lock, "wx", 0o600);
+    lockIdentity = fstatSync(lockFd);
+    writeFileSync(lockFd, config.recordingId);
+    closeSync(lockFd);
+    lockFd = undefined;
+  } catch (error) {
+    const cleanupErrors = [];
+
+    if (lockFd !== undefined) {
+      try {
+        closeSync(lockFd);
+      } catch (closeError) {
+        if (closeError.code !== "EBADF") cleanupErrors.push(`descriptor cleanup failed: ${closeError.message}`);
+      }
+    }
+
+    try {
+      releaseStartupLock(paths.lock, lockIdentity, config.recordingId, true);
+    } catch (cleanupError) {
+      cleanupErrors.push(`lock cleanup failed: ${cleanupError.message}`);
+    }
+
+    fail(`cannot claim recording startup: ${error.message}${cleanupErrors.length ? `; ${cleanupErrors.join("; ")}` : ""}; inspect ${paths.lock} before recovery`);
+  }
+
+  let worker;
+
+  try {
+    rmSync(paths.state, { force: true });
+    rmSync(paths.stop, { force: true });
+    rmSync(paths.log, { force: true });
+    const encoded = Buffer.from(JSON.stringify(config), "utf8").toString("base64url");
+
+    worker = await new Promise((accept, reject) => {
+      const child = spawn(
+        process.execPath,
+        [resolve(process.argv[1]), "_capture", "--config", encoded],
+        {
+          detached: true,
+          stdio: "ignore",
+          windowsHide: true,
+        },
+      );
+
+      child.once("spawn", () => accept(child));
+      child.once("error", reject);
+    });
+  } catch (error) {
+    const cleanupErrors = [];
+
+    try {
+      releaseStartupLock(paths.lock, lockIdentity, config.recordingId);
+    } catch (cleanupError) {
+      cleanupErrors.push(`lock cleanup failed: ${cleanupError.message}`);
+    }
+
+    fail(`could not start detached recording worker: ${error.message}${cleanupErrors.length ? `; ${cleanupErrors.join("; ")}` : ""}`);
+  }
 
   worker.unref();
 
-  for (let attempt = 0; attempt < 50; attempt += 1) {
+  const readinessAttempts = config.windowId ? 150 : 50;
+
+  for (let attempt = 0; attempt < readinessAttempts; attempt += 1) {
     sleep(100);
     const state = readState(paths.state);
 
     if (
-      state?.status === "recording" &&
-      pidRunning(state.workerPid) &&
-      pidRunning(state.ffmpegPid)
+      state?.recordingId === config.recordingId &&
+      state.status === "recording" && activeState(state) &&
+      Date.now() - Date.parse(state.startedAt) >= 300
     ) {
       console.log(JSON.stringify(state, null, 2));
 
       return;
     }
 
-    if (!pidRunning(worker.pid)) {
-      const log = existsSync(paths.log) ? readFileSync(paths.log, "utf8") : "";
+    if (state?.status === "failed" || !worker.pid || !pidRunning(worker.pid)) {
+      let log;
+
+      try {
+        log = logTail(paths.log);
+      } catch (error) {
+        log = `could not read worker log: ${error.message}`;
+      }
+
+      if (state?.recordingId === config.recordingId && state.startupError) {
+        fail(`recording failed to start: ${state.startupError}${log ? `\n${log}` : ""}`);
+      }
+
       fail(`recording failed to start${log ? `\n${log}` : ""}`);
     }
   }
 
-  fail(`recording did not become ready; inspect ${paths.log}`);
+  fail(`recording readiness timed out; the detached worker may still be active. Run status for ${output}; inspect ${paths.log}`);
 }
 
-function captureWorker() {
+async function captureWorker() {
   const encoded = requireOption("config");
   const config = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
-  const logFd = openSync(config.log, "a");
 
-  const ffmpeg = spawn("ffmpeg", ffmpegCaptureArgs(config), {
-    stdio: ["pipe", "ignore", logFd],
-    windowsHide: true,
-  });
+  const lockIdentity = lstatSync(config.lock, { throwIfNoEntry: false });
+
+  if (!startupLockMatches(config.lock, lockIdentity, config.recordingId)) {
+    fail("recording worker startup ownership changed; refusing capture");
+  }
+
+  let windowTarget;
+  let logFd;
+  let ffmpeg;
+
+  try {
+    if (config.windowId !== undefined) {
+      if (process.platform !== "win32" || typeof config.windowId !== "string" ||
+        !windowIdPattern.test(config.windowId) || config.region || config.videoInput) {
+        throw new Error("Invalid Windows window capture configuration.");
+      }
+
+      requireGdigrabWindowSupport();
+      windowTarget = resolveWindowId(config.windowId);
+    }
+
+    logFd = openSync(config.log, "a", 0o600);
+    ffmpeg = await new Promise((accept, reject) => {
+      const child = spawn("ffmpeg", ffmpegCaptureArgs(config, windowTarget), {
+        stdio: ["pipe", "ignore", logFd],
+        windowsHide: true,
+      });
+
+      child.once("error", reject);
+      child.once("spawn", () => {
+        child.removeListener("error", reject);
+        accept(child);
+      });
+    });
+  } catch (error) {
+    const details = [`Recording worker startup failed: ${error.message}`];
+
+    try {
+      if (startupLockMatches(config.lock, lockIdentity, config.recordingId)) {
+        if (logFd === undefined) {
+          writeFileSync(config.log, `${details[0]}\n`, { flag: "a", mode: 0o600 });
+        } else {
+          writeSync(logFd, `${details[0]}\n`);
+        }
+      } else {
+        details.push("startup lock ownership changed; replacement artifacts were preserved");
+      }
+    } catch (logError) {
+      details.push(`could not write worker log: ${logError.message}`);
+    }
+
+    if (logFd !== undefined) {
+      try {
+        closeSync(logFd);
+      } catch (closeError) {
+        details.push(`could not close worker log: ${closeError.message}`);
+      }
+    }
+
+    const endedAt = new Date().toISOString();
+
+    const failedState = {
+      status: "failed", output: config.output, recordingId: config.recordingId,
+      workerPid: process.pid, startedAt: endedAt, endedAt, updatedAt: endedAt,
+      statePath: config.state, logPath: config.log, exitCode: 1,
+    };
+
+    const persistFailure = () => {
+      try {
+        if (startupLockMatches(config.lock, lockIdentity, config.recordingId)) {
+          writeState(config.state, { ...failedState, startupError: details.join("; ").slice(0, 4096) });
+        }
+      } catch (stateError) {
+        details.push(`could not persist worker startup failure: ${stateError.message}`);
+
+        try {
+          if (startupLockMatches(config.lock, lockIdentity, config.recordingId)) {
+            writeFileSync(config.log, `${details.join("; ")}\n`, { flag: "a", mode: 0o600 });
+          }
+        } catch (logError) {
+          details.push(`could not write worker failure diagnostics: ${logError.message}`);
+        }
+      }
+    };
+
+    persistFailure();
+
+    try {
+      if (!releaseStartupLock(config.lock, lockIdentity, config.recordingId)) {
+        details.push("startup lock ownership changed; replacement artifacts were preserved");
+      }
+    } catch (cleanupError) {
+      details.push(`could not release startup lock: ${cleanupError.message}`);
+      persistFailure();
+    }
+
+    fail(details.join("; "));
+  }
 
   const state = {
     status: "recording",
@@ -709,20 +1266,67 @@ function captureWorker() {
     startedAt: new Date().toISOString(),
     statePath: config.state,
     logPath: config.log,
+    recordingId: config.recordingId,
+    updatedAt: new Date().toISOString(),
   };
 
   let stopping = false;
   let finalized = false;
+  let controllerError;
+
+  const recordFailure = (error, operation) => {
+    controllerError ??= error;
+
+    const message = `Recording controller ${operation} failed: ${error.message}\n`;
+
+    try {
+      writeSync(logFd, message);
+    } catch (logError) {
+      console.error(`${message.trim()}; could not write controller log: ${logError.message}`);
+    }
+  };
+
+  const persistState = () => {
+    try {
+      writeState(config.state, state);
+    } catch (error) {
+      recordFailure(error, "state persistence");
+      requestStop();
+    }
+  };
 
   const requestStop = () => {
+    if (finalized) return;
+
     if (!stopping && ffmpeg.stdin?.writable) {
       stopping = true;
-      ffmpeg.stdin.write("q\n");
+      state.status = "stopping";
+      state.updatedAt = new Date().toISOString();
+
+      try {
+        ffmpeg.stdin.write("q\n");
+      } catch (error) {
+        recordFailure(error, "graceful stop");
+      }
+
+      persistState();
     }
   };
 
   const interval = setInterval(() => {
-    if (existsSync(config.stop)) {
+    try {
+      if (existsSync(config.stop)) {
+        const request = readFileSync(config.stop, "utf8").trim();
+
+        if (request === config.recordingId || !config.recordingId) requestStop();
+      }
+
+      if (ffmpeg.pid && !controllerError) {
+        state.updatedAt = new Date().toISOString();
+        persistState();
+      }
+    } catch (error) {
+      recordFailure(error, "stop request");
       requestStop();
     }
   }, 200);
@@ -739,19 +1343,50 @@ function captureWorker() {
     clearInterval(interval);
 
     if (error) {
-      writeFileSync(config.log, `Could not start ffmpeg: ${error.message}\n`, {
-        flag: "a",
-      });
+      recordFailure(error, "FFmpeg startup");
     }
 
-    closeSync(logFd);
-    rmSync(config.stop, { force: true });
-    rmSync(config.state, { force: true });
-    process.exit(code);
+    try {
+      rmSync(config.stop, { force: true });
+    } catch (cleanupError) {
+      recordFailure(cleanupError, "stop-file cleanup");
+    }
+
+    if (ffmpeg.pid) {
+      state.status = !controllerError && code === 0 && existsSync(config.output) ? "stopped" : "failed";
+      state.endedAt = new Date().toISOString();
+      state.updatedAt = state.endedAt;
+      state.exitCode = controllerError ? 1 : code;
+      persistState();
+    }
+
+    try {
+      closeSync(logFd);
+    } catch (closeError) {
+      recordFailure(closeError, "log close");
+
+      if (ffmpeg.pid) {
+        state.status = "failed";
+        state.exitCode = 1;
+        persistState();
+      }
+    }
+
+    try {
+      if (existsSync(config.lock) && readFileSync(config.lock, "utf8") === config.recordingId) {
+        rmSync(config.lock);
+      }
+    } catch (cleanupError) {
+      console.error(`Recording controller lock cleanup failed: ${cleanupError.message}`);
+      controllerError ??= cleanupError;
+    }
+
+    process.exit(controllerError ? 1 : code);
   };
 
-  ffmpeg.once("spawn", () => {
-    writeFileSync(config.state, `${JSON.stringify(state, null, 2)}\n`);
+  ffmpeg.stdin.on("error", (error) => {
+    recordFailure(error, "graceful stop");
+    requestStop();
   });
   ffmpeg.once("error", (error) => {
     finish(1, error);
@@ -759,6 +1394,7 @@ function captureWorker() {
   ffmpeg.once("close", (code) => {
     finish(code ?? 1);
   });
+  persistState();
 }
 
 function status() {
@@ -767,9 +1403,19 @@ function status() {
   const state = readState(paths.state);
 
   if (!state) {
+    if (existsSync(paths.lock)) {
+      fail(`recording startup is pending or interrupted; inspect ${paths.lock} and ${paths.log}`);
+    }
+
     console.log(JSON.stringify({ status: "not-recording", output }, null, 2));
 
     return;
+  }
+
+  if (recordingKey(state.output) !== recordingKey(output)) fail(`recording state output does not match ${output}`);
+
+  if (options["recording-id"] && options["recording-id"] !== state.recordingId) {
+    fail("recording identity does not match; run status and use the current recordingId");
   }
 
   console.log(
@@ -777,9 +1423,8 @@ function status() {
       {
         ...state,
         status:
-          pidRunning(state.workerPid) && pidRunning(state.ffmpegPid)
-            ? state.status
-            : "stale",
+          ["stopped", "failed"].includes(state.status) || activeState(state)
+            ? state.status : "stale",
       },
       null,
       2,
@@ -792,36 +1437,84 @@ function stop() {
   const paths = recordingPaths(output);
   const state = readState(paths.state);
 
-  if (
-    !state ||
-    !pidRunning(state.workerPid) ||
-    !pidRunning(state.ffmpegPid)
-  ) {
+  const timeout = Number(options.timeout ?? 20);
+
+  if (!Number.isFinite(timeout) || timeout <= 0 || timeout > 120) {
+    fail("--timeout must be a positive number of seconds no greater than 120");
+  }
+
+  if (!state || recordingKey(state.output) !== recordingKey(output)) {
     fail(`no active recording found for ${output}`);
   }
 
-  writeFileSync(paths.stop, `${new Date().toISOString()}\n`);
-  const timeout = Number(options.timeout ?? 20);
+  if (options["recording-id"] !== state.recordingId) {
+    fail("recording identity does not match; pass --recording-id retained from start; refusing to stop a different recording");
+  }
 
-  if (!Number.isFinite(timeout) || timeout <= 0) {
-    fail("--timeout must be a positive number of seconds");
+  const ownsLock = () => {
+    if (!state.recordingId) return false;
+
+    try {
+      return readFileSync(paths.lock, "utf8") === state.recordingId;
+    } catch (error) {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    }
+  };
+
+  if (state.status === "stopped" && !ownsLock()) {
+    if (!existsSync(output)) fail(`stopped recording output is missing: ${output}`);
+    console.log(JSON.stringify(state));
+
+    return;
+  }
+
+  if (state.status === "stopped" && ownsLock() && !pidRunning(state.workerPid)) {
+    fail(`recording worker exited with finalization incomplete; inspect ${paths.lock} and ${paths.log}. No lock was removed.`);
+  }
+
+  if (!activeState(state) && state.status !== "stopped") {
+    fail(`recording is ${state.status === "failed" ? "failed" : "stale"}; inspect ${paths.log}`);
+  }
+
+  if (state.status !== "stopped") {
+    const stopTemporary = `${paths.stop}.${randomUUID()}.tmp`;
+    writeFileSync(stopTemporary, `${state.recordingId ?? new Date().toISOString()}\n`, { mode: 0o600, flag: "wx" });
+    renameSync(stopTemporary, paths.stop);
   }
 
   const deadline = Date.now() + timeout * 1000;
 
-  while (Date.now() < deadline && pidRunning(state.workerPid)) {
+  let final = readState(paths.state);
+
+  const finalizationPending = () =>
+    (final && ["recording", "stopping"].includes(final.status)) ||
+    ownsLock();
+
+  while (Date.now() < deadline && finalizationPending() && pidRunning(state.workerPid)) {
     sleep(200);
+    final = readState(paths.state);
   }
 
-  if (pidRunning(state.workerPid)) {
-    fail(`graceful stop timed out; inspect ${paths.log}`);
+  final = readState(paths.state);
+
+  if (finalizationPending()) {
+    if (pidRunning(state.workerPid)) {
+      fail(`graceful stop timed out; recording may still be active. Run status; inspect ${paths.log}. No process was killed.`);
+    }
+
+    fail(`recording worker exited with finalization incomplete; inspect ${paths.lock} and ${paths.log}. No lock was removed.`);
   }
+
+  if (final?.status === "failed") fail(`FFmpeg failed with exit ${final.exitCode}; inspect ${paths.log}`);
+
+  if (final && final.status !== "stopped") fail(`recording worker ended without final state; inspect ${paths.log}`);
 
   if (!existsSync(output)) {
     fail(`recording stopped without producing ${output}; inspect ${paths.log}`);
   }
 
-  console.log(JSON.stringify({ status: "stopped", output }, null, 2));
+  console.log(JSON.stringify(final ?? { status: "stopped", output }, null, 2));
 }
 
 function probe() {
@@ -1188,13 +1881,16 @@ function usage() {
   console.log(`Usage: node scripts/screen-record.mjs <command> [options]
 
 Commands:
-  doctor
-  devices
+  doctor [--capture-only]
+  devices [--json]
+  windows [--json]
   voices [--engine omlx|sapi|say|flite] [--model <name>]
   start --output <file> [--fps 30] [--region x,y,w,h]
-        [--audio-device <name>] [--video-input <source>]
-  status --output <file>
-  stop --output <file> [--timeout 20]
+        [--audio-device <name>] [--video-input <source>] [--window-id <id>]
+  status --output <file> [--recording-id <id>]
+  stop --output <file> [--recording-id <id>] [--timeout 20]
+       (recording-id required unless persisted legacy state has no ID;
+        timeout must be at most 120 seconds)
   probe --input <file>
   trim --input <file> --output <file> --start <time>
        (--end <time> | --duration <time>) [--copy]
@@ -1211,6 +1907,9 @@ switch (command) {
   case "doctor":
     await doctor();
     break;
+  case "windows":
+    windows();
+    break;
   case "devices":
     devices();
     break;
@@ -1218,10 +1917,10 @@ switch (command) {
     await voices();
     break;
   case "start":
-    start();
+    await start();
     break;
   case "_capture":
-    captureWorker();
+    await captureWorker();
     break;
   case "status":
     status();

@@ -16,16 +16,13 @@ from shared.ado import (
     build_thread_payload,
     normalize_ado_file_path,
     normalize_organization,
-    request_json,
     resolve_out_file,
-    run,
-    run_json,
-    scope_args,
     strip_refs_heads,
     parse_line_number,
-    token,
     upload_pr_attachment,
 )
+from shared.pr import Scope, cli_client
+from shared.transport import AdoError, Deferred
 
 
 def parse_remote_organization(remote_url: str) -> str | None:
@@ -51,7 +48,7 @@ def parse_remote_organization(remote_url: str) -> str | None:
 
 def eligibility(args: argparse.Namespace) -> None:
     """Print review eligibility and compact PR metadata."""
-    details = run_json(["az", "repos", "pr", "show", "--id", args.id, *scope_args(args)])
+    details = cli_client(args).details(args.id)
     repo = details.get("repository") or {}
     project = repo.get("project") or {}
     status = details.get("status") or "unknown"
@@ -83,25 +80,12 @@ def sync_labels(args: argparse.Namespace) -> None:
     """Synchronize AI review labels on an Azure DevOps pull request."""
     if not args.model:
         sys.exit("error: provide at least one --model value")
-    details = run_json(["az", "repos", "pr", "show", "--id", args.id, *scope_args(args)])
-    repo = details.get("repository") or {}
-    project = repo.get("project") or {}
-    repository_id = repo.get("id")
-    project_id = project.get("id")
-    if not repository_id or not project_id:
-        sys.exit("error: could not determine repository or project for the pull request")
-
-    organization = args.org or parse_remote_organization(run(["git", "remote", "get-url", "origin"]))
-    if not organization:
-        sys.exit("error: could not determine organization; provide --org explicitly")
-    normalized = normalize_organization(organization)
-    access_token = token()
-    endpoint = (
-        f"https://dev.azure.com/{normalized['organization']}/{project_id}/_apis/git/repositories/"
-        f"{repository_id}/pullRequests/{args.id}/labels?api-version=7.1"
-    )
-    headers = {"Authorization": f"Bearer {access_token}"}
-    existing_payload = request_json(endpoint, headers=headers)
+    client = cli_client(args)
+    details = client.details(args.id)
+    scope = Scope.from_details(client.org, details)
+    normalized = normalize_organization(client.org)
+    endpoint = scope.base + "/labels?api-version=7.1"
+    existing_payload = client.collection(endpoint)
     existing = {label["name"] for label in existing_payload.get("value", []) if label.get("name")}
     desired = list(dict.fromkeys(["ai-reviewed", *[f"ai-model-{model}" for model in args.model]]))
     desired_set = set(desired)
@@ -112,17 +96,17 @@ def sync_labels(args: argparse.Namespace) -> None:
         if not label.startswith("ai-model-") or label in desired_set:
             continue
         delete_url = endpoint.replace("?api-version=7.1", f"/{urllib.parse.quote(label, safe='')}?api-version=7.1")
-        request_json(delete_url, method="DELETE", headers=headers)
+        client.transport.json(delete_url, method="DELETE")
         removed.append(label)
 
     for label in desired:
         if label in existing:
             continue
         body = json.dumps({"name": label}).encode("utf-8")
-        request_json(endpoint, method="POST", body=body, headers={**headers, "Content-Type": "application/json"})
+        client.transport.json(endpoint, method="POST", body=body, headers={"Content-Type": "application/json"})
         added.append(label)
 
-    final_payload = request_json(endpoint, headers=headers)
+    final_payload = client.collection(endpoint)
     final_labels = [label["name"] for label in final_payload.get("value", []) if label.get("name")]
     print(
         json.dumps(
@@ -237,4 +221,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Deferred as exc:
+        print(json.dumps({"error": str(exc), "deferred": True, "retryAt": exc.retry_at}), file=sys.stderr)
+        sys.exit(2)
+    except AdoError as exc:
+        sys.exit(f"error: {exc}")

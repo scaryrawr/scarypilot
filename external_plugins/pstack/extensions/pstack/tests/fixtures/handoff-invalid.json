@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "sessionId": "fixture-only",
+  "createdAt": "2026-10-02T01:00:00.000Z",
+  "intent": "Synthetic validation fixture.",
+  "progress": "No workflow or external action has occurred.",
+  "nextAction": "No action is authorized by this fixture.",
+  "keyFiles": [],
+  "snapshot": {
+    "schemaVersion": 1,
+    "snapshotHash": "invalid",
+    "capabilities": {},
+    "sources": [],
+    "orch": null,
+    "watch": [],
+    "worktrees": null,
+    "handoff": null,
+    "now": [],
+    "sourceWarnings": []
+  }
+}

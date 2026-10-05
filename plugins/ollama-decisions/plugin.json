@@ -1,0 +1,12 @@
+{
+  "name": "ollama-decisions",
+  "description": "Use installed Ollama decision models for routing, classification, and rubric evaluation.",
+  "version": "0.1.7",
+  "author": {
+    "name": "Mike Wallio",
+    "url": "https://github.com/scaryrawr"
+  },
+  "repository": "https://github.com/scaryrawr/scarypilot",
+  "keywords": ["copilot", "ollama", "decision", "classification"],
+  "extensions": ["extensions/"]
+}

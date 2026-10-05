@@ -12,6 +12,8 @@ const root = path.resolve(import.meta.dirname, "..");
 
 const manifestPath = path.join(root, "bundle-manifest.json");
 
+const helperDirectory = path.resolve(root, "../../skills/azure-devops/scripts");
+
 const inputs = [
   "index.html",
   "package.json",
@@ -20,6 +22,9 @@ const inputs = [
   "tsdown.config.ts",
   "vite.config.ts",
   ...(await walk(path.join(root, "src"))),
+  ...(await walk(helperDirectory)).filter((file) =>
+    file.endsWith(".py") && !path.relative(helperDirectory, file).split(path.sep).includes("tests")
+  ),
 ];
 
 const outputs = [

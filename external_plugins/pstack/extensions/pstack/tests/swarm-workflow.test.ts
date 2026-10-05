@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import type { FactoryContext, JsonValue } from "@github/copilot-sdk/extension";
+import type { WorkflowContext, JsonValue } from "@github/copilot-sdk/extension";
 import {
   aggregateStepKey,
   parseSwarmArgs,
-  pstackSwarmFactory,
-  runSwarmFactory,
+  createPstackSwarmWorkflow,
+  runSwarmWorkflow,
   type SwarmArgs,
   workerLabel,
-} from "../src/factories/swarm.ts";
-import { pstackFactories, pstackFactoryAgents } from "../src/factories/index.ts";
+} from "../src/workflows/swarm.ts";
+import { createPstackWorkflows, pstackWorkflowAgents } from "../src/workflows/index.ts";
+import { createCwdRef } from "../src/extension-context.ts";
 
 function args(overrides: Partial<SwarmArgs> = {}): SwarmArgs {
   return {
@@ -39,7 +40,7 @@ function context(
   ): Promise<Array<Result | null>> => Promise.all(thunks.map((thunk) => thunk()));
 
   const ctx: Pick<
-    FactoryContext<SwarmArgs>,
+    WorkflowContext<SwarmArgs>,
     "agent" | "args" | "log" | "parallel" | "phase" | "signal" | "step"
   > = {
     args: input,
@@ -58,22 +59,26 @@ function context(
   return { ctx, labels, phases, logs };
 }
 
-describe("pstack-swarm factory", () => {
+describe("pstack-swarm workflow", () => {
   it("registers stable metadata and argument schema", () => {
-    expect(pstackFactories).toEqual([pstackSwarmFactory]);
-    expect(pstackFactoryAgents).toEqual([
+    const cwdRef = createCwdRef(process.cwd());
+    const pstackSwarmWorkflow = createPstackSwarmWorkflow(cwdRef);
+    expect(createPstackWorkflows(cwdRef).map((workflow) => workflow.meta)).toEqual([
+      pstackSwarmWorkflow.meta,
+    ]);
+    expect(pstackWorkflowAgents).toEqual([
       expect.objectContaining({
         name: "pstack-swarm-worker",
         tools: ["read", "search"],
         infer: false,
       }),
     ]);
-    expect(pstackSwarmFactory.meta.name).toBe("pstack-swarm");
-    expect(pstackSwarmFactory.meta.phases.map((phase) => phase.title)).toEqual([
+    expect(pstackSwarmWorkflow.meta.name).toBe("pstack-swarm");
+    expect(pstackSwarmWorkflow.meta.phases.map((phase) => phase.title)).toEqual([
       "Fan out",
       "Aggregate",
     ]);
-    expect(pstackSwarmFactory.meta.argsSchema).toBeDefined();
+    expect(pstackSwarmWorkflow.meta.argsSchema).toBeDefined();
   });
 
   it("validates worker bounds and unique kebab-case ids", () => {
@@ -129,6 +134,18 @@ describe("pstack-swarm factory", () => {
     ]);
   });
 
+  it("accepts eight workers and rejects nine", () => {
+    const workers = Array.from({ length: 8 }, (_, index) => ({
+      id: `worker-${index}`,
+      brief: `Inspect slice ${index}.`,
+    }));
+
+    expect(parseSwarmArgs(args({ workers })).workers).toHaveLength(8);
+    expect(() => parseSwarmArgs(args({
+      workers: [...workers, { id: "ninth", brief: "One too many." }],
+    }))).toThrow("between 2 and 8");
+  });
+
   it("uses deterministic labels and versioned aggregate keys", () => {
     expect(workerLabel("api")).toBe("pstack-swarm:v1:api");
     expect(aggregateStepKey()).toBe("pstack-swarm/v1/aggregate");
@@ -140,10 +157,21 @@ describe("pstack-swarm factory", () => {
       { status: "ISSUES", summary: "Missing rejection case.", evidence: ["auth.test.ts:42"] },
     ]);
 
-    const result = await runSwarmFactory(ctx);
+    const result = await runSwarmWorkflow(ctx);
 
     expect(result.status).toBe("complete");
     expect(result.gaps).toEqual([]);
+    expect(result).toEqual({
+      schemaVersion: 1,
+      status: "complete",
+      objective: args().objective,
+      aggregation: "coverage",
+      workers: [
+        { id: "api", status: "PASS", summary: "API is covered.", evidence: ["api.test.ts"] },
+        { id: "tests", status: "ISSUES", summary: "Missing rejection case.", evidence: ["auth.test.ts:42"] },
+      ],
+      gaps: [],
+    });
     expect(labels).toEqual(["pstack-swarm:v1:api", "pstack-swarm:v1:tests"]);
     expect(phases).toEqual(["Fan out", "Aggregate"]);
 
@@ -158,32 +186,48 @@ describe("pstack-swarm factory", () => {
       null,
     ]);
 
-    const result = await runSwarmFactory(ctx);
+    const result = await runSwarmWorkflow(ctx);
 
     expect(result.status).toBe("partial");
     expect(result.gaps).toEqual(["tests"]);
     expect(result.workers[1]).toMatchObject({ id: "tests", status: "BLOCKED" });
   });
 
+  it("keeps all ISSUES reports complete as coverage, not acceptance", async () => {
+    const { ctx } = context(args(), [
+      { status: "ISSUES", summary: "API problem.", evidence: ["api.ts:1"] },
+      { status: "ISSUES", summary: "Test problem.", evidence: ["test.ts:1"] },
+    ]);
+
+    await expect(runSwarmWorkflow(ctx)).resolves.toMatchObject({
+      status: "complete",
+      aggregation: "coverage",
+      gaps: [],
+      workers: [{ status: "ISSUES" }, { status: "ISSUES" }],
+    });
+  });
+
   it("returns blocked when all workers fail", async () => {
     const { ctx } = context(args(), [null, null]);
-    await expect(runSwarmFactory(ctx)).resolves.toMatchObject({
+    await expect(runSwarmWorkflow(ctx)).resolves.toMatchObject({
       status: "blocked",
       gaps: ["api", "tests"],
     });
   });
 
-  it("forbids nested factories and writes in every worker prompt", async () => {
+  it("forbids nested workflows and writes in every worker prompt", async () => {
     const { ctx } = context(args(), [
       { status: "PASS", summary: "Done.", evidence: [] },
       { status: "PASS", summary: "Done.", evidence: [] },
     ]);
 
-    await runSwarmFactory(ctx);
+    await runSwarmWorkflow(ctx);
 
     for (const [prompt] of vi.mocked(ctx.agent).mock.calls) {
       expect(prompt).toContain("Do not edit files");
-      expect(prompt).toContain("Do not edit files or invoke run_factory/factories_manage");
+      expect(prompt).toContain(
+        "Do not edit files or invoke run_dynamic_workflow/dynamic_workflows_manage",
+      );
     }
   });
 
@@ -192,7 +236,54 @@ describe("pstack-swarm factory", () => {
     controller.abort();
     const { ctx } = context(args(), [], controller.signal);
 
-    await expect(runSwarmFactory(ctx)).rejects.toThrow();
+    await expect(runSwarmWorkflow(ctx)).rejects.toThrow();
     expect(ctx.agent).not.toHaveBeenCalled();
+  });
+
+  it("propagates cancellation after a worker returns instead of aggregating", async () => {
+    const controller = new AbortController();
+    const { ctx } = context(args(), [], controller.signal);
+    vi.mocked(ctx.agent).mockImplementation(async () => {
+      controller.abort();
+
+      return { status: "PASS", summary: "Done.", evidence: [] };
+    });
+
+    await expect(runSwarmWorkflow(ctx)).rejects.toThrow();
+    expect(ctx.step).not.toHaveBeenCalled();
+  });
+
+  it("retains valid coverage when another worker returns a malformed report", async () => {
+    const { ctx } = context(args(), [
+      { status: "PASS", summary: "  Covered.  ", evidence: [" api.test.ts ", ""] },
+      { status: "PASS", summary: "   ", evidence: [] },
+    ]);
+
+    await expect(runSwarmWorkflow(ctx)).resolves.toMatchObject({
+      status: "partial",
+      workers: [
+        { id: "api", status: "PASS", summary: "Covered.", evidence: ["api.test.ts"] },
+        { id: "tests", status: "BLOCKED" },
+      ],
+      gaps: ["tests"],
+    });
+  });
+
+  it("preserves legacy metadata compatibility while stripping extra fields", async () => {
+    const { ctx } = context(args(), [
+      { status: "PASS", summary: "Covered.", evidence: [], accepted: true },
+      { status: "ISSUES", summary: "Problem.", evidence: ["problem.ts:1"] },
+    ]);
+
+    const result = await runSwarmWorkflow(ctx);
+
+    expect(result).toMatchObject({
+      status: "complete", gaps: [],
+      workers: [
+        { id: "api", status: "PASS" },
+        { id: "tests", status: "ISSUES" },
+      ],
+    });
+    expect(result.workers[0]).not.toHaveProperty("accepted");
   });
 });

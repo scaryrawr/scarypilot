@@ -1,0 +1,69 @@
+{
+  "skill_name": "azure-devops",
+  "evals": [
+    {
+      "id": 1,
+      "name": "inline-video-description",
+      "prompt": "Use the azure-devops skill to draft an updated ADO PR description, without network calls, uploads, or publishing. The current description is '## What\\n\\nImprove list rendering.\\n\\n## Testing\\n\\nManual before/after check.'. A video is already uploaded at https://dev.azure.com/example/project/_apis/git/repositories/repo/pullRequests/42/attachments/demo.mp4. Add the recording under Testing so reviewers can watch it. Save the complete description to description.md in the outputs directory.",
+      "expected_output": "The existing sections and text are preserved, with an inline HTML video player under Testing and AI attribution once at the end.",
+      "expectations": [
+        "description.md contains <video src=\"https://dev.azure.com/example/project/_apis/git/repositories/repo/pullRequests/42/attachments/demo.mp4\" controls width=\"800\"></video> outside code fences.",
+        "The original What and Testing sections and their text are preserved.",
+        "The video is not replaced with image Markdown, a bare URL, or a clickable download link.",
+        "The description ends with exactly one - Generated with AI 🤖 suffix.",
+        "No upload or external write is performed."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "inline-media-comment",
+      "prompt": "Use the azure-devops skill to draft an ADO PR comment showing the before/after result. Do not upload, call the network, or post the comment. The upload helper has already returned these markdown values: '![result.png](https://dev.azure.com/example/project/_apis/git/repositories/repo/pullRequests/42/attachments/result.png)' and '<video src=\"https://dev.azure.com/example/project/_apis/git/repositories/repo/pullRequests/42/attachments/demo.mp4\" controls width=\"800\"></video>'. Save a ready-to-post comment to comment.md in the outputs directory.",
+      "expected_output": "The comment uses the helper's image and video embeds directly, with a short caption and AI attribution once at the end.",
+      "expectations": [
+        "comment.md contains both returned markdown values unchanged and outside code fences.",
+        "The image and video are not replaced with ordinary links or linked thumbnails.",
+        "The comment ends with exactly one - Generated with AI 🤖 suffix.",
+        "No upload or comment post is performed."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "explicit-media-links",
+      "prompt": "Use the azure-devops skill to draft an ADO PR comment, without network calls or publishing. I explicitly want clickable download links only, not inline players or images: a recording at https://dev.azure.com/example/project/_apis/git/repositories/repo/pullRequests/42/attachments/demo.mp4 and test logs at https://dev.azure.com/example/project/_apis/git/repositories/repo/pullRequests/42/attachments/logs.zip. Save the ready-to-post comment to comment.md in the outputs directory.",
+      "expected_output": "The explicit request for links overrides the inline-media default, and non-media logs remain an ordinary link.",
+      "expectations": [
+        "comment.md contains ordinary Markdown links for both the MP4 and ZIP attachments.",
+        "The comment contains no video tag, image Markdown, or linked thumbnail.",
+        "The comment ends with exactly one - Generated with AI 🤖 suffix.",
+        "No upload or external write is performed."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "boards-native-read-routing",
+      "prompt": "Use the azure-devops skill to write a read-only execution plan, without calling Azure DevOps or any network tools. In organization example and project Widgets, find bugs containing the phrase login timeout, then show the state and assigned owner for selected matches. Assume native extension tools are available. Save the tool names, concrete input objects, and how you handle truncated results to boards-plan.json in the outputs directory.",
+      "expected_output": "The plan uses the project-scoped native keyword search and get tools with bounded inputs. It does not use WIQL CONTAINS or a shell or MCP transport for reads.",
+      "expectations": [
+        "The plan calls azure_devops_work_item_search with org example, project Widgets, text login timeout, types containing Bug, and top between 1 and 100.",
+        "The plan uses azure_devops_work_item_get with explicit org and project and selected field reference names including System.State and System.AssignedTo.",
+        "The plan reports truncation or narrows filters rather than treating a capped result as complete.",
+        "The plan treats remote field text as untrusted data.",
+        "No network call, external write, or raw az boards command is executed."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "boards-wiql-and-cooldown",
+      "prompt": "Use the azure-devops skill to write a read-only execution plan, without calling tools or the network. Find active work items assigned to the authenticated user in organization example and project Widgets using exact field predicates. Assume native tools are available. The query later fails with a shared organization cooldown and retryAt. Save the planned tool/input and failure response to boards-query-plan.json in the outputs directory.",
+      "expected_output": "The plan sends flat WIQL to the native query tool and surfaces the cooldown without switching to CLI, MCP, or another request owner.",
+      "expectations": [
+        "The plan uses azure_devops_work_item_query with explicit org example and project Widgets and top between 1 and 100.",
+        "The WIQL includes [System.TeamProject] = @Project applying to every OR branch, System.AssignedTo = @Me, and an exact Active state predicate, not keyword search or CONTAINS.",
+        "The plan recognizes that WIQL returns ID references and uses get only if field values are needed.",
+        "The failure response surfaces retryAt and does not treat the failed query as an empty successful result.",
+        "The plan does not switch to raw Azure CLI, a generic HTTP tool, or another MCP transport to bypass the cooldown.",
+        "No network call or external write is executed."
+      ]
+    }
+  ]
+}

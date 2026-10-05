@@ -31,6 +31,7 @@ copilot plugin install chrome-devtools@scarypilot
 | **copilot-local-llm** | AI Models        | Discovers supported local LLM servers and registers their models in Copilot sessions.                                                                                   | [📖 Docs](./plugins/copilot-local-llm/README.md)        |
 | **digivolution**    | Workflow           | Adaptive post-task reflection that triggers only on strong evidence of durable repository learning.                                                                    | [📖 Docs](./plugins/digivolution/README.md)             |
 | **omlx-media**      | Media              | Generate or edit images, synthesize speech, transcribe audio, or turn recordings into grounded written content with local OMLX models.                                | [📖 Docs](./plugins/omlx-media/README.md)               |
+| **ollama-decisions** | AI Models         | Use installed Ollama decision models for routing, classification, and rubric evaluation.                                                                               | [📖 Docs](./plugins/ollama-decisions/README.md)         |
 | **playwright-ext**  | Browser Automation | Browser automation using Playwright with extension bridge. Testing, web scraping, form automation with logged-in sessions.                                             | [📖 Docs](./external_plugins/playwright-ext/README.md)  |
 | **pstack**          | Workflow           | Copilot-native pstack workflows with deterministic status, durable handoffs, capability gates, and verification receipts.                                                | [📖 Docs](./external_plugins/pstack/README.md)          |
 | **screen-record**   | Media              | Record agent-driven demos and edit them with trimming, side-by-side layouts, captions, and local narration.                                                              | [📖 Docs](./plugins/screen-record/README.md)            |
@@ -52,6 +53,11 @@ This marketplace supports multiple plugin patterns:
   commands, hooks, providers, and other session behavior
 - **Agent-Based Plugins**: Define specialized agent behaviors for complex tasks
 - **LSP-Based Plugins**: Enable language server integration for code intelligence
+
+Native extensions target `@github/copilot-sdk` 1.0.16 for development.
+Copilot supplies its own SDK at runtime. Pstack's native read-only swarm
+requires a host exposing dynamic workflow tools; otherwise its skill uses
+the existing Task-agent fallback.
 
 ## Contributing
 

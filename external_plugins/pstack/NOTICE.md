@@ -56,7 +56,7 @@ ScaryPilot changed the integration layer for GitHub Copilot:
 - Ported the `0.15.2`-`0.15.4` operator-neutral pronoun fix, the swarm skill's
   requirement that workers record verification SHAs and measurement methods
   with a one-retry rule for missing records and an explicit caller-side
-  evidence check before accepting native factory results, the autopilot
+  evidence check before accepting native workflow results, the autopilot
   playbooks' split between a code-ready verification round and a final
   merge-ready receipt audit, and the shipping playbook's noise-vs-signal
   patch-id diff check applied consistently across both autopilot modes.
@@ -65,6 +65,33 @@ ScaryPilot changed the integration layer for GitHub Copilot:
   addition to `/setup-pstack`, and the Opus-5.5-tuned instruction trims,
   because Copilot's model catalog and defaults already differ from Cursor's
   and the trims assume a specific upstream model's behavior.
+- Migrated the native swarm to Copilot SDK 1.0.16's dynamic workflow API and
+  updated its tool instructions while preserving the v1 swarm contract.
+- Added the read-only `pstack_validate_artifact` tool for snapshots, receipts,
+  handoffs, and plans. Extracted shared JSON validation rules from the
+  Copilot-owned schema-validation CLI and kept the existing shared plan rules.
+  Preserved `pstack_validate_plan`, its callers, and the standalone validator's
+  positional handling. Confined native reads use
+  macOS all-component no-follow opens or Linux pinned directory descriptors.
+  Unsupported platforms fail explicitly.
+  Updated the Copilot-owned schema-validation skill to prefer the native tool
+  with a CLI fallback.
+  `contracts`, `extensions`, and `skills/pstack-schema-validate` remain
+  Copilot-owned in `upstream-sync.json`. The upstream revision is unchanged.
+- Removed the canonical Agent Plugins `$schema` selector from the Copilot
+  manifest. Copilot's legacy format supports the existing native extension
+  paths and root agent and skill fields. The canonical selector gives
+  `extensions` a different namespace-based meaning.
+- Added optional `inputFiles` pinning to the existing v1 read-only swarm.
+  Journaled snapshots record canonical workspace identity and declared
+  file-byte digests. Fresh confined reads reject drift before memoized
+  workers or aggregate results can be returned. Legacy unpinned calls retain
+  their coverage behavior without a freshness guarantee. This does not
+  validate factual evidence or change Phase C acceptance.
+  Extracted the existing native confined reader for reuse without adding
+  runtime writes, subprocesses, or network access. The swarm skill changes
+  are a Copilot adaptation of the upstream-derived skill. The native
+  extension remains Copilot-owned, and the upstream revision is unchanged.
 
 The upstream guide is included with Copilot-specific installation, agent,
 automation, path, and verification instructions. Cursor-only screenshots and
