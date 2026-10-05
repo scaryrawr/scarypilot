@@ -25,7 +25,11 @@ Prioritize executable sources of truth over prose:
    narrow validation commands. Note prerequisites and required ordering.
 4. Map major package boundaries, real entrypoints, generated files, and
    subsystem-specific constraints.
-5. Report contradictions, duplication, stale paths, and guidance unsupported by
+5. Identify evidence for the default repository-local code-review skill:
+   changed-path-to-test mappings, contracts, and specialized review checks.
+   Preserve useful existing checks and distinguish local MCP configuration
+   from verified repository Copilot settings for hosted review.
+6. Report contradictions, duplication, stale paths, and guidance unsupported by
    executable configuration.
 
 Use shell commands only for read-only inspection. Do not install dependencies,
@@ -39,6 +43,7 @@ Organize the result as:
 - Candidate portable guidance
 - Candidate Copilot-specific or path-scoped guidance
 - Candidate reusable skills or specialist agents
+- Evidence for the default code-review skill
 - Conflicts and uncertainties
 
 Include source paths for important claims. Omit generic language or framework
