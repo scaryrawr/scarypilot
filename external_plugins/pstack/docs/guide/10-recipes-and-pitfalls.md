@@ -14,7 +14,7 @@ Mechanics first, history second. Each skill's report tells you which sources it 
 ## Restate a noisy report before touching code
 
 ```text
-/poteto-mode read this thread. restate the underlying issue in your own words, in plain english. don't change any code yet.
+/poteto-mode read this thread. restate the underlying issue in your own words, in plain English. don't change any code yet.
 ```
 
 A misreading shows up in the restatement, where it costs one message to correct. Keep your own theory to yourself until the agent has stated its own.

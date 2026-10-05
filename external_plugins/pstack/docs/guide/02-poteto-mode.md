@@ -60,7 +60,7 @@ Two things are worth leaving out:
 For a noisy report, such as a long thread or a vague bug, make the restatement the first step:
 
 ```text
-/poteto-mode read this thread. restate the underlying issue in your own words, in plain english. don't change any code yet.
+/poteto-mode read this thread. restate the underlying issue in your own words, in plain English. don't change any code yet.
 ```
 
 A misreading shows up in the restatement, before any code exists. Correct it there, and it costs you one message instead of one wrong fix.
