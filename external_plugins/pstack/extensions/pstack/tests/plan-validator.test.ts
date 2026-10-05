@@ -18,13 +18,15 @@ describe("validatePlanText", () => {
       "utf8",
     );
 
+    const line = legacy.split("\n").indexOf("## Program checklist") + 1;
+
     expect(validatePlanText(legacy, "verified-stack").findings).toEqual([]);
     const hourly = legacy.replace("30-minute", "hourly");
     expect(validatePlanText(hourly, "verified-stack").findings).toEqual([]);
     const missing = hourly.replace("hourly ", "");
     expect(validatePlanText(missing, "verified-stack").findings).toEqual([
       {
-        line: 14,
+        line,
         rule: "audit-cadence",
         message: 'Program checklist needs "hourly" or "30-minute" on the audit tick or status message line',
       },
@@ -38,6 +40,7 @@ describe("validatePlanText", () => {
     );
 
     const missing = legacy.replace("30-minute ", "");
+    const line = legacy.split("\n").indexOf("## Program checklist") + 1;
 
     for (const unrelated of [
       "- [ ] Reconcile hourly billing.",
@@ -53,7 +56,7 @@ describe("validatePlanText", () => {
     ]) {
       const misleading = missing.replace("### Spawn owners", `${unrelated}\n\n### Spawn owners`);
       expect(validatePlanText(misleading, "verified-stack").findings).toEqual([{
-        line: 14,
+        line,
         rule: "audit-cadence",
         message: 'Program checklist needs "hourly" or "30-minute" on the audit tick or status message line',
       }]);
