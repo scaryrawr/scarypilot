@@ -14,6 +14,11 @@ help?" If not, leave it out.
 Apply any user-provided focus or constraints first. If the user names a package,
 workflow, instruction type, or path, prioritize it.
 
+For initialization or a general guidance refresh, create or update
+`.github/skills/code-review/SKILL.md` by default alongside repository
+instructions. A focus is not an opt-out; omit the review skill only when the
+user explicitly excludes it or limits edits to other files or surfaces.
+
 Do not ask questions before inspecting the repository unless the request is
 impossible to interpret. Improve existing `/init` output in place when present;
 do not assume an uninitialized repository.
@@ -121,11 +126,19 @@ explicitly requested.
 
 #### Copilot code-review skills
 
-When the repository has non-obvious, repeatable review requirements, create
-`.github/skills/code-review/SKILL.md`. Use this exact review-focused directory
-name so GitHub Copilot code review is more likely to load the skill.
+Create or update `.github/skills/code-review/SKILL.md` by default, even when
+the user does not mention review or the repository has no unusual review
+requirements. Use `name: code-review` and a description explicitly targeting
+pull request review so GitHub Copilot code review is more likely to load it.
+Preserve useful existing checks when refreshing the skill.
 
-Good candidates include:
+For a simple repository, keep the skill short: map changed paths to verified
+entrypoints and tests, tell reviewers how to assess affected behavior or
+contracts, and identify the applicable validation commands. Reference the
+command inventory or conventions in repository instructions instead of copying
+them. Do not invent special requirements to fill the file.
+
+Add specialized checks when supported by repository evidence:
 
 - Security, compatibility, migration, generated-artifact, or API-contract
   checks tied to identifiable paths.
@@ -138,8 +151,9 @@ The skill must tell the reviewer what evidence to inspect, which checks to run
 or reason through, and when a finding is actionable. Keep general coding
 standards in repository instructions instead. Do not create a generic review
 checklist that merely says to look for bugs, security issues, tests, or style.
-Do not assume an MCP server exists; name MCP context or tools only when verified
-from repository configuration or explicitly requested by the user.
+Do not assume an MCP server exists or that local/plugin MCP configuration makes
+it available to hosted review. Name MCP context or tools only when verified in
+repository Copilot settings or explicitly confirmed by the user.
 
 Remember that GitHub Copilot code review reads instructions and skills from the
 pull request's head branch. The generated skill must therefore be self-contained
@@ -172,8 +186,9 @@ Before editing:
 Write direct, imperative guidance. Use headings for scanability, exact paths and
 commands, and short explanations only where the reason changes behavior.
 
-Do not create all supported file types as a showcase. It is valid for the
-result to contain only `AGENTS.md`.
+Do not create all supported file types as a showcase. A typical initialization
+needs only `AGENTS.md` and `.github/skills/code-review/SKILL.md`; an explicitly
+narrower request may need only the requested surface.
 
 ## 6. Validate the result
 
@@ -183,8 +198,11 @@ result to contain only `AGENTS.md`.
   available.
 - Ensure path-specific globs match their intended files.
 - Ensure new skills and agents have unique, matching names and clear triggers.
-- For a code-review skill, confirm it is under `.github/skills/code-review`,
-  contains repository-specific checks, and does not claim unverified MCP access.
+- Unless explicitly excluded by scope, confirm initialization and general
+  refreshes include `.github/skills/code-review/SKILL.md` with matching
+  `name: code-review` and a pull-request-review description.
+- Confirm the review skill contains repository-grounded checks, preserves
+  useful existing checks, and does not claim unverified MCP access.
 - Check that no guidance is duplicated across surfaces without a specific
   reason.
 

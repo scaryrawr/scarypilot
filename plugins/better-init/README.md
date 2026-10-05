@@ -9,7 +9,8 @@ roles to their native locations.
 The plugin provides:
 
 - `/better-init` — inspects the repository and writes the smallest useful set
-  of instruction, skill, and agent files.
+  of instruction, skill, and agent files, including a repository-local
+  code-review skill by default.
 - `repo-instruction-researcher` — an optional read-only custom agent for
   discovering commands, architecture, and existing guidance in large
   repositories.
@@ -57,24 +58,30 @@ The skill chooses among these surfaces:
 | `.github/skills/*/SKILL.md` | Reusable workflows loaded only when relevant |
 | `.github/agents/*.agent.md` | Specialist roles suitable for subagent delegation |
 
-It does not create every surface by default. Each file must contain verified
-guidance that would be misplaced or distracting elsewhere.
+By default, initialization and general guidance refreshes include `AGENTS.md`
+and `.github/skills/code-review/SKILL.md`. Other surfaces are created only when
+needed. Each file must contain verified guidance that would be misplaced or
+distracting elsewhere.
 
 ### Copilot code review
 
-When a repository has non-obvious review requirements, Better Init can create
-`.github/skills/code-review/SKILL.md`. The review-focused name helps GitHub
-Copilot code review discover the skill from a pull request's head branch.
+Better Init creates or refreshes `.github/skills/code-review/SKILL.md` by default,
+even without an explicit review request. The review-focused name and description
+help GitHub Copilot code review discover the skill from a pull request's head
+branch. An explicitly narrower request, such as "update only `AGENTS.md`," or a
+request to skip the review skill takes precedence.
 
-The generated skill should contain repository-specific checks such as migration
-artifact synchronization, API compatibility rules, targeted validation, or use
-of an MCP server that is already configured for review context. Better Init does
-not create a generic checklist for ordinary bug, security, test, or style review.
+For a simple repository, the skill maps changed paths to entrypoints, tests,
+and applicable validation. Where supported by evidence, it adds checks such as
+migration artifact synchronization, API compatibility, or use of MCP context
+verified in repository Copilot settings. Local or plugin MCP configuration alone
+does not establish hosted review access. Better Init preserves useful existing
+checks and does not create a generic bug, security, test, or style checklist.
 
 ## Resources
 
 - [Adding custom instructions for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-custom-instructions)
 - [Adding agent skills for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills)
-- [Using GitHub Copilot code review](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/request-a-code-review/use-code-review)
+- [Using GitHub Copilot code review](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-code-review?tool=webui#mcp-servers-and-agent-skills)
 - [Creating custom agents for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/create-custom-agents-for-cli)
 - [Creating plugins for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-creating)

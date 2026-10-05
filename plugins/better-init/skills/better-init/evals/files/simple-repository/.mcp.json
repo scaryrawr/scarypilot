@@ -1,0 +1,6 @@
+{
+  "incident": {
+    "type": "http",
+    "url": "https://incidents.example.invalid/mcp"
+  }
+}

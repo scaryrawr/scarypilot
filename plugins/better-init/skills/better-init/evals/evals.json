@@ -5,14 +5,18 @@
       "id": 1,
       "name": "simple-typescript-repository",
       "prompt": "Initialize repository instructions for this TypeScript project. The executable sources show npm scripts for build, lint, typecheck, and test; src/index.ts is the entrypoint and tests are under test/. No instruction files exist. Use the better-init skill and write the resulting files.",
-      "expected_output": "A concise root AGENTS.md with verified structure and commands, without unnecessary Copilot-specific files, skills, or agents.",
+      "expected_output": "A concise root AGENTS.md with verified structure and commands plus a repository-grounded code-review skill by default, without unnecessary additional surfaces.",
       "files": [],
       "expectations": [
         "AGENTS.md exists at the repository root.",
         "AGENTS.md includes the build, lint, typecheck, and test commands.",
         "AGENTS.md describes src/index.ts and test/ without inventorying unrelated directories.",
         "No .github/copilot-instructions.md is created without Copilot-specific guidance.",
-        "No project skill or custom agent is created merely because those surfaces are supported.",
+        ".github/skills/code-review/SKILL.md exists without the prompt explicitly requesting review guidance.",
+        "The review skill uses name: code-review and a description explicitly targeting pull request review.",
+        "The review skill maps src/index.ts changes to affected behavior and tests under test/, referencing applicable verified validation without copying the AGENTS.md command inventory.",
+        "The review skill does not invent specialized requirements or claim unverified MCP access.",
+        "No additional project skill or custom agent is created merely because those surfaces are supported.",
         "The guidance is concise and repository-specific."
       ]
     },
@@ -20,26 +24,28 @@
       "id": 2,
       "name": "split-portable-and-copilot-guidance",
       "prompt": "Improve this repository's agent setup. Portable facts include pnpm workspace package boundaries and the exact lint, typecheck, and test commands. The team also requires Copilot CLI specifically to use the smallest targeted test before a full suite and never create pull requests unless explicitly requested. Existing AGENTS.md mixes all of this together. Use better-init and write the corrected files.",
-      "expected_output": "Portable repository facts remain in AGENTS.md while Copilot-only operating behavior moves to .github/copilot-instructions.md without duplication.",
+      "expected_output": "Portable repository facts remain in AGENTS.md while Copilot-only operating behavior moves to .github/copilot-instructions.md without duplication, and a code-review skill is included by default.",
       "files": [],
       "expectations": [
         "AGENTS.md contains the pnpm workspace structure and exact validation commands.",
         ".github/copilot-instructions.md contains the Copilot-specific targeted-test and pull-request behavior.",
         "The Copilot instructions do not copy or reference AGENTS.md.",
-        "Duplicated guidance is removed rather than retained in both files."
+        "Duplicated guidance is removed rather than retained in both files.",
+        ".github/skills/code-review/SKILL.md exists even though the prompt only requests a general guidance refresh."
       ]
     },
     {
       "id": 3,
       "name": "path-specific-monorepo-guidance",
       "prompt": "Initialize guidance for a monorepo with shared root commands. Files under services/payments/** require a local payment emulator and must use a payments-only integration test command. Files under generated/** must never be edited manually. Use better-init to choose concise instruction surfaces and write them.",
-      "expected_output": "Root guidance holds shared commands while narrow .github/instructions files use applyTo globs for payments and generated-code constraints.",
+      "expected_output": "Root guidance holds shared commands while narrow .github/instructions files use applyTo globs for payments and generated-code constraints, with a code-review skill included by default.",
       "files": [],
       "expectations": [
         "A root AGENTS.md contains shared repository commands.",
         "A .github/instructions file scopes payment guidance to services/payments/** with applyTo frontmatter.",
         "A .github/instructions file scopes generated-code guidance to generated/** with applyTo frontmatter.",
         "Subsystem-specific details are not duplicated into the root guide.",
+        ".github/skills/code-review/SKILL.md exists and directs reviewers to the scoped payments and generated-code guidance without duplicating it.",
         "No unrelated skills or agents are created."
       ]
     },
@@ -55,13 +61,14 @@
         "The skill name matches its directory and its description states the trigger.",
         "The skill contains the required creation and package-scoped validation steps.",
         "AGENTS.md mentions the skill briefly without copying its workflow.",
+        ".github/skills/code-review/SKILL.md exists alongside the explicitly requested new-app-package skill.",
         "No custom agent is created for a workflow adequately represented by a skill."
       ]
     },
     {
       "id": 5,
       "name": "repository-specific-code-review-skill",
-      "prompt": "Improve this repository's Copilot setup for pull request review. Changes under db/migrations/** require a matching schema snapshot update, API changes under src/public-api/** require a compatibility check, and pull request descriptions may reference incidents available through the repository's configured incident MCP server. Use better-init and write the resulting files.",
+      "prompt": "Improve this repository's Copilot setup for pull request review. Changes under db/migrations/** require a matching schema snapshot update, API changes under src/public-api/** require a compatibility check, and pull request descriptions may reference incidents available through an incident MCP server confirmed in repository Copilot settings for hosted review. Use better-init and write the resulting files.",
       "expected_output": "A review-focused project skill captures the repository-specific checks and verified MCP context without turning general review advice into a long checklist.",
       "files": [],
       "expectations": [
@@ -72,6 +79,52 @@
         "The skill tells reviewers to consult incident context through the configured MCP server when a pull request references an incident.",
         "The skill does not consist primarily of generic advice to look for bugs, security issues, tests, or style.",
         "Repository-wide facts are not duplicated into the code-review skill."
+      ]
+    },
+    {
+      "id": 6,
+      "name": "explicit-instructions-only-scope",
+      "prompt": "Use better-init to create only AGENTS.md for a small JavaScript repository. The verified repository facts are that src/index.js is the entrypoint, tests live under test/, and npm test runs node --test. Do not create or edit any other instruction, skill, agent, or configuration file.",
+      "expected_output": "Only AGENTS.md is generated because the explicitly limited scope overrides the default code-review skill.",
+      "files": [],
+      "expectations": [
+        "AGENTS.md describes src/index.js, test/, and the npm test command.",
+        "No .github/skills/code-review/SKILL.md is created.",
+        "No other instruction, skill, agent, or configuration file is created."
+      ]
+    },
+    {
+      "id": 7,
+      "name": "refresh-existing-review-skill",
+      "prompt": "Use better-init for a general guidance refresh. The supplied simple-repository fixture is a small JavaScript repository with src/index.js as the entrypoint and test/index.test.js covering its exported greeting. npm test runs node --test. The separately supplied existing-code-review.md represents the repository's existing .github/skills/code-review/SKILL.md, which requires greeting changes to preserve the exact output format relied on by clients. Read both fixtures, preserve that useful review check, and write the refreshed guidance to the output directory using repository-relative paths. Do not modify the fixtures.",
+      "expected_output": "AGENTS.md and the refreshed default code-review skill preserve the existing contract check and include grounded path-to-test review guidance.",
+      "files": [
+        "evals/files/simple-repository",
+        "evals/files/existing-code-review.md"
+      ],
+      "expectations": [
+        "AGENTS.md describes the verified repository structure and npm test command.",
+        ".github/skills/code-review/SKILL.md exists without an explicit request to add review guidance.",
+        "The code-review skill preserves the existing exact greeting output compatibility check.",
+        "The code-review skill maps src/index.js changes to test/index.test.js and applicable validation.",
+        "The code-review skill does not claim hosted review access to the local-only incident MCP server configured in .mcp.json."
+      ]
+    },
+    {
+      "id": 8,
+      "name": "default-review-skill-with-contributor-focus",
+      "prompt": "Use better-init to initialize guidance for the supplied simple-repository fixture. Prioritize the contributor workflow and fast validation. No repository instruction files exist. Read the fixture and write the resulting guidance to the output directory using repository-relative paths. Do not modify the fixture.",
+      "expected_output": "AGENTS.md and a concise, grounded code-review skill are generated by default even for a simple repository with a contributor-workflow focus.",
+      "files": [
+        "evals/files/simple-repository"
+      ],
+      "expectations": [
+        "AGENTS.md describes src/index.js, test/index.test.js, and npm test.",
+        ".github/skills/code-review/SKILL.md exists without the prompt mentioning review.",
+        "The review skill has name: code-review and a description explicitly targeting pull request review.",
+        "The review skill maps changes in src/index.js to greeting behavior and test/index.test.js with applicable validation.",
+        "The review skill does not invent unusual requirements or claim hosted access to the local incident MCP configuration.",
+        "No unnecessary Copilot instructions, additional skills, or custom agents are created."
       ]
     }
   ]
