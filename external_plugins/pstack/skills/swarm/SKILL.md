@@ -23,7 +23,7 @@ Open a todolist with one entry per phase before launching anything.
 1. State the done predicate and the artifact or report the swarm must return.
 2. Choose the shape. Partition into slices, race N workers on identical briefs, or mix both. For a race or mixed shape, declare `first pass`, `rank all`, or `best-of` before spawning.
 3. Set N from the user or derive it from the shape. N is total workers, not the Task concurrency limit.
-4. Pick the worker model from the `swarm workers` line in `instructions/pstack-models.instructions.md` in Copilot home (`$COPILOT_HOME`, or `$HOME/.copilot` when unset). If the configuration or that line is missing, or the value is `auto` or `inherit-parent`, omit `model` and let Copilot choose the agent's default. This does not promise the parent model. If the Task tool rejects a slug, omit `model` and say so. For a model race, name each arm's model up front.
+4. Resolve each worker's model from the `swarm workers` line in `instructions/pstack-models.instructions.md` in Copilot home (`$COPILOT_HOME`, or `$HOME/.copilot` when unset). Missing configuration, a missing role line, `auto`, and `inherit-parent` all resolve to no explicit model. Only a concrete configured slug resolves to an explicit model. Use this resolved choice at every native, legacy, fallback, and retry dispatch; never copy a raw alias into `model`. No explicit model lets Copilot choose the agent's default, not necessarily the parent model. If the host rejects a concrete slug before that worker starts, resolve it to no explicit model and report the fallback. Do not retry a writing worker that may already have changed files. For a model race, name each arm's concrete model up front.
 5. Give every writing worker an isolated workspace: a distinct worktree and
    branch for repository changes, or a worker-specific directory under the
    session artifact directory for scratch output. Separate filenames inside
@@ -54,7 +54,8 @@ and the following `args`:
 
 The first workflow contract supports read-only coverage swarms only. Races,
 mixed swarms, and all writing work use the legacy flow below. Include the
-configured model on each worker only when it is present and not `auto`. The
+resolved explicit model from Phase A on each worker only when one remains. Omit
+`model` for both aliases, missing configuration, and a rejected slug. The
 workflow accepts 2-8 workers. Its workers are read-only and must not invoke
 workflows.
 
@@ -102,7 +103,8 @@ Report that error and reframe the inputs before starting new work.
 
 For a writing swarm, do not call the workflow. Spawn all N workers in one
 message with `agent_type: "general-purpose"` and `mode: "background"`. Pass the
-configured model unless it is absent or set to `auto`. Never replay or
+resolved model from Phase A only when it is an explicit concrete slug; otherwise
+omit `model`, including for both aliases. Never replay or
 automatically fall back after a writing worker may have changed files.
 
 Every brief stands alone. Include the goal, scope, exact slice or race arm, how to verify, and what to report. Reports use `PASS`, `ISSUES`, or `BLOCKED` with evidence. A worker that can prove a defect reports `ISSUES` and lists every issue it can prove, not only the first.
@@ -113,7 +115,7 @@ If a worker drops out, proceed with N-1 and note it.
 
 Read the terminal results. For a workflow result, match each entry in `workers` to its input brief by `id` and inspect its `evidence` strings for every required SHA and measurement-method detail (sample count, sample definition, and order). Do not trust the workflow's aggregate `status`, an empty `gaps` list, or a worker's `PASS` as proof of this evidence. Briefs that require neither SHAs nor a method need no such records.
 
-Drop a result that omits or contradicts the SHAs or method its brief names. For a read-only workflow result, respawn that slice once as a fresh standalone background `general-purpose` worker with the same brief and configured model; do not invoke the 2-8-worker workflow for this retry. For a read-only legacy result, respawn that worker once with a fresh agent and the same brief. Apply the same evidence check to the retry. Never replay a writing worker; record its missing evidence as a gap. Recompute coverage and gaps from the accepted results, preserving workflow-reported gaps unless a valid retry fills them. Any remaining gap makes the consolidated report partial (or blocked if no usable results remain), even when the workflow reported `complete`. A gap does not count as a pass. For coverage, every required slice needs a result. For a race, apply the selection rule declared up front. Use first pass, rank all, or best-of. Do not paste raw worker dumps.
+Drop a result that omits or contradicts the SHAs or method its brief names. For a read-only workflow result, respawn that slice once as a fresh standalone background `general-purpose` worker with the same brief and Phase A's resolved model choice; do not invoke the 2-8-worker workflow for this retry. For a read-only legacy result, respawn that worker once with a fresh agent, the same brief, and the same resolved choice. In both retries, omit `model` for either alias, missing configuration, or a previously rejected slug. Apply the same evidence check to the retry. Never replay a writing worker; record its missing evidence as a gap. Recompute coverage and gaps from the accepted results, preserving workflow-reported gaps unless a valid retry fills them. Any remaining gap makes the consolidated report partial (or blocked if no usable results remain), even when the workflow reported `complete`. A gap does not count as a pass. For coverage, every required slice needs a result. For a race, apply the selection rule declared up front. Use first pass, rank all, or best-of. Do not paste raw worker dumps.
 
 Keep a compact result table, one-line evidenced issues, and explicit gaps or dropouts.
 

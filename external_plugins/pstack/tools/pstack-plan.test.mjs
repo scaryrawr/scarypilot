@@ -32,10 +32,28 @@ test("a plan without an audit cadence fails with an actionable finding", () => {
   assert.deepEqual(validatePlanText(missingCadence, "verified-stack").findings, [
     {
       line,
-      rule: "program-marker",
-      message: 'Program checklist lacks "/(?:30[- ]minute|hourly)/"',
+      rule: "audit-cadence",
+      message: 'Program checklist needs "hourly" or "30-minute" on the audit tick or status message line',
     },
   ]);
+});
+
+test("unrelated or fenced cadence text cannot schedule an audit", () => {
+  const missing = template.replace("hourly audit tick", "audit tick");
+  const line = template.split("\n").indexOf("## Program checklist") + 1;
+
+  for (const unrelated of [
+    "- [ ] Reconcile hourly billing.",
+    "- [ ] Reconcile 30-minute billing.",
+    "```text\nhourly audit tick\n```",
+  ]) {
+    const misleading = missing.replace("### Spawn owners", `${unrelated}\n\n### Spawn owners`);
+    assert.deepEqual(validatePlanText(misleading, "verified-stack").findings, [{
+      line,
+      rule: "audit-cadence",
+      message: 'Program checklist needs "hourly" or "30-minute" on the audit tick or status message line',
+    }]);
+  }
 });
 
 test("the CLI accepts the shipped skeleton and rejects a missing cadence", (t) => {
@@ -58,7 +76,14 @@ test("the CLI accepts the shipped skeleton and rejects a missing cadence", (t) =
   const invalid = spawnSync(process.execPath, [cli, path], { encoding: "utf8" });
   assert.equal(invalid.status, 1);
   assert.match(invalid.stdout, /\n1 problems\n$/);
-  assert.match(invalid.stderr, /\[program-marker\] Program checklist lacks/);
+  assert.match(invalid.stderr, /\[audit-cadence\] Program checklist needs/);
+
+  writeFileSync(path, template.replace("hourly audit tick", "audit tick")
+    .replace("### Spawn owners", "- [ ] Reconcile hourly billing.\n\n### Spawn owners"));
+  const misleading = spawnSync(process.execPath, [cli, path], { encoding: "utf8" });
+  assert.equal(misleading.status, 1);
+  assert.match(misleading.stdout, /\n1 problems\n$/);
+  assert.match(misleading.stderr, /\[audit-cadence\] Program checklist needs/);
 });
 
 test("the shipped bundle validates both cadences through its native tools", {
@@ -101,19 +126,23 @@ test("the shipped bundle validates both cadences through its native tools", {
 
   const line = template.split("\n").indexOf("## Program checklist") + 1;
 
-  for (const [cadence, expected] of [
-    ["hourly", { ok: true, findings: [] }],
-    ["30-minute", { ok: true, findings: [] }],
-    ["unscheduled", {
-      ok: false,
-      findings: [{
-        line,
-        rule: "program-marker",
-        message: 'Program checklist lacks "/(?:30[- ]minute|hourly)/"',
-      }],
+  const failure = {
+    ok: false,
+    findings: [{
+      line,
+      rule: "audit-cadence",
+      message: 'Program checklist needs "hourly" or "30-minute" on the audit tick or status message line',
     }],
+  };
+
+  for (const [plan, expected] of [
+    [template, { ok: true, findings: [] }],
+    [template.replace("hourly audit tick", "30-minute audit tick"), { ok: true, findings: [] }],
+    [template.replace("hourly audit tick", "audit tick"), failure],
+    [template.replace("hourly audit tick", "audit tick")
+      .replace("### Spawn owners", "- [ ] Reconcile hourly billing.\n\n### Spawn owners"), failure],
   ]) {
-    writeFileSync(path, template.replace("hourly audit tick", `${cadence} audit tick`));
+    writeFileSync(path, plan);
 
     const result = spawnSync(process.execPath, ["--input-type=module", "-e", host, entry, path], {
       cwd: root,

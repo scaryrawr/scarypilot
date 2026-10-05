@@ -65,6 +65,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 - [ ] At the code-ready head SHA and at each later push that changes the patch, run the swarm per `pstack/skills/swarm/SKILL.md`. Include gate lanes, the live lanes from the PR's **Verify, live** block, the perf lane from its **Verify, perf** block, and one early audit lane that reads only the diff and distrusts the PR body. Keep these results provisional until the final receipt audit passes.
 - [ ] After the owner reports merge-ready, or STACK-READY in stack mode, the root separately audits that report and its final self-proof, CI, and babysit receipts against the reported head SHA and required pass predicates. Missing, stale, or failed evidence blocks acceptance. Repeat this audit for every updated ready report after a rewritten head.
 - [ ] Clean only when every required lane is `PASS` and the root's final receipt audit passes. Findings go back to the owner. A new head gets a fresh swarm and a fresh receipt audit, except for lane results that stay valid under the patch-id rule in `playbooks/shipping.md`.
+- [ ] Record the tested base and head SHAs. Any trunk or intended-parent movement requires fresh CI and required live/perf evidence on the combined new base and head per the base-freshness rule in `playbooks/shipping.md`. A clean merge or unchanged patch-id cannot preserve stale integration receipts.
 - [ ] <The merge or append rule from the execution playbook, with the patch-id rule from `playbooks/shipping.md`.>
 
 ### Boot recipe, for every live lane

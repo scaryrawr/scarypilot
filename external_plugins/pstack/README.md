@@ -191,6 +191,13 @@ Autopilot playbooks now use an hourly audit through an available, approved
 host scheduling mechanism. They do not assume Cursor's `/loop` or a wake-up
 after a session closes. The shared verified-stack plan validator accepts the
 hourly cadence and existing 30-minute plans, so saved plans remain valid.
+Cadence must appear on the audit-tick or status-message line in plan prose;
+an unrelated hourly task or fenced example cannot satisfy it.
+Swarm worker dispatches and evidence retries share one resolved model choice,
+omitting both aliases instead of sending them as slugs.
+Before landing, any trunk or intended-parent movement requires fresh CI
+and required live/perf evidence on the combined new base and PR head.
+Disjoint paths and unchanged patch-id do not preserve stale integration receipts.
 
 Cursor's `automations/benny` pack is not included because Copilot plugins do
 not provide the Cursor Automations runtime. See [`NOTICE.md`](./NOTICE.md) for

@@ -25,9 +25,31 @@ describe("validatePlanText", () => {
     expect(validatePlanText(missing, "verified-stack").findings).toEqual([
       {
         line: 14,
-        rule: "program-marker",
-        message: 'Program checklist lacks "/(?:30[- ]minute|hourly)/"',
+        rule: "audit-cadence",
+        message: 'Program checklist needs "hourly" or "30-minute" on the audit tick or status message line',
       },
     ]);
+  });
+
+  it("rejects unrelated or fenced cadence text in an unscheduled plan", () => {
+    const legacy = readFileSync(
+      new URL("./fixtures/plan-verified-stack-valid.md", import.meta.url),
+      "utf8",
+    );
+
+    const missing = legacy.replace("30-minute ", "");
+
+    for (const unrelated of [
+      "- [ ] Reconcile hourly billing.",
+      "- [ ] Reconcile 30-minute billing.",
+      "```text\nhourly audit tick\n```",
+    ]) {
+      const misleading = missing.replace("### Spawn owners", `${unrelated}\n\n### Spawn owners`);
+      expect(validatePlanText(misleading, "verified-stack").findings).toEqual([{
+        line: 14,
+        rule: "audit-cadence",
+        message: 'Program checklist needs "hourly" or "30-minute" on the audit tick or status message line',
+      }]);
+    }
   });
 });

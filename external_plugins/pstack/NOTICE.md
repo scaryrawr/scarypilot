@@ -51,7 +51,7 @@ ScaryPilot changed the integration layer for GitHub Copilot:
   with prompting and recipe references. Added agent-resistant architecture
   checks and schema-first cast examples. Updated performance playbooks,
   fresh-agent guidance, early PR snapshots, PR headings, and merge-prep
-  conflict and CI-path checks. Preserved Copilot's same-task agent messaging,
+  base-freshness checks. Preserved Copilot's same-task agent messaging,
   read-only retry boundary, pinned swarm inputs, and final receipt audits.
   Model aliases omit `model` for the host's agent default instead of promising
   parent-model inheritance; rejected models no longer trigger guessed
@@ -60,6 +60,13 @@ ScaryPilot changed the integration layer for GitHub Copilot:
   tools instead of Cursor's `/loop 1h`. The shared plan rules accept hourly
   audits while retaining existing 30-minute plans. Rebuilt the native bundle
   so CLI and native artifact/plan validation use the same rules.
+- Applied review corrections in `0.15.13-copilot.1`. Audit cadence must be on
+  the audit-tick or status-message line outside code fences. Swarm dispatches
+  and retries consistently omit model aliases. Trunk or intended-parent
+  movement invalidates integration receipts even for disjoint paths and an
+  unchanged patch-id; landing requires fresh CI and required live/perf proof
+  on the combined new base and PR head. This deliberately strengthens
+  upstream's path-overlap shortcut without changing the upstream boundary.
 - Updated the guide for prompting, investigation, prototypes, plans,
   verification infrastructure, benchmark evidence, recurring corrections,
   and trust before unattended work. Excluded Cursor Custom Modes shortcuts,
