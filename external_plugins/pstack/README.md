@@ -193,6 +193,8 @@ after a session closes. The shared verified-stack plan validator accepts the
 hourly cadence and existing 30-minute plans, so saved plans remain valid.
 Cadence must appear on the audit-tick or status-message line in plan prose;
 an unrelated hourly task or fenced example cannot satisfy it.
+Backtick and tilde fences accept up to three leading spaces and stay in code
+until a closing fence of the same type with at least the opening length.
 Swarm worker dispatches and evidence retries share one resolved model choice,
 omitting both aliases instead of sending them as slugs.
 Before landing, any trunk or intended-parent movement requires fresh CI

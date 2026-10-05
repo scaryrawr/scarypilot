@@ -67,6 +67,11 @@ ScaryPilot changed the integration layer for GitHub Copilot:
   unchanged patch-id; landing requires fresh CI and required live/perf proof
   on the combined new base and PR head. This deliberately strengthens
   upstream's path-overlap shortcut without changing the upstream boundary.
+- Corrected Markdown fence parsing in `0.15.13-copilot.2`. The shared plan
+  rules recognize backtick and tilde fences with up to three leading spaces,
+  retain the opening delimiter and length until a valid closing fence, and
+  keep fenced examples out of cadence and prose validation. Rebuilt the
+  native bundle and expanded CLI and native regression coverage.
 - Updated the guide for prompting, investigation, prototypes, plans,
   verification infrastructure, benchmark evidence, recurring corrections,
   and trust before unattended work. Excluded Cursor Custom Modes shortcuts,

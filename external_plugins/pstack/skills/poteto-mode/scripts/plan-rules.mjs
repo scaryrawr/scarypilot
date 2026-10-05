@@ -48,13 +48,24 @@ function preparedLines(rawText) {
   }
 
   const lines = [];
-  let fence = false;
+  let fence = null;
 
   for (let i = start; i < raw.length; i++) {
     const text = raw[i];
+    const delimiter = text.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    let code = fence !== null;
 
-    if (text.startsWith("```")) fence = !fence;
-    lines.push({ n: i + 1, text, code: fence });
+    if (fence !== null) {
+      if (delimiter && delimiter[1][0] === fence[0] &&
+          delimiter[1].length >= fence.length && /^[ \t]*$/.test(delimiter[2])) {
+        fence = null;
+      }
+    } else if (delimiter && (delimiter[1][0] === "~" || !delimiter[2].includes("`"))) {
+      fence = delimiter[1];
+      code = true;
+    }
+
+    lines.push({ n: i + 1, text, code });
   }
 
   return lines;

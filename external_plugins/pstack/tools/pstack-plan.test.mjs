@@ -15,6 +15,17 @@ const playbook = readFileSync(
 
 const template = playbook.split("````markdown\n")[1]?.split("\n````")[0];
 
+const fencedCadences = [
+  "```text\nhourly audit tick\n```",
+  "   ```text\nhourly audit tick\n   ```",
+  "~~~text\nhourly audit tick\n~~~",
+  "   ~~~text\nhourly audit tick\n   ~~~",
+  "````text\n```\nhourly audit tick\n````",
+  "~~~text\n```\nhourly audit tick\n~~~",
+  "```text\n~~~\nhourly audit tick\n```",
+  "```text\n```not-a-close\nhourly audit tick\n```",
+];
+
 test("the shipped hourly plan skeleton passes verified-stack validation", () => {
   assert.equal(typeof template, "string");
   assert.match(template, /hourly audit tick/);
@@ -45,7 +56,7 @@ test("unrelated or fenced cadence text cannot schedule an audit", () => {
   for (const unrelated of [
     "- [ ] Reconcile hourly billing.",
     "- [ ] Reconcile 30-minute billing.",
-    "```text\nhourly audit tick\n```",
+    ...fencedCadences,
   ]) {
     const misleading = missing.replace("### Spawn owners", `${unrelated}\n\n### Spawn owners`);
     assert.deepEqual(validatePlanText(misleading, "verified-stack").findings, [{
@@ -84,6 +95,15 @@ test("the CLI accepts the shipped skeleton and rejects a missing cadence", (t) =
   assert.equal(misleading.status, 1);
   assert.match(misleading.stdout, /\n1 problems\n$/);
   assert.match(misleading.stderr, /\[audit-cadence\] Program checklist needs/);
+
+  for (const fenced of fencedCadences) {
+    writeFileSync(path, template.replace("hourly audit tick", "audit tick")
+      .replace("### Spawn owners", `${fenced}\n\n### Spawn owners`));
+    const result = spawnSync(process.execPath, [cli, path], { encoding: "utf8" });
+    assert.equal(result.status, 1, fenced);
+    assert.match(result.stdout, /\n1 problems\n$/);
+    assert.match(result.stderr, /\[audit-cadence\] Program checklist needs/);
+  }
 });
 
 test("the shipped bundle validates both cadences through its native tools", {
@@ -141,6 +161,11 @@ test("the shipped bundle validates both cadences through its native tools", {
     [template.replace("hourly audit tick", "audit tick"), failure],
     [template.replace("hourly audit tick", "audit tick")
       .replace("### Spawn owners", "- [ ] Reconcile hourly billing.\n\n### Spawn owners"), failure],
+    ...fencedCadences.map((fenced) => [
+      template.replace("hourly audit tick", "audit tick")
+        .replace("### Spawn owners", `${fenced}\n\n### Spawn owners`),
+      failure,
+    ]),
   ]) {
     writeFileSync(path, plan);
 

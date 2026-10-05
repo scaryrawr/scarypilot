@@ -43,6 +43,13 @@ describe("validatePlanText", () => {
       "- [ ] Reconcile hourly billing.",
       "- [ ] Reconcile 30-minute billing.",
       "```text\nhourly audit tick\n```",
+      "   ```text\nhourly audit tick\n   ```",
+      "~~~text\nhourly audit tick\n~~~",
+      "   ~~~text\nhourly audit tick\n   ~~~",
+      "````text\n```\nhourly audit tick\n````",
+      "~~~text\n```\nhourly audit tick\n~~~",
+      "```text\n~~~\nhourly audit tick\n```",
+      "```text\n```not-a-close\nhourly audit tick\n```",
     ]) {
       const misleading = missing.replace("### Spawn owners", `${unrelated}\n\n### Spawn owners`);
       expect(validatePlanText(misleading, "verified-stack").findings).toEqual([{
@@ -51,5 +58,49 @@ describe("validatePlanText", () => {
         message: 'Program checklist needs "hourly" or "30-minute" on the audit tick or status message line',
       }]);
     }
+  });
+
+  it("tracks Markdown fence delimiters, lengths, indentation, and matching closes", () => {
+    for (const delimiter of ["`", "~"]) {
+      for (const indentation of ["", " ", "  ", "   "]) {
+        const opening = `${indentation}${delimiter.repeat(4)}text`;
+        const closing = `${indentation}${delimiter.repeat(5)} \t`;
+        const plan = `# Plan\n- [ ] Verify fences.\n${opening}\ncode: ignored\n${closing}\nprose: checked\n`;
+
+        expect(validatePlanText(plan, "basic").findings).toEqual([{
+          line: 6,
+          rule: "sentence-colon",
+          message: "mid-sentence colon",
+        }]);
+      }
+    }
+  });
+
+  it("keeps mismatched or unclosed fences in code until a valid close", () => {
+    for (const [opening, invalidClose, closing] of [
+      ["````text", "```", "````"],
+      ["~~~text", "```", "~~~"],
+      ["```text", "~~~", "```"],
+      ["```text", "```not-a-close", "```"],
+      ["~~~text", "    ~~~", "~~~"],
+    ]) {
+      const prefix = `# Plan\n- [ ] Verify fences.\n${opening}\n${invalidClose}\ncode: ignored\n`;
+
+      expect(validatePlanText(prefix, "basic").findings).toEqual([]);
+      expect(validatePlanText(`${prefix}${closing}\nprose: checked\n`, "basic").findings).toEqual([{
+        line: 7,
+        rule: "sentence-colon",
+        message: "mid-sentence colon",
+      }]);
+    }
+  });
+
+  it("does not open a backtick fence with backticks in its info string", () => {
+    expect(validatePlanText("# Plan\n- [ ] Verify fences.\n```text `invalid`\nprose: checked\n", "basic").findings).toEqual([{
+      line: 4,
+      rule: "sentence-colon",
+      message: "mid-sentence colon",
+    }]);
+    expect(validatePlanText("# Plan\n- [ ] Verify fences.\n~~~text `valid`\ncode: ignored\n~~~\n", "basic").findings).toEqual([]);
   });
 });
