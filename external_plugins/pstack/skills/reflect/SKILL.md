@@ -31,7 +31,7 @@ Pass each template verbatim, substituting the scoped conversation digest where m
 
 ### 3. Synthesize
 
-One `Task` call with `agent_type: "general-purpose"` and the configured reflect-judgment model. Omit `model` when unconfigured or set to `auto`. The prompt forbids file writes but allows available integrations for citation checks. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
+One `Task` call with `agent_type: "general-purpose"` and the configured reflect-judgment model. Omit `model` when the configuration or role line is missing, or the value is `auto` or `inherit-parent`, and let Copilot choose the agent's default. If the Task tool rejects that configured slug before starting the synthesizer, retry the same read-only brief once without `model` and report the fallback. Keep the completed reviewer outputs; do not repeat their reviews or guess a substitute model. Surface any other error rather than treating it as a model rejection. The prompt forbids file writes but allows available integrations for citation checks. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
 
 ### 4. Structural enforcement check
 

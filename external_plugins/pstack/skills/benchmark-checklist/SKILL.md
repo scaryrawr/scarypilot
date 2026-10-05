@@ -27,6 +27,10 @@ For a quick ballpark the user asked for, one run is enough. Still check question
 
 ## Report
 
+For a requested single-run ballpark, give the observed value and unit, label it "single-run ballpark", and report the error/output checks and evidence that the timed work happened. The formal verdict, repeat-run range, and limiter requirements below do not apply to this exception. If questions 4 or 7 fail or cannot be checked, report that gap instead of a usable estimate. Do not infer a speedup or regression, pick a winner, or use a ballpark to choose between options.
+
+For every non-ballpark measurement:
+
 - Lead with the verdict: faster, slower, no measurable difference, or inconclusive.
 - Give the number with its unit, the run count, the range, and the limiter. For example, "p50 41 ms to 33 ms, median of 7 runs per side, range 32 to 35 ms after, bound by JSON parsing on one core."
 - Call the verdict inconclusive when you claim a difference but cannot name the limiter, when a side ran untuned, or when you could not check questions 4 and 7. Name the gap.
