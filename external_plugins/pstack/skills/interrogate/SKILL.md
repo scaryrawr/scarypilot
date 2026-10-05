@@ -36,10 +36,10 @@ Launch all reviewers in a single message using the Task tool. Use the `interroga
 
 For each reviewer:
 - `agent_type`: `general-purpose`
-- `model`: the configured `interrogate reviewers` entry; omit it when unconfigured or set to `auto`
+- `model`: the configured `interrogate reviewers` entry; omit it when unconfigured or set to `auto` or `inherit-parent`
 - Prompt: read-only; do not edit files
 
-If the Task tool rejects a configured entry, omit `model` for that reviewer and say so. Never treat an alias entry as a rejected slug. If a model slug is otherwise rejected as unresolvable when you try to spawn the subagent, check the valid slugs in the Task tool's error message, pick the closest equivalent (prefer the highest-reasoning tier of the same family), spawn with the valid slug, and open a separate PR to update the configured value or default table. Do not block the review on the slug issue. If the configured value is `inherit-parent` or `auto`, omit `model` instead. Never treat those aliases as broken slugs or enter this fallback for them.
+If the Task tool rejects a configured entry, omit `model` for that reviewer and say so. Never treat `inherit-parent` or `auto` as rejected slugs. Omitting `model` lets Copilot choose the agent's default; it does not promise the parent model. Do not guess an equivalent model or create a separate configuration-update PR as a side effect of a review.
 
 Read `references/reviewer-prompt.md` and fill in the template with:
 1. The stated intent

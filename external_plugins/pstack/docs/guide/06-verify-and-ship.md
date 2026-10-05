@@ -1,7 +1,8 @@
 # Verify the result and open a PR
 
-"It compiles" is not evidence. The [Prove It Works principle](../../skills/principle-prove-it-works/SKILL.md) makes the agent check the real artifact before it reports success, and your job is to make "the real artifact" checkable. This page covers stating a finish condition, generating a verification skill for your app, opening the PR, and driving it to merged.
+"It compiles" is not evidence. The [Prove It Works principle](../../skills/principle-prove-it-works/SKILL.md) makes the agent check the real artifact before it reports success, and your job is to make "the real artifact" checkable. This page covers stating a finish condition, vetting a measured number, generating a verification skill for your app, opening the PR, and driving it to merged.
 
+Verification often waits on a human. Give the agent an executable check and you stop being the bottleneck. Skip that step and running more agents only gets you more unchecked work to review.
 
 ## State the finish condition up front
 
@@ -16,12 +17,34 @@ Now the agent has three checks it can run, not a mood to satisfy. When the reply
 Match the check to the change:
 
 - A CLI change runs the real command.
-- A UI change walks the changed flow in the running app.
+- A UI change walks the changed flow in the running app. When it must match a reference pixel for pixel, the [Visual parity playbook](../../skills/poteto-mode/playbooks/visual-parity.md) diffs screenshots against a frozen baseline instead of judging by eye.
 - A parser or migration replays a saved input.
 - A perf change compares before and after profiles.
 - A storage change reads back the written value.
 
+Ask for proof as an artifact you can inspect yourself: the failing test and then the passing one, an approved before-and-after recording, a trace, or a screenshot. If the fix already merged, ask for the same check again on main. An artifact lets you challenge a plausible explanation without replaying the whole run.
+
 For a small diff you don't fully trust, [`/blast-radius`](../../skills/blast-radius/SKILL.md) finds what it could break elsewhere. It picks the one fact the change is safe because of and proves it by running code instead of writing an essay about it.
+
+## Vet a measured number with `/benchmark-checklist`
+
+A before-and-after number is easy to get wrong by accident. A warm cache, a debug build on one side, or work that never ran inside the timed region can each produce a convincing speedup. Before you report or act on a number, type:
+
+```text
+/benchmark-checklist vet the export speedup before it goes in the pr
+```
+
+[`/benchmark-checklist`](../../skills/benchmark-checklist/SKILL.md) asks seven questions and wants evidence from a run for each:
+
+1. What limits the number, and why isn't it double?
+2. Did every side run tuned the way production runs?
+3. Does the result break a physical limit, like disk bandwidth or core count?
+4. Did anything error or return wrong output?
+5. Does it reproduce over alternating runs, with a median and a range?
+6. Does it matter end to end, on the path a user waits on?
+7. Did the work actually happen inside the timed region?
+
+The verdict comes back as faster, slower, no measurable difference, or inconclusive, with the run count, range, and limiter. It says inconclusive when it can't name the limiter or a side ran untuned. `/poteto-mode` runs the checklist inside the Perf issue and Hillclimb playbooks, so use it directly for numbers measured outside them or when someone else's number looks too good. It's the working form of the [Explain the Number principle](../../skills/principle-explain-the-number/SKILL.md).
 
 ## Create a project verification skill
 
@@ -35,17 +58,42 @@ The UI bullet above hides a real requirement. The agent needs a scripted way to 
 
 It writes `.github/skills/verify-<app>/`, agent-facing instructions with exact Launch, Doctor, Drive, Evidence, and Cleanup sections, plus a feature map under `features/` that indexes what the app does and what result proves each feature works. The skill ships a [worked feature-map example](../../skills/create-verification-skill/references/feature-map-example/) with a README index and one file per feature using the four required H2s. Before handing it over, the generator proves the skill once end to end: launch, doctor check, drive one feature, capture evidence, clean up. If that proof fails, don't use the output.
 
-From then on, "verify it in the app" is a step any agent can execute, in this repo, with no setup conversation.
+From then on, "verify it in the app" is repeatable in this repo with the required host tools and permissions. Name the skill when you want proof in a specific form:
+
+```text
+/poteto-mode build the bulk-archive action. use /verify-<app> to verify your changes and capture screenshots as proof.
+```
+
+```text
+/poteto-mode repro this with /verify-<app>. if it repros on main, fix it and show me before-and-after evidence.
+```
 
 Once the verify skill works, a [`/swarm`](../../skills/swarm/SKILL.md) can split a full pass by feature-map entry and aggregate the results.
 
+Verification workers need the actual driving tools, isolated app instances, and evidence acceptance, not just a `PASS`. Use Task agents for lanes that drive or write to the app. They can gather a larger perf sample with a declared measurement method or exercise regression scenarios before shipping. Avoid competing loads that distort the measurements. The opt-in native read-only workflow cannot replace those lanes.
+
+Treat the verification skill as infrastructure. Commit it when you're ready to share it, so the team drives the app the same way. Then [build the lever](../../skills/principle-build-the-lever/SKILL.md). When agents keep writing throwaway scripts to click through the app, ask for a small control CLI that the skill calls instead. Every run becomes repeatable. A useful control CLI has:
+
+- A few composable commands, each doing real work, rather than many thin ones.
+- A `--dry-run` option on destructive actions.
+- Subcommands that reveal features gradually.
+- Error messages that say what to do instead.
+- Rich `--help` text.
+- Machine-readable output, such as JSON.
+
+Make the dev setup repeatable too: seeded data, test users, and one command that brings the environment up the same way every time.
+
+For recorded pstack receipts, handoffs, snapshots, and plans, [`/pstack-schema-validate`](../../skills/pstack-schema-validate/SKILL.md) routes to `pstack_validate_artifact` when available. The native tool reads one selected workspace file and checks its contract without running commands or reading evidence paths. Contract validity does not prove behavior, freshness, or permission for later actions.
+
 ## Keep the verification skill honest
 
-Apps change and feature maps rot. When yours drifts, run:
+Apps change and feature maps rot. Audit actively changing apps regularly, potentially daily:
 
 ```text
 /maintain-verification-skill
 ```
+
+If your Copilot host exposes scheduling and you approve it, schedule the audit with the permissions and scope it needs. pstack does not supply a scheduler or an automation pack. Without that capability, run it manually.
 
 [`/maintain-verification-skill`](../../skills/maintain-verification-skill/SKILL.md) audits the generated skill: one read-only source reader per feature in parallel, then one live pass that drives every mapped feature. It ends in exactly one of three outcomes. `clean` means full coverage and nothing to ship. `changed` means one PR of proven corrections, confined to the verification skill's own directory. `blocked` names the blocker. It never edits product code. If the live pass catches a product regression, it reports the regression instead of papering over it in docs.
 
@@ -56,6 +104,10 @@ Apps change and feature maps rot. When yours drifts, run:
 ```
 
 The [Opening a PR playbook](../../skills/poteto-mode/playbooks/opening-a-pr.md) works from a worktree, rebases the work into small ordered commits, cleans the diff, unslops the prose, and returns the PR link. Five narrow PRs beat one fat one, and stacked follow-ups beat a growing branch.
+
+Use a matching built-in PR creation or update tool when the current host exposes one for the exact operation. Its repository, branch, base, and PR scope still apply. Do not assume an update tool can retarget a PR or change readiness. Unsupported operations use the repository's available forge workflow, subject to the tool's scope and failure instructions.
+
+Open ready unless the user or repository workflow requires a draft. Preserve an intentional draft; changing it to ready needs approval. Read live PR state before reporting readiness.
 
 ## Drive the PR to merge-ready with Babysit
 

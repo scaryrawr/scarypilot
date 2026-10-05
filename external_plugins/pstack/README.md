@@ -7,21 +7,23 @@ planning, delegation, review, and verification.
 
 ## What this plugin provides
 
-- 48 Agent Skills, including `poteto-mode`, `how`, `why`, `architect`,
-  `arena`, `swarm`, `interrogate`, `tdd`, `deslop`, `unslop`, and the pstack
-  principles.
+- 52 Agent Skills, including `poteto-mode`, `poteto-help`, `how`, `why`,
+  `architect`, `arena`, `swarm`, `interrogate`, `correct`, `benchmark-checklist`,
+  `tdd`, `deslop`, `unslop`, and 24 pstack principles.
 - The `poteto-agent` and `comment-sicko` custom agents.
 - Native `pstack_status`, capability, artifact-validation, plan-validation, verification-receipt,
   handoff, and worktree-inspection tools plus the `/pstack` command.
 - PR watching, orchestration, decision-log, and worktree-audit helpers used by
   advanced playbooks.
 - Verified multi-phase planning with an executable checklist checker.
-- Compatible upstream changes through pstack 0.15.5, with Cursor-only features
+- Compatible upstream changes through pstack 0.15.13, with Cursor-only features
   intentionally excluded.
 - User-level model configuration through `/setup-pstack`.
 
 The adapted [pstack guide](./docs/guide/README.md) walks through the workflow
 from setup and code understanding through verification and long-running work.
+Ask [`/poteto-help`](./skills/poteto-help/SKILL.md) when you need help choosing
+a workflow. It answers the question without starting the suggested task.
 
 ## Prerequisites
 
@@ -50,6 +52,8 @@ Invoke a focused skill:
 /architect design the boundary for this new cache
 /interrogate stress-test this diff
 /unslop tighten this PR description
+/correct prevent the config mistakes agents keep repeating
+/benchmark-checklist vet this speedup before it goes in the PR
 ```
 
 Use the full workflow style:
@@ -183,6 +187,11 @@ tool share [`artifact-rules.mjs`](./skills/pstack-schema-validate/scripts/artifa
 and the existing plan rules. The adaptation keeps orch, watch-pr, setup, and
 recall unchanged.
 
+Autopilot playbooks now use an hourly audit through an available, approved
+host scheduling mechanism. They do not assume Cursor's `/loop` or a wake-up
+after a session closes. The shared verified-stack plan validator accepts the
+hourly cadence and existing 30-minute plans, so saved plans remain valid.
+
 Cursor's `automations/benny` pack is not included because Copilot plugins do
 not provide the Cursor Automations runtime. See [`NOTICE.md`](./NOTICE.md) for
 the exact upstream revision and modification summary.
@@ -201,11 +210,15 @@ rules.
 ```sh
 node external_plugins/pstack/tools/pstack-sync.mjs check
 node external_plugins/pstack/tools/pstack-sync.mjs plan --upstream /path/to/cursor-plugins
+node --test external_plugins/pstack/tools/pstack-sync.test.mjs external_plugins/pstack/tools/pstack-plan.test.mjs
 ```
 
 `check` validates the shipped inventory, provenance, links, extension
 registration, and Copilot-compatible skill metadata. `plan` produces a bounded,
 fail-closed classification of newer upstream changes.
+The plan regressions exercise the shipped skeleton, saved legacy plans,
+the CLI, and both native validators in the checked-in bundle with a test
+SDK registration boundary. They do not start a live workflow or worker.
 
 When changing the native extension, install dependencies in
 `external_plugins/pstack/extensions/pstack`, run `npm run build`, and commit its

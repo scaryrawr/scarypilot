@@ -36,6 +36,37 @@ You don't write a spec. You say what's wrong or what you want, plus anything you
 
 That's a Bug fix prompt. "repro first" is a real constraint, not politeness, and the playbook honors it. Watch the todo list fill with the Bug fix steps. A skipped step stays visible with `skip: <reason>`.
 
+## What goes in a prompt
+
+A useful prompt carries up to five things, and each one fits in a sentence:
+
+- **The goal.** Say what's wrong, or what you want.
+- **The done check.** It must be able to pass or fail. "Make it better" and "work on it for an hour" aren't checks.
+- **The proof you want to see.** Ask for the real command output, a recording of the flow when capture is available and approved, the stored value, or a before-and-after number.
+- **What you already know.** A symptom, a repro step, a log line, or a link saves the agent a search.
+- **The real constraints.** "repro first", "don't change any code yet", "zero behavior change", and "let me review before proceeding" each change what the agent does.
+
+Here's one prompt with all five:
+
+```text
+/poteto-mode the csv export drops its last row since yesterday's deploy. failing job id is 4812. repro first, then fix. done means the 60k-row fixture exports every row. show me the row counts before and after.
+```
+
+Two things are worth leaving out:
+
+- **The how.** Say what to achieve, and leave the agent room to find a better path. The same goes for a list of skills, covered in the pitfall below.
+- **Your theory of the cause, at first.** A stated guess narrows the search to wherever you pointed. Let the agent restate the problem before you share your hunch.
+
+For a noisy report, such as a long thread or a vague bug, make the restatement the first step:
+
+```text
+/poteto-mode read this thread. restate the underlying issue in your own words, in plain english. don't change any code yet.
+```
+
+A misreading shows up in the restatement, before any code exists. Correct it there, and it costs you one message instead of one wrong fix.
+
+## Follow up short
+
 When the conversation already carries the context, the prompt shrinks to almost nothing. All of these are enough:
 
 ```text
@@ -50,7 +81,7 @@ continue
 keep going until done
 ```
 
-Short works because the mode is sticky and the playbook holds the structure. Your words carry the intent, and the skill carries the rigor.
+Short works while the conversation holds the task and the playbook holds the structure. Your words carry the intent, and the skill carries the rigor. This is conversation context, not guaranteed sticky mode support. Start a new task with `/poteto-mode`.
 
 ## Switch tasks with "new task"
 
@@ -64,13 +95,15 @@ A long chat accumulates context from the last task. When you change subjects, sa
 
 ## Give parallel work its own worktree
 
-If you run several agents against one repository, they will fight over the working tree. Ask for isolation up front:
+If you run several agents against one repository, they can fight over the working tree, ports, and build output. Ask for isolation up front:
 
 ```text
 /poteto-mode new task. branch off <base> in a fresh worktree, then port the parser change there.
 ```
 
-Each task in its own branch and worktree means no agent stomps another's files. The [Opening a PR playbook](../../skills/poteto-mode/playbooks/opening-a-pr.md) already works from a worktree for code changes, so mostly you only say this when a specific base or location matters.
+Each writing task needs its own branch and worktree. Give app instances separate ports and build outputs too. Worktrees cost disk and machine resources, so concurrency depends on your machine. If the current Copilot host exposes cloud sessions, they may provide stronger isolation, but neither cloud execution nor its availability is a pstack guarantee. Check `/pstack capabilities` and the actual host tools before choosing that route.
+
+The [Opening a PR playbook](../../skills/poteto-mode/playbooks/opening-a-pr.md) already works from a worktree for code changes, so mostly you only say this when a specific base or location matters.
 
 Worktrees accumulate. When disk gets tight, ask:
 

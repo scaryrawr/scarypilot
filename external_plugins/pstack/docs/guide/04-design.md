@@ -2,6 +2,7 @@
 
 One attempt at a hard design locks in the first shape the model thought of. `/architect` settles types and boundaries before implementation. `/arena` runs several attempts at the same brief and merges the best parts. `/interrogate` has other models try to break the result. When the job is coverage rather than design synthesis, `/swarm` fans out slices or races and aggregates their results.
 
+The two most common design mistakes are taking the agent's first design and polishing a plan that no code has tested. You plan through code. Prototypes answer the open questions, a README or tutorial sets the target, and the written plan comes last.
 
 ## Settle the shape with `/architect`
 
@@ -16,6 +17,8 @@ By default it proceeds straight from the synthesized design into implementation.
 ```text
 /architect with checkpoint. stop and show me before implementing.
 ```
+
+The design isn't sacred once code starts. If implementation shows the same workaround in unrelated places, or types that only compile with `any` or forced casts, `/architect` treats that as evidence the design is wrong. It scraps the sketch and starts over instead of patching around it.
 
 ## Fan out attempts with `/arena`
 
@@ -55,6 +58,8 @@ The panel comes from your [`/setup-pstack`](../../skills/setup-pstack/SKILL.md) 
 
 Reach for it when parallelism buys coverage or lets independent checks race. `/arena` gives every worker the same design or code brief, then picks a base and grafts the best parts. `/swarm` covers slices or runs a race with a selection rule declared up front. It does not use the base-selection and grafting ceremony.
 
+An opt-in native `pstack-swarm` workflow supports read-only coverage when the current host exposes dynamic workflows. It requires explicit consent because it launches model workers. Its optional `inputFiles` manifest pins declared workspace files and rejects drift at workflow boundaries, including on resume. This is not an immutable whole-repository snapshot, and it does not prove the workers' claims. You still review the evidence. Races and writing work use Task agents; writing workers need separate worktrees. Read the [swarm skill](../../skills/swarm/SKILL.md) for the limits before choosing a run.
+
 ## Break it with `/interrogate`
 
 ```text
@@ -65,6 +70,56 @@ Reach for it when parallelism buys coverage or lets independent checks race. `/a
 
 Read the dismissals too. The lead is a pragmatic senior engineer, not an oracle, and you can override it.
 
+## Prototype instead of debating
+
+For a hard design, ask for a few options and pick from evidence you can see:
+
+```text
+/poteto-mode prototype a few options for the new dropdown menu. capture screenshots for me to compare.
+```
+
+The [Prototype playbook](../../skills/poteto-mode/playbooks/prototype.md) builds throwaway sketches in a scratch directory, puts variants behind one switcher, drives each one, and captures screenshots or timings with available tools. It also works for behavior and algorithms, not just UI. Prototypes answer empirical questions by running something instead of asking you. Capture requires the host's actual tools and permissions; name another check when capture is unavailable.
+
+The same idea scales up to a real design. Pair `/architect` with prototypes and keep a review gate:
+
+```text
+/poteto-mode we need rate limiting for external webhooks. /architect it first, and answer open questions with prototypes. let me review before proceeding.
+```
+
+Don't spend reviewers on an abstract plan. `/interrogate` belongs on a diff. Reviewers of a plan with no code behind it can invent theoretical risks that never happen. Let prototypes settle the empirical questions, then review what got built.
+
+## Write the README first for shared code
+
+For a package or API that other code will use, start with the doc a user would read:
+
+```text
+/poteto-mode write a tutorial for how i would use the new config package first. then /teach me why it beats the current one.
+```
+
+Writing the tutorial first forces the caller's view. Describe the API to a hypothetical user and work back to the implementation. The doc becomes a concrete target the agent checks its work against. Name [`/technical-writing`](../../skills/technical-writing/SKILL.md) when the doc itself matters, so a tutorial stays a tutorial instead of drifting into reference and explanation at once.
+
+## Plan after the design settles
+
+pstack has no separate planning skill. Ask for a written plan once the design is settled:
+
+```text
+/poteto-mode turn this design into a plan. small verifiable PRs, each with its own verification steps.
+```
+
+The [Multi-phase plan playbook](../../skills/poteto-mode/playbooks/multi-phase-plan.md) settles remaining empirical questions by prototype, then writes one section per PR, each ending in proof that the change works. A passing test suite alone doesn't count as that proof. The plan is the deliverable. The playbook doesn't implement it, and it names which execution playbook should run it next.
+
+For a migration, state the bar:
+
+```text
+/poteto-mode plan the migration of our ui library to the new styling system. small verifiable PRs, each with visual regression checks. the result must match the original exactly, bugs included.
+```
+
+"bugs included" keeps the migration from quietly fixing things on the way, which would make old and new output impossible to compare. Plans normally live in session artifacts. For a multi-day project, explicitly request a repository plan if other agents need to read it, then remove it when the work lands.
+
+[`/pstack-schema-validate`](../../skills/pstack-schema-validate/SKILL.md) can check the plan's required shape through the native `pstack_validate_artifact` tool. A valid plan is not proof that its verification claims are true.
+
+New program plans specify hourly audits through available approved session automation or a bounded timer while the session remains active. The shared plan validator also accepts legacy 30-minute audit plans; that compatibility does not change a new plan's hourly cadence or guarantee a closed session can wake.
+
 ## How much design work does a task deserve?
 
 You might be wondering whether every change needs this. No. Most changes need none of it. A rough ladder:
@@ -73,7 +128,9 @@ You might be wondering whether every change needs this. No. Most changes need no
 - A change that crosses function boundaries or moves ownership earns `/architect`, which brings `/arena` with it.
 - A standalone decision where independent attempts would help, like naming, formats, or an algorithm, is `/arena` directly.
 - A coverage matrix, set of parallel checks, or race with declared arms is `/swarm`.
+- An empirical question about layout, timing, or behavior gets a prototype, not a debate.
 - A contested design that's expensive to reverse gets `/architect`, then `/interrogate` before shipping.
+- Work that spans several PRs gets a plan, written after the design settles.
 
 `/poteto-mode` already applies this ladder. Boundary-crossing work triggers `/architect` on its own, so you reach for these directly mainly when you want more or less scrutiny than the default.
 

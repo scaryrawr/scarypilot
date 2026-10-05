@@ -2,8 +2,8 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "6395260d8180084fee44f6f47dd3f831cb2277d8824044f28847144d70c49412",
-    "package.json": "efb9809a2c3622687b4c620dc18007d0cc1a495cbdbd44c4249df1476b9d8910",
+    "package-lock.json": "e3a53ed9ee68a6dae7868eef14d8da9b3f9bb2856ecafa579de0eb04b62730a4",
+    "package.json": "fe94c8527efcac15902742768ae110b368dde2952e7d4b6e70a8532a5b8a83a3",
     "src/capabilities.ts": "c1492db1ed2ae01d8d0f5b22ab40363eaacb5808ea7c1d08cc0f86822cfc928f",
     "src/command.ts": "33a7020224ce2fd515a30ce6d57b1108e9a2586800f3fca48cc9a5acf838e339",
     "src/extension-context.ts": "25be6a0908e933fb3cbbf9c618a6debbd9565459e44c47aac35bd924c8889b55",
@@ -31,10 +31,10 @@
     "src/worktrees.ts": "f3a3a019c01663caf78c9a7e2efc9b5142f0d5aff56b2a7fa0b902815ed8bcd8",
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5",
     "../../skills/poteto-mode/scripts/orch/store.ts": "cb865c8db6025ee334b4b3829960445e7d6d957d05ae5a2e8cfad6766c235836",
-    "../../skills/poteto-mode/scripts/plan-rules.mjs": "3d86325b74b5a75021a125cc47da56cc1f81bfd9e94e72ba00a76d27b0cee21c",
+    "../../skills/poteto-mode/scripts/plan-rules.mjs": "abce310d70f3570310d8f2d6c8e06f292d741f96d7edaa5adaf7173c78cab4b6",
     "../../skills/pstack-schema-validate/scripts/artifact-rules.mjs": "7584b25ee79bb5b47bf3e519bda5758dd7e9393d6ff9055e31bfef068fca773d"
   },
   "outputs": {
-    "dist/extension.mjs": "73905f02d300f8437adcc1ca091e725eb7aa58a2d125c512c8ada11d4792984d"
+    "dist/extension.mjs": "22a1ab22f41ef58ca5c1289534c4351c68b0b2e6e1a383497ff62eb9656bdcde"
   }
 }

@@ -4,18 +4,22 @@
     "repository": "https://github.com/cursor/plugins",
     "subtree": "pstack",
     "reviewedFromCommit": "b0b9c7a0baf8b6aa1d00bf77d4101e577d4ba411",
-    "integratedCommit": "2eb7ed4613cfc8f098dfe464a23680ea44d84c5e",
-    "contentCommit": "12d587dfb20741cafc376c42c696c5f6e2a64487",
-    "version": "0.15.5"
+    "integratedCommit": "77526ffa67f8dafc698d14b5356e6d4fc78c3127",
+    "contentCommit": "2cbf58508f40de470d7490b55c51d71241928fa2",
+    "version": "0.15.13"
   },
-  "localVersion": "0.15.5-copilot.0",
+  "localVersion": "0.15.13-copilot.0",
   "requiredSkills": [
     "how",
     "why",
     "unslop",
     "typescript-best-practices",
     "principle-attack-the-premise",
-    "principle-test-behavior-not-implementation"
+    "principle-test-behavior-not-implementation",
+    "benchmark-checklist",
+    "correct",
+    "poteto-help",
+    "principle-explain-the-number"
   ],
   "forbiddenSkillFrontmatter": [
     "disable-model-invocation"

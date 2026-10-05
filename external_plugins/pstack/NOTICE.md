@@ -5,9 +5,9 @@ This plugin is adapted from
 The adaptation originally imported upstream commit
 `46125561306434d8a1d7745d540d8932ab0cd2a2` and had included the compatible
 changes through upstream repository commit
-`2eb7ed4613cfc8f098dfe464a23680ea44d84c5e` (pstack version `0.15.5`). The
+`77526ffa67f8dafc698d14b5356e6d4fc78c3127` (pstack version `0.15.13`). The
 last commit in that range that changes the `pstack/` subtree is
-`12d587dfb20741cafc376c42c696c5f6e2a64487`.
+`2cbf58508f40de470d7490b55c51d71241928fa2`.
 
 The reviewed range starts after
 `b0b9c7a0baf8b6aa1d00bf77d4101e577d4ba411`, the last upstream content commit
@@ -46,6 +46,27 @@ ScaryPilot changed the integration layer for GitHub Copilot:
 - Added an executable sync checker that validates upstream provenance,
   exclusions, inventory, links, extension registration, and model-callable
   skill metadata.
+- Ported compatible `0.15.6`-`0.15.13` changes. Added `benchmark-checklist`,
+  `principle-explain-the-number`, `correct`, and Copilot-adapted `poteto-help`
+  with prompting and recipe references. Added agent-resistant architecture
+  checks and schema-first cast examples. Updated performance playbooks,
+  fresh-agent guidance, early PR snapshots, PR headings, and merge-prep
+  conflict and CI-path checks. Preserved Copilot's same-task agent messaging,
+  read-only retry boundary, pinned swarm inputs, and final receipt audits.
+  Model aliases omit `model` for the host's agent default instead of promising
+  parent-model inheritance; rejected models no longer trigger guessed
+  family substitutions or a separate configuration PR.
+- Adapted hourly autopilot audits to available, approved Copilot scheduling
+  tools instead of Cursor's `/loop 1h`. The shared plan rules accept hourly
+  audits while retaining existing 30-minute plans. Rebuilt the native bundle
+  so CLI and native artifact/plan validation use the same rules.
+- Updated the guide for prompting, investigation, prototypes, plans,
+  verification infrastructure, benchmark evidence, recurring corrections,
+  and trust before unattended work. Excluded Cursor Custom Modes shortcuts,
+  `/in-cloud`, Cursor Projects/runtime promises, and the Benny automation
+  links. Help links target this Copilot adaptation, not Cursor-only docs.
+  Kept technical-writing source attributions rather than carrying upstream's
+  cosmetic removal of them.
 - Ported the `0.15.5` model-rule resolution wording (missing configuration or
   role line omits `model`, `auto`/`inherit-parent` are aliases, rejected slugs
   fall back to the Task default), the retired-role cleanup in `/setup-pstack`,
@@ -77,7 +98,7 @@ ScaryPilot changed the integration layer for GitHub Copilot:
   Updated the Copilot-owned schema-validation skill to prefer the native tool
   with a CLI fallback.
   `contracts`, `extensions`, and `skills/pstack-schema-validate` remain
-  Copilot-owned in `upstream-sync.json`. The upstream revision is unchanged.
+  Copilot-owned in `upstream-sync.json`.
 - Removed the canonical Agent Plugins `$schema` selector from the Copilot
   manifest. Copilot's legacy format supports the existing native extension
   paths and root agent and skill fields. The canonical selector gives
@@ -91,7 +112,7 @@ ScaryPilot changed the integration layer for GitHub Copilot:
   Extracted the existing native confined reader for reuse without adding
   runtime writes, subprocesses, or network access. The swarm skill changes
   are a Copilot adaptation of the upstream-derived skill. The native
-  extension remains Copilot-owned, and the upstream revision is unchanged.
+  extension remains Copilot-owned.
 
 The upstream guide is included with Copilot-specific installation, agent,
 automation, path, and verification instructions. Cursor-only screenshots and

@@ -17,7 +17,7 @@ const SUB_BLOCKS = [
 
 const PROGRAM_H3 = ["Arm the program", "Spawn owners", "PR mechanics", "Verdict and merge", "Boot recipe"];
 
-const PROGRAM_MARKERS = ["decision-trail", /30[- ]minute/, "status message"];
+const PROGRAM_MARKERS = ["decision-trail", /(?:30[- ]minute|hourly)/, "status message"];
 
 const HOW_TO_READ_MARKERS = [
   "One box is one unit of work",
