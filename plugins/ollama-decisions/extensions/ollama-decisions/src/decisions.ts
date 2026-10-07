@@ -27,6 +27,24 @@ const maxResponseBytes = 4 * 1024 * 1024;
 
 type ImageApproval = (image: { path: string; endpoint: string }) => Promise<boolean>;
 
+async function waitForImageApproval(
+  approveImage: ImageApproval,
+  image: { path: string; endpoint: string },
+  signal: AbortSignal,
+): Promise<boolean> {
+  signal.throwIfAborted();
+  const { promise: aborted, reject } = Promise.withResolvers<never>();
+  const onAbort = () => reject(signal.reason);
+
+  signal.addEventListener("abort", onAbort, { once: true });
+
+  try {
+    return await Promise.race([approveImage(image), aborted]);
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+  }
+}
+
 async function encodeImages(
   images: NonNullable<DecisionInput["images"]>,
   signal: AbortSignal,
@@ -62,7 +80,7 @@ async function encodeImages(
         let approved: boolean;
 
         try {
-          approved = await approveImage({ path, endpoint });
+          approved = await waitForImageApproval(approveImage, { path, endpoint }, signal);
         } catch {
           throw new DecisionError("Image approval could not be obtained. No file contents were read or sent.");
         }
@@ -95,7 +113,7 @@ async function encodeImages(
 
           const chunks: Buffer[] = [];
           let bytes = 0;
-          const stream = file.createReadStream({ autoClose: false, end: remainingBytes, signal });
+          const stream = file.createReadStream({ autoClose: false, end: approvedStat.size - 1, signal });
 
           for await (const chunk of stream) {
             bytes += chunk.length;
@@ -107,13 +125,25 @@ async function encodeImages(
             chunks.push(chunk);
           }
 
-          if (bytes === 0) throw new DecisionError("Image paths must refer to nonempty regular files.");
+          const finalStat = await file.stat();
+
+          if (bytes !== approvedStat.size ||
+              finalStat.dev !== approvedStat.dev || finalStat.ino !== approvedStat.ino ||
+              finalStat.size !== approvedStat.size || finalStat.mtimeMs !== approvedStat.mtimeMs ||
+              finalStat.ctimeMs !== approvedStat.ctimeMs) {
+            throw new DecisionError("Image file changed during reading. No file contents were sent.");
+          }
+
           base64 = Buffer.concat(chunks, bytes).toString("base64");
         } finally {
           await file.close();
         }
       } catch (error) {
-        if (signal.aborted) throw new DecisionError("Image reading was cancelled. No inference was attempted.");
+        if (signal.aborted) {
+          throw new DecisionError(signal.reason?.name === "TimeoutError"
+            ? "Image approval or reading timed out. No inference was attempted."
+            : "Image approval or reading was cancelled. No inference was attempted.");
+        }
 
         if (error instanceof DecisionError) throw error;
 

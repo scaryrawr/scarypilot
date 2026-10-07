@@ -110,8 +110,11 @@ Each entry is either a raw padded base64 string or `{"path": "/absolute/path/to/
 Local paths refer to files on the extension host, not the Ollama server. They are read with bounded, cancellable I/O and encoded before inference.
 Before opening each file, the host asks for one-time confirmation showing its symlink-resolved path and the exact Ollama destination URL.
 Approve only files whose complete contents you intend to share with that endpoint, including when using a remote server.
-Denial, cancellation, an unavailable confirmation dialog, or a changed file fails closed without reading or transmitting its contents.
+Denial, cancellation, an unavailable confirmation dialog, or a changed file fails closed without transmitting its contents.
+Denied or unavailable approval also prevents reading the file.
 Symlinks are resolved before confirmation; file identity and metadata are checked after opening the approved path.
+Reads are bounded to the approved file size, then checked against final descriptor metadata and the exact byte count before encoding.
+Host cancellation and the inference deadline also interrupt an unanswered confirmation; a late approval cannot resume the request.
 The approval is never taken from tool arguments or cached for subsequent calls. Direct `DecisionClient` users must supply an `approveImage` callback; without it, local paths are rejected.
 Only the encoded bytes are sent; local file paths are not included in the request body or errors.
 URLs and data URLs are rejected, not downloaded. Unreadable, empty, non-regular, or oversized files fail explicitly.

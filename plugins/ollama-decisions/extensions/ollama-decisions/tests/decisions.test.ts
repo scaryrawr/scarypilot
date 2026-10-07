@@ -499,6 +499,40 @@ test("cancellation during user confirmation prevents file transmission", async (
   assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags"]);
 });
 
+for (const interruption of ["cancellation", "timeout"] as const) {
+  test(`${interruption} settles an unanswered confirmation and ignores late approval`, { timeout: 2000 }, async (t) => {
+    const directory = await imageDirectory(t);
+    const path = join(directory, "image.png");
+    const controller = new AbortController();
+    const confirmation = Promise.withResolvers<boolean>();
+    const requested = Promise.withResolvers<void>();
+
+    await writeFile(path, "synthetic-image");
+    const http = await server(t, (_, res) => json(res, visionInstalled));
+
+    const client = new DecisionClient({
+      environment: { OLLAMA_BASE_URL: http.url },
+      inferenceTimeoutMs: interruption === "timeout" ? 30 : 120_000,
+      approveImage: () => {
+        requested.resolve();
+
+        return confirmation.promise;
+      },
+    });
+
+    const pending = client.decide({ ...request, images: [{ path }] }, controller.signal);
+    const rejected = assert.rejects(pending, interruption === "timeout" ? /timed out/ : /cancelled/);
+
+    await requested.promise;
+
+    if (interruption === "cancellation") controller.abort();
+    await rejected;
+    confirmation.resolve(true);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags"]);
+  });
+}
+
 test("implicit latest resolves only an untagged installed alias, preferring an exact name", async (t) => {
   const http = await server(t, (req, res) => {
     if (req.path === "/api/tags") json(res, installed);

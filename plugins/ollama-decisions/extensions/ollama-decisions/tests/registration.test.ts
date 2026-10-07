@@ -26,6 +26,8 @@ test("source and shipped tools use granted configuration and validate durations 
   const fetched: { path: string; authorization?: string; body?: unknown }[] = [];
   const confirmations: string[] = [];
   let approve = true;
+  let pendingConfirmation: ReturnType<typeof Promise.withResolvers<boolean>> | undefined;
+  let confirmationRequested: ReturnType<typeof Promise.withResolvers<void>> | undefined;
   const directory = await mkdtemp(join(tmpdir(), "ollama-decisions-registration-"));
   const imagePath = join(directory, "image.png");
   const imageBytes = Buffer.from([0, 1, 2, 255]);
@@ -92,8 +94,9 @@ test("source and shipped tools use granted configuration and validate durations 
 
         return { ui: { confirm: async (message: string) => {
           confirmations.push(message);
+          confirmationRequested?.resolve();
 
-          return approve;
+          return pendingConfirmation ? pendingConfirmation.promise : approve;
         } } };
       },
     },
@@ -162,6 +165,30 @@ test("source and shipped tools use granted configuration and validate durations 
     assert.match(String(denied.textResultForLlm), /not approved/);
     assert.deepEqual(fetched.map(({ path }) => path), ["/proxy/api/tags"]);
     approve = true;
+
+    pendingConfirmation = Promise.withResolvers<boolean>();
+    confirmationRequested = Promise.withResolvers<void>();
+    fetched.length = 0;
+    const controller = new AbortController();
+
+    const pending = handler(imageInput, {
+      sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: imageInput, signal: controller.signal,
+    });
+
+    const settled = Promise.resolve(pending).then((result) => {
+      assert.ok(result && typeof result === "object" && "resultType" in result && "textResultForLlm" in result);
+      assert.equal(result.resultType, "failure");
+      assert.match(String(result.textResultForLlm), /cancelled/);
+    });
+
+    await confirmationRequested.promise;
+    controller.abort();
+    await settled;
+    pendingConfirmation.resolve(true);
+    pendingConfirmation = undefined;
+    confirmationRequested = undefined;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.deepEqual(fetched.map(({ path }) => path), ["/proxy/api/tags"], "late approval cannot send an image");
 
     await t.test(index === 0 ? "source rejects before fetching" : "shipped rejects before fetching", async () => {
       for (const keep_alive of [...invalidDurationStrings, ...invalidDurationNumbers]) {
