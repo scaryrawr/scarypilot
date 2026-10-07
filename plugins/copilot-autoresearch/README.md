@@ -56,6 +56,8 @@ tool names; the second copy will be rejected by Copilot CLI.
 ```
 /autoresearch <text>     enter autoresearch mode and start (or resume) the loop
 /autoresearch off        leave autoresearch mode
+/autoresearch finalize   stop the loop and load the autoresearch-finalize skill
+/autoresearch help       show usage (also --help, -h)
 /autoresearch clear      delete current and legacy session logs and turn the mode off
 /autoresearch export     open a local live dashboard in your browser
 /autoresearch status     print a rehydration summary of current session state

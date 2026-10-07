@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import type { CommandDefinition, CopilotSession } from "@github/copilot-sdk";
 import {
+  autoresearchJsonlPath,
   autoresearchMdPath,
   resolveWorkDir,
   sessionFileCandidates,
@@ -10,6 +11,7 @@ import {
   BENCHMARK_GUARDRAIL,
   buildRehydrationSummary,
 } from "./system-prompt.ts";
+import { reconstructJsonlState } from "./jsonl.ts";
 import { openLiveDashboard, stopLiveDashboard } from "./dashboard.ts";
 import {
   clearPersistedRuntime,
@@ -34,13 +36,15 @@ export interface CommandContextDeps {
 }
 
 const HELP = [
-  "Usage: /autoresearch [<text>|off|clear|export|status]",
+  "Usage: /autoresearch [<text>|off|finalize|clear|export|status|help]",
   "",
   "  /autoresearch <text>  Enter autoresearch mode and start (or resume) the loop.",
   "  /autoresearch off     Leave autoresearch mode (state files preserved).",
+  "  /autoresearch finalize Stop the loop and load the autoresearch-finalize skill.",
   "  /autoresearch clear   Delete .auto/log.jsonl and legacy autoresearch.jsonl, then turn the mode off.",
   "  /autoresearch export  Open a local live dashboard in your browser.",
   "  /autoresearch status  Print a rehydration summary built from autoresearch.* files.",
+  "  /autoresearch help    Show this help (--help and -h also work).",
   "",
   "Examples:",
   "  /autoresearch optimize unit test runtime, monitor correctness",
@@ -50,7 +54,7 @@ const HELP = [
 export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefinition {
   return {
     name: "autoresearch",
-    description: "Start, stop, clear, export, or check the autoresearch experiment loop.",
+    description: "Start, stop, finalize, clear, export, or check the autoresearch experiment loop.",
     handler: async (cmdCtx) => {
       const session = deps.getSession();
       const args = (cmdCtx.args ?? "").trim();
@@ -66,13 +70,13 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
 
       const workDir = resolveWorkDir(cwd);
 
-      if (!args) {
+      if (!args || ["help", "--help", "-h"].includes(sub)) {
         await session.log(HELP);
 
         return;
       }
 
-      if (sub === "off") {
+      const stopLoop = async (): Promise<void> => {
         deps.runtime.autoresearchMode = false;
         deps.runtime.lastRunChecks = null;
         deps.runtime.lastRunDurationSeconds = null;
@@ -80,7 +84,31 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
         await stopLiveDashboard();
         savePersistedRuntime(workDir, cmdCtx.sessionId, deps.runtime);
         await abortActiveTurn(session);
+      };
+
+      if (sub === "off") {
+        await stopLoop();
         await session.log("Autoresearch mode OFF (state files preserved).");
+
+        return;
+      }
+
+      if (sub === "finalize") {
+        if (!hasLoggedExperiment(workDir)) {
+          await session.log(
+            "No logged experiments to finalize — use '/autoresearch <goal>' to start a session.",
+            { level: "error" },
+          );
+
+          return;
+        }
+
+        await stopLoop();
+        await session.log("Autoresearch mode OFF — loading autoresearch-finalize skill.");
+        await session.send({
+          prompt:
+            "Invoke the autoresearch-finalize skill to turn the kept experiments in .auto/log.jsonl into reviewable branches.",
+        });
 
         return;
       }
@@ -175,6 +203,18 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
       await session.send({ prompt: kickoff });
     },
   };
+}
+
+function hasLoggedExperiment(workDir: string): boolean {
+  try {
+    const jsonlPath = autoresearchJsonlPath(workDir);
+
+    if (!fs.existsSync(jsonlPath)) return false;
+
+    return reconstructJsonlState(fs.readFileSync(jsonlPath, "utf-8")).results.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 async function abortActiveTurn(session: AutoresearchSession): Promise<void> {
