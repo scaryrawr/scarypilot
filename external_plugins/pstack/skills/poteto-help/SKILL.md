@@ -71,7 +71,7 @@ Default to `/poteto-mode` for non-trivial work that needs its discipline. Name a
 | Settle types and module boundaries before implementation | [`/architect`](../architect/SKILL.md) |
 | Compare attempts at one brief and graft the best parts | [`/arena`](../arena/SKILL.md) |
 | Cover independent slices or declared race arms | [`/swarm`](../swarm/SKILL.md) |
-| Have several models challenge a diff | [`/interrogate`](../interrogate/SKILL.md) |
+| Have different models challenge a diff | [`/interrogate`](../interrogate/SKILL.md) |
 | Fix a bug test-first when a cheap local test exists | [`/tdd`](../tdd/SKILL.md) |
 | Apply TypeScript rules | [`/typescript-best-practices`](../typescript-best-practices/SKILL.md) |
 | Remove AI-generated code slop | [`/deslop`](../deslop/SKILL.md) |
