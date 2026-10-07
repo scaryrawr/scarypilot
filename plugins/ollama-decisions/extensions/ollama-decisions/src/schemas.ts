@@ -74,7 +74,7 @@ export const DecisionInputSchema = Type.Object({
     Type.Object({
       path: Type.String({
         pattern: "\\S",
-        description: "Absolute path to a local image file. Read and encoded locally; the path is not sent to Ollama.",
+        description: "Absolute path to a local image file. Requires user confirmation of its resolved path and destination before reading; the path is not sent to Ollama.",
       }),
     }, strict),
   ]), { description: "Images shared by all questions, in array order. Requires a decision model advertising vision." })),

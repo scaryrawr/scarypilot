@@ -2,15 +2,15 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "b04787e1d048dfec3b7dcffd97839d4ecce7607cff83eb18b2ac5ea70d4578fa",
-    "package-lock.json": "3881100995c301b639afa9b5ed44d3090ce725a11bbd88e48d0cef9645a7246a",
-    "package.json": "d05adc986ea7c19c71af98ba4b8871919e6d659392320cbb829f0a4bfcf066bf",
-    "src/decisions.ts": "358edecf6be5e04cedd5304a73b924a9a5c4ebb32a34fc7f06b5a7d973a63c6f",
+    "package-lock.json": "fb098189b66d46d8e853170e2ecd15379288b380c64fcd05d93f2aca8e1df23c",
+    "package.json": "11e3bfd5374534ad986b110d04660ada8f33c5ffc00d9f0c7867e7c94712bc45",
+    "src/decisions.ts": "3f1c7a381b82265271d45d650ca65f0947a0d2ca9d229a787f1fa929312b8c77",
     "src/duration.ts": "9e9b46329ac24fe30306e3597a03ed8f508ef8ec1eabc57ee5545e94008a5d1f",
-    "src/extension.ts": "14ad70dfd466514f42e9f1d05aaede0eba11ca86cb7cd0ceec8fb3bee187c952",
-    "src/schemas.ts": "e57507c662ee4acee42c18878c31672f00a62c3835a60825bf20dcc406959778",
+    "src/extension.ts": "17ea28d6ff4d08096741891470734d060dfcbd50390a308687af0e5a84d2376c",
+    "src/schemas.ts": "7f1bda0b104210feac485f58c30160ee382bec1b08d178d6a9adf9a27c854db5",
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
   },
   "outputs": {
-    "dist/extension.mjs": "6460b665a30f548950dcf2a7ee59222484f68ca6fc0de65d5f560b94a81ebb37"
+    "dist/extension.mjs": "42e37163b273985f5def638fbfd52f622f3ad10860f385dece322b4ed1f81807"
   }
 }

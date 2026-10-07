@@ -1,7 +1,11 @@
 import { joinSession } from "@github/copilot-sdk/extension";
-import { createDecisionTools } from "./decisions.ts";
+import { DecisionClient, createDecisionTools } from "./decisions.ts";
 
-await joinSession({
+const session = await joinSession({
   requestedEnvironmentVariables: ["OLLAMA_BASE_URL", "OLLAMA_API_KEY"],
-  tools: createDecisionTools(),
+  tools: createDecisionTools(new DecisionClient({
+    approveImage: ({ path, endpoint }) => session.ui.confirm(
+      `Allow reading local file ${JSON.stringify(path)} and transmitting its complete contents as an image to ${JSON.stringify(endpoint)} for this decision request? Only approve a file you intend to share.`,
+    ),
+  })),
 });

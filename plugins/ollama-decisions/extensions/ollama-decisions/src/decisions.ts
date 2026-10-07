@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { open } from "node:fs/promises";
+import { lstat, open, realpath } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 import type { Tool, ToolResultObject } from "@github/copilot-sdk";
 import type { Static, TSchema } from "@sinclair/typebox";
@@ -25,7 +25,14 @@ const maxImageRequestBytes = 32 * 1024 * 1024;
 
 const maxResponseBytes = 4 * 1024 * 1024;
 
-async function encodeImages(images: NonNullable<DecisionInput["images"]>, signal: AbortSignal): Promise<string[]> {
+type ImageApproval = (image: { path: string; endpoint: string }) => Promise<boolean>;
+
+async function encodeImages(
+  images: NonNullable<DecisionInput["images"]>,
+  signal: AbortSignal,
+  endpoint: string,
+  approveImage?: ImageApproval,
+): Promise<string[]> {
   const encoded: string[] = [];
   let total = 0;
 
@@ -40,11 +47,41 @@ async function encodeImages(images: NonNullable<DecisionInput["images"]>, signal
         throw new DecisionError("Image file paths must be absolute.");
       }
 
+      if (!approveImage) {
+        throw new DecisionError("Local image files require path-specific user approval through a host confirmation dialog. Use base64 input if the host cannot confirm.");
+      }
+
       try {
-        const file = await open(image.path, constants.O_RDONLY | constants.O_NONBLOCK);
+        const path = await realpath(image.path);
+        const approvedStat = await lstat(path);
+
+        if (!approvedStat.isFile() || approvedStat.size === 0) {
+          throw new DecisionError("Image paths must refer to nonempty regular files.");
+        }
+
+        let approved: boolean;
+
+        try {
+          approved = await approveImage({ path, endpoint });
+        } catch {
+          throw new DecisionError("Image approval could not be obtained. No file contents were read or sent.");
+        }
+
+        if (!approved) throw new DecisionError("Image file transmission was not approved. No file contents were read or sent.");
+
+        if (signal.aborted) throw new DecisionError("Image reading was cancelled. No inference was attempted.");
+
+        const file = await open(path, constants.O_RDONLY | constants.O_NONBLOCK | constants.O_NOFOLLOW);
 
         try {
           const stat = await file.stat();
+
+          if (await realpath(path) !== path ||
+              stat.dev !== approvedStat.dev || stat.ino !== approvedStat.ino ||
+              stat.size !== approvedStat.size || stat.mtimeMs !== approvedStat.mtimeMs ||
+              stat.ctimeMs !== approvedStat.ctimeMs) {
+            throw new DecisionError("Image file changed after approval. No file contents were read or sent.");
+          }
 
           if (!stat.isFile() || stat.size === 0) {
             throw new DecisionError("Image paths must refer to nonempty regular files.");
@@ -103,6 +140,7 @@ type ClientOptions = {
   fetch?: typeof fetch;
   metadataTimeoutMs?: number;
   inferenceTimeoutMs?: number;
+  approveImage?: ImageApproval;
 };
 
 export class DecisionClient {
@@ -110,12 +148,14 @@ export class DecisionClient {
   private readonly fetch: typeof fetch;
   private readonly metadataTimeoutMs: number;
   private readonly inferenceTimeoutMs: number;
+  private readonly approveImage?: ImageApproval;
 
   constructor(options: ClientOptions = {}) {
     this.environment = options.environment ?? process.env;
     this.fetch = options.fetch ?? globalThis.fetch;
     this.metadataTimeoutMs = options.metadataTimeoutMs ?? 15_000;
     this.inferenceTimeoutMs = options.inferenceTimeoutMs ?? 120_000;
+    this.approveImage = options.approveImage;
   }
 
   private configuration(): Configuration {
@@ -332,7 +372,9 @@ export class DecisionClient {
       model: model.name,
     };
 
-    if (images !== undefined) body.images = await encodeImages(images, inferenceSignal);
+    if (images !== undefined) {
+      body.images = await encodeImages(images, inferenceSignal, new URL("v1/systemone", config.baseUrl).href, this.approveImage);
+    }
 
     const payload = await this.request(config, "v1/systemone", inferenceSignal, DecisionResponseSchema, body);
     validateAnswers(input, model.name, payload);
@@ -415,7 +457,7 @@ export function createDecisionTools(client = new DecisionClient()) {
     },
     {
       name: "ollama_decide",
-      description: "Use an explicit installed Ollama decision model for fast routing, classification, or rubric evaluation. Optional images accept raw base64 strings or {path: absolute local image path}; the model must advertise vision (for example Clef Flash). Questions are choice, noul (probability of true), or score (weighted zero-based level, not normalized). Results are data only. Probabilities and confidence are advisory, never permission to act. No downloads, automatic selection, or inference retries.",
+      description: "Use an explicit installed Ollama decision model for fast routing, classification, or rubric evaluation. Optional images accept raw base64 strings or {path: absolute local image path}; local files require per-call user confirmation of the resolved path and destination before reading. The model must advertise vision (for example Clef Flash). Questions are choice, noul (probability of true), or score (weighted zero-based level, not normalized). Results are data only. Probabilities and confidence are advisory, never permission to act. No downloads, automatic selection, or inference retries.",
       parameters: DecisionInputSchema,
       handler: (args, invocation) => result(async () => {
         if (!Value.Check(DecisionInputSchema, args)) {

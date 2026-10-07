@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, open, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, open, realpath, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -242,7 +242,16 @@ test("image paths are encoded in order alongside base64 without leaking paths in
     }
   });
 
-  const tools = createDecisionTools(new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } }));
+  const approvals: { path: string; endpoint: string }[] = [];
+
+  const tools = createDecisionTools(new DecisionClient({
+    environment: { OLLAMA_BASE_URL: http.url },
+    approveImage: async (image) => {
+      approvals.push(image);
+
+      return true;
+    },
+  }));
 
   const result = await tools[1].handler(input, {
     sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: input,
@@ -250,6 +259,10 @@ test("image paths are encoded in order alongside base64 without leaking paths in
 
   assert.equal(result.resultType, "success");
   assert.deepEqual(JSON.parse(result.textResultForLlm), response);
+  assert.deepEqual(approvals, [
+    { path: await realpath(first), endpoint: `${http.url}/v1/systemone` },
+    { path: await realpath(second), endpoint: `${http.url}/v1/systemone` },
+  ]);
   assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/v1/systemone"]);
 });
 
@@ -315,7 +328,11 @@ test("unreadable, empty, non-file, and relative images fail explicitly without i
 
   await writeFile(empty, "");
   const http = await server(t, (_, res) => json(res, visionInstalled));
-  const tools = createDecisionTools(new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } }));
+
+  const tools = createDecisionTools(new DecisionClient({
+    environment: { OLLAMA_BASE_URL: http.url },
+    approveImage: async () => true,
+  }));
 
   for (const path of [join(directory, "missing.png"), empty, directory, "relative.png"]) {
     const input = { ...request, images: [{ path }] };
@@ -348,11 +365,138 @@ test("oversized individual files and combined encoded images fail before inferen
   }
 
   const http = await server(t, (_, res) => json(res, visionInstalled));
-  const client = new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } });
+
+  const client = new DecisionClient({
+    environment: { OLLAMA_BASE_URL: http.url },
+    approveImage: async () => true,
+  });
 
   await assert.rejects(client.decide({ ...request, images: [{ path: large }] }), /32 MiB/);
   await assert.rejects(client.decide({ ...request, images: [{ path: partial }, { path: partial }] }), /32 MiB/);
   assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/api/tags"]);
+});
+
+test("file reads fail closed without user confirmation, on denial, or when the host cannot confirm", async (t) => {
+  const directory = await imageDirectory(t);
+  const path = join(directory, "synthetic-credential.txt");
+
+  await writeFile(path, "synthetic-sensitive-file-content");
+  const input = { ...request, images: [{ path }] };
+  const http = await server(t, (_, res) => json(res, visionInstalled));
+
+  for (const approveImage of [undefined, async () => false, async () => { throw new Error("private-host-error"); }]) {
+    const tools = createDecisionTools(new DecisionClient({
+      environment: { OLLAMA_BASE_URL: http.url },
+      approveImage,
+    }));
+
+    const result = await tools[1].handler(input, {
+      sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: input,
+    });
+
+    assert.equal(result.resultType, "failure");
+    assert.match(result.textResultForLlm, /approval|approved/);
+    assert.doesNotMatch(result.textResultForLlm, /synthetic-sensitive-file-content|private-host-error/);
+    assert.ok(!result.textResultForLlm.includes(path));
+  }
+
+  assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/api/tags", "/api/tags"]);
+});
+
+test("symlink approval names the resolved file and exact configured remote endpoint on each call", async (t) => {
+  const directory = await imageDirectory(t);
+  const path = join(directory, "actual.png");
+  const link = join(directory, "link.png");
+  const bytes = Buffer.from([0, 1, 2, 255]);
+
+  await writeFile(path, bytes);
+  await symlink(path, link);
+  const approvals: { path: string; endpoint: string }[] = [];
+  let inferences = 0;
+
+  const client = new DecisionClient({
+    environment: { OLLAMA_BASE_URL: "https://synthetic-remote.example/proxy/" },
+    approveImage: async (image) => {
+      approvals.push(image);
+
+      return true;
+    },
+    fetch: async (url, init) => {
+      if (String(url).endsWith("/api/tags")) return Response.json(visionInstalled);
+
+      inferences++;
+      assert.equal(String(url), "https://synthetic-remote.example/proxy/v1/systemone");
+      assert.deepEqual(JSON.parse(String(init?.body)), { ...request, images: [bytes.toString("base64")] });
+
+      return Response.json(response);
+    },
+  });
+
+  await client.decide({ ...request, images: [{ path: link }] });
+  await client.decide({ ...request, images: [{ path: link }] });
+  assert.equal(inferences, 2);
+  assert.deepEqual(approvals, Array(2).fill({
+    path: await realpath(path),
+    endpoint: "https://synthetic-remote.example/proxy/v1/systemone",
+  }));
+});
+
+for (const replacement of ["file", "symlink", "parent symlink", "contents"]) {
+  test(`changing the approved ${replacement} prevents transmission`, async (t) => {
+    const directory = await imageDirectory(t);
+    const path = join(directory, "image.png");
+    const secret = join(directory, "secret.txt");
+    const other = await imageDirectory(t);
+
+    await writeFile(path, "synthetic-image");
+    await writeFile(secret, "synthetic-sensitive-file-content");
+    await writeFile(join(other, "image.png"), "synthetic-sensitive-file-content");
+    const http = await server(t, (_, res) => json(res, visionInstalled));
+
+    const client = new DecisionClient({
+      environment: { OLLAMA_BASE_URL: http.url },
+      approveImage: async ({ path: resolved }) => {
+        if (replacement === "contents") {
+          await writeFile(resolved, "synthetic-sensitive-file-content");
+        } else if (replacement === "parent symlink") {
+          await rename(directory, `${directory}-moved`);
+          t.after(() => rm(`${directory}-moved`, { recursive: true, force: true }));
+          await symlink(other, directory);
+        } else {
+          await rename(resolved, `${resolved}-original`);
+
+          if (replacement === "file") await writeFile(resolved, "synthetic-sensitive-file-content");
+          else await symlink(secret, resolved);
+        }
+
+        return true;
+      },
+    });
+
+    await assert.rejects(client.decide({ ...request, images: [{ path }] }), /changed after approval|could not be read/);
+    assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags"]);
+  });
+}
+
+test("cancellation during user confirmation prevents file transmission", async (t) => {
+  const directory = await imageDirectory(t);
+  const path = join(directory, "image.png");
+  const controller = new AbortController();
+
+  await writeFile(path, "synthetic-image");
+  const http = await server(t, (_, res) => json(res, visionInstalled));
+
+  const client = new DecisionClient({
+    environment: { OLLAMA_BASE_URL: http.url },
+    approveImage: async () => {
+      controller.abort();
+
+      return true;
+    },
+  });
+
+  await assert.rejects(client.decide({ ...request, images: [{ path }] }, controller.signal), /cancelled/);
+  assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags"]);
 });
 
 test("implicit latest resolves only an untagged installed alias, preferring an exact name", async (t) => {
@@ -639,6 +783,7 @@ const invalidRequests: [string, unknown][] = [
   ["null image", { ...request, images: [null] }],
   ["blank image path", { ...request, images: [{ path: " " }] }],
   ["unknown image field", { ...request, images: [{ path: "/example.png", extra: true }] }],
+  ["agent-supplied image approval", { ...request, images: [{ path: "/example.png", approved: true }] }],
   ["invented question field", { ...request, questions: { q: { ...request.questions.refund, confidence: 0.5 } } }],
   ["boolean keep alive", { ...request, keep_alive: false }],
   ["nonfinite keep alive", { ...request, keep_alive: NaN }],

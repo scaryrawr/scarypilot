@@ -8,6 +8,7 @@ Answers remain data. Probabilities and confidence are advisory and never grant p
 
 Use Ollama 0.35.0 or later, a running local server, and an installed model advertising the `decision` capability.
 Use a Copilot host with native extension support and Node.js 22.18.0 or later.
+Local image file inputs also require a host supporting SDK confirmation dialogs (elicitation).
 
 Install a decision model manually if you do not already have one:
 
@@ -107,6 +108,11 @@ Use an installed model with both `decision` and `vision` capabilities, such as `
 The optional `images` array is shared by all questions, in array order.
 Each entry is either a raw padded base64 string or `{"path": "/absolute/path/to/image.png"}`.
 Local paths refer to files on the extension host, not the Ollama server. They are read with bounded, cancellable I/O and encoded before inference.
+Before opening each file, the host asks for one-time confirmation showing its symlink-resolved path and the exact Ollama destination URL.
+Approve only files whose complete contents you intend to share with that endpoint, including when using a remote server.
+Denial, cancellation, an unavailable confirmation dialog, or a changed file fails closed without reading or transmitting its contents.
+Symlinks are resolved before confirmation; file identity and metadata are checked after opening the approved path.
+The approval is never taken from tool arguments or cached for subsequent calls. Direct `DecisionClient` users must supply an `approveImage` callback; without it, local paths are rejected.
 Only the encoded bytes are sent; local file paths are not included in the request body or errors.
 URLs and data URLs are rejected, not downloaded. Unreadable, empty, non-regular, or oversized files fail explicitly.
 Ollama validates the actual image format. Use an Ollama release supporting Clef vision requests.

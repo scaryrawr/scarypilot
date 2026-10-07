@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -24,6 +24,8 @@ test("source and shipped tools use granted configuration and validate durations 
   });
   const registrations: { tools: Tool[]; requestedEnvironmentVariables: string[] }[] = [];
   const fetched: { path: string; authorization?: string; body?: unknown }[] = [];
+  const confirmations: string[] = [];
+  let approve = true;
   const directory = await mkdtemp(join(tmpdir(), "ollama-decisions-registration-"));
   const imagePath = join(directory, "image.png");
   const imageBytes = Buffer.from([0, 1, 2, 255]);
@@ -88,7 +90,11 @@ test("source and shipped tools use granted configuration and validate durations 
           if (options.requestedEnvironmentVariables.includes(name)) environment[name] = value;
         }
 
-        return {};
+        return { ui: { confirm: async (message: string) => {
+          confirmations.push(message);
+
+          return approve;
+        } } };
       },
     },
   });
@@ -141,6 +147,21 @@ test("source and shipped tools use granted configuration and validate durations 
       { path: "/proxy/api/tags", body: undefined },
       { path: "/proxy/v1/systemone", body: { ...input, images: ["aGVsbG8=", imageBytes.toString("base64")] } },
     ], "source and bundle encode images without leaking local file paths");
+    assert.equal(confirmations.at(-1),
+      `Allow reading local file ${JSON.stringify(await realpath(imagePath))} and transmitting its complete contents as an image to ${JSON.stringify(`${baseUrl}v1/systemone`)} for this decision request? Only approve a file you intend to share.`);
+
+    approve = false;
+    fetched.length = 0;
+
+    const denied = await handler(imageInput, {
+      sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: imageInput,
+    });
+
+    assert.ok(denied && typeof denied === "object" && "resultType" in denied && "textResultForLlm" in denied);
+    assert.equal(denied.resultType, "failure");
+    assert.match(String(denied.textResultForLlm), /not approved/);
+    assert.deepEqual(fetched.map(({ path }) => path), ["/proxy/api/tags"]);
+    approve = true;
 
     await t.test(index === 0 ? "source rejects before fetching" : "shipped rejects before fetching", async () => {
       for (const keep_alive of [...invalidDurationStrings, ...invalidDurationNumbers]) {
