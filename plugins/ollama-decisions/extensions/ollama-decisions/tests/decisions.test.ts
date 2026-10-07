@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import { mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import { createServer, type ServerResponse } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { Value } from "@sinclair/typebox/value";
 import { DecisionClient, createDecisionTools } from "../src/decisions.ts";
-import { DecisionRequestSchema, DecisionResponseSchema, type DecisionRequest, type Question } from "../src/schemas.ts";
+import { DecisionInputSchema, DecisionRequestSchema, DecisionResponseSchema, type DecisionInput, type DecisionRequest, type Question } from "../src/schemas.ts";
 import { invalidDurationNumbers, invalidDurationStrings, validDurationNumbers, validDurationStrings } from "./keep-alive-cases.ts";
 
 type ObservedRequest = { path: string; method: string; authorization?: string; body?: unknown };
@@ -90,6 +93,16 @@ const response = {
 };
 
 const installed = { models: [{ name: "installed:latest", capabilities: ["decision"] }] };
+
+const visionInstalled = { models: [{ name: "installed:latest", capabilities: ["decision", "vision"] }] };
+
+async function imageDirectory(t: TestContext) {
+  const directory = await mkdtemp(join(tmpdir(), "ollama-decisions-images-"));
+
+  t.after(() => rm(directory, { recursive: true, force: true }));
+
+  return directory;
+}
 
 test("discovery filters capabilities without model-name heuristics and posts show only for missing metadata", async (t) => {
   const http = await server(t, (req, res) => {
@@ -202,6 +215,144 @@ test("text-only request size uses serialized UTF-8 bytes and accepts exactly 64 
   assert.deepEqual(http.requests.map((req) => req.path), [
     "/api/tags", "/v1/systemone", "/api/tags", "/api/tags",
   ]);
+});
+
+test("image paths are encoded in order alongside base64 without leaking paths into inference", async (t) => {
+  const directory = await imageDirectory(t);
+  const first = join(directory, "first.png");
+  const second = join(directory, "second.png");
+  const firstBytes = Buffer.from([0, 1, 2, 3]);
+  const secondBytes = Buffer.from([255, 254, 253]);
+
+  await writeFile(first, firstBytes);
+  await writeFile(second, secondBytes);
+  const images = ["aGVsbG8=", { path: first }, { path: second }];
+  const input = { ...request, images } satisfies DecisionInput;
+
+  assert.ok(Value.Check(DecisionInputSchema, input));
+  assert.equal(Value.Check(DecisionRequestSchema, input), false, "file objects are not Ollama wire data");
+
+  const http = await server(t, (req, res) => {
+    if (req.path === "/api/tags") json(res, visionInstalled);
+    else {
+      assert.deepEqual(req.body, { ...request, images: ["aGVsbG8=", firstBytes.toString("base64"), secondBytes.toString("base64")] });
+      assert.doesNotMatch(JSON.stringify(req.body), new RegExp(directory));
+
+      json(res, response);
+    }
+  });
+
+  const tools = createDecisionTools(new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } }));
+
+  const result = await tools[1].handler(input, {
+    sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: input,
+  });
+
+  assert.equal(result.resultType, "success");
+  assert.deepEqual(JSON.parse(result.textResultForLlm), response);
+  assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/v1/systemone"]);
+});
+
+test("images require advertised vision before reading files or attempting inference", async (t) => {
+  const http = await server(t, (req, res) => json(res, req.path === "/api/tags" ? installed : response));
+  const client = new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } });
+
+  await assert.rejects(client.decide({ ...request, images: [{ path: join(tmpdir(), "missing-decision-image.png") }] }), /vision capability/);
+  await assert.rejects(client.decide({ ...request, images: ["aGVsbG8="] }), /vision capability/);
+  assert.deepEqual(await client.decide({ ...request, images: [] }), response);
+  assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/api/tags", "/api/tags", "/v1/systemone"]);
+});
+
+test("vision metadata can resolve through show and untagged model resolution", async (t) => {
+  const input = { ...request, model: "installed", images: ["aGVsbG8="] };
+
+  const http = await server(t, (req, res) => {
+    if (req.path === "/api/tags") json(res, { models: [{ name: "installed:latest" }] });
+    else if (req.path === "/api/show") {
+      assert.deepEqual(req.body, { model: "installed:latest" });
+      json(res, { capabilities: ["decision", "vision"] });
+    } else {
+      assert.deepEqual(req.body, { ...input, model: "installed:latest" });
+      json(res, response);
+    }
+  });
+
+  assert.deepEqual(await new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } }).decide(input), response);
+  assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/api/show", "/v1/systemone"]);
+});
+
+test("image JSON accepts exactly 32 MiB including base64, uses UTF-8 bytes, and rejects overflow", async () => {
+  const limit = 32 * 1024 * 1024;
+  const base = { model: request.model, state: "", images: ["aGVsbG8="], questions: { refund: request.questions.refund } };
+  const padding = limit - Buffer.byteLength(JSON.stringify(base), "utf8");
+  const exact = { ...base, state: "a".repeat(padding) };
+  const expected = { ...response, answers: { refund: response.answers.refund } };
+  let inferences = 0;
+
+  const client = new DecisionClient({
+    environment: {},
+    fetch: async (url, init) => {
+      if (new URL(String(url)).pathname === "/api/tags") return Response.json(visionInstalled);
+
+      assert.equal(typeof init?.body, "string");
+      assert.equal(Buffer.byteLength(String(init?.body), "utf8"), limit);
+      inferences++;
+
+      return Response.json(expected);
+    },
+  });
+
+  assert.deepEqual(await client.decide(exact), expected);
+  await assert.rejects(client.decide({ ...exact, state: `${exact.state}a` }), /32 MiB/);
+  await assert.rejects(client.decide({ ...base, state: "\u00e9".repeat(padding) }), /32 MiB/);
+  await assert.rejects(client.decide({ ...exact, images: [] }), /64 KiB/);
+  assert.equal(inferences, 1);
+});
+
+test("unreadable, empty, non-file, and relative images fail explicitly without inference or path disclosure", async (t) => {
+  const directory = await imageDirectory(t);
+  const empty = join(directory, "empty.png");
+
+  await writeFile(empty, "");
+  const http = await server(t, (_, res) => json(res, visionInstalled));
+  const tools = createDecisionTools(new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } }));
+
+  for (const path of [join(directory, "missing.png"), empty, directory, "relative.png"]) {
+    const input = { ...request, images: [{ path }] };
+
+    const result = await tools[1].handler(input, {
+      sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: input,
+    });
+
+    assert.equal(result.resultType, "failure");
+    assert.match(result.textResultForLlm, /Image/);
+    assert.ok(!result.textResultForLlm.includes(path));
+  }
+
+  assert.ok(http.requests.every((req) => req.path === "/api/tags"));
+});
+
+test("oversized individual files and combined encoded images fail before inference", async (t) => {
+  const directory = await imageDirectory(t);
+  const large = join(directory, "large.png");
+  const partial = join(directory, "partial.png");
+
+  for (const [path, size] of [[large, 24 * 1024 * 1024 + 1], [partial, 13 * 1024 * 1024]] as const) {
+    const file = await open(path, "w");
+
+    try {
+      await file.truncate(size);
+    } finally {
+      await file.close();
+    }
+  }
+
+  const http = await server(t, (_, res) => json(res, visionInstalled));
+  const client = new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } });
+
+  await assert.rejects(client.decide({ ...request, images: [{ path: large }] }), /32 MiB/);
+  await assert.rejects(client.decide({ ...request, images: [{ path: partial }, { path: partial }] }), /32 MiB/);
+  assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/api/tags"]);
 });
 
 test("implicit latest resolves only an untagged installed alias, preferring an exact name", async (t) => {
@@ -476,6 +627,18 @@ const invalidRequests: [string, unknown][] = [
   ["27 score levels", { ...request, questions: { q: { ...request.questions.urgency, criteria: Array(27).fill("level") } } }],
   ["null score level", { ...request, questions: { q: { ...request.questions.urgency, criteria: ["one", null] } } }],
   ["invented request field", { ...request, stream: false }],
+  ["null images", { ...request, images: null }],
+  ["non-array images", { ...request, images: "aGVsbG8=" }],
+  ["empty image", { ...request, images: [""] }],
+  ["image URL", { ...request, images: ["https://example.com/image.png"] }],
+  ["image data URL", { ...request, images: ["data:image/png;base64,aGVsbG8="] }],
+  ["image with newline", { ...request, images: ["aGVsbG8=\n"] }],
+  ["invalid base64 padding", { ...request, images: ["a==="] }],
+  ["missing base64 padding", { ...request, images: ["aGVsbG8"] }],
+  ["embedded base64 padding", { ...request, images: ["ab=c"] }],
+  ["null image", { ...request, images: [null] }],
+  ["blank image path", { ...request, images: [{ path: " " }] }],
+  ["unknown image field", { ...request, images: [{ path: "/example.png", extra: true }] }],
   ["invented question field", { ...request, questions: { q: { ...request.questions.refund, confidence: 0.5 } } }],
   ["boolean keep alive", { ...request, keep_alive: false }],
   ["nonfinite keep alive", { ...request, keep_alive: NaN }],
@@ -655,6 +818,15 @@ test("schema accepts exact limits, JSON arrays, null choice descriptions, and pa
   }));
 });
 
+test("newer Ollama cache metadata is validated and preserved including zero output tokens", async (t) => {
+  for (const prompt_eval_cached_count of [0, 512]) {
+    const expected = { ...response, prompt_eval_cached_count, usage: { input_tokens: 2265, output_tokens: 0 } };
+    const http = await server(t, (req, res) => json(res, req.path === "/api/tags" ? installed : expected));
+
+    assert.deepEqual(await new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } }).decide(request), expected);
+  }
+});
+
 const invalidResponses: [string, unknown][] = [
   ["wrong model", { ...response, model: "other" }],
   ["missing answer", { ...response, answers: { category: response.answers.category } }],
@@ -681,6 +853,9 @@ const invalidResponses: [string, unknown][] = [
   ["negative output usage", { ...response, usage: { input_tokens: 1, output_tokens: -1 } }],
   ["missing usage", { model: response.model, answers: response.answers }],
   ["invented usage", { ...response, usage: { ...response.usage, total_tokens: 177 } }],
+  ["negative cache count", { ...response, prompt_eval_cached_count: -1 }],
+  ["fractional cache count", { ...response, prompt_eval_cached_count: 0.5 }],
+  ["string cache count", { ...response, prompt_eval_cached_count: "0" }],
 ];
 
 for (const [label, payload] of invalidResponses) {

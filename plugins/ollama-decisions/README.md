@@ -1,6 +1,6 @@
 # Ollama decisions
 
-Use installed Ollama decision models from Copilot for fast routing, classification, and rubric evaluation.
+Use installed Ollama decision models from Copilot for fast routing, classification, and rubric evaluation, including images with Clef and Clef Flash.
 This standalone native extension registers two agent tools. It does not add models to Copilot's chat-model picker.
 Answers remain data. Probabilities and confidence are advisory and never grant permission to act.
 
@@ -54,6 +54,7 @@ Explicit empty capabilities are authoritative. Failed or unresolved metadata fai
 Use an exact name from discovery. An untagged name can resolve to its installed `:latest` alias, but an exact installed name takes precedence.
 No other aliases, substitutions, or automatic choices are made.
 The tool verifies the requested model's capability before sending one request to `/v1/systemone`.
+Image requests also require the installed model to advertise `vision`. Discovery preserves that capability.
 
 Ask Copilot to discover decision models, then classify a synthetic ticket using the exact installed model.
 The tool input can combine question types:
@@ -84,8 +85,9 @@ The tool input can combine question types:
 ```
 
 `state` is a nonempty string, a JSON object, or a JSON array. Each question needs a nonempty string `instructions`.
-The complete serialized request must fit within Ollama's 64 KiB text-only JSON limit and the model's context window.
-The extension checks the byte limit before inference. Input is never truncated.
+The complete serialized request must fit within Ollama's 64 KiB text-only JSON limit, or 32 MiB when the `images` array is nonempty, and the model's context window.
+The image limit includes base64 data and JSON overhead. An omitted or empty `images` array uses the text-only limit.
+The extension checks UTF-8 byte limits before inference. Input is never truncated.
 `choice` has 2-26 nonempty option keys with string or null descriptions.
 `noul` has optional criteria containing only `true` and `false` string descriptions. Either description can be omitted.
 `score` has an array of 2-26 string descriptions, ordered from lowest to highest.
@@ -97,9 +99,39 @@ Duration strings use Go's `time.ParseDuration` syntax, including signs, compound
 Supported units are `ns`, `us`, both Unicode microsecond spellings, `ms`, `s`, `m`, and `h`.
 Strings must parse successfully under Go's signed 64-bit nanosecond rules. Invalid strings fail locally before any metadata or inference request.
 Zero unloads the model after the request. The string `"-0.1ns"` parses as zero and does not keep the model loaded indefinitely.
-Images, videos, and generation options are not accepted.
+Videos and generation options are not accepted.
 
-The result preserves upstream `model`, `answers`, and `usage` with integer `input_tokens` and `output_tokens`.
+### Image decisions
+
+Use an installed model with both `decision` and `vision` capabilities, such as `clef-flash:latest`.
+The optional `images` array is shared by all questions, in array order.
+Each entry is either a raw padded base64 string or `{"path": "/absolute/path/to/image.png"}`.
+Local paths refer to files on the extension host, not the Ollama server. They are read with bounded, cancellable I/O and encoded before inference.
+Only the encoded bytes are sent; local file paths are not included in the request body or errors.
+URLs and data URLs are rejected, not downloaded. Unreadable, empty, non-regular, or oversized files fail explicitly.
+Ollama validates the actual image format. Use an Ollama release supporting Clef vision requests.
+
+For example, ask Copilot to classify a supplied image:
+
+```json
+{
+	"model": "clef-flash:latest",
+	"state": "Identify the food in the supplied image.",
+	"images": [{"path": "/absolute/path/to/food.png"}],
+	"questions": {
+		"food": {
+			"type": "choice",
+			"instructions": "Is this a hotdog or taco?",
+			"criteria": {"hotdog": null, "taco": null}
+		}
+	},
+	"keep_alive": 0
+}
+```
+
+The direct Ollama API accepts only base64 strings in `images`; file objects are a convenience provided by this Copilot tool.
+
+The result preserves upstream `model`, `answers`, and `usage` with integer `input_tokens` and `output_tokens`, plus the optional nonnegative integer `prompt_eval_cached_count` returned by newer Ollama releases.
 Each `choice` answer contains `type`, `choice`, `probabilities`, and `confidence`.
 Each `noul` answer contains only `type` and `noul`, the probability of true from 0 to 1.
 Each `score` answer contains `type`, `score`, `legend`, `probabilities`, and `confidence`.
@@ -144,6 +176,7 @@ It never pulls a model. Live extension-host registration must be checked separat
 
 - [Ollama decision-model announcement](https://ollama.com/blog/ollama-now-supports-jev-style-decision-models).
 - [Nimble model library](https://ollama.com/library/nimble).
+- [Clef Flash model library](https://ollama.com/library/clef-flash).
 - [Decision capability documentation](https://docs.ollama.com/capabilities/decision).
 - [System One API reference](https://docs.ollama.com/api/systemone).
 - [Authoritative decision wire types](https://github.com/ollama/ollama/blob/main/decision/types.go).

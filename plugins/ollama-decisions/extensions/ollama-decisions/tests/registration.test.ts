@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { mock, test } from "node:test";
 import type { Tool } from "@github/copilot-sdk";
 import { invalidDurationNumbers, invalidDurationStrings, validDurationNumbers, validDurationStrings } from "./keep-alive-cases.ts";
@@ -21,6 +24,12 @@ test("source and shipped tools use granted configuration and validate durations 
   });
   const registrations: { tools: Tool[]; requestedEnvironmentVariables: string[] }[] = [];
   const fetched: { path: string; authorization?: string; body?: unknown }[] = [];
+  const directory = await mkdtemp(join(tmpdir(), "ollama-decisions-registration-"));
+  const imagePath = join(directory, "image.png");
+  const imageBytes = Buffer.from([0, 1, 2, 255]);
+
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await writeFile(imagePath, imageBytes);
 
   const input = {
     model: "installed:latest",
@@ -30,6 +39,7 @@ test("source and shipped tools use granted configuration and validate durations 
 
   const response = {
     model: input.model,
+    prompt_eval_cached_count: 0,
     answers: { refund: { type: "noul", noul: 0.75 } },
     usage: { input_tokens: 1, output_tokens: 1 },
   };
@@ -44,7 +54,7 @@ test("source and shipped tools use granted configuration and validate durations 
     fetched.push({ path, authorization: request.headers.authorization, body });
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify(path === "/proxy/api/tags"
-      ? { models: [{ name: input.model, capabilities: ["decision"] }] }
+      ? { models: [{ name: input.model, capabilities: ["decision", "vision"] }] }
       : response));
   });
 
@@ -108,6 +118,7 @@ test("source and shipped tools use granted configuration and validate durations 
       "ollama_decision_models", "ollama_decide",
     ]);
     assert.ok(registration.tools[1].description?.includes("never permission"));
+    assert.ok(registration.tools[1].description?.includes("images"));
     const handler = registration.tools[1].handler;
     assert.ok(handler);
     assert.deepEqual(await handler({}, {
@@ -116,6 +127,20 @@ test("source and shipped tools use granted configuration and validate durations 
       textResultForLlm: "Invalid decision request. Supply an explicit model, nonempty state, and 1-64 named questions with valid instructions and criteria.",
       resultType: "failure",
     });
+
+    fetched.length = 0;
+    const imageInput = { ...input, images: ["aGVsbG8=", { path: imagePath }] };
+
+    assert.deepEqual(await handler(imageInput, {
+      sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: imageInput,
+    }), {
+      textResultForLlm: JSON.stringify(response),
+      resultType: "success",
+    });
+    assert.deepEqual(fetched.map(({ path, body }) => ({ path, body })), [
+      { path: "/proxy/api/tags", body: undefined },
+      { path: "/proxy/v1/systemone", body: { ...input, images: ["aGVsbG8=", imageBytes.toString("base64")] } },
+    ], "source and bundle encode images without leaking local file paths");
 
     await t.test(index === 0 ? "source rejects before fetching" : "shipped rejects before fetching", async () => {
       for (const keep_alive of [...invalidDurationStrings, ...invalidDurationNumbers]) {
