@@ -1,13 +1,17 @@
+import { constants } from "node:fs";
+import { lstat, open, realpath } from "node:fs/promises";
+import { isAbsolute } from "node:path";
 import type { Tool, ToolResultObject } from "@github/copilot-sdk";
 import type { Static, TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import { isOllamaDuration } from "./duration.ts";
 import {
-  DecisionRequestSchema,
+  DecisionInputSchema,
   DecisionResponseSchema,
   EmptySchema,
   ShowSchema,
   TagsSchema,
+  type DecisionInput,
   type DecisionRequest,
   type DecisionResponse,
   type InstalledModel,
@@ -17,7 +21,147 @@ export class DecisionError extends Error {}
 
 const maxDecisionRequestBytes = 64 * 1024;
 
+const maxImageRequestBytes = 32 * 1024 * 1024;
+
 const maxResponseBytes = 4 * 1024 * 1024;
+
+type ImageApproval = (image: { path: string; endpoint: string }) => Promise<boolean>;
+
+async function waitForImageApproval(
+  approveImage: ImageApproval,
+  image: { path: string; endpoint: string },
+  signal: AbortSignal,
+): Promise<boolean> {
+  signal.throwIfAborted();
+  const { promise: aborted, reject } = Promise.withResolvers<never>();
+  const onAbort = () => reject(signal.reason);
+
+  signal.addEventListener("abort", onAbort, { once: true });
+
+  try {
+    return await Promise.race([approveImage(image), aborted]);
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+  }
+}
+
+async function encodeImages(
+  images: NonNullable<DecisionInput["images"]>,
+  signal: AbortSignal,
+  endpoint: string,
+  approveImage?: ImageApproval,
+): Promise<string[]> {
+  const encoded: string[] = [];
+  let total = 0;
+
+  for (const image of images) {
+    if (signal.aborted) throw new DecisionError("Image reading was cancelled. No inference was attempted.");
+    let base64: string;
+
+    if (typeof image === "string") {
+      base64 = image;
+    } else {
+      if (!isAbsolute(image.path)) {
+        throw new DecisionError("Image file paths must be absolute.");
+      }
+
+      if (!approveImage) {
+        throw new DecisionError("Local image files require path-specific user approval through a host confirmation dialog. Use base64 input if the host cannot confirm.");
+      }
+
+      try {
+        const path = await realpath(image.path);
+        const approvedStat = await lstat(path);
+
+        if (!approvedStat.isFile() || approvedStat.size === 0) {
+          throw new DecisionError("Image paths must refer to nonempty regular files.");
+        }
+
+        let approved: boolean;
+
+        try {
+          approved = await waitForImageApproval(approveImage, { path, endpoint }, signal);
+        } catch {
+          throw new DecisionError("Image approval could not be obtained. No file contents were read or sent.");
+        }
+
+        if (!approved) throw new DecisionError("Image file transmission was not approved. No file contents were read or sent.");
+
+        if (signal.aborted) throw new DecisionError("Image reading was cancelled. No inference was attempted.");
+
+        const file = await open(path, constants.O_RDONLY | constants.O_NONBLOCK | constants.O_NOFOLLOW);
+
+        try {
+          const stat = await file.stat();
+
+          if (await realpath(path) !== path ||
+              stat.dev !== approvedStat.dev || stat.ino !== approvedStat.ino ||
+              stat.size !== approvedStat.size || stat.mtimeMs !== approvedStat.mtimeMs ||
+              stat.ctimeMs !== approvedStat.ctimeMs) {
+            throw new DecisionError("Image file changed after approval. No file contents were read or sent.");
+          }
+
+          if (!stat.isFile() || stat.size === 0) {
+            throw new DecisionError("Image paths must refer to nonempty regular files.");
+          }
+
+          const remainingBytes = Math.floor((maxImageRequestBytes - total) / 4) * 3;
+
+          if (stat.size > remainingBytes) {
+            throw new DecisionError("Decision request exceeds Ollama's 32 MiB image JSON limit. Reduce the images, state, or questions.");
+          }
+
+          const chunks: Buffer[] = [];
+          let bytes = 0;
+          const stream = file.createReadStream({ autoClose: false, end: approvedStat.size - 1, signal });
+
+          for await (const chunk of stream) {
+            bytes += chunk.length;
+
+            if (bytes > remainingBytes) {
+              throw new DecisionError("Decision request exceeds Ollama's 32 MiB image JSON limit. Reduce the images, state, or questions.");
+            }
+
+            chunks.push(chunk);
+          }
+
+          const finalStat = await file.stat();
+
+          if (bytes !== approvedStat.size ||
+              finalStat.dev !== approvedStat.dev || finalStat.ino !== approvedStat.ino ||
+              finalStat.size !== approvedStat.size || finalStat.mtimeMs !== approvedStat.mtimeMs ||
+              finalStat.ctimeMs !== approvedStat.ctimeMs) {
+            throw new DecisionError("Image file changed during reading. No file contents were sent.");
+          }
+
+          base64 = Buffer.concat(chunks, bytes).toString("base64");
+        } finally {
+          await file.close();
+        }
+      } catch (error) {
+        if (signal.aborted) {
+          throw new DecisionError(signal.reason?.name === "TimeoutError"
+            ? "Image approval or reading timed out. No inference was attempted."
+            : "Image approval or reading was cancelled. No inference was attempted.");
+        }
+
+        if (error instanceof DecisionError) throw error;
+
+        throw new DecisionError("Image file could not be read. Check that the supplied path is an accessible regular file.");
+      }
+    }
+
+    total += base64.length;
+
+    if (total > maxImageRequestBytes) {
+      throw new DecisionError("Decision request exceeds Ollama's 32 MiB image JSON limit. Reduce the images, state, or questions.");
+    }
+
+    encoded.push(base64);
+  }
+
+  return encoded;
+}
 
 type Configuration = { baseUrl: URL; apiKey?: string };
 
@@ -26,6 +170,7 @@ type ClientOptions = {
   fetch?: typeof fetch;
   metadataTimeoutMs?: number;
   inferenceTimeoutMs?: number;
+  approveImage?: ImageApproval;
 };
 
 export class DecisionClient {
@@ -33,12 +178,14 @@ export class DecisionClient {
   private readonly fetch: typeof fetch;
   private readonly metadataTimeoutMs: number;
   private readonly inferenceTimeoutMs: number;
+  private readonly approveImage?: ImageApproval;
 
   constructor(options: ClientOptions = {}) {
     this.environment = options.environment ?? process.env;
     this.fetch = options.fetch ?? globalThis.fetch;
     this.metadataTimeoutMs = options.metadataTimeoutMs ?? 15_000;
     this.inferenceTimeoutMs = options.inferenceTimeoutMs ?? 120_000;
+    this.approveImage = options.approveImage;
   }
 
   private configuration(): Configuration {
@@ -90,8 +237,15 @@ export class DecisionClient {
       if (body !== undefined) {
         const serialized = JSON.stringify(body);
 
-        if (endpoint === "v1/systemone" && Buffer.byteLength(serialized, "utf8") > maxDecisionRequestBytes) {
-          throw new DecisionError("Decision request exceeds Ollama's 64 KiB text-only JSON limit. Reduce the state or questions.");
+        if (endpoint === "v1/systemone") {
+          const hasImages = "images" in body && Boolean(body.images?.length);
+          const limit = hasImages ? maxImageRequestBytes : maxDecisionRequestBytes;
+
+          if (Buffer.byteLength(serialized, "utf8") > limit) {
+            throw new DecisionError(hasImages
+              ? "Decision request exceeds Ollama's 32 MiB image JSON limit. Reduce the images, state, or questions."
+              : "Decision request exceeds Ollama's 64 KiB text-only JSON limit. Reduce the state or questions.");
+          }
         }
 
         headers.set("Content-Type", "application/json");
@@ -207,7 +361,7 @@ export class DecisionClient {
     return { models };
   }
 
-  async decide(input: DecisionRequest, signal?: AbortSignal): Promise<DecisionResponse> {
+  async decide(input: DecisionInput, signal?: AbortSignal): Promise<DecisionResponse> {
     const config = this.configuration();
 
     const metadataSignal = AbortSignal.any([
@@ -226,8 +380,14 @@ export class DecisionClient {
       throw new DecisionError("Requested model is not installed. Use ollama_decision_models and supply an exact installed name. No model was pulled.");
     }
 
-    if (!(await this.capabilities(config, model, metadataSignal)).includes("decision")) {
+    const capabilities = await this.capabilities(config, model, metadataSignal);
+
+    if (!capabilities.includes("decision")) {
       throw new DecisionError("Requested installed model does not advertise the decision capability.");
+    }
+
+    if (input.images?.length && !capabilities.includes("vision")) {
+      throw new DecisionError("Requested installed decision model does not advertise the vision capability required for images.");
     }
 
     const inferenceSignal = AbortSignal.any([
@@ -235,14 +395,25 @@ export class DecisionClient {
       ...(signal ? [signal] : []),
     ]);
 
-    const payload = await this.request(config, "v1/systemone", inferenceSignal, DecisionResponseSchema, { ...input, model: model.name });
+    const { images, ...text } = input;
+
+    const body: DecisionRequest = {
+      ...text,
+      model: model.name,
+    };
+
+    if (images !== undefined) {
+      body.images = await encodeImages(images, inferenceSignal, new URL("v1/systemone", config.baseUrl).href, this.approveImage);
+    }
+
+    const payload = await this.request(config, "v1/systemone", inferenceSignal, DecisionResponseSchema, body);
     validateAnswers(input, model.name, payload);
 
     return payload;
   }
 }
 
-function validateAnswers(request: DecisionRequest, model: string, response: DecisionResponse): void {
+function validateAnswers(request: DecisionInput, model: string, response: DecisionResponse): void {
   const sameKeys = (actual: string[], expected: string[]) =>
     actual.length === expected.length && expected.every((key) => actual.includes(key));
 
@@ -316,11 +487,15 @@ export function createDecisionTools(client = new DecisionClient()) {
     },
     {
       name: "ollama_decide",
-      description: "Use an explicit installed Ollama decision model for fast routing, classification, or rubric evaluation. Questions are choice, noul (probability of true), or score (weighted zero-based level, not normalized). Results are data only. Probabilities and confidence are advisory, never permission to act. No downloads, automatic selection, or inference retries.",
-      parameters: DecisionRequestSchema,
+      description: "Use an explicit installed Ollama decision model for fast routing, classification, or rubric evaluation. Optional images accept raw base64 strings or {path: absolute local image path}; local files require per-call user confirmation of the resolved path and destination before reading. The model must advertise vision (for example Clef Flash). Questions are choice, noul (probability of true), or score (weighted zero-based level, not normalized). Results are data only. Probabilities and confidence are advisory, never permission to act. No downloads, automatic selection, or inference retries.",
+      parameters: DecisionInputSchema,
       handler: (args, invocation) => result(async () => {
-        if (!Value.Check(DecisionRequestSchema, args)) {
+        if (!Value.Check(DecisionInputSchema, args)) {
           throw new DecisionError("Invalid decision request. Supply an explicit model, nonempty state, and 1-64 named questions with valid instructions and criteria.");
+        }
+
+        if (args.images?.some((image) => typeof image === "string" && image.length % 4 !== 0)) {
+          throw new DecisionError("Invalid decision request. Images must contain padded raw base64 data or an absolute local file path object.");
         }
 
         if (typeof args.keep_alive === "string" && !isOllamaDuration(args.keep_alive)) {

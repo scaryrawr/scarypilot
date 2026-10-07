@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { mock, test } from "node:test";
 import type { Tool } from "@github/copilot-sdk";
 import { invalidDurationNumbers, invalidDurationStrings, validDurationNumbers, validDurationStrings } from "./keep-alive-cases.ts";
@@ -21,6 +24,16 @@ test("source and shipped tools use granted configuration and validate durations 
   });
   const registrations: { tools: Tool[]; requestedEnvironmentVariables: string[] }[] = [];
   const fetched: { path: string; authorization?: string; body?: unknown }[] = [];
+  const confirmations: string[] = [];
+  let approve = true;
+  let pendingConfirmation: ReturnType<typeof Promise.withResolvers<boolean>> | undefined;
+  let confirmationRequested: ReturnType<typeof Promise.withResolvers<void>> | undefined;
+  const directory = await mkdtemp(join(tmpdir(), "ollama-decisions-registration-"));
+  const imagePath = join(directory, "image.png");
+  const imageBytes = Buffer.from([0, 1, 2, 255]);
+
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await writeFile(imagePath, imageBytes);
 
   const input = {
     model: "installed:latest",
@@ -30,6 +43,7 @@ test("source and shipped tools use granted configuration and validate durations 
 
   const response = {
     model: input.model,
+    prompt_eval_cached_count: 0,
     answers: { refund: { type: "noul", noul: 0.75 } },
     usage: { input_tokens: 1, output_tokens: 1 },
   };
@@ -44,7 +58,7 @@ test("source and shipped tools use granted configuration and validate durations 
     fetched.push({ path, authorization: request.headers.authorization, body });
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify(path === "/proxy/api/tags"
-      ? { models: [{ name: input.model, capabilities: ["decision"] }] }
+      ? { models: [{ name: input.model, capabilities: ["decision", "vision"] }] }
       : response));
   });
 
@@ -78,7 +92,12 @@ test("source and shipped tools use granted configuration and validate durations 
           if (options.requestedEnvironmentVariables.includes(name)) environment[name] = value;
         }
 
-        return {};
+        return { ui: { confirm: async (message: string) => {
+          confirmations.push(message);
+          confirmationRequested?.resolve();
+
+          return pendingConfirmation ? pendingConfirmation.promise : approve;
+        } } };
       },
     },
   });
@@ -108,6 +127,7 @@ test("source and shipped tools use granted configuration and validate durations 
       "ollama_decision_models", "ollama_decide",
     ]);
     assert.ok(registration.tools[1].description?.includes("never permission"));
+    assert.ok(registration.tools[1].description?.includes("images"));
     const handler = registration.tools[1].handler;
     assert.ok(handler);
     assert.deepEqual(await handler({}, {
@@ -116,6 +136,59 @@ test("source and shipped tools use granted configuration and validate durations 
       textResultForLlm: "Invalid decision request. Supply an explicit model, nonempty state, and 1-64 named questions with valid instructions and criteria.",
       resultType: "failure",
     });
+
+    fetched.length = 0;
+    const imageInput = { ...input, images: ["aGVsbG8=", { path: imagePath }] };
+
+    assert.deepEqual(await handler(imageInput, {
+      sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: imageInput,
+    }), {
+      textResultForLlm: JSON.stringify(response),
+      resultType: "success",
+    });
+    assert.deepEqual(fetched.map(({ path, body }) => ({ path, body })), [
+      { path: "/proxy/api/tags", body: undefined },
+      { path: "/proxy/v1/systemone", body: { ...input, images: ["aGVsbG8=", imageBytes.toString("base64")] } },
+    ], "source and bundle encode images without leaking local file paths");
+    assert.equal(confirmations.at(-1),
+      `Allow reading local file ${JSON.stringify(await realpath(imagePath))} and transmitting its complete contents as an image to ${JSON.stringify(`${baseUrl}v1/systemone`)} for this decision request? Only approve a file you intend to share.`);
+
+    approve = false;
+    fetched.length = 0;
+
+    const denied = await handler(imageInput, {
+      sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: imageInput,
+    });
+
+    assert.ok(denied && typeof denied === "object" && "resultType" in denied && "textResultForLlm" in denied);
+    assert.equal(denied.resultType, "failure");
+    assert.match(String(denied.textResultForLlm), /not approved/);
+    assert.deepEqual(fetched.map(({ path }) => path), ["/proxy/api/tags"]);
+    approve = true;
+
+    pendingConfirmation = Promise.withResolvers<boolean>();
+    confirmationRequested = Promise.withResolvers<void>();
+    fetched.length = 0;
+    const controller = new AbortController();
+
+    const pending = handler(imageInput, {
+      sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: imageInput, signal: controller.signal,
+    });
+
+    const settled = Promise.resolve(pending).then((result) => {
+      assert.ok(result && typeof result === "object" && "resultType" in result && "textResultForLlm" in result);
+      assert.equal(result.resultType, "failure");
+      assert.match(String(result.textResultForLlm), /cancelled/);
+    });
+
+    await confirmationRequested.promise;
+    controller.abort();
+    await settled;
+    pendingConfirmation.resolve(true);
+    pendingConfirmation = undefined;
+    confirmationRequested = undefined;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.deepEqual(fetched.map(({ path }) => path), ["/proxy/api/tags"], "late approval cannot send an image");
 
     await t.test(index === 0 ? "source rejects before fetching" : "shipped rejects before fetching", async () => {
       for (const keep_alive of [...invalidDurationStrings, ...invalidDurationNumbers]) {

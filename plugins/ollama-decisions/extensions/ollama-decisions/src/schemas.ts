@@ -7,6 +7,13 @@ const strict = { additionalProperties: false };
 
 const probability = Type.Number({ minimum: 0, maximum: 1 });
 
+const image = Type.String({
+  minLength: 4,
+  maxLength: 32 * 1024 * 1024,
+  pattern: "^[A-Za-z0-9+/]+={0,2}(?![\\s\\S])",
+  description: "Raw base64-encoded image, not a URL or data URL.",
+});
+
 const json = Type.Recursive((self) => Type.Union([
   Type.Null(),
   Type.Boolean(),
@@ -46,6 +53,7 @@ export type Question = Static<typeof QuestionSchema>;
 export const DecisionRequestSchema = Type.Object({
   model: nonblank,
   state: Type.Union([nonblank, Type.Record(Type.String(), json), Type.Array(json)]),
+  images: Type.Optional(Type.Array(image)),
   questions: Type.Record(nonblank, QuestionSchema, {
     minProperties: 1,
     maxProperties: 64,
@@ -59,10 +67,26 @@ export const DecisionRequestSchema = Type.Object({
 
 export type DecisionRequest = Static<typeof DecisionRequestSchema>;
 
+export const DecisionInputSchema = Type.Object({
+  ...DecisionRequestSchema.properties,
+  images: Type.Optional(Type.Array(Type.Union([
+    image,
+    Type.Object({
+      path: Type.String({
+        pattern: "\\S",
+        description: "Absolute path to a local image file. Requires user confirmation of its resolved path and destination before reading; the path is not sent to Ollama.",
+      }),
+    }, strict),
+  ]), { description: "Images shared by all questions, in array order. Requires a decision model advertising vision." })),
+}, strict);
+
+export type DecisionInput = Static<typeof DecisionInputSchema>;
+
 const probabilities = Type.Record(Type.String(), probability);
 
 export const DecisionResponseSchema = Type.Object({
   model: nonblank,
+  prompt_eval_cached_count: Type.Optional(Type.Integer({ minimum: 0 })),
   answers: Type.Record(Type.String(), Type.Union([
     Type.Object({
       type: Type.Literal("choice"),
