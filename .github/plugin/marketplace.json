@@ -69,12 +69,12 @@
       "source": "./plugins/omlx-media"
     },
     {
-      "name": "ollama-decisions",
-      "description": "Use installed Ollama decision models for routing, classification, and rubric evaluation.",
+      "name": "omlx-decisions",
+      "description": "Use installed oMLX SystemOne decision models for routing, classification, and rubric evaluation.",
       "author": {
         "name": "Mike Wallio"
       },
-      "source": "./plugins/ollama-decisions"
+      "source": "./plugins/omlx-decisions"
     },
     {
       "name": "screen-record",

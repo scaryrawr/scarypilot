@@ -7,7 +7,6 @@ import { test, type TestContext } from "node:test";
 import { Value } from "@sinclair/typebox/value";
 import { DecisionClient, createDecisionTools } from "../src/decisions.ts";
 import { DecisionInputSchema, DecisionRequestSchema, DecisionResponseSchema, type DecisionInput, type DecisionRequest, type Question } from "../src/schemas.ts";
-import { invalidDurationNumbers, invalidDurationStrings, validDurationNumbers, validDurationStrings } from "./keep-alive-cases.ts";
 
 type ObservedRequest = { path: string; method: string; authorization?: string; body?: unknown };
 
@@ -49,7 +48,7 @@ function json<T>(response: ServerResponse, payload: T) {
 }
 
 const request = {
-  model: "installed:latest",
+  model: "installed",
   state: { ticket: "A public synthetic ticket about a duplicate charge.", history: [true, null, 42] },
   questions: {
     category: {
@@ -68,11 +67,11 @@ const request = {
       criteria: ["Routine", "Soon", "Immediate"],
     },
   },
-  keep_alive: "5m",
+  truncate: false,
 } satisfies DecisionRequest;
 
 const response = {
-  model: "installed:latest",
+  model: "installed",
   answers: {
     category: {
       type: "choice",
@@ -89,65 +88,52 @@ const response = {
       confidence: 0.3,
     },
   },
-  usage: { input_tokens: 174, output_tokens: 3 },
+  usage: { input_tokens: 174, output_tokens: 0 },
 };
 
-const installed = { models: [{ name: "installed:latest", capabilities: ["decision"] }] };
+const installed = { models: [{ id: "installed", model_type: "decision", engine_type: "decision", loaded: false, capabilities: [] }] };
 
-const visionInstalled = { models: [{ name: "installed:latest", capabilities: ["decision", "vision"] }] };
 
 async function imageDirectory(t: TestContext) {
-  const directory = await mkdtemp(join(tmpdir(), "ollama-decisions-images-"));
+  const directory = await mkdtemp(join(tmpdir(), "omlx-decisions-images-"));
 
   t.after(() => rm(directory, { recursive: true, force: true }));
 
   return directory;
 }
 
-test("discovery filters capabilities without model-name heuristics and posts show only for missing metadata", async (t) => {
+test("discovery uses model and engine types, includes unloaded models, and refreshes metadata", async (t) => {
   const http = await server(t, (req, res) => {
-    if (req.path === "/proxy/api/tags") {
-      json(res, { models: [
-        { name: "ordinary-name:latest", capabilities: ["decision", "completion"] },
-        { name: "nimble:latest", capabilities: ["completion"] },
-        { name: "unresolved:latest" },
-        { name: "empty:latest", capabilities: [] },
-      ] });
-    } else {
-      assert.equal(req.path, "/proxy/api/show");
-      assert.deepEqual(req.body, { model: "unresolved:latest" });
-      json(res, { capabilities: ["decision"] });
-    }
+    assert.equal(req.path, "/proxy/v1/models/status");
+    json(res, { models: [
+      { id: "ordinary-name", model_type: "decision", engine_type: "decision", loaded: false, capabilities: [], model_path: "/private/model" },
+      { id: "clef-flash-name-only", model_type: "llm", engine_type: "batched", loaded: true, capabilities: ["decision"] },
+      { id: "engine-only", model_type: "llm", engine_type: "decision", loaded: true },
+    ] });
   });
 
-  const client = new DecisionClient({ environment: {
-    OLLAMA_BASE_URL: `${http.url}/proxy/`,
-    OLLAMA_API_KEY: "synthetic-test-key",
-  } });
-
+  const client = new DecisionClient({ environment: { OMLX_BASE_URL: `${http.url}/proxy/`, OMLX_API_KEY: "synthetic-test-key" } });
   assert.deepEqual(await client.discover(), { models: [
-    { name: "ordinary-name:latest", capabilities: ["decision", "completion"] },
-    { name: "unresolved:latest", capabilities: ["decision"] },
+    { id: "ordinary-name", loaded: false }, { id: "engine-only", loaded: true },
   ] });
-  assert.deepEqual(http.requests.map((req) => [req.method, req.path, req.authorization]), [
-    ["GET", "/proxy/api/tags", "Bearer synthetic-test-key"],
-    ["POST", "/proxy/api/show", "Bearer synthetic-test-key"],
-  ]);
   await client.discover();
-  assert.equal(http.requests.length, 4, "each invocation refreshes installed metadata");
+  assert.deepEqual(http.requests.map((req) => [req.method, req.path, req.authorization]), [
+    ["GET", "/proxy/v1/models/status", "Bearer synthetic-test-key"],
+    ["GET", "/proxy/v1/models/status", "Bearer synthetic-test-key"],
+  ]);
 });
 
 test("empty installed inventory is a valid discovery, not a default model", async (t) => {
   const http = await server(t, (_, res) => json(res, { models: [] }));
-  const client = new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } });
+  const client = new DecisionClient({ environment: { OMLX_BASE_URL: http.url } });
   assert.deepEqual(await client.discover(), { models: [] });
   await assert.rejects(client.decide(request), /not installed/);
-  assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/api/tags"]);
+  assert.deepEqual(http.requests.map((req) => req.path), ["/v1/models/status", "/v1/models/status"]);
 });
 
 test("all question types preserve wire data and unnormalized score with one inference", async (t) => {
   const http = await server(t, (req, res) => {
-    if (req.path === "/api/tags") json(res, installed);
+    if (req.path === "/v1/models/status") json(res, installed);
     else {
       assert.equal(req.path, "/v1/systemone");
       assert.equal(req.method, "POST");
@@ -156,19 +142,19 @@ test("all question types preserve wire data and unnormalized score with one infe
     }
   });
 
-  const client = new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } });
+  const client = new DecisionClient({ environment: { OMLX_BASE_URL: http.url } });
   assert.deepEqual(await client.decide(request), response);
   assert.equal(http.requests.length, 2);
   assert.ok(http.requests.every((req) => req.authorization === undefined));
 });
 
 test("inference and metadata carry bearer auth, JSON headers, and caller state without extra fields", async (t) => {
-  const expected = { ...request, state: ["synthetic public input", { nested: [false, null, 1] }], keep_alive: 0 } satisfies DecisionRequest;
+  const expected = { ...request, state: ["synthetic public input", { nested: [false, null, 1] }], truncate: true } satisfies DecisionRequest;
 
   const http = await server(t, (req, res) => {
     assert.equal(req.authorization, "Bearer synthetic-inference-key");
 
-    if (req.path === "/api/tags") json(res, installed);
+    if (req.path === "/v1/models/status") json(res, installed);
     else {
       assert.deepEqual(req.body, expected);
       json(res, response);
@@ -176,7 +162,7 @@ test("inference and metadata carry bearer auth, JSON headers, and caller state w
   });
 
   const client = new DecisionClient({
-    environment: { OLLAMA_BASE_URL: http.url, OLLAMA_API_KEY: "synthetic-inference-key" },
+    environment: { OMLX_BASE_URL: http.url, OMLX_API_KEY: "synthetic-inference-key" },
     fetch: (url, init) => {
       assert.equal(init?.redirect, "error");
       assert.equal(new Headers(init?.headers).get("Accept"), "application/json");
@@ -194,26 +180,26 @@ test("inference and metadata carry bearer auth, JSON headers, and caller state w
 });
 
 test("text-only request size uses serialized UTF-8 bytes and accepts exactly 64 KiB", async (t) => {
-  const base = { model: "installed:latest", state: "", questions: { refund: request.questions.refund } } satisfies DecisionRequest;
+  const base = { model: "installed", state: "", questions: { refund: request.questions.refund }, truncate: false } satisfies DecisionRequest;
   const padding = 65536 - Buffer.byteLength(JSON.stringify(base), "utf8");
   const exact = { ...base, state: "a".repeat(padding) } satisfies DecisionRequest;
   const expected = { ...response, answers: { refund: response.answers.refund } };
 
   const http = await server(t, (req, res) => {
-    if (req.path === "/api/tags") json(res, installed);
+    if (req.path === "/v1/models/status") json(res, installed);
     else {
       assert.equal(Buffer.byteLength(JSON.stringify(req.body), "utf8"), 65536);
       json(res, expected);
     }
   });
 
-  const client = new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } });
+  const client = new DecisionClient({ environment: { OMLX_BASE_URL: http.url } });
 
   assert.deepEqual(await client.decide(exact), expected);
   await assert.rejects(client.decide({ ...exact, state: `${exact.state}a` }), /64 KiB/);
   await assert.rejects(client.decide({ ...base, state: "\u00e9".repeat(padding) }), /64 KiB/);
   assert.deepEqual(http.requests.map((req) => req.path), [
-    "/api/tags", "/v1/systemone", "/api/tags", "/api/tags",
+    "/v1/models/status", "/v1/systemone", "/v1/models/status", "/v1/models/status",
   ]);
 });
 
@@ -230,12 +216,12 @@ test("image paths are encoded in order alongside base64 without leaking paths in
   const input = { ...request, images } satisfies DecisionInput;
 
   assert.ok(Value.Check(DecisionInputSchema, input));
-  assert.equal(Value.Check(DecisionRequestSchema, input), false, "file objects are not Ollama wire data");
+  assert.equal(Value.Check(DecisionRequestSchema, input), false, "file objects are not SystemOne wire data");
 
   const http = await server(t, (req, res) => {
-    if (req.path === "/api/tags") json(res, visionInstalled);
+    if (req.path === "/v1/models/status") json(res, installed);
     else {
-      assert.deepEqual(req.body, { ...request, images: ["aGVsbG8=", firstBytes.toString("base64"), secondBytes.toString("base64")] });
+      assert.deepEqual(req.body, { ...request, images: ["data:image/png;base64,aGVsbG8=", `data:image/png;base64,${firstBytes.toString("base64")}`, `data:image/png;base64,${secondBytes.toString("base64")}`] });
       assert.doesNotMatch(JSON.stringify(req.body), new RegExp(directory));
 
       json(res, response);
@@ -245,7 +231,7 @@ test("image paths are encoded in order alongside base64 without leaking paths in
   const approvals: { path: string; endpoint: string }[] = [];
 
   const tools = createDecisionTools(new DecisionClient({
-    environment: { OLLAMA_BASE_URL: http.url },
+    environment: { OMLX_BASE_URL: http.url },
     approveImage: async (image) => {
       approvals.push(image);
 
@@ -254,7 +240,7 @@ test("image paths are encoded in order alongside base64 without leaking paths in
   }));
 
   const result = await tools[1].handler(input, {
-    sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: input,
+    sessionId: "test", toolCallId: "test", toolName: "omlx_decide", arguments: input,
   });
 
   assert.equal(result.resultType, "success");
@@ -263,40 +249,28 @@ test("image paths are encoded in order alongside base64 without leaking paths in
     { path: await realpath(first), endpoint: `${http.url}/v1/systemone` },
     { path: await realpath(second), endpoint: `${http.url}/v1/systemone` },
   ]);
-  assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/v1/systemone"]);
+  assert.deepEqual(http.requests.map((req) => req.path), ["/v1/models/status", "/v1/systemone"]);
 });
 
-test("images require advertised vision before reading files or attempting inference", async (t) => {
-  const http = await server(t, (req, res) => json(res, req.path === "/api/tags" ? installed : response));
-  const client = new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } });
-
-  await assert.rejects(client.decide({ ...request, images: [{ path: join(tmpdir(), "missing-decision-image.png") }] }), /vision capability/);
-  await assert.rejects(client.decide({ ...request, images: ["aGVsbG8="] }), /vision capability/);
-  assert.deepEqual(await client.decide({ ...request, images: [] }), response);
-  assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/api/tags", "/api/tags", "/v1/systemone"]);
-});
-
-test("vision metadata can resolve through show and untagged model resolution", async (t) => {
-  const input = { ...request, model: "installed", images: ["aGVsbG8="] };
+test("images do not require a fabricated vision capability and preserve supplied data URIs", async (t) => {
+  const images = ["data:image/jpeg;base64,aGVsbG8="];
 
   const http = await server(t, (req, res) => {
-    if (req.path === "/api/tags") json(res, { models: [{ name: "installed:latest" }] });
-    else if (req.path === "/api/show") {
-      assert.deepEqual(req.body, { model: "installed:latest" });
-      json(res, { capabilities: ["decision", "vision"] });
-    } else {
-      assert.deepEqual(req.body, { ...input, model: "installed:latest" });
+    if (req.path === "/v1/models/status") json(res, installed);
+    else {
+      assert.deepEqual(req.body, { ...request, images });
       json(res, response);
     }
   });
 
-  assert.deepEqual(await new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } }).decide(input), response);
-  assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/api/show", "/v1/systemone"]);
+  const client = new DecisionClient({ environment: { OMLX_BASE_URL: http.url } });
+  assert.deepEqual(await client.decide({ ...request, images }), response);
+  assert.deepEqual(http.requests.map((req) => req.path), ["/v1/models/status", "/v1/systemone"]);
 });
 
 test("image JSON accepts exactly 32 MiB including base64, uses UTF-8 bytes, and rejects overflow", async () => {
   const limit = 32 * 1024 * 1024;
-  const base = { model: request.model, state: "", images: ["aGVsbG8="], questions: { refund: request.questions.refund } };
+  const base = { model: request.model, state: "", images: ["data:image/png;base64,aGVsbG8="], questions: { refund: request.questions.refund }, truncate: false };
   const padding = limit - Buffer.byteLength(JSON.stringify(base), "utf8");
   const exact = { ...base, state: "a".repeat(padding) };
   const expected = { ...response, answers: { refund: response.answers.refund } };
@@ -305,7 +279,7 @@ test("image JSON accepts exactly 32 MiB including base64, uses UTF-8 bytes, and 
   const client = new DecisionClient({
     environment: {},
     fetch: async (url, init) => {
-      if (new URL(String(url)).pathname === "/api/tags") return Response.json(visionInstalled);
+      if (new URL(String(url)).pathname === "/v1/models/status") return Response.json(installed);
 
       assert.equal(typeof init?.body, "string");
       assert.equal(Buffer.byteLength(String(init?.body), "utf8"), limit);
@@ -327,10 +301,10 @@ test("unreadable, empty, non-file, and relative images fail explicitly without i
   const empty = join(directory, "empty.png");
 
   await writeFile(empty, "");
-  const http = await server(t, (_, res) => json(res, visionInstalled));
+  const http = await server(t, (_, res) => json(res, installed));
 
   const tools = createDecisionTools(new DecisionClient({
-    environment: { OLLAMA_BASE_URL: http.url },
+    environment: { OMLX_BASE_URL: http.url },
     approveImage: async () => true,
   }));
 
@@ -338,7 +312,7 @@ test("unreadable, empty, non-file, and relative images fail explicitly without i
     const input = { ...request, images: [{ path }] };
 
     const result = await tools[1].handler(input, {
-      sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: input,
+      sessionId: "test", toolCallId: "test", toolName: "omlx_decide", arguments: input,
     });
 
     assert.equal(result.resultType, "failure");
@@ -346,7 +320,7 @@ test("unreadable, empty, non-file, and relative images fail explicitly without i
     assert.ok(!result.textResultForLlm.includes(path));
   }
 
-  assert.ok(http.requests.every((req) => req.path === "/api/tags"));
+  assert.ok(http.requests.every((req) => req.path === "/v1/models/status"));
 });
 
 test("oversized individual files and combined encoded images fail before inference", async (t) => {
@@ -364,16 +338,16 @@ test("oversized individual files and combined encoded images fail before inferen
     }
   }
 
-  const http = await server(t, (_, res) => json(res, visionInstalled));
+  const http = await server(t, (_, res) => json(res, installed));
 
   const client = new DecisionClient({
-    environment: { OLLAMA_BASE_URL: http.url },
+    environment: { OMLX_BASE_URL: http.url },
     approveImage: async () => true,
   });
 
   await assert.rejects(client.decide({ ...request, images: [{ path: large }] }), /32 MiB/);
   await assert.rejects(client.decide({ ...request, images: [{ path: partial }, { path: partial }] }), /32 MiB/);
-  assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/api/tags"]);
+  assert.deepEqual(http.requests.map((req) => req.path), ["/v1/models/status", "/v1/models/status"]);
 });
 
 test("file reads fail closed without user confirmation, on denial, or when the host cannot confirm", async (t) => {
@@ -382,16 +356,16 @@ test("file reads fail closed without user confirmation, on denial, or when the h
 
   await writeFile(path, "synthetic-sensitive-file-content");
   const input = { ...request, images: [{ path }] };
-  const http = await server(t, (_, res) => json(res, visionInstalled));
+  const http = await server(t, (_, res) => json(res, installed));
 
   for (const approveImage of [undefined, async () => false, async () => { throw new Error("private-host-error"); }]) {
     const tools = createDecisionTools(new DecisionClient({
-      environment: { OLLAMA_BASE_URL: http.url },
+      environment: { OMLX_BASE_URL: http.url },
       approveImage,
     }));
 
     const result = await tools[1].handler(input, {
-      sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: input,
+      sessionId: "test", toolCallId: "test", toolName: "omlx_decide", arguments: input,
     });
 
     assert.equal(result.resultType, "failure");
@@ -400,7 +374,7 @@ test("file reads fail closed without user confirmation, on denial, or when the h
     assert.ok(!result.textResultForLlm.includes(path));
   }
 
-  assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/api/tags", "/api/tags"]);
+  assert.deepEqual(http.requests.map((req) => req.path), ["/v1/models/status", "/v1/models/status", "/v1/models/status"]);
 });
 
 test("symlink approval names the resolved file and exact configured remote endpoint on each call", async (t) => {
@@ -415,18 +389,18 @@ test("symlink approval names the resolved file and exact configured remote endpo
   let inferences = 0;
 
   const client = new DecisionClient({
-    environment: { OLLAMA_BASE_URL: "https://synthetic-remote.example/proxy/" },
+    environment: { OMLX_BASE_URL: "https://synthetic-remote.example/proxy/" },
     approveImage: async (image) => {
       approvals.push(image);
 
       return true;
     },
     fetch: async (url, init) => {
-      if (String(url).endsWith("/api/tags")) return Response.json(visionInstalled);
+      if (String(url).endsWith("/v1/models/status")) return Response.json(installed);
 
       inferences++;
       assert.equal(String(url), "https://synthetic-remote.example/proxy/v1/systemone");
-      assert.deepEqual(JSON.parse(String(init?.body)), { ...request, images: [bytes.toString("base64")] });
+      assert.deepEqual(JSON.parse(String(init?.body)), { ...request, images: [`data:image/png;base64,${bytes.toString("base64")}`] });
 
       return Response.json(response);
     },
@@ -451,10 +425,10 @@ for (const replacement of ["file", "symlink", "parent symlink", "contents"]) {
     await writeFile(path, "synthetic-image");
     await writeFile(secret, "synthetic-sensitive-file-content");
     await writeFile(join(other, "image.png"), "synthetic-sensitive-file-content");
-    const http = await server(t, (_, res) => json(res, visionInstalled));
+    const http = await server(t, (_, res) => json(res, installed));
 
     const client = new DecisionClient({
-      environment: { OLLAMA_BASE_URL: http.url },
+      environment: { OMLX_BASE_URL: http.url },
       approveImage: async ({ path: resolved }) => {
         if (replacement === "contents") {
           await writeFile(resolved, "synthetic-sensitive-file-content");
@@ -474,7 +448,7 @@ for (const replacement of ["file", "symlink", "parent symlink", "contents"]) {
     });
 
     await assert.rejects(client.decide({ ...request, images: [{ path }] }), /changed after approval|could not be read/);
-    assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags"]);
+    assert.deepEqual(http.requests.map((req) => req.path), ["/v1/models/status"]);
   });
 }
 
@@ -484,10 +458,10 @@ test("cancellation during user confirmation prevents file transmission", async (
   const controller = new AbortController();
 
   await writeFile(path, "synthetic-image");
-  const http = await server(t, (_, res) => json(res, visionInstalled));
+  const http = await server(t, (_, res) => json(res, installed));
 
   const client = new DecisionClient({
-    environment: { OLLAMA_BASE_URL: http.url },
+    environment: { OMLX_BASE_URL: http.url },
     approveImage: async () => {
       controller.abort();
 
@@ -496,7 +470,7 @@ test("cancellation during user confirmation prevents file transmission", async (
   });
 
   await assert.rejects(client.decide({ ...request, images: [{ path }] }, controller.signal), /cancelled/);
-  assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags"]);
+  assert.deepEqual(http.requests.map((req) => req.path), ["/v1/models/status"]);
 });
 
 for (const interruption of ["cancellation", "timeout"] as const) {
@@ -508,10 +482,10 @@ for (const interruption of ["cancellation", "timeout"] as const) {
     const requested = Promise.withResolvers<void>();
 
     await writeFile(path, "synthetic-image");
-    const http = await server(t, (_, res) => json(res, visionInstalled));
+    const http = await server(t, (_, res) => json(res, installed));
 
     const client = new DecisionClient({
-      environment: { OLLAMA_BASE_URL: http.url },
+      environment: { OMLX_BASE_URL: http.url },
       inferenceTimeoutMs: interruption === "timeout" ? 30 : 120_000,
       approveImage: () => {
         requested.resolve();
@@ -529,108 +503,57 @@ for (const interruption of ["cancellation", "timeout"] as const) {
     await rejected;
     confirmation.resolve(true);
     await new Promise<void>((resolve) => setImmediate(resolve));
-    assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags"]);
+    assert.deepEqual(http.requests.map((req) => req.path), ["/v1/models/status"]);
   });
 }
 
-test("implicit latest resolves only an untagged installed alias, preferring an exact name", async (t) => {
-  const http = await server(t, (req, res) => {
-    if (req.path === "/api/tags") json(res, installed);
-    else {
-      assert.deepEqual(req.body, request);
-      json(res, response);
-    }
-  });
+test("model IDs are exact, without implicit tags or aliases", async (t) => {
+  const http = await server(t, (req, res) => json(res, req.path === "/v1/models/status"
+    ? { models: [{ ...installed.models[0], id: "installed:latest" }] } : response));
 
-  const client = new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } });
-  assert.deepEqual(await client.decide({ ...request, model: "installed" }), response);
-  await assert.rejects(client.decide({ ...request, model: "installed:missing" }), /not installed/);
-  assert.equal(http.requests.filter((req) => req.path === "/v1/systemone").length, 1);
-
-  const exact = await server(t, (req, res) => {
-    if (req.path === "/api/tags") json(res, { models: [
-      { name: "installed", capabilities: ["decision"] },
-      ...installed.models,
-    ] });
-    else {
-      assert.deepEqual(req.body, { ...request, model: "installed" });
-      json(res, { ...response, model: "installed" });
-    }
-  });
-
-  assert.equal((await new DecisionClient({
-    environment: { OLLAMA_BASE_URL: exact.url },
-  }).decide({ ...request, model: "installed" })).model, "installed");
+  const client = new DecisionClient({ environment: { OMLX_BASE_URL: http.url } });
+  await assert.rejects(client.decide(request), /not installed/);
+  assert.deepEqual(http.requests.map((req) => req.path), ["/v1/models/status"]);
 });
 
 test("explicit unsupported model never falls back to another decision model", async (t) => {
   const http = await server(t, (_, res) => json(res, { models: [
     ...installed.models,
-    { name: "nimble:other", capabilities: ["completion"] },
+    { id: "nimble:other", model_type: "llm", engine_type: "batched", loaded: true },
   ] }));
 
-  const client = new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } });
-  await assert.rejects(client.decide({ ...request, model: "nimble:other" }), /does not advertise/);
-  assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags"]);
-});
-
-test("decide uses show fallback only for its requested model", async (t) => {
-  const http = await server(t, (req, res) => {
-    if (req.path === "/api/tags") json(res, { models: [
-      { name: "unrelated:latest" }, { name: "installed:latest" },
-    ] });
-    else if (req.path === "/api/show") {
-      assert.deepEqual(req.body, { model: "installed:latest" });
-      json(res, { capabilities: ["decision"] });
-    } else json(res, response);
-  });
-
-  assert.deepEqual(await new DecisionClient({
-    environment: { OLLAMA_BASE_URL: http.url },
-  }).decide(request), response);
-  assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/api/show", "/v1/systemone"]);
+  const client = new DecisionClient({ environment: { OMLX_BASE_URL: http.url } });
+  await assert.rejects(client.decide({ ...request, model: "nimble:other" }), /does not have/);
+  assert.deepEqual(http.requests.map((req) => req.path), ["/v1/models/status"]);
 });
 
 for (const [label, payload] of [
   ["missing models", {}],
-  ["null capabilities", { models: [{ name: "installed", capabilities: null }] }],
-  ["wrong capability type", { models: [{ name: "installed", capabilities: [42] }] }],
-  ["missing name", { models: [{ model: "installed", capabilities: ["decision"] }] }],
-  ["duplicate names", { models: [...installed.models, ...installed.models] }],
+  ["missing ID", { models: [{ model_type: "decision", engine_type: "decision", loaded: false }] }],
+  ["missing model type", { models: [{ id: "installed", engine_type: "decision", loaded: false }] }],
+  ["wrong loaded type", { models: [{ ...installed.models[0], loaded: "false" }] }],
+  ["duplicate IDs", { models: [...installed.models, ...installed.models] }],
 ]) {
-  test(`discovery rejects ${label} rather than skipping failed metadata`, async (t) => {
+  test(`discovery rejects ${label} rather than skipping malformed metadata`, async (t) => {
     const http = await server(t, (_, res) => json(res, payload));
-    await assert.rejects(new DecisionClient({
-      environment: { OLLAMA_BASE_URL: http.url },
-    }).discover(), /metadata|duplicate/);
+    await assert.rejects(new DecisionClient({ environment: { OMLX_BASE_URL: http.url } }).discover(), /metadata|duplicate/);
   });
 }
 
-for (const payload of [{}, { capabilities: null }, { capabilities: "decision" }]) {
-  test(`show metadata must resolve capabilities (${JSON.stringify(payload)})`, async (t) => {
-    const http = await server(t, (req, res) => json(res,
-      req.path === "/api/tags" ? { models: [{ name: "installed" }] } : payload));
-
-    await assert.rejects(new DecisionClient({
-      environment: { OLLAMA_BASE_URL: http.url },
-    }).discover(), /unresolved/);
-  });
-}
-
-for (const endpoint of ["/api/tags", "/api/show", "/v1/systemone"]) {
+for (const endpoint of ["/v1/models/status", "/v1/systemone"]) {
   for (const status of [401, 404, 500]) {
     test(`${endpoint} HTTP ${status} is explicit, redacted, and never retried`, async (t) => {
       const http = await server(t, (req, res) => {
         if (req.path === endpoint) {
           res.statusCode = status;
           json(res, { error: "synthetic-secret-state synthetic-api-key" });
-        } else if (req.path === "/api/tags") {
-          json(res, { models: [{ name: "installed:latest" }] });
-        } else json(res, { capabilities: ["decision"] });
+        } else if (req.path === "/v1/models/status") {
+          json(res, installed);
+        } else json(res, response);
       });
 
       const tools = createDecisionTools(new DecisionClient({
-        environment: { OLLAMA_BASE_URL: http.url, OLLAMA_API_KEY: "synthetic-api-key" },
+        environment: { OMLX_BASE_URL: http.url, OMLX_API_KEY: "synthetic-api-key" },
       }));
 
       const result = await tools[1].handler({ ...request, state: "synthetic-secret-state" }, {
@@ -648,34 +571,32 @@ for (const endpoint of ["/api/tags", "/api/show", "/v1/systemone"]) {
   test(`${endpoint} malformed JSON fails`, async (t) => {
     const http = await server(t, (req, res) => {
       if (req.path === endpoint) res.end("{broken");
-      else if (req.path === "/api/tags") json(res, { models: [{ name: "installed:latest" }] });
-      else json(res, { capabilities: ["decision"] });
+      else if (req.path === "/v1/models/status") json(res, installed);
+      else json(res, response);
     });
 
     await assert.rejects(new DecisionClient({
-      environment: { OLLAMA_BASE_URL: http.url },
+      environment: { OMLX_BASE_URL: http.url },
     }).decide(request), /malformed JSON/);
   });
 
   test(`${endpoint} invalid UTF-8 fails instead of replacing corrupted text`, async (t) => {
     const http = await server(t, (req, res) => {
       if (req.path === endpoint) {
-        const payload = endpoint === "/api/tags"
-          ? { models: [{ name: "corrupted", capabilities: ["decision"] }] }
-          : endpoint === "/api/show"
-            ? { capabilities: ["corrupted"] }
-            : { ...response, model: "corrupted" };
+        const payload = endpoint === "/v1/models/status"
+          ? { models: [{ ...installed.models[0], id: "corrupted" }] }
+          : { ...response, model: "corrupted" };
 
         const bytes = Buffer.from(JSON.stringify(payload));
 
         bytes[bytes.indexOf("corrupted")] = 0xff;
         res.end(bytes);
-      } else if (req.path === "/api/tags") json(res, { models: [{ name: "installed:latest" }] });
-      else json(res, { capabilities: ["decision"] });
+      } else if (req.path === "/v1/models/status") json(res, installed);
+      else json(res, response);
     });
 
     await assert.rejects(new DecisionClient({
-      environment: { OLLAMA_BASE_URL: http.url },
+      environment: { OMLX_BASE_URL: http.url },
     }).decide(request), /malformed JSON/);
   });
 }
@@ -683,7 +604,7 @@ for (const endpoint of ["/api/tags", "/api/show", "/v1/systemone"]) {
 for (const hostname of ["remote.example", "localhost.example", "127.0.0.1.example", "[2001:db8::1]"]) {
   test(`authenticated remote HTTP rejects ${hostname} before network`, async () => {
     const client = new DecisionClient({
-      environment: { OLLAMA_BASE_URL: `http://${hostname}:11434`, OLLAMA_API_KEY: "synthetic-secret-key" },
+      environment: { OMLX_BASE_URL: `http://${hostname}:8000`, OMLX_API_KEY: "synthetic-secret-key" },
       fetch: async () => { assert.fail("credentials must not cross remote HTTP"); },
     });
 
@@ -693,23 +614,23 @@ for (const hostname of ["remote.example", "localhost.example", "127.0.0.1.exampl
 }
 
 for (const baseUrl of [
-  "http://localhost:11434", "http://127.0.0.1:11434", "http://[::1]:11434", "https://remote.example",
+  "http://localhost:8000", "http://127.0.0.1:8000", "http://[::1]:8000", "https://remote.example",
 ]) {
   test(`authenticated endpoint permits ${baseUrl}`, async () => {
     let calls = 0;
 
     const client = new DecisionClient({
-      environment: { OLLAMA_BASE_URL: baseUrl, OLLAMA_API_KEY: "synthetic-secret-key" },
+      environment: { OMLX_BASE_URL: baseUrl, OMLX_API_KEY: "synthetic-secret-key" },
       fetch: async (url, init) => {
         calls++;
-        assert.equal(String(url), `${baseUrl}/api/tags`);
+        assert.equal(String(url), `${baseUrl}/v1/models/status`);
         assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer synthetic-secret-key");
 
         return Response.json(installed);
       },
     });
 
-    assert.deepEqual(await client.discover(), installed);
+    assert.deepEqual(await client.discover(), { models: [{ id: "installed", loaded: false }] });
     assert.equal(calls, 1);
   });
 }
@@ -723,19 +644,19 @@ test("redirects never forward credentials or request state", async (t) => {
   });
 
   await assert.rejects(new DecisionClient({
-    environment: { OLLAMA_BASE_URL: origin.url, OLLAMA_API_KEY: "synthetic-key" },
+    environment: { OMLX_BASE_URL: origin.url, OMLX_API_KEY: "synthetic-key" },
   }).decide(request), /Redirects are not allowed/);
   assert.equal(destination.requests.length, 0);
 });
 
 test("unavailable network errors are redacted failures", async () => {
   const tools = createDecisionTools(new DecisionClient({
-    environment: { OLLAMA_API_KEY: "synthetic-network-key" },
+    environment: { OMLX_API_KEY: "synthetic-network-key" },
     fetch: async () => { throw new Error("synthetic-network-key synthetic-private-state"); },
   }));
 
   const result = await tools[1].handler({ ...request, state: "synthetic-private-state" }, {
-    sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: request,
+    sessionId: "test", toolCallId: "test", toolName: "omlx_decide", arguments: request,
   });
 
   assert.equal(result.resultType, "failure");
@@ -749,11 +670,11 @@ for (const url of [
 ]) {
   test(`invalid base URL rejected before network (${url})`, async () => {
     const client = new DecisionClient({
-      environment: { OLLAMA_BASE_URL: url },
+      environment: { OMLX_BASE_URL: url },
       fetch: async () => { assert.fail("invalid config must not fetch"); },
     });
 
-    await assert.rejects(client.discover(), /OLLAMA_BASE_URL/);
+    await assert.rejects(client.discover(), /OMLX_BASE_URL/);
   });
 }
 
@@ -761,7 +682,7 @@ test("default configuration uses localhost and no key", async () => {
   const client = new DecisionClient({
     environment: {},
     fetch: async (input, init) => {
-      assert.equal(String(input), "http://localhost:11434/api/tags");
+      assert.equal(String(input), "http://localhost:8000/v1/models/status");
       assert.equal(new Headers(init?.headers).get("Authorization"), null);
 
       return Response.json({ models: [] });
@@ -773,7 +694,7 @@ test("default configuration uses localhost and no key", async () => {
 
 test("invalid header configuration is redacted", async () => {
   await assert.rejects(new DecisionClient({
-    environment: { OLLAMA_API_KEY: "secret\r\nother" },
+    environment: { OMLX_API_KEY: "secret\r\nother" },
     fetch: async () => { assert.fail("invalid config must not fetch"); },
   }).discover(), /must not contain line breaks/);
 });
@@ -782,34 +703,26 @@ const invalidRequests: [string, unknown][] = [
   ["missing model", { ...request, model: undefined }],
   ["empty model", { ...request, model: " " }],
   ["null state", { ...request, state: null }],
-  ["boolean state", { ...request, state: true }],
-  ["numeric state", { ...request, state: 4 }],
   ["empty state", { ...request, state: " \n" }],
   ["nonfinite state", { ...request, state: { bad: Infinity } }],
   ["zero questions", { ...request, questions: {} }],
-  ["65 questions", { ...request, questions: Object.fromEntries(Array.from({ length: 65 }, (_, i) => [String(i), request.questions.refund])) }],
   ["blank question name", { ...request, questions: { " ": request.questions.refund } }],
   ["wrong type", { ...request, questions: { q: { type: "boolean", instructions: "Test" } } }],
   ["empty instructions", { ...request, questions: { q: { type: "noul", instructions: "" } } }],
   ["missing instructions", { ...request, questions: { q: { type: "noul" } } }],
   ["object instructions", { ...request, questions: { q: { type: "noul", instructions: {} } } }],
-  ["one choice", { ...request, questions: { q: { ...request.questions.category, criteria: { a: null } } } }],
-  ["27 choices", { ...request, questions: { q: { ...request.questions.category, criteria: Object.fromEntries(Array.from({ length: 27 }, (_, i) => [String(i), null])) } } }],
   ["blank choice key", { ...request, questions: { q: { ...request.questions.category, criteria: { a: null, " ": "blank" } } } }],
   ["numeric choice description", { ...request, questions: { q: { ...request.questions.category, criteria: { a: null, b: 1 } } } }],
   ["noul unknown key", { ...request, questions: { q: { ...request.questions.refund, criteria: { yes: "yes" } } } }],
   ["noul null description", { ...request, questions: { q: { ...request.questions.refund, criteria: { true: null } } } }],
   ["noul array criteria", { ...request, questions: { q: { ...request.questions.refund, criteria: [] } } }],
   ["score object criteria", { ...request, questions: { q: { ...request.questions.urgency, criteria: { a: "A", b: "B" } } } }],
-  ["one score level", { ...request, questions: { q: { ...request.questions.urgency, criteria: ["one"] } } }],
-  ["27 score levels", { ...request, questions: { q: { ...request.questions.urgency, criteria: Array(27).fill("level") } } }],
   ["null score level", { ...request, questions: { q: { ...request.questions.urgency, criteria: ["one", null] } } }],
   ["invented request field", { ...request, stream: false }],
   ["null images", { ...request, images: null }],
   ["non-array images", { ...request, images: "aGVsbG8=" }],
   ["empty image", { ...request, images: [""] }],
   ["image URL", { ...request, images: ["https://example.com/image.png"] }],
-  ["image data URL", { ...request, images: ["data:image/png;base64,aGVsbG8="] }],
   ["image with newline", { ...request, images: ["aGVsbG8=\n"] }],
   ["invalid base64 padding", { ...request, images: ["a==="] }],
   ["missing base64 padding", { ...request, images: ["aGVsbG8"] }],
@@ -819,14 +732,11 @@ const invalidRequests: [string, unknown][] = [
   ["unknown image field", { ...request, images: [{ path: "/example.png", extra: true }] }],
   ["agent-supplied image approval", { ...request, images: [{ path: "/example.png", approved: true }] }],
   ["invented question field", { ...request, questions: { q: { ...request.questions.refund, confidence: 0.5 } } }],
-  ["boolean keep alive", { ...request, keep_alive: false }],
-  ["nonfinite keep alive", { ...request, keep_alive: NaN }],
-  ...invalidDurationNumbers.map((seconds): [string, unknown] => [
-    `numeric keep_alive ${String(seconds)}`, { ...request, keep_alive: seconds },
-  ]),
-  ...invalidDurationStrings.map((duration): [string, unknown] => [
-    `keep_alive ${JSON.stringify(duration)}`, { ...request, keep_alive: duration },
-  ]),
+  ["obsolete keep_alive", { ...request, keep_alive: 0 }],
+  ["invalid truncate", { ...request, truncate: "false" }],
+  ["zero choices", { ...request, questions: { q: { ...request.questions.category, criteria: {} } } }],
+  ["zero score levels", { ...request, questions: { q: { ...request.questions.urgency, criteria: [] } } }],
+  ["invalid data URI padding", { ...request, images: ["data:image/png;base64,aGVsbG8"] }],
 ];
 
 for (const [label, input] of invalidRequests) {
@@ -841,7 +751,7 @@ for (const [label, input] of invalidRequests) {
     }));
 
     const result = await tools[1].handler(input, {
-      sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: input,
+      sessionId: "test", toolCallId: "test", toolName: "omlx_decide", arguments: input,
     });
 
     assert.equal(result.resultType, "failure");
@@ -850,58 +760,7 @@ for (const [label, input] of invalidRequests) {
   });
 }
 
-test("numeric keep_alive boundary is the greatest binary64 seconds value with a product below 2^63", () => {
-  const maximum = 9223372036.854774;
-  const next = 9223372036.854776;
-  const bits = new DataView(new ArrayBuffer(8));
-
-  bits.setFloat64(0, maximum);
-  const maximumBits = bits.getBigUint64(0);
-  bits.setFloat64(0, next);
-  assert.equal(bits.getBigUint64(0), maximumBits + 1n);
-  assert.ok(maximum * 1e9 < 2 ** 63);
-  assert.equal(next * 1e9, 2 ** 63);
-  assert.equal(Number(9223372036854775807n) / 1e9, next, "the rounded Go maximum is unsafe");
-
-  for (const keep_alive of [...validDurationNumbers, -0]) {
-    assert.ok(Value.Check(DecisionRequestSchema, { ...request, keep_alive }), String(keep_alive));
-  }
-
-  for (const keep_alive of invalidDurationNumbers) {
-    assert.equal(Value.Check(DecisionRequestSchema, { ...request, keep_alive }), false, String(keep_alive));
-  }
-});
-
-test("keep_alive accepts Go duration strings and numeric seconds without changing wire values", async (t) => {
-  for (const keep_alive of [...validDurationStrings, ...validDurationNumbers]) {
-    await t.test(JSON.stringify(keep_alive), async (t) => {
-      const expected = { ...request, keep_alive };
-
-      const http = await server(t, (req, res) => {
-        if (req.path === "/api/tags") json(res, installed);
-        else {
-          assert.equal(req.path, "/v1/systemone");
-          assert.deepEqual(req.body, expected);
-          json(res, response);
-        }
-      });
-
-      const tools = createDecisionTools(new DecisionClient({
-        environment: { OLLAMA_BASE_URL: http.url },
-      }));
-
-      const result = await tools[1].handler(expected, {
-        sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: expected,
-      });
-
-      assert.equal(result.resultType, "success");
-      assert.deepEqual(JSON.parse(result.textResultForLlm), response);
-      assert.deepEqual(http.requests.map((req) => req.path), ["/api/tags", "/v1/systemone"]);
-    });
-  }
-});
-
-for (const endpoint of ["/api/tags", "/api/show", "/v1/systemone"]) {
+for (const endpoint of ["/v1/models/status", "/v1/systemone"]) {
   for (const declared of [true, false]) {
     test(`${endpoint} rejects ${declared ? "declared" : "chunked"} response over 4 MiB and closes the stream`, { timeout: 5_000 }, async (t) => {
       const closed = Promise.withResolvers<void>();
@@ -914,19 +773,19 @@ for (const endpoint of ["/api/tags", "/api/show", "/v1/systemone"]) {
           if (declared) res.setHeader("Content-Length", String(4 * 1024 * 1024 + 1));
           res.writeHead(200, { "Content-Type": "application/json" });
           res.write(declared ? sensitive : sensitive.padEnd(4 * 1024 * 1024 + 1, " "));
-        } else if (req.path === "/api/tags") {
-          json(res, { models: [{ name: "installed:latest" }] });
-        } else json(res, { capabilities: ["decision"] });
+        } else if (req.path === "/v1/models/status") {
+          json(res, installed);
+        } else json(res, response);
       });
 
       const tools = createDecisionTools(new DecisionClient({
-        environment: { OLLAMA_BASE_URL: http.url },
+        environment: { OMLX_BASE_URL: http.url },
         metadataTimeoutMs: 1_000,
         inferenceTimeoutMs: 1_000,
       }));
 
       const result = await tools[1].handler(request, {
-        sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: request,
+        sessionId: "test", toolCallId: "test", toolName: "omlx_decide", arguments: request,
       });
 
       assert.equal(result.resultType, "failure");
@@ -948,7 +807,7 @@ test("chunked response limit counts UTF-8 bytes, not characters", async (t) => {
   });
 
   await assert.rejects(new DecisionClient({
-    environment: { OLLAMA_BASE_URL: http.url },
+    environment: { OMLX_BASE_URL: http.url },
   }).discover(), /response exceeds.*4 MiB/);
 });
 
@@ -958,7 +817,7 @@ for (const declared of [true, false]) {
     const body = `${serialized}${" ".repeat(4 * 1024 * 1024 - Buffer.byteLength(serialized, "utf8"))}`;
 
     const http = await server(t, (req, res) => {
-      if (req.path === "/api/tags") json(res, installed);
+      if (req.path === "/v1/models/status") json(res, installed);
       else {
         if (declared) res.setHeader("Content-Length", String(Buffer.byteLength(body, "utf8")));
         res.writeHead(200, { "Content-Type": "application/json" });
@@ -968,7 +827,7 @@ for (const declared of [true, false]) {
     });
 
     assert.deepEqual(await new DecisionClient({
-      environment: { OLLAMA_BASE_URL: http.url },
+      environment: { OMLX_BASE_URL: http.url },
     }).decide(request), response);
   });
 }
@@ -984,7 +843,7 @@ test("schema accepts exact limits, JSON arrays, null choice descriptions, and pa
       model: "installed",
       state: ["public", { nested: [true, null, 1] }],
       questions: { q: question },
-      keep_alive: -1,
+      truncate: false,
     }));
   }
 
@@ -995,15 +854,6 @@ test("schema accepts exact limits, JSON arrays, null choice descriptions, and pa
   assert.ok(Value.Check(DecisionRequestSchema, {
     ...request, questions: { q: { ...request.questions.urgency, criteria: Array(26).fill("level") } },
   }));
-});
-
-test("newer Ollama cache metadata is validated and preserved including zero output tokens", async (t) => {
-  for (const prompt_eval_cached_count of [0, 512]) {
-    const expected = { ...response, prompt_eval_cached_count, usage: { input_tokens: 2265, output_tokens: 0 } };
-    const http = await server(t, (req, res) => json(res, req.path === "/api/tags" ? installed : expected));
-
-    assert.deepEqual(await new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } }).decide(request), expected);
-  }
 });
 
 const invalidResponses: [string, unknown][] = [
@@ -1029,19 +879,17 @@ const invalidResponses: [string, unknown][] = [
   ["wrong legend keys", { ...response, answers: { ...response.answers, urgency: { ...response.answers.urgency, legend: { "1": "Routine", "2": "Soon", "3": "Immediate" } } } }],
   ["wrong score probabilities", { ...response, answers: { ...response.answers, urgency: { ...response.answers.urgency, probabilities: { low: 0.1, mid: 0.2, high: 0.7 } } } }],
   ["fractional input usage", { ...response, usage: { input_tokens: 1.2, output_tokens: 1 } }],
+  ["nonzero generated tokens", { ...response, usage: { input_tokens: 1, output_tokens: 1 } }],
   ["negative output usage", { ...response, usage: { input_tokens: 1, output_tokens: -1 } }],
   ["missing usage", { model: response.model, answers: response.answers }],
   ["invented usage", { ...response, usage: { ...response.usage, total_tokens: 177 } }],
-  ["negative cache count", { ...response, prompt_eval_cached_count: -1 }],
-  ["fractional cache count", { ...response, prompt_eval_cached_count: 0.5 }],
-  ["string cache count", { ...response, prompt_eval_cached_count: "0" }],
 ];
 
 for (const [label, payload] of invalidResponses) {
   test(`invalid response rejects ${label}`, async (t) => {
-    const http = await server(t, (req, res) => json(res, req.path === "/api/tags" ? installed : payload));
+    const http = await server(t, (req, res) => json(res, req.path === "/v1/models/status" ? installed : payload));
     await assert.rejects(new DecisionClient({
-      environment: { OLLAMA_BASE_URL: http.url },
+      environment: { OMLX_BASE_URL: http.url },
     }).decide(request), /response|answer|Choice|Score|probabilities/i);
     assert.equal(http.requests.length, 2);
   });
@@ -1063,7 +911,7 @@ for (const phase of ["metadata", "inference", "body"] as const) {
     const http = await server(t, (req, res) => {
       if (phase === "metadata") return;
 
-      if (req.path === "/api/tags") json(res, installed);
+      if (req.path === "/v1/models/status") json(res, installed);
       else if (phase === "body") {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.write("{");
@@ -1071,19 +919,19 @@ for (const phase of ["metadata", "inference", "body"] as const) {
     });
 
     const client = new DecisionClient({
-      environment: { OLLAMA_BASE_URL: http.url },
+      environment: { OMLX_BASE_URL: http.url },
       metadataTimeoutMs: 80,
       inferenceTimeoutMs: 80,
     });
 
     await assert.rejects(client.decide(request), {
-      message: `${phase === "metadata" ? "api/tags" : "v1/systemone"} timed out. No retry was attempted.`,
+      message: `${phase === "metadata" ? "v1/models/status" : "v1/systemone"} timed out. No retry was attempted.`,
     });
     assert.equal(http.requests.length, phase === "metadata" ? 1 : 2);
   });
 }
 
-for (const endpoint of ["/api/tags", "/api/show", "/v1/systemone"]) {
+for (const endpoint of ["/v1/models/status", "/v1/systemone"]) {
   for (const cancel of [false, true]) {
     test(`${endpoint} stalled response body ${cancel ? "cancels" : "times out"} and closes the stream`, { timeout: 5_000 }, async (t) => {
       const controller = new AbortController();
@@ -1096,13 +944,13 @@ for (const endpoint of ["/api/tags", "/api/show", "/v1/systemone"]) {
           res.once("close", () => closed.resolve());
           res.writeHead(200, { "Content-Type": "application/json" });
           res.write("{");
-        } else if (req.path === "/api/tags") {
-          json(res, { models: [{ name: "installed:latest" }] });
-        } else json(res, { capabilities: ["decision"] });
+        } else if (req.path === "/v1/models/status") {
+          json(res, installed);
+        } else json(res, response);
       });
 
       const tools = createDecisionTools(new DecisionClient({
-        environment: { OLLAMA_BASE_URL: http.url },
+        environment: { OMLX_BASE_URL: http.url },
         metadataTimeoutMs: 100,
         inferenceTimeoutMs: 100,
         fetch: async (url, init) => {
@@ -1117,7 +965,7 @@ for (const endpoint of ["/api/tags", "/api/show", "/v1/systemone"]) {
       }));
 
       const result = await tools[1].handler(request, {
-        sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: request, signal: controller.signal,
+        sessionId: "test", toolCallId: "test", toolName: "omlx_decide", arguments: request, signal: controller.signal,
       });
 
       assert.equal(result.resultType, "failure");
@@ -1134,11 +982,11 @@ test("host cancellation reaches the tool's active inference request", async (t) 
   const controller = new AbortController();
 
   const http = await server(t, (req, res) => {
-    if (req.path === "/api/tags") json(res, installed);
+    if (req.path === "/v1/models/status") json(res, installed);
     else controller.abort(new Error("synthetic-sensitive-cancel-reason"));
   });
 
-  const tools = createDecisionTools(new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } }));
+  const tools = createDecisionTools(new DecisionClient({ environment: { OMLX_BASE_URL: http.url } }));
 
   const result = await tools[1].handler(request, {
     sessionId: "test", toolCallId: "test", toolName: tools[1].name, arguments: request, signal: controller.signal,
@@ -1151,54 +999,18 @@ test("host cancellation reaches the tool's active inference request", async (t) 
   assert.equal(http.requests.length, 2);
 });
 
-test("discovery host cancellation stops serial show requests", async (t) => {
-  const controller = new AbortController();
-
-  const http = await server(t, (req, res) => {
-    if (req.path === "/api/tags") json(res, { models: [{ name: "first" }, { name: "second" }] });
-    else controller.abort();
-  });
-
-  await assert.rejects(new DecisionClient({
-    environment: { OLLAMA_BASE_URL: http.url },
-  }).discover(controller.signal), /cancelled/);
-  assert.equal(http.requests.length, 2);
-});
-
-test("discovery has a single metadata deadline across serial lookups", async (t) => {
-  const timers: ReturnType<typeof setTimeout>[] = [];
-
-  t.after(() => timers.forEach(clearTimeout));
-
-  const http = await server(t, (req, res) => {
-    if (req.path === "/api/tags") {
-      json(res, { models: [{ name: "first" }, { name: "second" }] });
-    } else {
-      timers.push(setTimeout(() => json(res, { capabilities: ["decision"] }), 70));
-    }
-  });
-
-  await assert.rejects(new DecisionClient({
-    environment: { OLLAMA_BASE_URL: http.url },
-    metadataTimeoutMs: 120,
-  }).discover(), /timed out/);
-  assert.deepEqual(http.requests.map((req) => req.body), [
-    undefined, { model: "first" }, { model: "second" },
-  ]);
-});
-
 test("pre-cancelled request sends no HTTP traffic", async (t) => {
   const http = await server(t, (_, res) => json(res, installed));
   await assert.rejects(new DecisionClient({
-    environment: { OLLAMA_BASE_URL: http.url },
+    environment: { OMLX_BASE_URL: http.url },
   }).decide(request, AbortSignal.abort()), /cancelled/);
   assert.equal(http.requests.length, 0);
 });
 
 test("tool returns exact data and rejects discovery arguments", async (t) => {
-  const http = await server(t, (req, res) => json(res, req.path === "/api/tags" ? installed : response));
-  const tools = createDecisionTools(new DecisionClient({ environment: { OLLAMA_BASE_URL: http.url } }));
-  const invocation = { sessionId: "test", toolCallId: "test", toolName: "ollama_decide", arguments: request };
+  const http = await server(t, (req, res) => json(res, req.path === "/v1/models/status" ? installed : response));
+  const tools = createDecisionTools(new DecisionClient({ environment: { OMLX_BASE_URL: http.url } }));
+  const invocation = { sessionId: "test", toolCallId: "test", toolName: "omlx_decide", arguments: request };
   assert.deepEqual(await tools[1].handler(request, invocation), {
     textResultForLlm: JSON.stringify(response), resultType: "success",
   });
