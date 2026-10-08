@@ -14,7 +14,7 @@ const extensions = [
   "plugins/digivolution/extensions/digivolution",
   "plugins/omlx-media/extensions/omlx-media",
   "plugins/screen-record/extensions/screen-record",
-  "plugins/ollama-decisions/extensions/ollama-decisions",
+  "plugins/omlx-decisions/extensions/omlx-decisions",
 ];
 
 const [mode = "check", selected] = process.argv.slice(2);

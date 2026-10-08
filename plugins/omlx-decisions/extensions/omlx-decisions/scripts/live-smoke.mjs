@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import { DecisionClient } from "../src/decisions.ts";
 
-if (process.env.OLLAMA_DECISIONS_LIVE !== "1" || !process.env.OLLAMA_DECISIONS_MODEL) {
-  throw new Error("Opt in with OLLAMA_DECISIONS_LIVE=1 and OLLAMA_DECISIONS_MODEL set to an exact installed decision model. No models are downloaded.");
+if (process.env.OMLX_DECISIONS_LIVE !== "1" || !process.env.OMLX_DECISIONS_MODEL) {
+  throw new Error("Opt in with OMLX_DECISIONS_LIVE=1 and OMLX_DECISIONS_MODEL set to an exact installed decision model. No models are downloaded.");
 }
 
 const client = new DecisionClient();
 
-const model = process.env.OLLAMA_DECISIONS_MODEL;
+const model = process.env.OMLX_DECISIONS_MODEL;
 
 const discovery = await client.discover();
 
-assert.ok(discovery.models.some((entry) => entry.name === model), "exact model must be installed and decision-capable");
+assert.ok(discovery.models.some((entry) => entry.id === model), "exact model must be installed and decision-capable");
 
 const result = await client.decide({
   model,
@@ -33,7 +33,7 @@ const result = await client.decide({
       criteria: ["Routine", "Soon", "Immediate"],
     },
   },
-  keep_alive: 0,
+  truncate: false,
 });
 
 assert.equal(result.model, model);
@@ -48,6 +48,6 @@ assert.equal(result.answers.urgency.type, "score");
 
 assert.ok(Number.isInteger(result.usage.input_tokens));
 
-assert.ok(Number.isInteger(result.usage.output_tokens));
+assert.equal(result.usage.output_tokens, 0);
 
 console.log("Live decision smoke passed. Discovery and all three answer shapes validated; no model-specific answer assumed.");

@@ -5,10 +5,6 @@ import { discoverGeniex } from "../src/providers/geniex.ts";
 describe("discoverLocalProviders", () => {
   it("registers models returned by each supported local server", async () => {
     const fetchImplementation = vi.fn(async (url: string, _init?: RequestInit) => {
-      if (url === "http://localhost:11434/api/tags") {
-        return jsonResponse({ models: [{ name: "qwen3:8b", model: "Qwen 3 8B" }] });
-      }
-
       if (url === "http://localhost:1234/api/v1/models") {
         return jsonResponse({
           models: [
@@ -40,6 +36,11 @@ describe("discoverLocalProviders", () => {
               id: "mlx-embed",
               model_type: "embedding",
             },
+            {
+              id: "clef-flash",
+              model_type: "decision",
+              engine_type: "decision",
+            },
           ],
         });
       }
@@ -60,7 +61,6 @@ describe("discoverLocalProviders", () => {
 
     const configuration = await discoverLocalProviders(
       {
-        OLLAMA_API_KEY: "ollama-token",
         LMSTUDIO_API_KEY: "lmstudio-token",
         OMLX_API_KEY: "omlx-token",
         OSARAUS_API_KEY: "osaurus-token",
@@ -72,12 +72,6 @@ describe("discoverLocalProviders", () => {
     );
 
     expect(configuration.providers).toEqual([
-      {
-        name: "ollama",
-        baseUrl: "http://localhost:11434/v1",
-        apiKey: "ollama-token",
-        wireApi: "completions",
-      },
       {
         name: "lmstudio",
         baseUrl: "http://localhost:1234/v1",
@@ -104,7 +98,6 @@ describe("discoverLocalProviders", () => {
       },
     ]);
     expect(configuration.models).toMatchObject([
-      { id: "qwen3:8b", provider: "ollama", name: "Qwen 3 8B" },
       {
         id: "local-model",
         provider: "lmstudio",
@@ -140,10 +133,6 @@ describe("discoverLocalProviders", () => {
       },
     ]);
     expect(fetchImplementation).toHaveBeenCalledWith(
-      "http://localhost:11434/api/tags",
-      expect.objectContaining({ headers: { Authorization: "Bearer ollama-token" } }),
-    );
-    expect(fetchImplementation).toHaveBeenCalledWith(
       "http://localhost:1234/api/v1/models",
       expect.objectContaining({ headers: { Authorization: "Bearer lmstudio-token" } }),
     );
@@ -172,7 +161,7 @@ describe("discoverLocalProviders", () => {
       providers: [],
       models: [],
     });
-    expect(warning).toHaveBeenCalledTimes(5);
+    expect(warning).toHaveBeenCalledTimes(4);
   });
 
   it("normalizes GenieX overrides and ignores malformed model entries", async () => {
@@ -210,7 +199,7 @@ describe("discoverLocalProviders", () => {
 
   it("ignores malformed provider payloads and model fields", async () => {
     const fetchImplementation = vi.fn(async (url: string, _init?: RequestInit) => {
-      if (url.includes("11434")) {
+      if (url.includes("1337")) {
         return jsonResponse({ models: [{ name: "valid", model: 42 }, { name: 42 }] });
       }
 
@@ -221,18 +210,37 @@ describe("discoverLocalProviders", () => {
 
     expect(configuration.providers).toEqual([
       {
-        name: "ollama",
-        baseUrl: "http://localhost:11434/v1",
-        apiKey: "ollama",
+        name: "osaurus",
+        baseUrl: "http://localhost:1337/v1",
+        apiKey: "osaurus",
         wireApi: "completions",
       },
     ]);
     expect(configuration.models).toMatchObject([
       {
         id: "valid",
-        provider: "ollama",
+        provider: "osaurus",
         name: "valid",
       },
+    ]);
+  });
+
+  it("contacts only supported providers", async () => {
+    const endpoints: string[] = [];
+
+    const fetchImplementation = vi.fn(async (url: string) => {
+      endpoints.push(url);
+
+      return jsonResponse({ models: [], data: [] });
+    });
+
+    await discoverLocalProviders({}, fetchImplementation);
+
+    expect(endpoints).toEqual([
+      "http://localhost:1234/api/v1/models",
+      "http://localhost:8000/v1/models/status",
+      "http://localhost:1337/api/tags",
+      "http://127.0.0.1:18181/v1/models",
     ]);
   });
 });

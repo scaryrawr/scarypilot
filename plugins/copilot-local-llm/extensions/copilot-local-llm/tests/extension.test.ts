@@ -8,8 +8,8 @@ describe("extension", () => {
     };
 
     const configuration = {
-      providers: [{ name: "ollama", baseUrl: "http://localhost:11434/v1" }],
-      models: [{ provider: "ollama", id: "local-model" }],
+      providers: [{ name: "omlx", baseUrl: "http://localhost:8000/v1" }],
+      models: [{ provider: "omlx", id: "local-model" }],
     };
 
     const discover = vi.fn(async () => configuration);
