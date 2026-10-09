@@ -5,12 +5,12 @@ This plugin is adapted from
 The adaptation originally imported upstream commit
 `46125561306434d8a1d7745d540d8932ab0cd2a2` and had included the compatible
 changes through upstream repository commit
-`77526ffa67f8dafc698d14b5356e6d4fc78c3127` (pstack version `0.15.13`). The
+`d0ef80d86795816da932a153458c5dbe192d294e` (pstack version `0.15.15`). The
 last commit in that range that changes the `pstack/` subtree is
-`2cbf58508f40de470d7490b55c51d71241928fa2`.
+`df581122cde17e6e27686b5a448bde23e4ad4318`.
 
 The reviewed range starts after
-`b0b9c7a0baf8b6aa1d00bf77d4101e577d4ba411`, the last upstream content commit
+`2cbf58508f40de470d7490b55c51d71241928fa2`, the last upstream content commit
 included by the previous Copilot adaptation. The machine-readable boundary,
 ownership rules, and exclusions live in [`upstream-sync.json`](./upstream-sync.json).
 
@@ -72,6 +72,12 @@ ScaryPilot changed the integration layer for GitHub Copilot:
   retain the opening delimiter and length until a valid closing fence, and
   keep fenced examples out of cadence and prose validation. Rebuilt the
   native bundle and expanded CLI and native regression coverage.
+- Ported the `0.15.14`-`0.15.15` neutral wording for multi-model panels
+  (`several` becomes `different` or `more than one`) in the guide,
+  `/architect`, `/blast-radius`, and `/poteto-help`. Excluded the Sol removal,
+  Opus `xhigh` default slugs, reasoning-budget defaults in `/setup-pstack`,
+  and the Cursor model-rule prompt in `/poteto-help`, because Copilot's model
+  roles omit `model` by default and its setup differs from Cursor's.
 - Updated the guide for prompting, investigation, prototypes, plans,
   verification infrastructure, benchmark evidence, recurring corrections,
   and trust before unattended work. Excluded Cursor Custom Modes shortcuts,

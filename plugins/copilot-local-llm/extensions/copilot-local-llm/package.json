@@ -1,6 +1,6 @@
 {
   "name": "copilot-local-llm",
-  "version": "0.2.6",
+  "version": "1.0.0",
   "private": true,
   "description": "Discover and register local LLM providers in Copilot CLI.",
   "type": "module",
@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
-    "oxfmt": "^0.62.0",
+    "oxfmt": "^0.72.0",
     "oxlint": "^1.75.0",
     "tsdown": "^0.22.14",
     "typescript": "^5.9.0",

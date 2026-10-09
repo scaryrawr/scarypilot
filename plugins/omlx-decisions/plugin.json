@@ -1,0 +1,12 @@
+{
+  "name": "omlx-decisions",
+  "description": "Use installed oMLX decision models for routing, classification, and rubric evaluation.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Mike Wallio",
+    "url": "https://github.com/scaryrawr"
+  },
+  "repository": "https://github.com/scaryrawr/scarypilot",
+  "keywords": ["copilot", "omlx", "systemone", "decision", "classification"],
+  "extensions": ["extensions/"]
+}

@@ -35,15 +35,14 @@ with `/model`.
 
 | Provider  | Default URL              | Discovery endpoint  |
 | --------- | ------------------------ | ------------------- |
-| Ollama    | `http://localhost:11434` | `/api/tags`         |
 | LM Studio | `http://localhost:1234`  | `/api/v1/models`    |
 | OMLX      | `http://localhost:8000`  | `/v1/models/status` |
 | OSaurus   | `http://localhost:1337`  | `/api/tags`         |
 | GenieX    | `http://127.0.0.1:18181` | `/v1/models`        |
 
 Set `<PROVIDER>_BASE_URL` to override a default server URL, and optionally set
-`<PROVIDER>_API_KEY` when a local server requires authentication. Ollama and
-OSaurus use `<PROVIDER>_CONTEXT_LENGTH` to override their default 131072-token
+`<PROVIDER>_API_KEY` when a local server requires authentication.
+OSaurus uses `<PROVIDER>_CONTEXT_LENGTH` to override its default 131072-token
 context window. GenieX uses the same setting with a 65536-token default.
 `OSARAUS_*` aliases are accepted for compatibility with the original project's
 spelling.

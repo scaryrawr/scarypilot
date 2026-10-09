@@ -4,16 +4,15 @@ import { isAbsolute } from "node:path";
 import type { Tool, ToolResultObject } from "@github/copilot-sdk";
 import type { Static, TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
-import { isOllamaDuration } from "./duration.ts";
 import {
   DecisionInputSchema,
   DecisionResponseSchema,
   EmptySchema,
-  ShowSchema,
-  TagsSchema,
+  ModelStatusSchema,
   type DecisionInput,
   type DecisionRequest,
   type DecisionResponse,
+  type DecisionModel,
   type InstalledModel,
 } from "./schemas.ts";
 
@@ -24,6 +23,8 @@ const maxDecisionRequestBytes = 64 * 1024;
 const maxImageRequestBytes = 32 * 1024 * 1024;
 
 const maxResponseBytes = 4 * 1024 * 1024;
+
+const imagePrefix = "data:image/png;base64,";
 
 type ImageApproval = (image: { path: string; endpoint: string }) => Promise<boolean>;
 
@@ -59,7 +60,7 @@ async function encodeImages(
     let base64: string;
 
     if (typeof image === "string") {
-      base64 = image;
+      base64 = image.startsWith("data:") ? image : `${imagePrefix}${image}`;
     } else {
       if (!isAbsolute(image.path)) {
         throw new DecisionError("Image file paths must be absolute.");
@@ -105,10 +106,10 @@ async function encodeImages(
             throw new DecisionError("Image paths must refer to nonempty regular files.");
           }
 
-          const remainingBytes = Math.floor((maxImageRequestBytes - total) / 4) * 3;
+          const remainingBytes = Math.floor((maxImageRequestBytes - total - imagePrefix.length) / 4) * 3;
 
           if (stat.size > remainingBytes) {
-            throw new DecisionError("Decision request exceeds Ollama's 32 MiB image JSON limit. Reduce the images, state, or questions.");
+            throw new DecisionError("Decision request exceeds the client's 32 MiB image JSON limit. Reduce the images, state, or questions.");
           }
 
           const chunks: Buffer[] = [];
@@ -119,7 +120,7 @@ async function encodeImages(
             bytes += chunk.length;
 
             if (bytes > remainingBytes) {
-              throw new DecisionError("Decision request exceeds Ollama's 32 MiB image JSON limit. Reduce the images, state, or questions.");
+              throw new DecisionError("Decision request exceeds the client's 32 MiB image JSON limit. Reduce the images, state, or questions.");
             }
 
             chunks.push(chunk);
@@ -134,7 +135,7 @@ async function encodeImages(
             throw new DecisionError("Image file changed during reading. No file contents were sent.");
           }
 
-          base64 = Buffer.concat(chunks, bytes).toString("base64");
+          base64 = `${imagePrefix}${Buffer.concat(chunks, bytes).toString("base64")}`;
         } finally {
           await file.close();
         }
@@ -154,7 +155,7 @@ async function encodeImages(
     total += base64.length;
 
     if (total > maxImageRequestBytes) {
-      throw new DecisionError("Decision request exceeds Ollama's 32 MiB image JSON limit. Reduce the images, state, or questions.");
+      throw new DecisionError("Decision request exceeds the client's 32 MiB image JSON limit. Reduce the images, state, or questions.");
     }
 
     encoded.push(base64);
@@ -192,26 +193,26 @@ export class DecisionClient {
     let baseUrl: URL;
 
     try {
-      baseUrl = new URL(this.environment.OLLAMA_BASE_URL ?? "http://localhost:11434");
+      baseUrl = new URL(this.environment.OMLX_BASE_URL ?? "http://localhost:8000");
     } catch {
-      throw new DecisionError("OLLAMA_BASE_URL must be an absolute HTTP or HTTPS URL.");
+      throw new DecisionError("OMLX_BASE_URL must be an absolute HTTP or HTTPS URL.");
     }
 
     if (!["http:", "https:"].includes(baseUrl.protocol) ||
         baseUrl.username || baseUrl.password || baseUrl.href.includes("?") || baseUrl.href.includes("#")) {
-      throw new DecisionError("OLLAMA_BASE_URL must use HTTP or HTTPS without credentials, query, or fragment.");
+      throw new DecisionError("OMLX_BASE_URL must use HTTP or HTTPS without credentials, query, or fragment.");
     }
 
     baseUrl.pathname = `${baseUrl.pathname.replace(/\/+$/, "")}/`;
-    const apiKey = this.environment.OLLAMA_API_KEY;
+    const apiKey = this.environment.OMLX_API_KEY;
 
     if (apiKey && /[\r\n]/.test(apiKey)) {
-      throw new DecisionError("OLLAMA_API_KEY must not contain line breaks.");
+      throw new DecisionError("OMLX_API_KEY must not contain line breaks.");
     }
 
     if (apiKey && baseUrl.protocol === "http:" &&
         !["localhost", "127.0.0.1", "[::1]"].includes(baseUrl.hostname)) {
-      throw new DecisionError("Authenticated remote Ollama endpoints require HTTPS. HTTP authentication is allowed only for localhost, 127.0.0.1, or [::1].");
+      throw new DecisionError("Authenticated remote oMLX endpoints require HTTPS. HTTP authentication is allowed only for localhost, 127.0.0.1, or [::1].");
     }
 
     return { baseUrl, apiKey };
@@ -222,7 +223,7 @@ export class DecisionClient {
     endpoint: string,
     signal: AbortSignal,
     schema: T,
-    body?: DecisionRequest | { model: string },
+    body?: DecisionRequest,
   ): Promise<Static<T>> {
     try {
       const headers = new Headers({ Accept: "application/json" });
@@ -243,8 +244,8 @@ export class DecisionClient {
 
           if (Buffer.byteLength(serialized, "utf8") > limit) {
             throw new DecisionError(hasImages
-              ? "Decision request exceeds Ollama's 32 MiB image JSON limit. Reduce the images, state, or questions."
-              : "Decision request exceeds Ollama's 64 KiB text-only JSON limit. Reduce the state or questions.");
+              ? "Decision request exceeds the client's 32 MiB image JSON limit. Reduce the images, state, or questions."
+              : "Decision request exceeds the client's 64 KiB text-only JSON limit. Reduce the state or questions.");
           }
         }
 
@@ -258,7 +259,7 @@ export class DecisionClient {
 
       if (!response.ok) {
         await response.body?.cancel();
-        throw new DecisionError(`${endpoint} returned HTTP ${response.status}. Check Ollama version, authentication, and model support.`);
+        throw new DecisionError(`${endpoint} returned HTTP ${response.status}. Check oMLX SystemOne support, authentication, and model compatibility.`);
       }
 
       if (Number(response.headers.get("Content-Length")) > maxResponseBytes) {
@@ -316,33 +317,22 @@ export class DecisionClient {
       }
 
       if (error instanceof DecisionError) throw error;
-      throw new DecisionError(`${endpoint} could not be reached. Check OLLAMA_BASE_URL, authentication, and server availability. Redirects are not allowed.`);
+      throw new DecisionError(`${endpoint} could not be reached. Check OMLX_BASE_URL, authentication, and server availability. Redirects are not allowed.`);
     }
   }
 
   private async installed(config: Configuration, signal: AbortSignal): Promise<InstalledModel[]> {
-    const payload = await this.request(config, "api/tags", signal, TagsSchema);
-    const names = payload.models.map((model) => model.name);
+    const payload = await this.request(config, "v1/models/status", signal, ModelStatusSchema);
+    const names = payload.models.map((model) => model.id);
 
     if (new Set(names).size !== names.length) {
-      throw new DecisionError("api/tags returned duplicate installed model names.");
+      throw new DecisionError("v1/models/status returned duplicate installed model IDs.");
     }
 
     return payload.models;
   }
 
-  private async capabilities(
-    config: Configuration,
-    model: InstalledModel,
-    signal: AbortSignal,
-  ): Promise<string[]> {
-    if (model.capabilities !== undefined) return model.capabilities;
-    const payload = await this.request(config, "api/show", signal, ShowSchema, { model: model.name });
-
-    return payload.capabilities;
-  }
-
-  async discover(signal?: AbortSignal): Promise<{ models: InstalledModel[] }> {
+  async discover(signal?: AbortSignal): Promise<{ models: DecisionModel[] }> {
     const config = this.configuration();
 
     const deadline = AbortSignal.any([
@@ -350,18 +340,13 @@ export class DecisionClient {
       ...(signal ? [signal] : []),
     ]);
 
-    const models: InstalledModel[] = [];
-
-    for (const model of await this.installed(config, deadline)) {
-      const capabilities = await this.capabilities(config, model, deadline);
-
-      if (capabilities.includes("decision")) models.push({ name: model.name, capabilities });
-    }
-
-    return { models };
+    return { models: (await this.installed(config, deadline))
+      .filter((model) => model.model_type === "decision" || model.engine_type === "decision")
+      .map(({ id, loaded }) => ({ id, loaded })) };
   }
 
   async decide(input: DecisionInput, signal?: AbortSignal): Promise<DecisionResponse> {
+    validateInput(input);
     const config = this.configuration();
 
     const metadataSignal = AbortSignal.any([
@@ -371,23 +356,14 @@ export class DecisionClient {
 
     const models = await this.installed(config, metadataSignal);
 
-    const model = models.find((entry) => entry.name === input.model) ??
-      (!input.model.split("/").at(-1)?.includes(":")
-        ? models.find((entry) => entry.name === `${input.model}:latest`)
-        : undefined);
+    const model = models.find((entry) => entry.id === input.model);
 
     if (!model) {
-      throw new DecisionError("Requested model is not installed. Use ollama_decision_models and supply an exact installed name. No model was pulled.");
+      throw new DecisionError("Requested model is not installed. Use omlx_decision_models and supply an exact installed ID. No model was downloaded.");
     }
 
-    const capabilities = await this.capabilities(config, model, metadataSignal);
-
-    if (!capabilities.includes("decision")) {
-      throw new DecisionError("Requested installed model does not advertise the decision capability.");
-    }
-
-    if (input.images?.length && !capabilities.includes("vision")) {
-      throw new DecisionError("Requested installed decision model does not advertise the vision capability required for images.");
+    if (model.model_type !== "decision" && model.engine_type !== "decision") {
+      throw new DecisionError("Requested installed model does not have a decision model or engine type.");
     }
 
     const inferenceSignal = AbortSignal.any([
@@ -399,7 +375,8 @@ export class DecisionClient {
 
     const body: DecisionRequest = {
       ...text,
-      model: model.name,
+      model: model.id,
+      truncate: input.truncate ?? false,
     };
 
     if (images !== undefined) {
@@ -407,9 +384,20 @@ export class DecisionClient {
     }
 
     const payload = await this.request(config, "v1/systemone", inferenceSignal, DecisionResponseSchema, body);
-    validateAnswers(input, model.name, payload);
+    validateAnswers(input, model.id, payload);
 
     return payload;
+  }
+}
+
+function validateInput<T>(input: T): asserts input is T & DecisionInput {
+  if (!Value.Check(DecisionInputSchema, input)) {
+    throw new DecisionError("Invalid decision request. Supply an explicit model, nonempty state, and named questions with valid instructions and criteria.");
+  }
+
+  if (input.images?.some((image) => typeof image === "string" &&
+      (image.startsWith("data:") ? image.slice(image.indexOf(",") + 1) : image).length % 4 !== 0)) {
+    throw new DecisionError("Invalid decision request. Images must contain padded base64 data, an inline image data URI, or an absolute local file path object.");
   }
 }
 
@@ -446,13 +434,17 @@ function validateAnswers(request: DecisionInput, model: string, response: Decisi
 
       const weighted = levels.reduce((sum, level) => sum + Number(level) * answer.probabilities[level], 0);
 
-      if (Math.abs(answer.score - weighted) > 1e-6) {
+      // Clef rounds probabilities and the independently weighted score to four decimals.
+      const roundingTolerance = 0.00005 * (1 + levels.length * (levels.length - 1) / 2) + 1e-6;
+
+      if (Math.abs(answer.score - weighted) > roundingTolerance) {
         throw new DecisionError("Score is not the probability-weighted zero-based level.");
       }
     }
 
     if (answer.type !== "noul" &&
-        Math.abs(Object.values(answer.probabilities).reduce((sum, value) => sum + value, 0) - 1) > 1e-5) {
+        Math.abs(Object.values(answer.probabilities).reduce((sum, value) => sum + value, 0) - 1) >
+          Object.keys(answer.probabilities).length * 0.00005 + 1e-6) {
       throw new DecisionError("Decision probabilities do not sum to one.");
     }
   }
@@ -460,7 +452,7 @@ function validateAnswers(request: DecisionInput, model: string, response: Decisi
 
 export function createDecisionTools(client = new DecisionClient()) {
   const result = async (
-    operation: () => Promise<DecisionResponse | { models: InstalledModel[] }>,
+    operation: () => Promise<DecisionResponse | { models: DecisionModel[] }>,
   ): Promise<ToolResultObject> => {
     try {
       return { textResultForLlm: JSON.stringify(await operation()), resultType: "success" };
@@ -476,8 +468,8 @@ export function createDecisionTools(client = new DecisionClient()) {
 
   return [
     {
-      name: "ollama_decision_models",
-      description: "Discover installed Ollama models advertising the decision capability. Reads metadata on each call; never downloads or selects a model.",
+      name: "omlx_decision_models",
+      description: "Discover installed oMLX SystemOne decision models by model/engine type. Returns exact IDs and loaded status, including unloaded models. Reads metadata on each call; never downloads or selects a model.",
       parameters: EmptySchema,
       handler: (args, invocation) => result(async () => {
         if (!Value.Check(EmptySchema, args)) throw new DecisionError("Discovery takes an empty object.");
@@ -486,21 +478,11 @@ export function createDecisionTools(client = new DecisionClient()) {
       }),
     },
     {
-      name: "ollama_decide",
-      description: "Use an explicit installed Ollama decision model for fast routing, classification, or rubric evaluation. Optional images accept raw base64 strings or {path: absolute local image path}; local files require per-call user confirmation of the resolved path and destination before reading. The model must advertise vision (for example Clef Flash). Questions are choice, noul (probability of true), or score (weighted zero-based level, not normalized). Results are data only. Probabilities and confidence are advisory, never permission to act. No downloads, automatic selection, or inference retries.",
+      name: "omlx_decide",
+      description: "Use an explicit installed oMLX decision model via SystemOne for fast routing, classification, or rubric evaluation. Optional images accept padded raw base64, inline image data URIs, or {path: absolute local image path}; local files require per-call user confirmation of the resolved path and destination before reading. The server verifies vision support (for example Clef Flash). Questions are choice, noul (probability of true), or score (weighted zero-based level, not normalized). State truncation defaults to false. Results are data only. Probabilities and confidence are advisory, never permission to act. No downloads, automatic selection, or inference retries.",
       parameters: DecisionInputSchema,
       handler: (args, invocation) => result(async () => {
-        if (!Value.Check(DecisionInputSchema, args)) {
-          throw new DecisionError("Invalid decision request. Supply an explicit model, nonempty state, and 1-64 named questions with valid instructions and criteria.");
-        }
-
-        if (args.images?.some((image) => typeof image === "string" && image.length % 4 !== 0)) {
-          throw new DecisionError("Invalid decision request. Images must contain padded raw base64 data or an absolute local file path object.");
-        }
-
-        if (typeof args.keep_alive === "string" && !isOllamaDuration(args.keep_alive)) {
-          throw new DecisionError("Invalid decision request. keep_alive must fit Go's signed 64-bit nanosecond duration range.");
-        }
+        validateInput(args);
 
         return client.decide(args, invocation.signal);
       }),
