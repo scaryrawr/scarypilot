@@ -125,6 +125,29 @@ describe("/autoresearch help and finalize", () => {
         rmSync(cwd, { recursive: true });
       }
     });
+
+    it.each(["missing", "../outside"])(`${JSON.stringify(alias)} shows help with invalid workingDir %s`, async (workingDir) => {
+      const cwd = mkTmp();
+      const { logs, levels, sent, runtime, command, resetAutoResume, aborts } = setup(cwd);
+      runtime.autoresearchMode = true;
+
+      try {
+        mkdirSync(path.join(cwd, ".auto"));
+        const config = JSON.stringify({ workingDir });
+        const configPath = path.join(cwd, ".auto", "config.json");
+        writeFileSync(configPath, config);
+        await command.handler(commandContext(alias));
+        expect(logs[0]).toContain("Usage: /autoresearch");
+        expect(levels[0]).toBeUndefined();
+        expect(sent).toEqual([]);
+        expect(runtime.autoresearchMode).toBe(true);
+        expect(aborts()).toBe(0);
+        expect(resetAutoResume).not.toHaveBeenCalled();
+        expect(readFileSync(configPath, "utf-8")).toBe(config);
+      } finally {
+        rmSync(cwd, { recursive: true });
+      }
+    });
   }
 
   for (const content of [undefined, "", `${configLine}\n`]) {

@@ -59,6 +59,13 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
       const session = deps.getSession();
       const args = (cmdCtx.args ?? "").trim();
       const sub = args.toLowerCase();
+
+      if (!args || ["help", "--help", "-h"].includes(sub)) {
+        await session.log(HELP);
+
+        return;
+      }
+
       const cwd = deps.cwdRef.get();
       const workDirError = validateWorkDir(cwd);
 
@@ -69,12 +76,6 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
       }
 
       const workDir = resolveWorkDir(cwd);
-
-      if (!args || ["help", "--help", "-h"].includes(sub)) {
-        await session.log(HELP);
-
-        return;
-      }
 
       const stopLoop = async (): Promise<boolean> => {
         deps.runtime.autoresearchMode = false;

@@ -171,6 +171,9 @@ export function createRunTool(ctx: RunContext): Tool<RunArgs> {
 
       if (invocation.signal?.aborted) {
         clearLastOutput(ctx.runtime);
+        ctx.runtime.lastRunChecks = null;
+        ctx.runtime.lastRunDurationSeconds = null;
+        savePersistedRuntime(workDir, invocation.sessionId, ctx.runtime);
         ctx.log("Experiment aborted.", "warning");
 
         return "🛑 Experiment aborted — no result recorded.";

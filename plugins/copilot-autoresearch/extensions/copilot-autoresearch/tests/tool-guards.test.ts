@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { ToolInvocation } from "@github/copilot-sdk";
 import { createCwdRef } from "../src/extension-context.ts";
 import { autoresearchConfigPath, autoresearchJsonlPath, ensureParentDir } from "../src/paths.ts";
-import { defaultRuntimeState, restoredMode } from "../src/state.ts";
+import { defaultRuntimeState, loadPersistedRuntime, restoredMode, savePersistedRuntime } from "../src/state.ts";
 import { createInitTool } from "../src/tools-init.ts";
 import { createLogTool } from "../src/tools-log.ts";
 import { createRunTool } from "../src/tools-run.ts";
@@ -126,6 +126,9 @@ describe("run_experiment cancellation", () => {
           path.join(cwd, ".auto", "checks.sh"),
           stage === "checks" ? pausedScript : "printf checks > checks-ran\n",
         );
+        runtime.lastRunChecks = { pass: false, output: "previous failed checks", durationSeconds: 10 };
+        runtime.lastRunDurationSeconds = 10;
+        savePersistedRuntime(cwd, invocation.sessionId, runtime);
         const tool = createRunTool({ cwdRef: createCwdRef(cwd), runtime, log: () => {} });
 
         if (!tool.handler) throw new Error("run_experiment must define a handler");
@@ -143,7 +146,6 @@ describe("run_experiment cancellation", () => {
           await new Promise((resolve) => setTimeout(resolve, 5));
         }
 
-        runtime.autoresearchMode = false;
         controller.abort();
         releaseTimer = setTimeout(() => writeFileSync(path.join(cwd, "release"), ""), 100);
 
@@ -155,6 +157,11 @@ describe("run_experiment cancellation", () => {
         expect(runtime.lastRunChecks).toBeNull();
         expect(runtime.lastRunDurationSeconds).toBeNull();
         expect(runtime.lastOutputPath).toBeNull();
+        expect(loadPersistedRuntime(cwd, invocation.sessionId)).toEqual({
+          autoresearchMode: true,
+          lastRunChecks: null,
+          lastRunDurationSeconds: null,
+        });
       } finally {
         clearTimeout(releaseTimer);
         controller.abort();
