@@ -2,7 +2,7 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "c490f777fe44f8fb0053612b30845fb4d9cbcde4f218c74f6cb540bf4a7a1103",
+    "package-lock.json": "f8b53bfe42f79f99966384af6c191f206278753e1348759d83810c395eee351b",
     "package.json": "1afb07e8ef4b9a280b3c2a599e6bc75628415e78be379cc83009300ae1131836",
     "src/extension.ts": "8cd26ee6a84822056a6be46fd0259d10eb31d87d55f444e05e5d7df99af01df6",
     "src/register.ts": "a43c748d8b63a79e121d60ac51abd6cafeadea3648c0b18dc09792eb5a6219e7",

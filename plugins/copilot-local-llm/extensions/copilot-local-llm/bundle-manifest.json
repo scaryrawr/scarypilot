@@ -2,8 +2,8 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "126d0f794a8bfb2212c636793fd5000717a5d2bd7bc23e75c4a4a880dd5992fd",
-    "package.json": "d61a036adf51e3fa80a526bba28d53b97bb1402b62950624778ea59a2d2b7847",
+    "package-lock.json": "c673c90d298558edc69033be3a8d9c3c1dc08f18724f858df1cf0b4bafd7b2c8",
+    "package.json": "a7832b4e959024d6b0cd289360bdd65abc330e6aff82dd7becdd2a80bb588541",
     "src/extension.ts": "acfbaf1dcf41cf99b178370211ace791bd35ba8e36e9f26554d8362946ca838e",
     "src/local-providers.ts": "51f832f94aa040a4022b5290045ee9df0b40377675e879bd0aacfa398c285e30",
     "src/providers/geniex.ts": "8ee5be695037cccf8e5cb30a9bbef4956d1c61bf2b6f16dba5cfbeb9bf0a0442",
