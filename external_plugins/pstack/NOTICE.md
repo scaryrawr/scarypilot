@@ -73,7 +73,7 @@ ScaryPilot changed the integration layer for GitHub Copilot:
   keep fenced examples out of cadence and prose validation. Rebuilt the
   native bundle and expanded CLI and native regression coverage.
 - Ported the `0.15.14`-`0.15.15` neutral wording for multi-model panels
-  (`several` becomes `different` or `more than one`) in the guide, README,
+  (`several` becomes `different` or `more than one`) in the guide,
   `/architect`, `/blast-radius`, and `/poteto-help`. Excluded the Sol removal,
   Opus `xhigh` default slugs, reasoning-budget defaults in `/setup-pstack`,
   and the Cursor model-rule prompt in `/poteto-help`, because Copilot's model
