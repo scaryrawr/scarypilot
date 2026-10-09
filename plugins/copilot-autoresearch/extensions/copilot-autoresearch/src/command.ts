@@ -83,6 +83,7 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
         deps.resetAutoResume();
         await stopLiveDashboard();
         savePersistedRuntime(workDir, cmdCtx.sessionId, deps.runtime);
+
         return abortActiveTurn(session);
       };
 

@@ -68,6 +68,8 @@ cancels auto-resume, and aborts the active turn before asking the agent to invok
 the finalization skill in the configured working directory. If aborting fails,
 the skill is not sent; the warning explains why. The skill presents proposed
 branches for approval before creating them.
+Benchmark and checks processes receive the SDK cancellation signal when their
+turn is aborted, and aborted runs do not publish late run/checks state.
 
 **Auto-resume**
 

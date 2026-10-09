@@ -57,6 +57,7 @@ describe("/autoresearch help and finalize", () => {
   const configLine = JSON.stringify({
     type: "config", name: "t", metricName: "ms", metricUnit: "ms", bestDirection: "lower",
   });
+
   const log = [
     configLine,
     JSON.stringify({
@@ -76,6 +77,7 @@ describe("/autoresearch help and finalize", () => {
     const levels: Array<string | undefined> = [];
     const sent: string[] = [];
     let aborts = 0;
+
     const session: TestSession = {
       abort: async () => {
         aborts += 1;
@@ -86,11 +88,14 @@ describe("/autoresearch help and finalize", () => {
       },
       send: async (options) => {
         sent.push(typeof options === "string" ? options : options.prompt);
+
         return "message-id";
       },
     };
+
     const runtime = defaultRuntimeState();
     const resetAutoResume = vi.fn();
+
     const command = createAutoresearchCommand({
       cwdRef: createCwdRef(cwd),
       runtime,
@@ -166,16 +171,19 @@ describe("/autoresearch help and finalize", () => {
       const cwd = mkTmp();
       const { sent, runtime, command, aborts, resetAutoResume } = setup(cwd);
       const workDir = layout === "redirected" ? path.join(cwd, "experiment") : cwd;
+
       const logFile = layout === "legacy"
         ? path.join(workDir, "autoresearch.jsonl")
         : path.join(workDir, ".auto", "log.jsonl");
 
       try {
         writeLog(logFile);
+
         if (layout === "redirected") {
           mkdirSync(path.join(cwd, ".auto"));
           writeFileSync(path.join(cwd, ".auto", "config.json"), JSON.stringify({ workingDir: "experiment" }));
         }
+
         runtime.autoresearchMode = true;
         runtime.lastRunChecks = { pass: true, output: "ok", durationSeconds: 1 };
         runtime.lastRunDurationSeconds = 1;

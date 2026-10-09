@@ -5,7 +5,7 @@
     "package-lock.json": "461714cf08b0b4a6d6daa5b4b335177cfc89f68a195ceb8c4399552493be9c59",
     "package.json": "335ed789c0e5009e0cb8c87d91c7ce7985a7980c7f4cfd98f4524003a94f96d3",
     "src/auto-resume.ts": "0055178b9e0d8190484ec9ae434fa96fa2bdb2225c71b44d5327df5d6082b339",
-    "src/command.ts": "734f2f868a366386d6ba80201e090884b77e0a93d92cc654988614132d5b1184",
+    "src/command.ts": "427c032ec36f48af6d335d3fbf2cccaef21c07748745474621d25c9e5f2e9fef",
     "src/confidence.ts": "7ce8857e95e7b83a6a34045ef0d3745034fbd1e84202423a98e9439db0ac343f",
     "src/dashboard.ts": "8ecc3d248ebf9e215cf28b926deb119f56c0f798e18aea014bc2c9349a8b8058",
     "src/extension-context.ts": "2e0d4810ccd3bd67885c0f8aa11a10cc08c5592839734d6a0c8df4c4533baabf",
@@ -20,10 +20,10 @@
     "src/system-prompt.ts": "417592f3c8304906c9a76110c321ffe2b38e9f3df778827f13fc012f9882be9c",
     "src/tools-init.ts": "f2151dac40737fef412d401b492df415f45ba17dd49b72c949ed1c282aa367b1",
     "src/tools-log.ts": "55848879b1c52f37f6be93551c4bfdc6c68801ab178725187cc9d8e6b0ed8168",
-    "src/tools-run.ts": "b9de1ab06cfaad2817eed50bd13d3cba2fbb4384ae1fa4d123f947fe230e3fec",
+    "src/tools-run.ts": "1f82df20d6db8b7d28f5f09b62f8b449f62d0ac0ed5a7c9412900c9b8b76ab53",
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
   },
   "outputs": {
-    "dist/extension.mjs": "3501a2302bfce8bda7a4a549eef4322924e901314c3dfd6d68c8409c0134118b"
+    "dist/extension.mjs": "dceb84e76dac27015f0ba108f05119d7cf08e844ea4b61ac86e468b5dd2ef9d2"
   }
 }
