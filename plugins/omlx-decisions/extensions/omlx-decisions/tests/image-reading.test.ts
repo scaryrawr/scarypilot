@@ -6,7 +6,7 @@ import { mock, test } from "node:test";
 
 test("mutation after pre-read checks rejects before image encoding and inference", async (t) => {
   t.after(() => mock.restoreAll());
-  const directory = await mkdtemp(join(tmpdir(), "ollama-decisions-reading-"));
+  const directory = await mkdtemp(join(tmpdir(), "omlx-decisions-reading-"));
 
   t.after(() => rm(directory, { recursive: true, force: true }));
   const path = join(directory, "image.png");
@@ -67,8 +67,8 @@ test("mutation after pre-read checks rejects before image encoding and inference
         environment: {},
         approveImage: async () => true,
         fetch: async (url) => {
-          if (String(url).endsWith("/api/tags")) {
-            return Response.json({ models: [{ name: "installed:latest", capabilities: ["decision", "vision"] }] });
+          if (String(url).endsWith("/v1/models/status")) {
+            return Response.json({ models: [{ id: "installed", model_type: "decision", engine_type: "decision", loaded: false }] });
           }
 
           inferences++;
@@ -77,7 +77,7 @@ test("mutation after pre-read checks rejects before image encoding and inference
       });
 
       await assert.rejects(client.decide({
-        model: "installed:latest",
+        model: "installed",
         state: "Synthetic image",
         images: [{ path }],
         questions: { food: { type: "noul", instructions: "Does the image show food?" } },

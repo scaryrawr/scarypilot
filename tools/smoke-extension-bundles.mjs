@@ -12,6 +12,7 @@ const extensions = [
   "plugins/copilot-local-llm/extensions/copilot-local-llm",
   "plugins/digivolution/extensions/digivolution",
   "plugins/omlx-media/extensions/omlx-media",
+  "plugins/omlx-decisions/extensions/omlx-decisions",
   "plugins/screen-record/extensions/screen-record",
 ];
 
@@ -87,6 +88,13 @@ for (const extension of extensions) {
         "screen_record_status", "screen_record_stop", "screen_record_windows",
       ])) {
       throw new Error(`${extension}: missing expected capture lifecycle tools`);
+    }
+
+    if (extension === "plugins/omlx-decisions/extensions/omlx-decisions" &&
+      JSON.stringify(registration.toolNames.toSorted()) !== JSON.stringify([
+        "omlx_decide", "omlx_decision_models",
+      ])) {
+      throw new Error(`${extension}: missing expected SystemOne decision tools`);
     }
 
     console.log(`${extension}: isolated startup verified`);
