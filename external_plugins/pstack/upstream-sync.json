@@ -1,26 +1,101 @@
 {
-    "name": "pstack",
-    "description": "Copilot-compatible adaptation of pstack's rigorous planning, review, delegation, and verification workflows.",
-    "version": "0.15.15-copilot.1",
-    "author": {
-        "name": "Lauren Tan"
+  "schemaVersion": 1,
+  "upstream": {
+    "repository": "https://github.com/cursor/plugins",
+    "subtree": "pstack",
+    "reviewedFromCommit": "2cbf58508f40de470d7490b55c51d71241928fa2",
+    "integratedCommit": "d0ef80d86795816da932a153458c5dbe192d294e",
+    "contentCommit": "df581122cde17e6e27686b5a448bde23e4ad4318",
+    "version": "0.15.15"
+  },
+  "localVersion": "0.15.15-copilot.1",
+  "requiredSkills": [
+    "how",
+    "why",
+    "unslop",
+    "typescript-best-practices",
+    "principle-attack-the-premise",
+    "principle-test-behavior-not-implementation",
+    "benchmark-checklist",
+    "correct",
+    "poteto-help",
+    "principle-explain-the-number"
+  ],
+  "forbiddenSkillFrontmatter": [
+    "disable-model-invocation"
+  ],
+  "forbiddenContent": [
+    {
+      "pattern": "/add-plugin",
+      "paths": [
+        "skills",
+        "docs/guide"
+      ]
     },
-    "homepage": "https://github.com/cursor/plugins/tree/main/pstack",
-    "repository": "https://github.com/scaryrawr/scarypilot",
-    "license": "MIT",
-    "keywords": [
-        "pstack",
-        "poteto-mode",
-        "workflow",
-        "review",
-        "planning",
-        "copilot"
-    ],
-    "skills": [
-        "skills/"
-    ],
-    "agents": "agents/",
-    "extensions": [
-        "extensions"
-    ]
+    {
+      "pattern": ".cursor/",
+      "paths": [
+        "skills",
+        "docs/guide"
+      ]
+    },
+    {
+      "pattern": "subagent_type",
+      "paths": [
+        "skills",
+        "docs/guide"
+      ]
+    },
+    {
+      "pattern": "AskQuestion",
+      "paths": [
+        "skills",
+        "docs/guide"
+      ]
+    }
+  ],
+  "mappedUpstreamPaths": [
+    {
+      "path": ".cursor-plugin/plugin.json",
+      "localPaths": [
+        "plugin.json"
+      ],
+      "reason": "Version, attribution, and descriptive metadata are mapped into the Copilot manifest."
+    },
+    {
+      "path": "agents",
+      "localPaths": [
+        "agents"
+      ],
+      "reason": "Upstream agent behavior is reviewed and mapped into Copilot .agent.md manifests."
+    }
+  ],
+  "excludedUpstreamPaths": [
+    {
+      "path": "automations/benny",
+      "reason": "Copilot plugins do not expose the Cursor Automations runtime."
+    },
+    {
+      "path": "skills/make-bot-ui",
+      "reason": "The skill depends on Cursor-only routines, secret-request cards, and UI behavior."
+    },
+    {
+      "path": "assets/logo.png",
+      "reason": "The image is Cursor marketplace metadata."
+    },
+    {
+      "path": ".gitignore",
+      "reason": "The upstream subtree ignore file is not part of the Copilot package."
+    }
+  ],
+  "copilotOwnedPaths": [
+    "contracts",
+    "extensions",
+    "skills/deslop",
+    "skills/pstack-schema-validate",
+    "NOTICE.md",
+    "plugin.json",
+    "upstream-sync.json",
+    "tools"
+  ]
 }

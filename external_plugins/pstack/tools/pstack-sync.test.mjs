@@ -33,6 +33,10 @@ const policy = {
   copilotOwnedPaths: ["extensions", "skills/deslop"],
 };
 
+test("shipped pstack integration satisfies the sync policy", () => {
+  assert.deepEqual(checkRepository(), []);
+});
+
 test("classifies a bounded upstream change set", () => {
   const changes = parseNameStatus(
     [
