@@ -76,14 +76,14 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
         return;
       }
 
-      const stopLoop = async (): Promise<void> => {
+      const stopLoop = async (): Promise<boolean> => {
         deps.runtime.autoresearchMode = false;
         deps.runtime.lastRunChecks = null;
         deps.runtime.lastRunDurationSeconds = null;
         deps.resetAutoResume();
         await stopLiveDashboard();
         savePersistedRuntime(workDir, cmdCtx.sessionId, deps.runtime);
-        await abortActiveTurn(session);
+        return abortActiveTurn(session);
       };
 
       if (sub === "off") {
@@ -94,7 +94,25 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
       }
 
       if (sub === "finalize") {
-        if (!hasLoggedExperiment(workDir)) {
+        const jsonlPath = autoresearchJsonlPath(workDir);
+        let hasLoggedExperiment: boolean;
+
+        try {
+          hasLoggedExperiment =
+            fs.existsSync(jsonlPath) &&
+            reconstructJsonlState(fs.readFileSync(jsonlPath, "utf-8")).results.length > 0;
+        } catch (error) {
+          await session.log(
+            `Failed to read experiment log ${jsonlPath}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+            { level: "error" },
+          );
+
+          return;
+        }
+
+        if (!hasLoggedExperiment) {
           await session.log(
             "No logged experiments to finalize — use '/autoresearch <goal>' to start a session.",
             { level: "error" },
@@ -103,11 +121,11 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
           return;
         }
 
-        await stopLoop();
+        if (!(await stopLoop())) return;
         await session.log("Autoresearch mode OFF — loading autoresearch-finalize skill.");
         await session.send({
           prompt:
-            "Invoke the autoresearch-finalize skill to turn the kept experiments in .auto/log.jsonl into reviewable branches.",
+            `Invoke the autoresearch-finalize skill in working directory ${JSON.stringify(workDir)} to turn the kept experiments in ${JSON.stringify(jsonlPath)} into reviewable branches.`,
         });
 
         return;
@@ -205,21 +223,11 @@ export function createAutoresearchCommand(deps: CommandContextDeps): CommandDefi
   };
 }
 
-function hasLoggedExperiment(workDir: string): boolean {
-  try {
-    const jsonlPath = autoresearchJsonlPath(workDir);
-
-    if (!fs.existsSync(jsonlPath)) return false;
-
-    return reconstructJsonlState(fs.readFileSync(jsonlPath, "utf-8")).results.length > 0;
-  } catch {
-    return false;
-  }
-}
-
-async function abortActiveTurn(session: AutoresearchSession): Promise<void> {
+async function abortActiveTurn(session: AutoresearchSession): Promise<boolean> {
   try {
     await session.abort();
+
+    return true;
   } catch (e) {
     await session.log(
       `Autoresearch mode changed, but the active turn could not be aborted: ${
@@ -227,5 +235,7 @@ async function abortActiveTurn(session: AutoresearchSession): Promise<void> {
       }`,
       { level: "warning" },
     );
+
+    return false;
   }
 }

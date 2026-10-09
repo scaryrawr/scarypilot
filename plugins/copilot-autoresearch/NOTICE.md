@@ -4,8 +4,8 @@
 - Revision: `468f6ddecaa473f69ffc25243db326ba6bd5188b`
 - Imported: 2026-08-25
 - Original workflow: <https://github.com/davebcn87/pi-autoresearch>
-- Upstream parity reviewed through: `939ede8220daad440eac6bb7b6e315cc283e0a64`
-  (2026-10-06; upstream release `v1.9.0` at `04b8a50`)
+- Upstream parity reviewed through: `04b8a50dac7efe80ffc91648bd00ed9b022e24c2`
+  (2026-10-07; upstream release `v1.9.0`)
 
 The extension runtime, tests, and three bundled skills were imported into
 ScaryPilot. Marketplace metadata and installation documentation were added,

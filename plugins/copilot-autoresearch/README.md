@@ -63,6 +63,12 @@ tool names; the second copy will be rejected by Copilot CLI.
 /autoresearch status     print a rehydration summary of current session state
 ```
 
+`finalize` requires at least one logged experiment. It turns the mode off,
+cancels auto-resume, and aborts the active turn before asking the agent to invoke
+the finalization skill in the configured working directory. If aborting fails,
+the skill is not sent; the warning explains why. The skill presents proposed
+branches for approval before creating them.
+
 **Auto-resume**
 
 When in autoresearch mode and the agent goes idle after logging at least one
@@ -121,7 +127,7 @@ measurement noise are a separate case and don't set this field.
 
 ## Differences vs pi-autoresearch
 
-Parity is tracked against pi-autoresearch 1.8.1. The `.auto/` contract,
+Parity is tracked against pi-autoresearch 1.9.0. The `.auto/` contract,
 experiment lifecycle, benchmark and checks gates, iteration limits,
 failure guard, finalization workflow, and live browser reporting are preserved
 where Copilot exposes an equivalent extension API.
@@ -143,6 +149,8 @@ adapted:
 - **No configurable keyboard shortcuts.** Copilot CLI extensions can't bind
   keys. Upstream 1.7.0 also makes Pi shortcuts opt-in; use the Copilot slash
   command subcommands instead.
+- **No subcommand autocomplete.** Copilot's command API exposes a command name,
+  description, and handler, but no argument-completion provider.
 - **Tools cannot be removed dynamically from Copilot's model schema.** They
   remain discoverable while mode is off, but reject execution until
   `/autoresearch <goal>` activates the loop.
