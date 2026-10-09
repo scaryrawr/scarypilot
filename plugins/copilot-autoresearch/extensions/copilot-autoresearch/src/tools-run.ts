@@ -119,6 +119,7 @@ export function createRunTool(ctx: RunContext): Tool<RunArgs> {
         result = await runShellStreaming(args.command, {
           cwd: workDir,
           timeoutMs,
+          signal: invocation.signal,
           maxBytes: STREAM_MAX_BYTES,
           maxLines: STREAM_MAX_LINES,
           onTick: ctx.progress
@@ -134,7 +135,10 @@ export function createRunTool(ctx: RunContext): Tool<RunArgs> {
       }
 
       const durationSeconds = result.durationMs / 1000;
-      const benchmarkPassed = result.exitCode === 0 && !result.killed;
+
+      const benchmarkPassed =
+        result.exitCode === 0 && !result.killed && !invocation.signal?.aborted;
+
       const fullOutputPath = ensureFullOutput(result);
       ctx.runtime.lastOutputPath = fullOutputPath ?? null;
 
@@ -152,6 +156,7 @@ export function createRunTool(ctx: RunContext): Tool<RunArgs> {
           const checksResult = await runShell({ script: checksPath }, {
             cwd: workDir,
             timeoutMs: checksTimeoutMs,
+            signal: invocation.signal,
           });
 
           checksDurationSeconds = checksResult.durationMs / 1000;
@@ -162,6 +167,16 @@ export function createRunTool(ctx: RunContext): Tool<RunArgs> {
           checksPass = false;
           checksOutput = e instanceof Error ? e.message : String(e);
         }
+      }
+
+      if (invocation.signal?.aborted) {
+        clearLastOutput(ctx.runtime);
+        ctx.runtime.lastRunChecks = null;
+        ctx.runtime.lastRunDurationSeconds = null;
+        savePersistedRuntime(workDir, invocation.sessionId, ctx.runtime);
+        ctx.log("Experiment aborted.", "warning");
+
+        return "🛑 Experiment aborted — no result recorded.";
       }
 
       ctx.runtime.lastRunChecks =

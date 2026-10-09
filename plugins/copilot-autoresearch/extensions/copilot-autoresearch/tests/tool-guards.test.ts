@@ -1,11 +1,11 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { ToolInvocation } from "@github/copilot-sdk";
 import { createCwdRef } from "../src/extension-context.ts";
 import { autoresearchConfigPath, autoresearchJsonlPath, ensureParentDir } from "../src/paths.ts";
-import { defaultRuntimeState, restoredMode } from "../src/state.ts";
+import { defaultRuntimeState, loadPersistedRuntime, restoredMode, savePersistedRuntime } from "../src/state.ts";
 import { createInitTool } from "../src/tools-init.ts";
 import { createLogTool } from "../src/tools-log.ts";
 import { createRunTool } from "../src/tools-run.ts";
@@ -106,6 +106,69 @@ describe("tool mode guards", () => {
       rmSync(cwd, { recursive: true });
     }
   });
+});
+
+describe("run_experiment cancellation", () => {
+  for (const stage of ["benchmark", "checks"]) {
+    it(`stops an aborted ${stage} without publishing late run state`, async () => {
+      const cwd = mkTmp();
+      const runtime = defaultRuntimeState();
+      const controller = new AbortController();
+      const measure = path.join(cwd, ".auto", "measure.sh");
+      const pausedScript = "printf started > started\nwhile [ ! -f release ]; do sleep 0.01; done\nprintf late > late\n";
+      let releaseTimer: ReturnType<typeof setTimeout> | undefined;
+      runtime.autoresearchMode = true;
+
+      try {
+        ensureParentDir(measure);
+        writeFileSync(measure, `${stage === "benchmark" ? pausedScript : ""}printf 'METRIC time=1\\n'\n`);
+        writeFileSync(
+          path.join(cwd, ".auto", "checks.sh"),
+          stage === "checks" ? pausedScript : "printf checks > checks-ran\n",
+        );
+        runtime.lastRunChecks = { pass: false, output: "previous failed checks", durationSeconds: 10 };
+        runtime.lastRunDurationSeconds = 10;
+        savePersistedRuntime(cwd, invocation.sessionId, runtime);
+        const tool = createRunTool({ cwdRef: createCwdRef(cwd), runtime, log: () => {} });
+
+        if (!tool.handler) throw new Error("run_experiment must define a handler");
+
+        const pending = tool.handler(
+          { command: "bash .auto/measure.sh", timeout_seconds: 2, checks_timeout_seconds: 2 },
+          { ...invocation, signal: controller.signal },
+        );
+
+        const deadline = Date.now() + 2_000;
+
+        while (!existsSync(path.join(cwd, "started"))) {
+          if (Date.now() > deadline) throw new Error("experiment did not start");
+
+          await new Promise((resolve) => setTimeout(resolve, 5));
+        }
+
+        controller.abort();
+        releaseTimer = setTimeout(() => writeFileSync(path.join(cwd, "release"), ""), 100);
+
+        const result = await pending;
+
+        expect(result).toContain("Experiment aborted");
+        expect(existsSync(path.join(cwd, "late"))).toBe(false);
+        expect(existsSync(path.join(cwd, "checks-ran"))).toBe(false);
+        expect(runtime.lastRunChecks).toBeNull();
+        expect(runtime.lastRunDurationSeconds).toBeNull();
+        expect(runtime.lastOutputPath).toBeNull();
+        expect(loadPersistedRuntime(cwd, invocation.sessionId)).toEqual({
+          autoresearchMode: true,
+          lastRunChecks: null,
+          lastRunDurationSeconds: null,
+        });
+      } finally {
+        clearTimeout(releaseTimer);
+        controller.abort();
+        rmSync(cwd, { recursive: true });
+      }
+    });
+  }
 });
 
 describe("log_experiment revisits_run", () => {

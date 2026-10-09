@@ -4,8 +4,8 @@
 - Revision: `468f6ddecaa473f69ffc25243db326ba6bd5188b`
 - Imported: 2026-08-25
 - Original workflow: <https://github.com/davebcn87/pi-autoresearch>
-- Upstream parity reviewed through: `939ede8220daad440eac6bb7b6e315cc283e0a64`
-  (2026-09-10; runtime remains `v1.7.0`)
+- Upstream parity reviewed through: `04b8a50dac7efe80ffc91648bd00ed9b022e24c2`
+  (2026-10-07; upstream release `v1.9.0`)
 
 The extension runtime, tests, and three bundled skills were imported into
 ScaryPilot. Marketplace metadata and installation documentation were added,
@@ -57,3 +57,11 @@ Upstream `#96` (docs: fix README startup instructions) corrects the Pi
 `pi-autoresearch` README's install/quickstart snippets for the standalone npm
 package; it does not describe the Copilot plugin's install or slash-command
 workflow, which already document activation correctly, so it was not ported.
+
+Upstream 1.9.0 (`#100`, `#101`) adds `/autoresearch finalize`, `help`/`--help`/`-h`
+aliases, and subcommand autocomplete. `finalize` and the help aliases are
+adapted: `finalize` stops the loop like `off` and then asks the agent to invoke
+the `autoresearch-finalize` skill, reporting an error when no experiment is
+logged. Subcommand autocomplete depends on Pi's command-completion API, which
+Copilot CLI extensions lack, so it was not ported; the dashboard-hint fix and
+the publish workflow changes are Pi-only.
