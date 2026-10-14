@@ -13,11 +13,13 @@
    Shipping's base-freshness rule takes precedence. Any trunk or intended-parent movement requires fresh CI and required live/perf evidence on the combined new base and head before a new STACK-READY verdict or landing. Unchanged patch-id, build noise, and disjoint paths cannot preserve stale integration receipts. Record the tested base SHA with the head SHA in each ready report.
 8. **Deliver the chain.** The deliverable is one linear chain of verified PRs, reviewable bottom-up in GitHub, every link carrying its verifier verdict in the PR body or a comment. The operator reviews and lands it.
 
-The handoff is topology-specific. Do not tell the operator to run
-`/poteto-mode land the stack`, because Shipping assumes a Graphite-tracked
-stack. Tell the operator to merge the GitHub base-branch chain bottom-up. After each
-merge, wait for GitHub to retarget the next PR to trunk, confirm its verdict
-still describes the current patch, and then merge the next link.
+The handoff is topology-specific. Shipping requires a gh-stack-tracked stack,
+an explicitly approved verified prefix, and an unambiguous ceiling target.
+Do not install, adopt, or submit an untracked chain to make that handoff work.
+If the chain is already tracked, the operator can separately authorize Shipping
+for the exact prefix. Otherwise hand back the GitHub base-branch chain for
+operator-managed bottom-up merges. After each merge, confirm the next PR's
+actual base and fresh verification evidence before the next landing.
 
 **Choosing between the autopilots.** Autopilot-full when the PRs are independent and landing authority is granted. Autopilot-stack when the operator wants review before landing, the work is sequenced or coupled, or merge authority is withheld.
 

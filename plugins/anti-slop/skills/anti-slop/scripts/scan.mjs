@@ -313,7 +313,9 @@ function normalizeIgnoredDirectories(directories, cwd) {
 function displayPath(filePath, cwd) {
   const relative = path.relative(cwd, filePath);
 
-  return relative && !relative.startsWith("..") ? relative : filePath;
+  return relative && !relative.startsWith("..")
+    ? relative.split(path.sep).join("/")
+    : filePath;
 }
 
 function parseArguments(argv) {

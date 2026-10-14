@@ -25,6 +25,11 @@ The original and adapted files are distributed under the MIT License in
 
 ScaryPilot changed the integration layer for GitHub Copilot:
 
+- Released the breaking gh-stack dependency migration as `1.0.0-copilot.1`,
+  independently of the reviewed upstream `0.15.15` content version. The
+  capability key is now `ghStack`. Frontier acquisition uses the public released
+  gh-stack JSON contract, authoritative GitHub PR lifecycle, and local Git heads.
+  Shipping requires an approved verified prefix rather than merge-when-ready.
 - Converted Cursor model, subagent, and background-execution instructions to
   Copilot Task conventions.
 - Moved generated project skills under `.github/` and pstack's user-level

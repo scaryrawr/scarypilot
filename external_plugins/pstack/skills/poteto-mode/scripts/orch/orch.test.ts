@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, spyOn } from "bun:test";
+import * as childProcess from "node:child_process";
 import {
-  chmod,
   mkdir,
   mkdtemp,
   readFile,
@@ -8,7 +8,6 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -17,6 +16,7 @@ import {
   openStore,
   parseVerdict,
   type OpenStoreOptions,
+  type Frontier,
   type Store,
 } from "./store.ts";
 
@@ -110,61 +110,83 @@ async function makeGitStack(directory: string): Promise<{
   };
 }
 
-async function withFakeGt<T>({
+const execFileSync = childProcess.execFileSync;
+
+function releasedStack() {
+  return {
+    trunk: "main",
+    currentBranch: "stack/open",
+    branches: [
+      { name: "stack/merged", isCurrent: false, isMerged: true, isQueued: false, needsRebase: false,
+        pr: { number: 10, state: "MERGED" } },
+      { name: "stack/closed", isCurrent: false, isMerged: false, isQueued: false, needsRebase: false,
+        pr: { number: 13, state: "OPEN" } },
+      { name: "stack/open", isCurrent: true, isMerged: false, isQueued: true, needsRebase: true,
+        pr: { number: 11, state: "QUEUED" } },
+    ],
+  };
+}
+
+async function withFakeGh<T>({
   directory,
   operation,
   output,
+  fail,
+  gitOutput,
+  pullRequest = (number: number) => ({
+    number,
+    headRefName: ({ 10: "stack/merged", 13: "stack/closed", 11: "stack/open" })[number],
+    state: ({ 10: "MERGED", 13: "CLOSED", 11: "OPEN" })[number],
+  }),
 }: {
   directory: string;
-  operation: (outputPath: string) => Promise<T>;
+  operation: (calls: readonly string[]) => Promise<T>;
   output: string;
+  pullRequest?: (number: number) => unknown;
+  fail?: "view" | "pr" | "git";
+  gitOutput?: string;
 }): Promise<T> {
-  const bin = join(directory, "bin");
-  const outputPath = join(directory, "gt-output.txt");
-  await mkdir(bin);
-  await writeFile(outputPath, output);
-  const gt = join(bin, "gt");
-  await writeFile(
-    gt,
-    `#!/usr/bin/env bash
-set -euo pipefail
-if [ "$(pwd -P)" != "${realpathSync(join(directory, "repo"))}" ]; then
-  printf 'gt ran outside the fixture repo: %s\\n' "$(pwd -P)" >&2
-  exit 2
-fi
-case "$*" in
-  "--no-interactive log short --stack --reverse")
-    cat "${outputPath}"
-    ;;
-  "--no-interactive info stack/merged")
-    printf 'stack/merged\\nPR #10 (Merged) merged change\\n'
-    ;;
-  "--no-interactive info stack/closed")
-    printf 'stack/closed\\nPR #13 (Closed) closed change\\n'
-    ;;
-  "--no-interactive info stack/open")
-    printf 'stack/open\\nPR #11 (Needs approvals) open change\\n'
-    ;;
-  *)
-    printf 'unexpected gt arguments: %s\\n' "$*" >&2
-    exit 2
-    ;;
-esac
-`
-  );
-  await chmod(gt, 0o755);
+  const calls: string[] = [];
 
-  const originalPath = process.env.PATH;
-  process.env.PATH = `${bin}:${originalPath ?? ""}`;
+  const launch = spyOn(childProcess, "execFileSync").mockImplementation(new Proxy(execFileSync, {
+    apply(_target, _receiver, [command, args = [], options]: Parameters<typeof execFileSync>) {
+      calls.push(`${command} ${args.join(" ")}`);
+
+      if (
+        (fail === "git" && command === "git") ||
+        (fail === "view" && command === "gh" && args[0] === "stack") ||
+        (fail === "pr" && command === "gh" && args[0] === "pr")
+      ) throw Object.assign(new Error("simulated launch failure or timeout"), { code: "ETIMEDOUT" });
+
+      if (command === "git") {
+        expect(args.slice(0, 3)).toEqual(["rev-parse", "--verify", "--end-of-options"]);
+        expect(options).toMatchObject({ cwd: join(directory, "repo"), timeout: 10_000, shell: false });
+
+        return gitOutput ?? execFileSync(command, args, options);
+      }
+
+      if (command !== "gh") throw new Error(`unexpected executable: ${command}`);
+      expect(options).toMatchObject({
+        cwd: join(directory, "repo"), timeout: 30_000, windowsHide: true, shell: false,
+        maxBuffer: 4 * 1024 * 1024,
+      });
+
+      if (JSON.stringify(args) === JSON.stringify(["stack", "view", "--json"])) return output;
+
+      if (args[0] === "pr" && args[1] === "view") {
+        expect(args).toEqual(["pr", "view", args[2], "--json", "number,headRefName,state"]);
+
+        return JSON.stringify(pullRequest(Number(args[2])));
+      }
+
+      throw new Error(`unexpected gh arguments: ${JSON.stringify(args)}`);
+    },
+  }));
 
   try {
-    return await operation(outputPath);
+    return await operation(calls);
   } finally {
-    if (originalPath === undefined) {
-      delete process.env.PATH;
-    } else {
-      process.env.PATH = originalPath;
-    }
+    launch.mockRestore();
   }
 }
 
@@ -351,7 +373,7 @@ describe("Store", () => {
 
   it("replaces a stale lock whose holder pid is dead", async () => {
     const { directory } = await initializedStore();
-    const exited = Bun.spawn(["true"]);
+    const exited = Bun.spawn([process.execPath, "-e", "process.exit(0)"]);
     await exited.exited;
     await writeFile(join(directory, ".orch.lock"), `${exited.pid}\n`);
 
@@ -427,19 +449,13 @@ describe("Store", () => {
     ]);
   });
 
-  it("resolves the ordered Graphite frontier and validates an optional pin", async () => {
+  it("resolves released gh-stack JSON with authoritative lifecycle and a complete ordered pin", async () => {
     const { directory, store } = await initializedStore();
     const stack = await makeGitStack(directory);
 
-    const output = `◯ main
-◯ stack/merged
-◯ stack/closed
-◉ stack/open (current)
-`;
-
-    await withFakeGt({
+    await withFakeGh({
       directory,
-      output,
+      output: JSON.stringify(releasedStack()),
       operation: async () => {
         expect(await store.frontier.set({ repo: stack.repo })).toEqual({
           generation: 1,
@@ -480,7 +496,7 @@ describe("Store", () => {
             prs: [10, 11, 12],
           })
         ).rejects.toThrow(
-          "frontier pin mismatch: missing from gt: 12; extra in gt: 13"
+          "frontier pin mismatch: missing from gh-stack: 12; extra in gh-stack: 13"
         );
         await expect(
           store.frontier.set({
@@ -488,7 +504,7 @@ describe("Store", () => {
             prs: [13, 10, 11],
           })
         ).rejects.toThrow(
-          "frontier pin mismatch: order differs: expected 13,10,11; gt 10,13,11"
+          "frontier pin mismatch: order differs: expected 13,10,11; gh-stack 10,13,11"
         );
         await expect(
           store.frontier.set({
@@ -500,19 +516,168 @@ describe("Store", () => {
     });
   });
 
-  it("rejects unparseable Graphite output loudly", async () => {
+  it("rejects malformed gh-stack JSON without changing the frontier", async () => {
     const { directory, store } = await initializedStore();
     const stack = await makeGitStack(directory);
 
-    await withFakeGt({
+    await withFakeGh({
       directory,
-      output: "◯ main\nthis line is not Graphite output\n",
+      output: "{not JSON",
       operation: async () => {
         await expect(
           store.frontier.set({ repo: stack.repo })
         ).rejects.toThrow(
-          'gt log short output has an unparseable line 2: "this line is not Graphite output"'
+          "gh stack view returned malformed JSON"
         );
+        expect(await store.frontier.show()).toEqual({ generation: 0, prs: [], lowestUnmerged: null });
+      },
+    });
+  });
+
+  it.each([
+    ["missing trunk", (value: ReturnType<typeof releasedStack>) => Object.assign(value, { trunk: null })],
+    ["missing current branch", (value: ReturnType<typeof releasedStack>) => Object.assign(value, { currentBranch: "" })],
+    ["unknown current branch", (value: ReturnType<typeof releasedStack>) => Object.assign(value, { currentBranch: "unknown" })],
+    ["non-array branches", (value: ReturnType<typeof releasedStack>) => Object.assign(value, { branches: {} })],
+    ["missing PR", (value: ReturnType<typeof releasedStack>) => Object.assign(value.branches[0], { pr: undefined })],
+    ["invalid PR number", (value: ReturnType<typeof releasedStack>) => Object.assign(value.branches[0].pr, { number: 0 })],
+    ["unsafe PR number", (value: ReturnType<typeof releasedStack>) => Object.assign(value.branches[0].pr, { number: Number.MAX_SAFE_INTEGER + 1 })],
+    ["unknown display state", (value: ReturnType<typeof releasedStack>) => Object.assign(value.branches[0].pr, { state: "FUTURE" })],
+    ["non-string display state", (value: ReturnType<typeof releasedStack>) => Object.assign(value.branches[0].pr, { state: ["OPEN"] })],
+    ["non-boolean topology", (value: ReturnType<typeof releasedStack>) => Object.assign(value.branches[0], { needsRebase: "false" })],
+    ["incorrect current flag", (value: ReturnType<typeof releasedStack>) => Object.assign(value.branches[0], { isCurrent: true })],
+    ["duplicate branch", (value: ReturnType<typeof releasedStack>) => Object.assign(value.branches[1], { name: value.branches[0].name })],
+    ["duplicate PR", (value: ReturnType<typeof releasedStack>) => Object.assign(value.branches[1].pr, { number: 10 })],
+    ["trunk in branches", (value: ReturnType<typeof releasedStack>) => Object.assign(value.branches[0], { name: "main" })],
+    ["option-shaped branch", (value: ReturnType<typeof releasedStack>) => Object.assign(value.branches[0], { name: "--help" })],
+    ["invalid optional head", (value: ReturnType<typeof releasedStack>) => Object.assign(value.branches[0], { head: 12 })],
+  ])("rejects %s before any frontier write or live PR read", async (_label, mutate) => {
+    const { directory, store } = await initializedStore();
+    const stack = await makeGitStack(directory);
+    const value = releasedStack();
+    mutate(value);
+    const before = await readFile(join(directory, "frontier.json"), "utf8");
+
+    await withFakeGh({
+      directory, output: JSON.stringify(value),
+      operation: async (calls) => {
+        await expect(store.frontier.set({ repo: stack.repo })).rejects.toBeInstanceOf(UserError);
+        expect(calls).toEqual(["gh stack view --json"]);
+        expect(await readFile(join(directory, "frontier.json"), "utf8")).toBe(before);
+      },
+    });
+  });
+
+  it.each([
+    { number: 99, headRefName: "stack/merged", state: "MERGED" },
+    { number: 10, headRefName: "other", state: "MERGED" },
+    { number: 10, headRefName: "stack/merged", state: "QUEUED" },
+    { number: 10, headRefName: "stack/merged", state: null },
+  ])("rejects GitHub lifecycle or identity mismatch %j without partial persistence", async (live) => {
+    const { directory, store } = await initializedStore();
+    const stack = await makeGitStack(directory);
+
+    await withFakeGh({
+      directory, output: JSON.stringify(releasedStack()), pullRequest: () => live,
+      operation: async () => {
+        await expect(store.frontier.set({ repo: stack.repo })).rejects.toThrow("invalid lifecycle or identity");
+        expect(await store.frontier.show()).toEqual({ generation: 0, prs: [], lowestUnmerged: null });
+      },
+    });
+  });
+
+  it.each(["view", "pr", "git"] as const)("preserves the prior frontier after a %s command failure", async (fail) => {
+    const { directory, store } = await initializedStore();
+    const stack = await makeGitStack(directory);
+    let previous: Frontier;
+
+    await withFakeGh({
+      directory, output: JSON.stringify(releasedStack()),
+      operation: async () => { previous = await store.frontier.set({ repo: stack.repo }); },
+    });
+    await withFakeGh({
+      directory, output: JSON.stringify(releasedStack()), fail,
+      operation: async () => {
+        await expect(store.frontier.set({ repo: stack.repo })).rejects.toThrow("simulated launch failure or timeout");
+        expect(await store.frontier.show()).toEqual(previous);
+      },
+    });
+  });
+
+  it("reacquires the complete stack and accepts omitted optional fields on each refresh", async () => {
+    const { directory, store } = await initializedStore();
+    const stack = await makeGitStack(directory);
+    const value = releasedStack();
+    value.currentBranch = "main";
+    value.branches[2].isCurrent = false;
+
+    await withFakeGh({
+      directory, output: JSON.stringify(value),
+      operation: async (calls) => {
+        await store.frontier.set({ repo: stack.repo, prs: [10, 13, 11] });
+        const first = [...calls];
+        await store.frontier.set({ repo: stack.repo, prs: [10, 13, 11] });
+        expect(calls).toEqual([...first, ...first]);
+        expect(first.filter((command) => command.startsWith("gh pr view"))).toHaveLength(3);
+        expect(first[0]).toBe("gh stack view --json");
+      },
+    });
+  });
+
+  it("accepts released optional wire fields but persists the local Git head", async () => {
+    const { directory, store } = await initializedStore();
+    const stack = await makeGitStack(directory);
+    const value = releasedStack();
+    Object.assign(value.branches[0], { head: "a".repeat(40), base: "b".repeat(40) });
+    Object.assign(value.branches[0].pr, { url: "https://github.com/example/repo/pull/10" });
+
+    await withFakeGh({
+      directory, output: JSON.stringify(value),
+      operation: async () => {
+        const frontier = await store.frontier.set({ repo: stack.repo });
+        expect(frontier.prs[0].sha).toBe(stack.mergedSha);
+      },
+    });
+  });
+
+  it("resolves local branch heads rather than same-named tags", async () => {
+    const { directory, store } = await initializedStore();
+    const stack = await makeGitStack(directory);
+    execFileSync("git", ["tag", "stack/merged", stack.openSha], { cwd: stack.repo });
+
+    await withFakeGh({
+      directory, output: JSON.stringify(releasedStack()),
+      operation: async () => {
+        const frontier = await store.frontier.set({ repo: stack.repo });
+        expect(frontier.prs[0].sha).toBe(stack.mergedSha);
+      },
+    });
+  });
+
+  it("does not persist partially acquired rows when a later PR identity fails", async () => {
+    const { directory, store } = await initializedStore();
+    const stack = await makeGitStack(directory);
+
+    await withFakeGh({
+      directory, output: JSON.stringify(releasedStack()),
+      pullRequest: (number) => ({ number, headRefName: number === 10 ? "stack/merged" : "wrong", state: "MERGED" }),
+      operation: async (calls) => {
+        await expect(store.frontier.set({ repo: stack.repo })).rejects.toThrow("invalid lifecycle or identity");
+        expect(calls.some((command) => command.startsWith("git rev-parse"))).toBe(true);
+        expect(await store.frontier.show()).toEqual({ generation: 0, prs: [], lowestUnmerged: null });
+      },
+    });
+  });
+
+  it("rejects an invalid local SHA without substituting a remote wire head", async () => {
+    const { directory, store } = await initializedStore();
+    const stack = await makeGitStack(directory);
+
+    await withFakeGh({
+      directory, output: JSON.stringify(releasedStack()), gitOutput: "not-a-sha",
+      operation: async () => {
+        await expect(store.frontier.set({ repo: stack.repo })).rejects.toThrow("returned an invalid SHA");
+        expect(await store.frontier.show()).toEqual({ generation: 0, prs: [], lowestUnmerged: null });
       },
     });
   });

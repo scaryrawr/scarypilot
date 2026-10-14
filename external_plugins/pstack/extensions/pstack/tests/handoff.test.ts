@@ -32,7 +32,7 @@ describe("handoff", () => {
       capabilities: {
         git: unknown,
         githubCli: unknown,
-        graphite: unknown,
+        ghStack: unknown,
         bunLegacyScripts: unknown,
         taskAgents: unknown,
         sessionHistory: unknown,

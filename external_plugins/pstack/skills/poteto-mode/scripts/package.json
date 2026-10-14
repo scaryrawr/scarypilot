@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "bun test orch watch-pr",
-    "typecheck": "tsc --project watch-pr/tsconfig.json --noEmit --strict"
+    "typecheck": "tsc --project tsconfig.json --noEmit --strict"
   },
   "dependencies": {
     "commander": "14.0.0"

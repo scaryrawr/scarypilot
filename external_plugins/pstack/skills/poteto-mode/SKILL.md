@@ -24,7 +24,7 @@ Remaining triggers:
 - Before review → the **no-comments** skill (`/no-comments`).
 - Shipping UI / IDE / CLI → the project's verification skill or the available browser, computer-use, terminal, or shell tools. For bug fixes, reproduce first on the same surface yourself; hand to the user only under the narrow Bug fix step 1 exception.
 - Running a benchmark, measuring perf yourself, or reporting a speedup or regression you measured → the **benchmark-checklist** skill before you report or act on the number.
-- Host-dependent workflow → call `pstack_capabilities` when available. Treat `unknown` as unavailable until the current Copilot host proves otherwise. Never infer Task agents, session history, browser automation, MCP tools, Graphite, or App sidebar state from another session.
+- Host-dependent workflow → call `pstack_capabilities` when available. Treat `unknown` as unavailable until the current Copilot host proves otherwise. Never infer Task agents, session history, browser automation, MCP tools, gh-stack, or App sidebar state from another session.
 - Any PR-status request → the **Babysit** playbook (`playbooks/babysit.md`). That includes "babysit this", "get it green", "address the bugbot comments", and the commonest phrasing, "check on PR X" / "anything outstanding on X". Never trigger it merely because a PR was opened. Declare its mode before polling; the playbook's step 1 owns the request-to-mode mapping.
 - Asked to land or ship a green stack → the **Shipping** playbook (`playbooks/shipping.md`). Green is not safe. Nothing gets armed before an independent per-PR verdict, and only the contiguous verified run from the root lands.
 - Bugbot or the agentic security review commented → skeptical posture. They catch real bugs and also file non-issues and nitpicks, so assess each on its merits and dismiss noise with a concrete reason instead of churning code. Triage fix / dismiss / ask per `references/bugbot-triage.md`.
@@ -32,6 +32,12 @@ Remaining triggers:
 - Long, autonomous, or multi-phase work, or any task the user steps away from to review later ("going to bed", "trust it when i'm back", "run until X") → a decision trail via the **show-me-your-work** skill. Commit it when stakes need an auditable record; keep it local otherwise.
 
 ## Principles
+
+### Host-shell portability
+
+Use the actual host shell, not an assumed Bash session. Resolve bundled script paths from the skill's absolute base directory and quote paths and arguments for that shell, including spaces and Unicode. Invoke JavaScript with `node` and TypeScript tools with `bun`; do not rely on executable shebangs on Windows. Do not assume `/tmp`, `/dev/null`, Unix environment assignment syntax, or POSIX utilities exist. Use workspace-local scratch paths and the host's output-discard mechanism. Explicitly POSIX fallbacks require a POSIX shell. macOS simulator playbooks remain macOS-only.
+
+Native workspace-confined artifact reads and pinned native swarm inputs require macOS or Linux. On Windows, route artifact validation to `node "<absolute-plugin-path>/skills/pstack-schema-validate/scripts/validate.mjs" <kind> <approved-workspace-file>` instead of `pstack_validate_artifact`. Route pinned swarm work to the Task fallback in the **swarm** skill with an explicit file list and verification evidence. Do not invoke native swarm with `inputFiles` on Windows or silently drop pinning to make it run. Native tools deliberately reject unsupported platforms; path prechecks cannot replace race-safe confinement.
 
 Read the leaf skill in full for any principle you apply. Each entry names when it applies.
 
@@ -131,7 +137,7 @@ A large or cross-cutting effort (a migration across many call sites, an ambitiou
 - **Authoring or modifying a skill.** Writing or editing a SKILL.md. `playbooks/authoring-a-skill.md`.
 - **Eval.** Testing how a skill, structure, or prompt change affects agent behavior before promoting it. `playbooks/eval.md`.
 - **Babysit.** Driving a PR or a stack to merge-ready: conflicts, review threads, CI. `playbooks/babysit.md`.
-- **Shipping.** The half after Babysit. Independently verifying a green stack, then landing the contiguous verified run with Graphite merge-when-ready. `playbooks/shipping.md`.
+- **Shipping.** The half after Babysit. Independently verify a green stack, then explicitly merge or enqueue only the user-approved contiguous verified prefix through gh-stack. `playbooks/shipping.md`.
 - **Autonomous run.** A long task to drive to completion without stopping ("run until done", "keep going until X"). `playbooks/autonomous-run.md`.
 - **Orchestrate.** A standing project handed to one coordinator chat: multi-day, many stacked PRs, dozens to hundreds of subagents, minimal human turns ("run this whole project", "own this migration until it lands"). Distinct from Autonomous run, which drives one task to a predicate; work one agent could finish inside the session's budget routes there, not here, however program-shaped the phrasing sounds. `playbooks/orchestrate.md`.
 - **Autopilot-full.** A queue of independent PRs run to merged with full autonomy: one owner per PR carries build through merge, and the root swarm-verifies each merge-ready head before its owner merges ("autopilot this queue", "full autopilot", one-owner-per-PR programs). `playbooks/autopilot-full.md`.

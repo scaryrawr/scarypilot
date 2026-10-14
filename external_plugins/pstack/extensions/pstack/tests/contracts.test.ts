@@ -25,7 +25,7 @@ describe("contract validator", () => {
       capabilities: {
         git: unknown,
         githubCli: unknown,
-        graphite: unknown,
+        ghStack: unknown,
         bunLegacyScripts: unknown,
         taskAgents: unknown,
         sessionHistory: unknown,

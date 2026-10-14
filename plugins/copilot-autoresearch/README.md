@@ -13,6 +13,26 @@ it to.
 - A current [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli)
   release with plugin extension support.
 - Git, Node.js, and Bash available in the repository where experiments run.
+  On Windows, install Git for Windows and put its Bash on `PATH`; experiments
+  and `.sh` check scripts still run with Bash, not PowerShell or WSL.
+  Windows requires Windows 10 / Windows Server 2016 version 1709 or later
+  and x64 or ARM64 Node.js. The plugin includes matching offline Node-API 8
+  addons with a static C++ runtime; no compiler, download, .NET, or separately
+  installed VC++ runtime is needed. Selection follows Node's architecture,
+  including x64 Node on Windows ARM64.
+  Cancellation and timeouts use an owned Windows kernel job; Unix systems
+  signal the Bash process group. Windows job membership is established
+  atomically before the experiment can execute, so native descendants remain
+  owned across Bash `exec`. Remaining Windows job members are stopped even
+  when the root exits normally, without changing its recorded exit status.
+  There is no waiting Bash supervisor, ancestry fallback, or PowerShell backend.
+  `BASH_ENV` and other shell options reach the experiment Bash unchanged.
+  If termination fails, output capture stops and unreturned logs are removed.
+  Errors retain ownership/cleanup diagnostics rather than reporting successful
+  cancellation. A Windows root PID is diagnostic, not an ancestry recovery
+  handle; retain the error and restart the extension host if native cleanup
+  remains unconfirmed. Unix signaling failures identify the process group
+  requiring manual recovery.
 
 Autoresearch executes benchmark commands and intentionally creates Git
 commits or reverts experiment changes in the active repository. Use it only in
@@ -167,6 +187,24 @@ autoresearch concept, workflow design, and file format goes to that project.
 This is simply a Copilot CLI adaptation of the same idea.
 
 ## Develop and test
+
+The bounded, test-only Windows Node-API ownership proof has its own
+[builder/native-architecture CI contract](extensions/copilot-autoresearch/native/README.md).
+It does not replace the runner or make the existing Windows cancellation gate
+green; native x64 and ARM64 evidence is required before integration.
+
+For the native Windows cancellation ownership census, run
+`npm test -- tests/windows-process-census.test.ts` from the extension package.
+The six live cases cover abort/timeout on both runners plus the benchmark and
+checks script launch shapes. They report `OWNED_PROCESS_CENSUS` JSON for only the fixture's
+known Bash root, marker parent, and ready grandchild, before and after
+cancellation. Probes use exact-PID PowerShell CIM filters and return only native
+PID, parent PID, and process name; taskkill stdout/stderr are capped at 4096
+characters each. A gated marker keeps the actors observable until both snapshots
+are complete. Existing cancellation assertions and implementation are unchanged;
+the census cases also fail if a surviving descendant writes the released marker.
+Non-Windows hosts validate probe scope and capture bounds, but do not infer
+Windows ancestry or execute the live census.
 
 ```bash
 cd extensions/copilot-autoresearch

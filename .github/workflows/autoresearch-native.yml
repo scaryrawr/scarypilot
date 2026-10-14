@@ -1,0 +1,169 @@
+name: Autoresearch native ownership
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/autoresearch-native.yml"
+      - "plugins/copilot-autoresearch/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/autoresearch-native.yml"
+      - "plugins/copilot-autoresearch/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  MSVC_PIN: "14.44.35207"
+  SDK_PIN: "10.0.26100.0"
+
+jobs:
+  build:
+    name: Build Windows ${{ matrix.arch }}
+    runs-on: windows-2022
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    defaults:
+      run:
+        working-directory: plugins/copilot-autoresearch/extensions/copilot-autoresearch
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22.18.0"
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Check native build specification
+        run: npm run native:harness:check
+      - name: Prepare checksum-pinned Node SDK
+        shell: pwsh
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $sdk = Join-Path $env:RUNNER_TEMP "ownership-node-sdk"
+          New-Item -ItemType Directory -Path $sdk | Out-Null
+          $base = "https://nodejs.org/dist/v22.18.0"
+          $headers = Join-Path $sdk "headers.tar.gz"
+          Invoke-WebRequest "$base/node-v22.18.0-headers.tar.gz" -OutFile $headers
+          if ((Get-FileHash $headers -Algorithm SHA256).Hash.ToLowerInvariant() -ne "c99fd7e0a7d2b7563ef5276e09a1f23559381c601ef80ccdce91259d6f6d0971") {
+            throw "Node header checksum mismatch"
+          }
+          tar -xzf $headers -C $sdk
+          if ($LASTEXITCODE -ne 0) { throw "Node header extraction failed" }
+          $library = Join-Path $sdk "node.lib"
+          Invoke-WebRequest "$base/win-$env:TARGET_ARCH/node.lib" -OutFile $library
+          $expected = @{
+            x64 = "4af0951712fb05a686a03e0592880e195ba53e5eb70e224d7ea7b8b76f2a3e86"
+            arm64 = "c174ae3348a4a59c9d61629a7a73a38679fd27c55b2a7d85a2ea3e65de2beb13"
+          }
+          if ((Get-FileHash $library -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected[$env:TARGET_ARCH]) {
+            throw "Node import library checksum mismatch"
+          }
+          "NODE_INCLUDE=$(Join-Path $sdk 'node-v22.18.0\include\node')" >> $env:GITHUB_ENV
+          "NODE_LIB=$library" >> $env:GITHUB_ENV
+      - name: Compile and audit native artifact
+        shell: cmd
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -no_logo -host_arch=x64 -arch=%TARGET_ARCH% -vcvars_ver=%MSVC_PIN% -winsdk=%SDK_PIN%
+          if errorlevel 1 exit /b 1
+          node native/build-harness.mjs --kind harness --arch %TARGET_ARCH% --node-include "%NODE_INCLUDE%" --node-lib "%NODE_LIB%" --expect-msvc "%MSVC_PIN%" --expect-sdk "%SDK_PIN%"
+          if errorlevel 1 exit /b 1
+          node native/build-harness.mjs --kind runtime --arch %TARGET_ARCH% --node-include "%NODE_INCLUDE%" --node-lib "%NODE_LIB%" --expect-msvc "%MSVC_PIN%" --expect-sdk "%SDK_PIN%"
+          if errorlevel 1 exit /b 1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ownership-win32-${{ matrix.arch }}
+          path: plugins/copilot-autoresearch/extensions/copilot-autoresearch/native/artifacts/win32-${{ matrix.arch }}/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: owned-runtime-win32-${{ matrix.arch }}
+          path: plugins/copilot-autoresearch/extensions/copilot-autoresearch/native/prebuilds/win32-${{ matrix.arch }}/
+          if-no-files-found: error
+          retention-days: 14
+
+  native:
+    name: Execute Windows ${{ matrix.target.arch }} Node ${{ matrix.node }}
+    needs: build
+    runs-on: ${{ matrix.target.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22.18.0", "24.21.0"]
+        target:
+          - { os: windows-2022, arch: x64 }
+          - { os: windows-11-arm, arch: arm64 }
+    defaults:
+      run:
+        working-directory: plugins/copilot-autoresearch/extensions/copilot-autoresearch
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: ${{ matrix.node }}
+          architecture: ${{ matrix.target.arch }}
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ownership-win32-${{ matrix.target.arch }}
+          path: plugins/copilot-autoresearch/extensions/copilot-autoresearch/native/artifacts/win32-${{ matrix.target.arch }}/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: owned-runtime-win32-x64
+          path: plugins/copilot-autoresearch/extensions/copilot-autoresearch/native/prebuilds/win32-x64/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: owned-runtime-win32-arm64
+          path: plugins/copilot-autoresearch/extensions/copilot-autoresearch/native/prebuilds/win32-arm64/
+      - name: Execute owned-process and host-death gates
+        shell: pwsh
+        env:
+          OWNERSHIP_EXPECT_ARCH: ${{ matrix.target.arch }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $bash = Join-Path $env:ProgramFiles "Git\bin\bash.exe"
+          if (-not (Test-Path $bash)) { throw "Git for Windows Bash is required" }
+          $env:OWNERSHIP_BASH_EXE = $bash
+          $env:PATH = "$(Split-Path $bash);$env:PATH"
+          node -e "console.log(JSON.stringify({platform:process.platform,arch:process.arch,machine:require('node:os').machine(),node:process.version}))"
+          if ($LASTEXITCODE -ne 0) { throw "Native architecture inspection failed" }
+          $architectures = @(Get-CimInstance Win32_Processor | Select-Object -ExpandProperty Architecture)
+          Write-Output (ConvertTo-Json -Compress -InputObject @{ processorArchitectures = $architectures })
+          foreach ($arch in @("x64", "arm64")) {
+            node native/verify-artifact.mjs $arch "native/prebuilds/win32-$arch" runtime
+            if ($LASTEXITCODE -ne 0) { throw "Production prebuild verification failed: $arch" }
+          }
+          node native/verify-artifact.mjs $env:OWNERSHIP_EXPECT_ARCH
+          if ($LASTEXITCODE -ne 0) { throw "Native artifact verification failed" }
+          npm run native:harness:test
+          if ($LASTEXITCODE -ne 0) { throw "Native ownership gates failed" }
+          npm run native:runtime:test
+          if ($LASTEXITCODE -ne 0) { throw "Native stream and lifecycle gates failed" }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw "Production package assembly failed" }
+          node ../../../../tools/smoke-extension-bundles.mjs
+          if ($LASTEXITCODE -ne 0) { throw "Copied offline bundle execution failed" }
+          npm run typecheck
+          if ($LASTEXITCODE -ne 0) { throw "Production typecheck failed" }
+          npm test
+          if ($LASTEXITCODE -ne 0) { throw "Production runner contracts failed" }

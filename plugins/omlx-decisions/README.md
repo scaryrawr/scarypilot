@@ -13,6 +13,11 @@ checkpoint such as Clef Flash. The server discovers decision checkpoints by thei
 model files; install/download them separately through your existing oMLX workflow.
 There is no `/v1/decisions` endpoint in the supported server contract.
 
+Local oMLX inference requires **macOS on Apple Silicon**. The HTTP client can run
+on Windows or Linux against an explicitly configured remote oMLX server.
+Local image files still require per-call approval for the resolved path and
+destination; remote configuration does not grant transmission consent.
+
 Use a Copilot host with native extensions and Node.js 22.18.0 or later.
 Local image paths also require SDK confirmation dialogs (elicitation).
 

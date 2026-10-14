@@ -1,0 +1,164 @@
+
+Dump of file D:\a\scarypilot\scarypilot\plugins\copilot-autoresearch\extensions\copilot-autoresearch\native\prebuilds\win32-arm64\owned-job.node
+
+File Type: DLL
+
+  Section contains the following imports:
+
+    node.exe
+             18001E338 Import Address Table
+             180029C80 Import Name Table
+                     0 time date stamp
+                     0 Index of first forwarder reference
+
+                        20B1 napi_get_null
+                        20E3 napi_release_threadsafe_function
+                        2066 napi_acquire_threadsafe_function
+                        206E napi_call_threadsafe_function
+                        2093 napi_create_threadsafe_function
+                        20E5 napi_remove_env_cleanup_hook
+                        2068 napi_add_env_cleanup_hook
+                        2080 napi_create_buffer_copy
+                        20B7 napi_get_typedarray_info
+                        20D3 napi_is_exception_pending
+                        20EF napi_throw_error
+                        20EE napi_throw
+                        20F5 napi_unwrap
+                        20F6 napi_wrap
+                        20A7 napi_get_cb_info
+                        206D napi_call_function
+                        20A3 napi_get_array_length
+                        20CC napi_is_array
+                        2098 napi_define_properties
+                        20AA napi_get_element
+                        20AE napi_get_named_property
+                        20C8 napi_has_named_property
+                        20EB napi_set_named_property
+                        20C3 napi_get_value_string_utf16
+                        20BD napi_get_value_bool
+                        20BE napi_get_value_double
+                        20F3 napi_typeof
+                        2084 napi_create_error
+                        2091 napi_create_string_utf8
+                        2083 napi_create_double
+                        208B napi_create_object
+                        20A5 napi_get_boolean
+                        20B8 napi_get_undefined
+
+    KERNEL32.dll
+             18001E000 Import Address Table
+             180029948 Import Name Table
+                     0 time date stamp
+                     0 Index of first forwarder reference
+
+                         65D WriteConsoleW
+                         383 HeapReAlloc
+                         385 HeapSize
+                         308 GetStringTypeW
+                         591 SetStdHandle
+                         225 GetConsoleMode
+                         229 GetConsoleOutputCP
+                         1C8 FlushFileBuffers
+                         1D3 FreeEnvironmentStringsW
+                         262 GetEnvironmentStringsW
+                         64A WideCharToMultiByte
+                         423 MultiByteToWideChar
+                         200 GetCommandLineW
+                         1FF GetCommandLineA
+                         1EA GetCPInfo
+                         2C6 GetOEMCP
+                         1DB GetACP
+                         3BE IsValidCodePage
+                         1B4 FindNextFileW
+                         1A3 FindFirstFileExW
+                         19D FindClose
+                         567 SetFilePointerEx
+                         27A GetFileType
+                         303 GetStdHandle
+                         51C SearchPathW
+                          E6 CreateFileW
+                         4A9 ReadFile
+                         65E WriteFile
+                          9D CloseHandle
+                         289 GetHandleInformation
+                         571 SetHandleInformation
+                         28D GetLastError
+                          FA CreatePipe
+                         37C HeapAlloc
+                         380 HeapFree
+                         2E4 GetProcessHeap
+                          8A CancelSynchronousIo
+                         55A SetEvent
+                         623 WaitForSingleObject
+                          D9 CreateEventW
+                         5C6 Sleep
+                         621 WaitForMultipleObjects
+                         241 GetCurrentProcess
+                         267 GetExitCodeProcess
+                         507 ResumeThread
+                         102 CreateProcessW
+                         399 InitializeProcThreadAttributeList
+                         137 DeleteProcThreadAttributeList
+                         606 UpdateProcThreadAttribute
+                         33D GetTickCount64
+                         3B7 IsProcessInJob
+                          EE CreateJobObjectW
+                         5D5 TerminateJobObject
+                         572 SetInformationJobObject
+                         47D QueryInformationJobObject
+                         3C5 IsWow64Process2
+                          B2 CompareStringOrdinal
+                         481 QueryPerformanceCounter
+                         482 QueryPerformanceFrequency
+                         31B GetSystemTimePreciseAsFileTime
+                         624 WaitForSingleObjectEx
+                         246 GetCurrentThreadId
+                         268 GetExitCodeThread
+                         4EA ReleaseSRWLockExclusive
+                           0 AcquireSRWLockExclusive
+                         5F0 TryAcquireSRWLockExclusive
+                         62B WakeAllConditionVariable
+                         5C8 SleepConditionVariableSRW
+                         242 GetCurrentProcessId
+                         31A GetSystemTimeAsFileTime
+                         39A InitializeSListHead
+                         301 GetStartupInfoW
+                         2A5 GetModuleHandleW
+                         512 RtlPcToFileHeader
+                         498 RaiseException
+                         510 RtlLookupFunctionEntry
+                         515 RtlUnwindEx
+                         39E InterlockedFlushSList
+                         60D VerSetConditionMask
+                         611 VerifyVersionInfoW
+                         576 SetLastError
+                         1C2 FlsAlloc
+                         1C4 FlsGetValue
+                         1C6 FlsSetValue
+                         1C3 FlsFree
+                         153 EncodePointer
+                         157 EnterCriticalSection
+                         3F0 LeaveCriticalSection
+                         397 InitializeCriticalSectionEx
+                         12F DeleteCriticalSection
+                         10F CreateThread
+                         187 ExitThread
+                         1D4 FreeLibrary
+                         1D5 FreeLibraryAndExitThread
+                         2A4 GetModuleHandleExW
+                         186 ExitProcess
+                         5D6 TerminateProcess
+                         2DD GetProcAddress
+                         2A1 GetModuleFileNameW
+                         618 VirtualProtect
+                         3F6 LoadLibraryExW
+                         3E4 LCMapStringW
+
+  Summary
+
+        2000 .data
+        1000 .fptable
+        2000 .pdata
+        D000 .rdata
+        1000 .reloc
+       1D000 .text

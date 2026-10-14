@@ -1,8 +1,9 @@
-import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { EOL } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { hashBundleFile } from "./bundle-hash.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 
@@ -88,6 +89,23 @@ for (const extension of selected ? [selected] : extensions) {
     );
   }
 
+  if (extension === "plugins/copilot-autoresearch/extensions/copilot-autoresearch") {
+    const { resources } = await import(pathToFileURL(path.join(directory, "native", "resources.mjs")));
+    const { verifyInstalledResources } = await import(pathToFileURL(path.join(directory, "native", "assemble.mjs")));
+
+    const native = await resources();
+
+    inputs.push(...native.inputs);
+
+    for (const file of native.outputs) {
+      if (!existsSync(path.join(directory, file))) {
+        throw new Error(`${extension}: missing native resource ${file}; restore verified Windows artifacts and run npm run build`);
+      }
+    }
+
+    await verifyInstalledResources();
+  }
+
   const outputs = await walk(path.join(directory, "dist"));
 
   if (!outputs.length || !outputs.includes(path.join(directory, "dist", "extension.mjs"))) {
@@ -145,7 +163,7 @@ async function digest(files, directory) {
   return Object.fromEntries(
     await Promise.all(files.sort().map(async (file) => [
       relativePath(directory, file),
-      createHash("sha256").update((await readFile(file, "utf8")).replace(/\r\n/g, "\n")).digest("hex"),
+      await hashBundleFile(file),
     ])),
   );
 }

@@ -161,7 +161,7 @@ export async function reviewEdit(input, { lint = lintFile } = {}) {
 
     if (isGeneratedSource(text)) continue;
 
-    const relative = path.relative(cwd, file);
+    const relative = path.relative(cwd, file).split(path.sep).join("/");
     const touched = new Set();
     const deletionAnchors = new Set();
 

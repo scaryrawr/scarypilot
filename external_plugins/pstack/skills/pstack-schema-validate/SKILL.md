@@ -5,7 +5,10 @@ description: Validate pstack snapshots, verification receipts, durable handoffs,
 
 # Validate pstack contracts
 
-Use `pstack_validate_artifact` when the host exposes it. Pass the artifact's
+Use `pstack_validate_artifact` when the host exposes it on macOS or Linux.
+On Windows, use the CLI fallback below without first invoking the native tool.
+Native confined reads intentionally reject unsupported platforms.
+Pass the artifact's
 `kind` and `path`. For `plan`, optionally pass `profile` as `basic` or
 `verified-stack`. The default is `verified-stack`. Omit `profile` for JSON
 artifacts.
@@ -25,8 +28,9 @@ Keep using `pstack_validate_plan` for callers that need its existing
 ## CLI fallback
 
 If the native tool is unavailable or reports an unsupported platform,
-report that limit and resolve `scripts/validate.mjs` relative
-to this skill directory. Read only an explicitly requested artifact inside
+report that limit and resolve `scripts/validate.mjs` from
+this skill's absolute base directory. Quote that absolute path and each argument
+for the actual host shell. Read only an explicitly requested artifact inside
 the approved workspace. The CLI uses the same contract rules but does not
 enforce the native tool's workspace boundary.
 

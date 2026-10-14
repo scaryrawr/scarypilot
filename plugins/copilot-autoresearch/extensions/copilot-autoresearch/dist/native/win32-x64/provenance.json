@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 1,
+  "kind": "runtime",
+  "purpose": "Windows owned execution",
+  "arch": "x64",
+  "nodeApiVersion": 8,
+  "nodeHeadersVersion": "22.18.0",
+  "crt": "/MT",
+  "binary": {
+    "name": "owned-job.node",
+    "bytes": 205312,
+    "sha256": "e6f5d3b3369aaa67067aea7301d0a997933f2aa6b3064ced981e8ec70bf182cd",
+    "machine": 34404
+  },
+  "sources": {
+    "files": [
+      {
+        "path": "native/.gitattributes",
+        "sha256": "07b72c7a518108acf2a7165055c5a9cae71f7a29a6410e4b348a6960196bc110",
+        "bytes": 27
+      },
+      {
+        "path": "native/.gitignore",
+        "sha256": "ae947dee1919a87bf12c54b3ed6e677199e167c874b29d36b398c4b91547ffc1",
+        "bytes": 40
+      },
+      {
+        "path": "native/README.md",
+        "sha256": "b9ea5fce331853c362b8380473e4f8c61d48693cdb1bd679b9e6dd74fb62b9ce",
+        "bytes": 15910
+      },
+      {
+        "path": "native/assemble.mjs",
+        "sha256": "c40e184f29107f1219e741167fdd44d317f9da9ee519ebe2411d29df9ee4c179",
+        "bytes": 4958
+      },
+      {
+        "path": "native/build-harness.mjs",
+        "sha256": "1305a55675fbd2267dd243d12d41e1645468678749a0281f18f04e5b75b11cb7",
+        "bytes": 7195
+      },
+      {
+        "path": "native/harness-resources.json",
+        "sha256": "3f1dc860db0d37cafc8fc800f4743d42919c2c73993f62e90e4b07562ab59585",
+        "bytes": 711
+      },
+      {
+        "path": "native/harness/owned_job_harness.cc",
+        "sha256": "f04809c043c7684ab061b780ebbe6633f2a48e0059a6403e937d8dbf8a00b8e9",
+        "bytes": 114
+      },
+      {
+        "path": "native/resources.mjs",
+        "sha256": "947d9169bc27fe4a59ecaafa48ad63e507d8d3e162cf3afb70ffd6bbbcd1fbf6",
+        "bytes": 2862
+      },
+      {
+        "path": "native/runtime/owned_job_runtime.cc",
+        "sha256": "9f70fd40723d20f80f019ccdd027b9e9d7118c6a8e60481505d7f1685240fbb3",
+        "bytes": 23869
+      },
+      {
+        "path": "native/shared/owned_job.h",
+        "sha256": "5988601a6fa438c3157e02452f336a0d6191596354b0e458c4b08c18e671f674",
+        "bytes": 24378
+      },
+      {
+        "path": "native/tests/build-spec.mjs",
+        "sha256": "ebba8984d09e668e6dadff72e7429f14c6bf8fea4db933dbe5c5d1239e92ee40",
+        "bytes": 14855
+      },
+      {
+        "path": "native/tests/host.cjs",
+        "sha256": "720433ca640e8ba1ef40835742e2e91f2990ce3666eac1005c500b16a511d713",
+        "bytes": 1394
+      },
+      {
+        "path": "native/tests/ownership.mjs",
+        "sha256": "dd2d5616f3725bcfb9fe899a94fec5aa22193ccb7efce6281d04cece4fd16c76",
+        "bytes": 16963
+      },
+      {
+        "path": "native/tests/runtime.mjs",
+        "sha256": "845368c7572cf5cfc4d7677573cab11419542abef0e53daf040ba5288fc42809",
+        "bytes": 10246
+      },
+      {
+        "path": "native/tests/windows-architecture.mjs",
+        "sha256": "48f722d54867c007bd33f4b234672ee7e91f30b284d254a8b1c4b4835f3cb8b2",
+        "bytes": 397
+      },
+      {
+        "path": "native/verify-artifact.mjs",
+        "sha256": "cd1c85ad9a60c018ead877a660f0c1b48f9cb1730e29e1dc51969f9b04f658a6",
+        "bytes": 5126
+      }
+    ],
+    "fingerprint": "bc465ff5ce1a6a594864b188060e80568f4cc61ad79a7161275aa496ad1af127"
+  },
+  "inputs": {
+    "headers": [
+      {
+        "name": "node_api.h",
+        "sha256": "d14db85d16f182045c42745a6e44b96e932dfe6e3bfcaac7a1096fae8412c579"
+      },
+      {
+        "name": "node_api_types.h",
+        "sha256": "8d5d854088d5725fec9775510e0aeeeb790a41ad083c49bb721d950b86e6bd61"
+      },
+      {
+        "name": "js_native_api.h",
+        "sha256": "048b4efdcd823f30afd323d61c8aba5be285077f9d790feb52a6fa6382df2541"
+      },
+      {
+        "name": "js_native_api_types.h",
+        "sha256": "0410c31e227f81e2981363c4d543f4832ac3df785343ec64cee621742ff8a034"
+      },
+      {
+        "name": "node_version.h",
+        "sha256": "adf743bbd35f553004586646ca00e3afc4c3598267a3ef912f29ccae33d16745"
+      }
+    ],
+    "nodeLibSha256": "4af0951712fb05a686a03e0592880e195ba53e5eb70e224d7ea7b8b76f2a3e86"
+  },
+  "toolchain": {
+    "msvc": "14.44.35207",
+    "sdk": "10.0.26100.0",
+    "target": "x64",
+    "compilerVersions": [
+      "19.44.35229.0"
+    ],
+    "binaries": {
+      "cl.exe": {
+        "relative": "bin\\hostx64\\x64\\cl.exe",
+        "sha256": "fe251ef50a1545b1b0835ee17b1e785459712b38d79e45b5c1d3d28970a36619"
+      },
+      "link.exe": {
+        "relative": "bin\\hostx64\\x64\\link.exe",
+        "sha256": "a364af801a8539e4324d9489313dbf001d959128451fc99a27b24676bbac058f"
+      },
+      "dumpbin.exe": {
+        "relative": "bin\\hostx64\\x64\\dumpbin.exe",
+        "sha256": "cfee7ed764b7b0866aae0be12f9c0ad2a7f5aecc4046ba2b7de26335827ca815"
+      }
+    },
+    "flags": [
+      "/nologo",
+      "/Bv",
+      "/std:c++20",
+      "/O2",
+      "/W4",
+      "/WX",
+      "/EHsc",
+      "/MT",
+      "/LD",
+      "/Brepro",
+      "/DWIN32_LEAN_AND_MEAN",
+      "/DNOMINMAX",
+      "/D_WIN32_WINNT=0x0A00",
+      "/DNAPI_VERSION=8",
+      "/DNODE_GYP_MODULE_NAME=owned_job",
+      "/link",
+      "/WX",
+      "/MACHINE:X64",
+      "/DYNAMICBASE",
+      "/NXCOMPAT",
+      "/INCREMENTAL:NO",
+      "/Brepro",
+      "kernel32.lib"
+    ]
+  },
+  "imports": {
+    "dlls": [
+      "kernel32.dll",
+      "node.exe"
+    ],
+    "nodeImports": [
+      "napi_acquire_threadsafe_function",
+      "napi_add_env_cleanup_hook",
+      "napi_call_function",
+      "napi_call_threadsafe_function",
+      "napi_create_buffer_copy",
+      "napi_create_double",
+      "napi_create_error",
+      "napi_create_object",
+      "napi_create_string_utf8",
+      "napi_create_threadsafe_function",
+      "napi_define_properties",
+      "napi_get_array_length",
+      "napi_get_boolean",
+      "napi_get_cb_info",
+      "napi_get_element",
+      "napi_get_named_property",
+      "napi_get_null",
+      "napi_get_typedarray_info",
+      "napi_get_undefined",
+      "napi_get_value_bool",
+      "napi_get_value_double",
+      "napi_get_value_string_utf16",
+      "napi_has_named_property",
+      "napi_is_array",
+      "napi_is_exception_pending",
+      "napi_release_threadsafe_function",
+      "napi_remove_env_cleanup_hook",
+      "napi_set_named_property",
+      "napi_throw",
+      "napi_throw_error",
+      "napi_typeof",
+      "napi_unwrap",
+      "napi_wrap"
+    ]
+  },
+  "protocolVersion": 2
+}

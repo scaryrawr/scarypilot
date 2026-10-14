@@ -1,8 +1,10 @@
-import { spawn } from "node:child_process";
 import { closeSync, openSync, unlinkSync, writeSync } from "node:fs";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
+import { startBash, type ProcessControl } from "./execution.ts";
+
+export { killTree, ProcessTerminationError, type ProcessControl } from "./execution.ts";
 
 export interface SpawnResult {
   exitCode: number | null;
@@ -21,24 +23,13 @@ export interface SpawnOptions {
   signal?: AbortSignal;
   /** Whether to capture stdin. Default true (no input). */
   stdinJson?: unknown;
-}
-
-/** Best-effort kill of a process group, falling back to the lone pid. */
-export function killTree(pid: number): void {
-  try {
-    process.kill(-pid, "SIGTERM");
-  } catch {
-    try {
-      process.kill(pid, "SIGTERM");
-    } catch {
-      // already dead
-    }
-  }
+  /** Process boundary; defaults to native subprocesses and platform signaling. */
+  processControl?: ProcessControl;
 }
 
 /**
  * Run `bash -c <command>` (or `bash <script>`) and capture all output.
- * Detached so we can kill the entire process group on timeout/abort.
+ * Windows owns a kernel job; Unix owns a detached process group.
  */
 export function runShell(
   command: string | { script: string },
@@ -48,49 +39,35 @@ export function runShell(
   const t0 = Date.now();
 
   return new Promise((resolve, reject) => {
-    let timedOut = false;
-
-    const child = spawn("bash", args, {
-      cwd: opts.cwd,
-      detached: true,
-      stdio: [opts.stdinJson !== undefined ? "pipe" : "ignore", "pipe", "pipe"],
-    });
+    const input = opts.stdinJson !== undefined ? JSON.stringify(opts.stdinJson) : undefined;
+    const child = startBash(args, { ...opts, startedAt: t0 }, opts.stdinJson !== undefined ? "pipe" : "ignore");
 
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
-    child.stdout?.on("data", (d: Buffer) => stdoutChunks.push(d));
-    child.stderr?.on("data", (d: Buffer) => stderrChunks.push(d));
+    const captureStdout = (data: Buffer) => stdoutChunks.push(data);
+    const captureStderr = (data: Buffer) => stderrChunks.push(data);
+    child.stdout?.on("data", captureStdout);
+    child.stderr?.on("data", captureStderr);
 
-    const timer =
-      opts.timeoutMs && opts.timeoutMs > 0
-        ? setTimeout(() => {
-            timedOut = true;
+    let failed = false;
 
-            if (child.pid) killTree(child.pid);
-          }, opts.timeoutMs)
-        : null;
-
-    const onAbort = () => {
-      if (child.pid) killTree(child.pid);
-      else child.kill();
+    const fail = (error: Error) => {
+      if (failed) return;
+      failed = true;
+      const cleanup = child.dispose();
+      child.stdout?.removeListener("data", captureStdout);
+      child.stderr?.removeListener("data", captureStderr);
+      stdoutChunks.length = 0;
+      stderrChunks.length = 0;
+      void Promise.resolve(cleanup).then(() => reject(error), (cause: Error) =>
+        reject(cause === error ? error : new AggregateError([error, cause], `${error.message} Execution cleanup was not confirmed: ${cause.message}`)));
     };
 
-    if (opts.signal) {
-      if (opts.signal.aborted) onAbort();
-      else opts.signal.addEventListener("abort", onAbort, { once: true });
-    }
+    child.stdout.on("error", fail);
+    child.stderr.on("error", fail);
+    void child.closed.then(({ exitCode: code, killed }) => {
+      if (failed) return;
 
-    child.on("error", (err) => {
-      if (timer) clearTimeout(timer);
-
-      if (opts.signal) opts.signal.removeEventListener("abort", onAbort);
-      reject(err);
-    });
-
-    child.on("close", (code) => {
-      if (timer) clearTimeout(timer);
-
-      if (opts.signal) opts.signal.removeEventListener("abort", onAbort);
       const stdout = Buffer.concat(stdoutChunks).toString("utf-8");
       const stderr = Buffer.concat(stderrChunks).toString("utf-8");
       resolve({
@@ -98,14 +75,13 @@ export function runShell(
         stdout,
         stderr,
         combined: (stdout + (stdout && stderr ? "\n" : "") + stderr).trim(),
-        killed: timedOut,
+        killed,
         durationMs: Date.now() - t0,
       });
-    });
+    }, fail);
 
     if (opts.stdinJson !== undefined && child.stdin) {
-      child.stdin.write(JSON.stringify(opts.stdinJson));
-      child.stdin.end();
+      child.stdin.end(input);
     }
   });
 }
@@ -138,13 +114,8 @@ export function runShellStreaming(
   const t0 = Date.now();
 
   return new Promise((resolve, reject) => {
-    let timedOut = false;
-
-    const child = spawn("bash", ["-c", command], {
-      cwd: opts.cwd,
-      detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const input = opts.stdinJson !== undefined ? JSON.stringify(opts.stdinJson) : undefined;
+    const child = startBash(["-c", command], { ...opts, startedAt: t0 }, opts.stdinJson !== undefined ? "pipe" : "ignore");
 
     const chunks: Buffer[] = [];
     let totalBytes = 0;
@@ -242,49 +213,58 @@ export function runShellStreaming(
         }, 1000)
       : null;
 
-    const timer =
-      opts.timeoutMs && opts.timeoutMs > 0
-        ? setTimeout(() => {
-            timedOut = true;
+    let failed = false;
 
-            if (child.pid) killTree(child.pid);
-          }, opts.timeoutMs)
-        : null;
+    const fail = (error: Error) => {
+      if (failed) return;
+      failed = true;
 
-    const onAbort = () => {
-      if (child.pid) killTree(child.pid);
-      else child.kill();
-    };
-
-    if (opts.signal) {
-      if (opts.signal.aborted) onAbort();
-      else opts.signal.addEventListener("abort", onAbort, { once: true });
-    }
-
-    child.on("error", (err) => {
       if (tick) clearInterval(tick);
 
-      if (timer) clearTimeout(timer);
+      const cleanup = child.dispose();
+      child.stdout?.removeListener("data", handleData);
+      child.stderr?.removeListener("data", handleData);
+      chunks.length = 0;
+      const fd = fullOutputFd;
+      const outputPath = fullOutputPath;
+      fullOutputFd = undefined;
+      fullOutputPath = undefined;
+      let failure = error;
 
-      if (opts.signal) opts.signal.removeEventListener("abort", onAbort);
-
-      if (fullOutputFd !== undefined) {
+      if (fd !== undefined) {
         try {
-          closeSync(fullOutputFd);
-        } catch {
-          // Preserve the spawn error as the failure reported to the caller.
+          closeSync(fd);
+        } catch (cause) {
+          failure = new Error(
+            `${failure.message} Failed to close unreturned output ${outputPath}.`,
+            { cause: new AggregateError([failure, cause]) },
+          );
         }
       }
 
-      reject(err);
-    });
+      if (outputPath) {
+        try {
+          unlinkSync(outputPath);
+        } catch (cause) {
+          if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "ENOENT") {
+            failure = new Error(
+              `${failure.message} Remove the unreturned output manually: ${outputPath}.`,
+              { cause: new AggregateError([failure, cause]) },
+            );
+          }
+        }
+      }
 
-    child.on("close", (code) => {
+      void Promise.resolve(cleanup).then(() => reject(failure), (cause: Error) =>
+        reject(cause === failure ? failure : new AggregateError([failure, cause], `${failure.message} Execution cleanup was not confirmed: ${cause.message}`)));
+    };
+
+    child.stdout.on("error", fail);
+    child.stderr.on("error", fail);
+    void child.closed.then(({ exitCode: code, killed }) => {
+      if (failed) return;
+
       if (tick) clearInterval(tick);
-
-      if (timer) clearTimeout(timer);
-
-      if (opts.signal) opts.signal.removeEventListener("abort", onAbort);
 
       const fullText = Buffer.concat(chunks).toString("utf-8");
       const allLines = fullText.split("\n");
@@ -308,7 +288,7 @@ export function runShellStreaming(
           stdout: fullText,
           stderr: "",
           combined: fullText.trim(),
-          killed: timedOut,
+          killed,
           durationMs: Date.now() - t0,
           tail,
           truncated: totalLines > opts.maxLines || totalBytes > opts.maxBytes,
@@ -320,14 +300,21 @@ export function runShellStreaming(
       };
 
       if (fullOutputFd !== undefined) {
+        const fd = fullOutputFd;
+        fullOutputFd = undefined;
+
         try {
-          closeSync(fullOutputFd);
-        } catch {
-          fullOutputPath = undefined;
+          closeSync(fd);
+        } catch (error) {
+          fail(error instanceof Error ? error : new Error(String(error)));
+
+          return;
         }
       }
 
       finish();
-    });
+    }, fail);
+
+    if (opts.stdinJson !== undefined && child.stdin) child.stdin.end(input);
   });
 }

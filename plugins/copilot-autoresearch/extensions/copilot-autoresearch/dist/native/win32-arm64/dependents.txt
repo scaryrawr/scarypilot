@@ -1,0 +1,18 @@
+
+Dump of file D:\a\scarypilot\scarypilot\plugins\copilot-autoresearch\extensions\copilot-autoresearch\native\prebuilds\win32-arm64\owned-job.node
+
+File Type: DLL
+
+  Image has the following dependencies:
+
+    node.exe
+    KERNEL32.dll
+
+  Summary
+
+        2000 .data
+        1000 .fptable
+        2000 .pdata
+        D000 .rdata
+        1000 .reloc
+       1D000 .text

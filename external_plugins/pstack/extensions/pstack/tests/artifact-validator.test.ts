@@ -181,6 +181,8 @@ describe("published artifact authority", () => {
   });
 });
 
+const nativeIt = it.skipIf(process.platform !== "darwin" && process.platform !== "linux");
+
 describe("native artifact tool", () => {
   it("publishes an object-shaped host tool schema while keeping kind-specific validation strict", () => {
     expect(createValidateArtifactTool(createCwdRef(process.cwd())).parameters).toMatchObject({
@@ -188,7 +190,7 @@ describe("native artifact tool", () => {
     });
   });
 
-  it.each([
+  nativeIt.each([
     ["snapshot", snapshot], ["receipt", receipt], ["handoff", handoff],
   ] as const)("returns the exact %s envelope for valid and invalid JSON contracts", async (kind, value) => {
     const cwd = await workspace();
@@ -206,7 +208,7 @@ describe("native artifact tool", () => {
     expect(await readFile(path, "utf8")).toBe("null");
   });
 
-  it("uses the shared plan profiles, findings and report without an artifact schema version", async () => {
+  nativeIt("uses the shared plan profiles, findings and report without an artifact schema version", async () => {
     const cwd = await workspace();
     const path = join(cwd, "plan.md");
     const tool = createValidateArtifactTool(createCwdRef(cwd));
@@ -261,11 +263,19 @@ describe("native artifact tool", () => {
     const cwd = await workspace();
     await writeFile(join(cwd, "bad.json"), "{bad");
     const tool = createValidateArtifactTool(createCwdRef(cwd));
-    await expect(tool.handler({ kind: "snapshot", path: "bad.json" }, context)).rejects.toBeInstanceOf(SyntaxError);
+
+    if (process.platform === "darwin" || process.platform === "linux") {
+      await expect(tool.handler({ kind: "snapshot", path: "bad.json" }, context)).rejects.toBeInstanceOf(SyntaxError);
+    } else {
+      await expect(tool.handler({ kind: "snapshot", path: "bad.json" }, context)).rejects.toThrow(
+        "native workspace-confined validation requires macOS or Linux",
+      );
+    }
+
     await expect(tool.handler({ kind: "snapshot", path: "missing.json" }, context)).rejects.toThrow("ENOENT");
   });
 
-  it("confines reads to the workspace realpath and rejects traversal, URLs and directories", async () => {
+  nativeIt("confines reads to the workspace realpath and rejects traversal, URLs and directories", async () => {
     const cwd = await workspace();
     const outside = await workspace();
     await writeFile(join(outside, "secret.json"), JSON.stringify(snapshot));
@@ -292,7 +302,7 @@ describe("native artifact tool", () => {
     });
   });
 
-  it("uses the latest host cwd and runs no commands", async () => {
+  nativeIt("uses the latest host cwd and runs no commands", async () => {
     const first = await workspace();
     const second = await workspace();
     await writeFile(join(first, "artifact.json"), JSON.stringify(snapshot));
@@ -316,7 +326,7 @@ describe("native artifact tool", () => {
     });
   });
 
-  it("rejects an ancestor swapped for an outside symlink between authorization and open", async () => {
+  nativeIt("rejects an ancestor swapped for an outside symlink between authorization and open", async () => {
     const cwd = await workspace();
     const outside = await workspace();
     const approved = join(cwd, "approved");
@@ -342,7 +352,7 @@ describe("native artifact tool", () => {
     expect(swapped).toBe(true);
   });
 
-  it("authorizes the workspace realpath when the host cwd is a symlink alias", async () => {
+  nativeIt("authorizes the workspace realpath when the host cwd is a symlink alias", async () => {
     const parent = await workspace();
     const cwd = join(parent, "actual");
     const alias = join(parent, "alias");

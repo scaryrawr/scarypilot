@@ -1,0 +1,4 @@
+{
+  "extends": "./watch-pr/tsconfig.json",
+  "include": ["orch/**/*.ts", "watch-pr/**/*.ts"]
+}

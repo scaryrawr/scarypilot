@@ -447,7 +447,8 @@ describe("anti-slop postToolUse advisory", () => {
       encoding: "utf8",
       env: {
         ...process.env,
-        PATH: "",
+        npm_config_offline: "true",
+        npm_config_cache: path.join(cwd, "empty-npm-cache"),
         COPILOT_HOME: path.join(cwd, "home"),
       },
     });

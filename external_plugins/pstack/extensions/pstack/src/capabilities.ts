@@ -1,60 +1,31 @@
-import { accessSync, constants } from "node:fs";
-import { delimiter, join } from "node:path";
 import type { CapabilityState, PstackCapabilities } from "./types.ts";
 import type { ProcessPort } from "./io.ts";
-import { processPort } from "./io.ts";
-
-function executableState(command: string, pathValue = process.env.PATH ?? ""): CapabilityState {
-  const extensions =
-    process.platform === "win32"
-      ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";")
-      : [""];
-
-  const candidates = pathValue.split(delimiter).flatMap((directory) =>
-    extensions.map((extension) => join(directory, `${command}${extension}`)),
-  );
-
-  const detail = candidates.find((candidate) => {
-    try {
-      accessSync(candidate, constants.X_OK);
-
-      return true;
-    } catch {
-      return false;
-    }
-  });
-
-  return detail
-    ? { kind: "available", detail }
-    : { kind: "unavailable", reason: `${command} is not on PATH` };
-}
+import { errorMessage, processPort } from "./io.ts";
 
 async function usableExecutable(
   command: string,
   args: readonly string[],
   port: ProcessPort,
 ): Promise<CapabilityState> {
-  const installed = executableState(command);
-
-  if (installed.kind !== "available") return installed;
+  const label = [command, ...args].join(" ");
 
   try {
     const result = await port.run(command, args, { timeoutMs: 3_000 });
-    const detail = result.stdout.trim().split(/\r?\n/, 1)[0] || installed.detail;
+    const detail = result.stdout.trim().split(/\r?\n/, 1)[0] || command;
 
     return { kind: "available", detail };
-  } catch {
-    return { kind: "available", detail: installed.detail };
+  } catch (error) {
+    return { kind: "unavailable", reason: `${label} probe failed: ${errorMessage(error)}` };
   }
 }
 
 export async function detectCapabilities(
   port: ProcessPort = processPort,
 ): Promise<PstackCapabilities> {
-  const [git, githubCli, graphite, bunLegacyScripts] = await Promise.all([
+  const [git, githubCli, ghStack, bunLegacyScripts] = await Promise.all([
     usableExecutable("git", ["--version"], port),
     usableExecutable("gh", ["--version"], port),
-    usableExecutable("gt", ["--version"], port),
+    usableExecutable("gh", ["stack", "--version"], port),
     usableExecutable("bun", ["--version"], port),
   ]);
 
@@ -66,7 +37,7 @@ export async function detectCapabilities(
   return {
     git,
     githubCli,
-    graphite,
+    ghStack,
     bunLegacyScripts,
     taskAgents: hostUnknown("Task agents"),
     sessionHistory: hostUnknown("session history"),
