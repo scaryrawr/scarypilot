@@ -1,8 +1,8 @@
-import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { EOL } from "node:os";
 import path from "node:path";
+import { hashBundleFile } from "./bundle-hash.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 
@@ -145,7 +145,7 @@ async function digest(files, directory) {
   return Object.fromEntries(
     await Promise.all(files.sort().map(async (file) => [
       relativePath(directory, file),
-      createHash("sha256").update((await readFile(file, "utf8")).replace(/\r\n/g, "\n")).digest("hex"),
+      await hashBundleFile(file),
     ])),
   );
 }
