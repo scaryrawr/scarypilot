@@ -7,8 +7,6 @@ description: Spawn three parallel review subagents over the active transcript, s
 
 Mine the current conversation for durable learnings, then route them into skill edits.
 
-## When to invoke
-
 Invoke when the user says "reflect" or "/reflect". Skip when the conversation is trivial, off-topic, or already covered by an existing skill the parent followed correctly. One-offs are not learnings.
 
 ## Process
@@ -35,22 +33,22 @@ One `Task` call with `agent_type: "general-purpose"` and the configured reflect-
 
 ### 4. Structural enforcement check
 
-Sanity-check the synthesizer's Accepted list. For any item that would be enforced more reliably by a lint rule, script, metadata flag, or runtime check, move it from Accepted to Backlog. See the **encode-lessons-in-structure** principle skill.
+Move any Accepted item that a lint rule, script, metadata flag, or runtime check would enforce more reliably to Backlog. See the **encode-lessons-in-structure** principle skill.
 
 ### 5. Apply
 
-Before applying any Accepted edit, present the synthesizer's full Accepted/Rejected/Backlog output to the user and wait for explicit approval. The user picks which subset to apply and may redirect routings. Skill changes affect every future agent in the org. Do not auto-apply.
+Present the synthesizer's full Accepted / Rejected / Backlog output and wait for explicit approval before applying any Accepted edit. The user picks the subset and may redirect routings. Skill changes affect every future agent in the org. Do not auto-apply.
 
-Backlog items file to whatever devex / backlog tracker your team uses automatically. Only the Accepted list waits for approval.
+File each Backlog item to your team's devex or backlog tracker without waiting. Only the Accepted list waits for approval.
 
-For each approved Accepted item, follow the Routing field exactly:
+Follow each approved row's Routing exactly:
 
 - Trivial existing-skill edit (a one-line bullet, a tightened sentence, a stale fact corrected): parent does directly.
 - Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines): follow the poteto-mode Authoring a skill playbook and run focused task or trigger evals when an eval harness is available.
 - `tune description: <skill path>` (the skill exists but did not trigger when it should have): add realistic positive and negative trigger cases, then tighten the description against them.
 - `new skill via authoring playbook: <kebab-name>`: follow the Authoring a skill playbook. Do not invent the shape ad hoc.
 
-If your environment ships a SKILL.md validator, run it on every touched skill before declaring done. Skip this step if it doesn't.
+If your environment ships a SKILL.md validator, run it on every touched skill before declaring done.
 
 ### 6. Summarize for the user
 

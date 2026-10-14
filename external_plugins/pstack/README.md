@@ -7,8 +7,8 @@ planning, delegation, review, and verification.
 
 ## What this plugin provides
 
-- 52 Agent Skills, including `poteto-mode`, `poteto-help`, `how`, `why`,
-  `architect`, `arena`, `swarm`, `interrogate`, `correct`, `benchmark-checklist`,
+- 55 Agent Skills, including `poteto-mode`, `poteto-help`, `how`, `why`,
+  `architect`, `arena`, `swarm`, `interrogate`, `correct`, `benchmark-checklist`, `ketchup`, `sharpen`,
   `tdd`, `deslop`, `unslop`, and 24 pstack principles.
 - The `poteto-agent` and `comment-sicko` custom agents.
 - Native `pstack_status`, capability, artifact-validation, plan-validation, verification-receipt,
@@ -16,7 +16,7 @@ planning, delegation, review, and verification.
 - PR watching, orchestration, decision-log, and worktree-audit helpers used by
   advanced playbooks.
 - Verified multi-phase planning with an executable checklist checker.
-- Compatible upstream changes through pstack 0.15.15, with Cursor-only features
+- Compatible upstream changes through pstack 0.15.24, with Cursor-only features
   intentionally excluded.
 - User-level model configuration through `/setup-pstack`.
 

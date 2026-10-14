@@ -5,12 +5,12 @@ This plugin is adapted from
 The adaptation originally imported upstream commit
 `46125561306434d8a1d7745d540d8932ab0cd2a2` and had included the compatible
 changes through upstream repository commit
-`d0ef80d86795816da932a153458c5dbe192d294e` (pstack version `0.15.15`). The
+`1e5c90a4b6f249917bd21fe361b3a2a7deb741b8` (pstack version `0.15.24`). The
 last commit in that range that changes the `pstack/` subtree is
-`df581122cde17e6e27686b5a448bde23e4ad4318`.
+`1e5c90a4b6f249917bd21fe361b3a2a7deb741b8`.
 
 The reviewed range starts after
-`2cbf58508f40de470d7490b55c51d71241928fa2`, the last upstream content commit
+`df581122cde17e6e27686b5a448bde23e4ad4318`, the last upstream content commit
 included by the previous Copilot adaptation. The machine-readable boundary,
 ownership rules, and exclusions live in [`upstream-sync.json`](./upstream-sync.json).
 
@@ -135,3 +135,22 @@ ScaryPilot changed the integration layer for GitHub Copilot:
 The upstream guide is included with Copilot-specific installation, agent,
 automation, path, and verification instructions. Cursor-only screenshots and
 unsupported runtime promises are omitted.
+- Ported compatible `0.15.16`-`0.15.24` changes. Added `/in-your-own-words`,
+  `/sharpen`, and `/ketchup` as model-callable skills, without Cursor's
+  `disable-model-invocation` guard. Ported the prose distillation of `/how`,
+  `/why`, `/interrogate`, `/reflect`, `/unslop`, and the principle skills,
+  the stricter `test-behavior-not-implementation` rule, and the autopilot
+  playbook rewrites (single full swarm per PR, fresh-owner lifecycle,
+  `/ketchup` operator catch-ups and replies). Ported `watch-pr` review-thread
+  pagination, the owner-approval gate classification, the `orch` ledger
+  `expectedEvidence` compare-and-set, and the base-branch-chain frontier
+  (`gh` or `--forge origin`, replacing Graphite). Retained Copilot Task
+  conventions, session-history tools, the Copilot review-bot recognition,
+  native-tool worktree inspection, and the Graphite-based shipping and babysit
+  playbooks; upstream's Origin-forge shipping and babysit rewrites are not
+  carried. Excluded the Cursor `/loop`, cloud-agent, `cursor-team-kit`,
+  `AskQuestion`, `~/.cursor` model-rule, reasoning-level and fast-speed slug
+  guidance, `Comment Sicko` subagent-type, `/setup-pstack` model-rule defaults,
+  and `/` menu wording, the transcript-based worktree-audit chat scan, the
+  Cursor-only plugin manifest, and the check-plan fence rewrite, which the
+  Copilot plan rules already implement.

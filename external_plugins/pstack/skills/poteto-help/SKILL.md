@@ -62,16 +62,19 @@ Default to `/poteto-mode` for non-trivial work that needs its discipline. Name a
 
 | The user wants to | Skill |
 |---|---|
-| Do non-trivial work with rigor | [`/poteto-mode`](../poteto-mode/SKILL.md) |
-| Know how code works or where code should live | [`/how`](../how/SKILL.md) |
-| Know why code is shaped this way or where a choice came from | [`/why`](../why/SKILL.md) |
-| Understand a change or subsystem plainly | [`/teach`](../teach/SKILL.md) |
-| Catch up on recent work from available history | [`/recall`](../recall/SKILL.md) |
-| Prove what a small diff could break elsewhere | [`/blast-radius`](../blast-radius/SKILL.md) |
-| Settle types and module boundaries before implementation | [`/architect`](../architect/SKILL.md) |
-| Compare attempts at one brief and graft the best parts | [`/arena`](../arena/SKILL.md) |
-| Cover independent slices or declared race arms | [`/swarm`](../swarm/SKILL.md) |
-| Have different models challenge a diff | [`/interrogate`](../interrogate/SKILL.md) |
+| Do any non-trivial task with rigor | [`/poteto-mode`](../poteto-mode/SKILL.md) |
+| Check that the agent understood their goal and the problem before it starts | [`/in-your-own-words`](../in-your-own-words/SKILL.md) |
+| Aim a task higher before starting: more expert, more outcome-focused, not overspecified | [`/sharpen`](../sharpen/SKILL.md) |
+| Know how code works now, or where new code should live | [`/how`](../how/SKILL.md) |
+| Know why code is shaped this way, or where a number came from | [`/why`](../why/SKILL.md) |
+| Understand a change or subsystem, explained plainly | [`/teach`](../teach/SKILL.md) |
+| Catch up on their own recent work on a topic | [`/recall`](../recall/SKILL.md) |
+| Catch up on what changed in this chat since their last message, in a few plain sentences and small visuals, with enough context to decide each action item | [`/ketchup`](../ketchup/SKILL.md) |
+| Know what a small diff could break outside itself | [`/blast-radius`](../blast-radius/SKILL.md) |
+| Settle types and module shape before code that crosses a function boundary | [`/architect`](../architect/SKILL.md) |
+| Get several attempts at one brief, merged into the best one | [`/arena`](../arena/SKILL.md) |
+| Run parallel checks over slices, or race workers | [`/swarm`](../swarm/SKILL.md) |
+| Have different models review a diff and try to break it | [`/interrogate`](../interrogate/SKILL.md) |
 | Fix a bug test-first when a cheap local test exists | [`/tdd`](../tdd/SKILL.md) |
 | Apply TypeScript rules | [`/typescript-best-practices`](../typescript-best-practices/SKILL.md) |
 | Remove AI-generated code slop | [`/deslop`](../deslop/SKILL.md) |
@@ -95,12 +98,12 @@ For a missing table entry, read the installed skill's frontmatter and route by i
 
 Close calls:
 
-- `/how` explains mechanics, `/why` explains reasons, and `/teach` combines and explains the evidence.
-- `/arena` repeats one brief and grafts the best parts. `/swarm` partitions coverage or races declared arms and aggregates one report.
-- `/architect` normally implements after design. Add "with checkpoint" to review the design before implementation.
-- `/interrogate` challenges a diff. `/blast-radius` proves a safety assumption outside it.
-- `/recall` rebuilds topic context. Session pickup resumes one specific branch or session.
-- `/figure-it-out` designs one rigorous run. Orchestrate is a multi-day program; Autonomous run drives one task to a finish condition.
+- `/how` explains what the code does. `/why` explains the reasons. `/teach` runs one or both and explains the result plainly.
+- `/arena` gives every worker the same brief and merges the best parts. `/swarm` splits work into slices or a race and returns one report.
+- `/architect` implements right after it settles the design. Add "with checkpoint" to review the design before it writes code.
+- `/interrogate` reviews the diff. `/blast-radius` looks for breakage outside the diff and proves the one fact that makes the change safe.
+- `/recall` rebuilds context across recent chats. `/ketchup` covers only this chat since the user's last message. Resuming one specific chat or branch is the Session pickup playbook.
+- `/figure-it-out` designs one rigorous run. The Orchestrate playbook runs a program that spans days and many PRs. The Autonomous run playbook drives one task to a finish condition.
 
 Both `/deslop` and `/pstack-schema-validate` are bundled in this Copilot pstack adaptation. For validation, `pstack_validate_artifact` checks one selected workspace artifact's contract without running commands or reading evidence paths. Valid structure is not proof of behavior, freshness, or permission to act. The validation skill documents its CLI fallback.
 
