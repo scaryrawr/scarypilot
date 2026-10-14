@@ -13,7 +13,14 @@ const playbook = readFileSync(
   "utf8",
 );
 
-const template = playbook.split("````markdown\n")[1]?.split("\n````")[0];
+function planTemplate(text) {
+  const template = text.split(/````markdown\r?\n/)[1]?.split(/\r?\n````/)[0];
+  assert.equal(typeof template, "string", "the playbook must contain a fenced Markdown plan");
+
+  return template;
+}
+
+const template = planTemplate(playbook);
 
 const fencedCadences = [
   "```text\nhourly audit tick\n```",
@@ -25,6 +32,33 @@ const fencedCadences = [
   "```text\n~~~\nhourly audit tick\n```",
   "```text\n```not-a-close\nhourly audit tick\n```",
 ];
+
+for (const [label, newline] of [["LF", "\n"], ["CRLF", "\r\n"]]) {
+  test(`the ${label} playbook yields a plan with stable validation and CLI diagnostics`, (t) => {
+    const plan = planTemplate(playbook.replace(/\r?\n/g, newline));
+    const line = plan.split(/\r?\n/).indexOf("## Program checklist") + 1;
+    assert.ok(line > 0);
+    assert.deepEqual(validatePlanText(plan, "verified-stack").findings, []);
+    const missing = plan.replace("hourly audit tick", "audit tick");
+    assert.deepEqual(validatePlanText(missing, "verified-stack").findings, [{
+      line,
+      rule: "audit-cadence",
+      message: 'Program checklist needs "hourly" or "30-minute" on the audit tick or status message line',
+    }]);
+    const root = mkdtempSync(join(process.cwd(), ".pstack-plan-newlines-"));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const path = join(root, "plan.md");
+    const cli = fileURLToPath(new URL("../skills/poteto-mode/scripts/check-plan.mjs", import.meta.url));
+    writeFileSync(path, plan);
+    const valid = spawnSync(process.execPath, [cli, path], { encoding: "utf8" });
+    assert.equal(valid.status, 0, valid.stderr);
+    assert.match(valid.stdout, /\n0 problems\n$/);
+    writeFileSync(path, missing);
+    const result = spawnSync(process.execPath, [cli, path], { encoding: "utf8" });
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, new RegExp(`:${line}: \\[audit-cadence\\]`));
+  });
+}
 
 test("the shipped hourly plan skeleton passes verified-stack validation", () => {
   assert.equal(typeof template, "string");
@@ -39,7 +73,7 @@ test("saved 30-minute plans remain valid", () => {
 
 test("a plan without an audit cadence fails with an actionable finding", () => {
   const missingCadence = template.replace("hourly audit tick", "audit tick");
-  const line = template.split("\n").indexOf("## Program checklist") + 1;
+  const line = template.split(/\r?\n/).indexOf("## Program checklist") + 1;
   assert.deepEqual(validatePlanText(missingCadence, "verified-stack").findings, [
     {
       line,
@@ -51,7 +85,7 @@ test("a plan without an audit cadence fails with an actionable finding", () => {
 
 test("unrelated or fenced cadence text cannot schedule an audit", () => {
   const missing = template.replace("hourly audit tick", "audit tick");
-  const line = template.split("\n").indexOf("## Program checklist") + 1;
+  const line = template.split(/\r?\n/).indexOf("## Program checklist") + 1;
 
   for (const unrelated of [
     "- [ ] Reconcile hourly billing.",
@@ -144,7 +178,7 @@ test("the shipped bundle validates both cadences through its native tools", {
     await import(process.argv[1]);
   `;
 
-  const line = template.split("\n").indexOf("## Program checklist") + 1;
+  const line = template.split(/\r?\n/).indexOf("## Program checklist") + 1;
 
   const failure = {
     ok: false,

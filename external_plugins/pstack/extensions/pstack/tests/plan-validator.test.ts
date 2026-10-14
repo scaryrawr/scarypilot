@@ -12,13 +12,13 @@ describe("validatePlanText", () => {
     expect(result.findings.map((finding) => finding.rule)).toContain("how-to-read");
   });
 
-  it("accepts hourly audits without invalidating saved 30-minute plans", () => {
+  it.each(["\n", "\r\n"])("accepts hourly audits without invalidating saved 30-minute plans with %j newlines", (newline) => {
     const legacy = readFileSync(
       new URL("./fixtures/plan-verified-stack-valid.md", import.meta.url),
       "utf8",
-    );
+    ).replace(/\r?\n/g, newline);
 
-    const line = legacy.split("\n").indexOf("## Program checklist") + 1;
+    const line = legacy.split(/\r?\n/).indexOf("## Program checklist") + 1;
 
     expect(validatePlanText(legacy, "verified-stack").findings).toEqual([]);
     const hourly = legacy.replace("30-minute", "hourly");
@@ -33,14 +33,14 @@ describe("validatePlanText", () => {
     ]);
   });
 
-  it("rejects unrelated or fenced cadence text in an unscheduled plan", () => {
+  it.each(["\n", "\r\n"])("rejects unrelated or fenced cadence text in an unscheduled plan with %j newlines", (newline) => {
     const legacy = readFileSync(
       new URL("./fixtures/plan-verified-stack-valid.md", import.meta.url),
       "utf8",
-    );
+    ).replace(/\r?\n/g, newline);
 
     const missing = legacy.replace("30-minute ", "");
-    const line = legacy.split("\n").indexOf("## Program checklist") + 1;
+    const line = legacy.split(/\r?\n/).indexOf("## Program checklist") + 1;
 
     for (const unrelated of [
       "- [ ] Reconcile hourly billing.",

@@ -54,6 +54,8 @@ bounded to four findings plus a count, returned as `additionalContext`; it
 does not block or rewrite the successful tool result. A real I/O boundary
 can legitimately use a guard, so the agent must judge the finding in context.
 Existing findings do not trigger repeated advice on unrelated edits.
+Workspace-relative paths in hook and scanner diagnostics use forward slashes
+on Windows, macOS, and Linux.
 
 The skill can also be invoked explicitly:
 

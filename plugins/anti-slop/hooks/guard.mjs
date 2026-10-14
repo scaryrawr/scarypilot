@@ -484,7 +484,7 @@ export async function guard(input) {
 
     if (change.created && isGeneratedSource(text)) continue;
 
-    const relative = path.relative(cwd, file);
+    const relative = path.relative(cwd, file).split(path.sep).join("/");
     const previous = new Map();
 
     if (!change.created) {
