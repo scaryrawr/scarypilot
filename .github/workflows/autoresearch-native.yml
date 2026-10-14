@@ -128,6 +128,10 @@ jobs:
           $bash = Join-Path $env:ProgramFiles "Git\bin\bash.exe"
           if (-not (Test-Path $bash)) { throw "Git for Windows Bash is required" }
           $env:OWNERSHIP_BASH_EXE = $bash
+          node -e "console.log(JSON.stringify({platform:process.platform,arch:process.arch,machine:require('node:os').machine(),node:process.version}))"
+          if ($LASTEXITCODE -ne 0) { throw "Native architecture inspection failed" }
+          $architectures = @(Get-CimInstance Win32_Processor | Select-Object -ExpandProperty Architecture)
+          Write-Output (ConvertTo-Json -Compress -InputObject @{ processorArchitectures = $architectures })
           node native/verify-artifact.mjs $env:OWNERSHIP_EXPECT_ARCH
           if ($LASTEXITCODE -ne 0) { throw "Native artifact verification failed" }
           npm run native:harness:test
