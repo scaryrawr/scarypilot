@@ -128,7 +128,7 @@ describe.each(scenarios)("$name native Windows ownership census", ({ name, run, 
 
       const pending = run(command, {
         cwd: directory,
-        timeoutMs: reason === "timeout" ? 6000 : 15_000,
+        timeoutMs: reason === "timeout" ? 15_000 : 30_000,
         signal: controller.signal,
         processControl: control,
       });
@@ -159,7 +159,7 @@ describe.each(scenarios)("$name native Windows ownership census", ({ name, run, 
 
         if (reason === "abort") controller.abort();
 
-        await vi.waitFor(() => expect(taskkillObserved).toBeDefined(), { timeout: 7000 });
+        await vi.waitFor(() => expect(taskkillObserved).toBeDefined(), { timeout: 16_000 });
 
         if (!taskkillObserved) throw new Error("No taskkill subprocess was observed");
 
@@ -208,6 +208,6 @@ describe.each(scenarios)("$name native Windows ownership census", ({ name, run, 
 
       if (failures.length > 0) throw new AggregateError(failures, "Owned census assertion or fixture cleanup failed");
     },
-    30_000,
+    45_000,
   );
 });

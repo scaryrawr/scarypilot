@@ -178,6 +178,11 @@ This is simply a Copilot CLI adaptation of the same idea.
 
 ## Develop and test
 
+The bounded, test-only Windows Node-API ownership proof has its own
+[builder/native-architecture CI contract](extensions/copilot-autoresearch/native/README.md).
+It does not replace the runner or make the existing Windows cancellation gate
+green; native x64 and ARM64 evidence is required before integration.
+
 For the native Windows cancellation ownership census, run
 `npm test -- tests/windows-process-census.test.ts` from the extension package.
 The six live cases cover abort/timeout on both runners plus the benchmark and

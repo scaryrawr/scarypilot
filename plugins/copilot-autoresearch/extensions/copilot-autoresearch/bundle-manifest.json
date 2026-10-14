@@ -3,7 +3,7 @@
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
     "package-lock.json": "e61af1346da2f0726bfb26273fa4e3a0b9f0017150555bdf13a2eb007341ec26",
-    "package.json": "f1e7a1c893da42140a6f3e8e351b1b35ed20faaf49e280132e9b63c96f646927",
+    "package.json": "fca238baabcfd491c326f40655bba40b686df2e630ea97079aaef88eda6771c0",
     "src/auto-resume.ts": "0055178b9e0d8190484ec9ae434fa96fa2bdb2225c71b44d5327df5d6082b339",
     "src/command.ts": "0b5ab75f01501ea9cee9805780c4c8b489158425d6bf9fe4ffe14fa7a81e66b8",
     "src/confidence.ts": "7ce8857e95e7b83a6a34045ef0d3745034fbd1e84202423a98e9439db0ac343f",

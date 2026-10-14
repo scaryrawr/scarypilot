@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "purpose": "test-only ownership proof, not an installed execution backend",
+  "nodeApiVersion": 8,
+  "nodeHeadersVersion": "22.18.0",
+  "minimumWindows": "Windows 10 / Windows Server 2016",
+  "crt": "static /MT; verified DLL imports are authoritative",
+  "architectures": {
+    "x64": {
+      "machine": 34404,
+      "directory": "native/artifacts/win32-x64"
+    },
+    "arm64": {
+      "machine": 43620,
+      "directory": "native/artifacts/win32-arm64"
+    }
+  },
+  "binary": "ownership-harness.node",
+  "provenance": "provenance.json",
+  "sourceFiles": [
+    "native/.gitattributes",
+    "native/harness-resources.json",
+    "native/harness/owned_job_harness.cc",
+    "native/build-harness.mjs",
+    "native/verify-artifact.mjs",
+    "native/tests/build-spec.mjs",
+    "native/tests/host.cjs",
+    "native/tests/ownership.mjs"
+  ]
+}

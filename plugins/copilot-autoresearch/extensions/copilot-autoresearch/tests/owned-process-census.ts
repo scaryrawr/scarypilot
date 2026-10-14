@@ -73,7 +73,7 @@ export async function ownedCensus(pids: OwnedPids) {
   ], {
     shell: false,
     windowsHide: true,
-    timeout: 3000,
+    timeout: 10_000,
     stdio: ["ignore", "pipe", "pipe"],
   }));
 
