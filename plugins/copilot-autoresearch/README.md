@@ -178,6 +178,19 @@ This is simply a Copilot CLI adaptation of the same idea.
 
 ## Develop and test
 
+For the native Windows cancellation ownership census, run
+`npm test -- tests/windows-process-census.test.ts` from the extension package.
+The six live cases cover abort/timeout on both runners plus the benchmark and
+checks script launch shapes. They report `OWNED_PROCESS_CENSUS` JSON for only the fixture's
+known Bash root, marker parent, and ready grandchild, before and after
+cancellation. Probes use exact-PID PowerShell CIM filters and return only native
+PID, parent PID, and process name; taskkill stdout/stderr are capped at 4096
+characters each. A gated marker keeps the actors observable until both snapshots
+are complete. Existing cancellation assertions and implementation are unchanged;
+the census cases also fail if a surviving descendant writes the released marker.
+Non-Windows hosts validate probe scope and capture bounds, but do not infer
+Windows ancestry or execute the live census.
+
 ```bash
 cd extensions/copilot-autoresearch
 npm install
