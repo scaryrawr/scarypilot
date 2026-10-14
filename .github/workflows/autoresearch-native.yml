@@ -161,6 +161,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Native stream and lifecycle gates failed" }
           npm run build
           if ($LASTEXITCODE -ne 0) { throw "Production package assembly failed" }
+          node ../../../../tools/smoke-extension-bundles.mjs
+          if ($LASTEXITCODE -ne 0) { throw "Copied offline bundle execution failed" }
           npm run typecheck
           if ($LASTEXITCODE -ne 0) { throw "Production typecheck failed" }
           npm test

@@ -154,18 +154,22 @@ describe.each(["runShell", "runShellStreaming"] as const)("%s failure teardown",
     const control = failedSignaling();
     let child: ChildProcess | undefined;
     let workerPid: number | undefined;
-    control.spawn = (command, args, options) => {
-      child = spawn(command, args, { ...options, detached: process.platform !== "win32" });
+    let childClosed = Promise.resolve();
+    const program = `require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setInterval(() => { process.stdout.write('output\\n'.repeat(100)); process.stderr.write('stderr\\n') }, 20)`;
 
-      return child;
+    // Inject failed Unix signaling around one real native child, without MSYS background/argv translation.
+    control.spawn = (_command, _args, options) => {
+      const worker = spawn(process.execPath, ["-e", program], { ...options, detached: process.platform !== "win32" });
+      child = worker;
+      childClosed = new Promise<void>((resolve) => worker.once("close", () => resolve()));
+
+      return worker;
     };
 
     const controller = new AbortController();
     const onTick = vi.fn();
-    const program = `require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setInterval(() => { process.stdout.write('output\\n'.repeat(100)); process.stderr.write('stderr\\n') }, 20)`;
-    const command = `${quote(process.execPath.replaceAll("\\", "/"))} -e ${quote(program)} & wait`;
     const opts = { signal: controller.signal, processControl: control, onTick, maxBytes: 16, maxLines: 2 };
-    const pending = runner === "runShell" ? runShell(command, opts) : runShellStreaming(command, opts);
+    const pending = runner === "runShell" ? runShell("fixture", opts) : runShellStreaming("fixture", opts);
     const failure = pending.catch((error: Error) => error);
 
     try {
@@ -176,6 +180,7 @@ describe.each(["runShell", "runShellStreaming"] as const)("%s failure teardown",
         if (runner === "runShellStreaming") expect(readdirSync(directory).some((file) => file.endsWith(".log"))).toBe(true);
       });
       workerPid = Number(readFileSync(pidFile, "utf8"));
+      expect(workerPid).toBe(child?.pid);
       unlinkSync(pidFile);
       controller.abort();
       expect(await failure).toBeInstanceOf(ProcessTerminationError);
@@ -194,9 +199,12 @@ describe.each(["runShell", "runShellStreaming"] as const)("%s failure teardown",
     } finally {
       controller.abort();
 
-      if (workerPid) await cleanKnownPid(workerPid);
+      const pid = child?.pid;
+
+      if (pid !== undefined) await cleanKnownPid(pid);
 
       child?.kill();
+      await childClosed;
       await failure;
     }
   }, 10_000);

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "nodeApiVersion": 8,
+  "protocolVersion": 2,
+  "sourceFingerprint": "bc465ff5ce1a6a594864b188060e80568f4cc61ad79a7161275aa496ad1af127",
+  "binaries": {
+    "x64": "e6f5d3b3369aaa67067aea7301d0a997933f2aa6b3064ced981e8ec70bf182cd",
+    "arm64": "117f4d0ada900dc57cab7bcae5c9c45f75e55dcc38923c3cfedb4f7b96b50cf3"
+  }
+}
