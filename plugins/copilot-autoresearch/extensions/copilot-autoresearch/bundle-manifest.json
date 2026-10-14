@@ -2,8 +2,8 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "e13987085b564e7f015a2387e8a64cc1c53d557ec6fe1571d58918960482601a",
-    "package.json": "c680bc9f3fd2ab38347f495fedcb82de4f14ce12a68c752458802b8ddd1c2a8d",
+    "package-lock.json": "e61af1346da2f0726bfb26273fa4e3a0b9f0017150555bdf13a2eb007341ec26",
+    "package.json": "f1e7a1c893da42140a6f3e8e351b1b35ed20faaf49e280132e9b63c96f646927",
     "src/auto-resume.ts": "0055178b9e0d8190484ec9ae434fa96fa2bdb2225c71b44d5327df5d6082b339",
     "src/command.ts": "0b5ab75f01501ea9cee9805780c4c8b489158425d6bf9fe4ffe14fa7a81e66b8",
     "src/confidence.ts": "7ce8857e95e7b83a6a34045ef0d3745034fbd1e84202423a98e9439db0ac343f",
@@ -15,7 +15,7 @@
     "src/jsonl.ts": "bcf69fa5d7b9ca97dca3df8a29705e5b4a568352566f5c3a7828abadde3dfb5b",
     "src/metric.ts": "4c6ba5dec2e0e93ea8091a9c6d93d69fb24479f39e91e49e1b3851bcb37e6cc0",
     "src/paths.ts": "b658b8baed99f8856236d5ecf5e0220d04dacde1cbeb2de2fdadcac743cdf17c",
-    "src/spawn.ts": "bb33f9f7bc7a8bc142eda1ffe3b1c3cd9e80d695209cd8cd511d8a8c509c7a9e",
+    "src/spawn.ts": "01df8e74732ec0e981c8bd52e52aa663084b4af5d5b8455b4a547caeb6f8e25e",
     "src/state.ts": "a3a7fed3e6d7dd5ab0a0227cd7f7f964ace2ac436829451da0e622b4b73fbf05",
     "src/system-prompt.ts": "417592f3c8304906c9a76110c321ffe2b38e9f3df778827f13fc012f9882be9c",
     "src/tools-init.ts": "f2151dac40737fef412d401b492df415f45ba17dd49b72c949ed1c282aa367b1",
@@ -24,6 +24,6 @@
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
   },
   "outputs": {
-    "dist/extension.mjs": "7dead6429c54e096e7022d2f0b252d468768d3e8dab05feedacc4a1380272729"
+    "dist/extension.mjs": "c4da66853fccea678b20393d200398ed6453f0b05e9fe2a67901e591887be2ab"
   }
 }

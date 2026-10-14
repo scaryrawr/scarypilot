@@ -3,8 +3,9 @@ import * as fixtureFs from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createCwdRef } from "../src/extension-context.ts";
+import * as workspaceReader from "../src/workspace-reader.ts";
 import {
   aggregateStepKey,
   pinnedInputStepKey,
@@ -14,14 +15,35 @@ import {
 
 const directories: string[] = [];
 
+const nativeSupported = process.platform === "darwin" || process.platform === "linux";
+
+const nativeIt = it.skipIf(!nativeSupported);
+
 const pass = { status: "PASS", summary: "Covered.", evidence: ["input.bin"] };
 
 const issues = { status: "ISSUES", summary: "An issue remains.", evidence: ["input.bin:1"] };
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(directories.splice(0).map((path) =>
     fixtureFs.rm(path, { recursive: true, force: true })
   ));
+});
+
+beforeEach(() => {
+  if (nativeSupported) return;
+  // SAFETY: This fixture stub only serves workflow stat/close calls, never production reads.
+  vi.spyOn(workspaceReader, "openConfinedFile").mockImplementation(async (path) => ({
+    stat: () => fixtureFs.stat(path, { bigint: true }),
+    close: async () => {},
+  }) as Awaited<ReturnType<typeof workspaceReader.openConfinedFile>>);
+  vi.spyOn(workspaceReader, "hashWorkspaceFile").mockImplementation(async (cwd, path, signal) => {
+    signal.throwIfAborted();
+    const target = await fixtureFs.realpath(join(cwd, path));
+    const bytes = await fixtureFs.readFile(target);
+
+    return { path: target, sha256: createHash("sha256").update(bytes).digest("hex") };
+  });
 });
 
 async function workspace(bytes = Buffer.from([0, 255, 128, 13, 10])) {
@@ -120,7 +142,7 @@ describe("pinned swarm caller contract", () => {
     expect(result.workers).toEqual([{ id: "first", ...pass }, { id: "second", ...pass }]);
   });
 
-  it("returns ordered canonical paths, directory identity and exact-byte SHA256 without writes", async () => {
+  nativeIt("returns ordered canonical paths, directory identity and exact-byte SHA256 without writes", async () => {
     const bytes = Buffer.from([0, 255, 128, 13, 10]);
     const cwd = await workspace(bytes);
     await fixtureFs.writeFile(join(cwd, "second.txt"), "second");
@@ -167,6 +189,16 @@ describe("pinned swarm caller contract", () => {
     });
   });
 
+  it.skipIf(nativeSupported)("refuses native pinned reads before worker admissions on unsupported platforms", async () => {
+    vi.restoreAllMocks();
+    const cwd = await workspace();
+    const { ctx } = journalContext(input(["input.bin"]));
+    await expect(runSwarmWorkflow(ctx, cwd)).rejects.toThrow(
+      "native workspace-confined validation requires macOS or Linux",
+    );
+    expect(ctx.agent).not.toHaveBeenCalled();
+  });
+
   it.each([
     null, [], [" "], [""], [12], "input.bin", ["input.bin", "input.bin"],
     Array.from({ length: 129 }, (_, index) => `file-${index}`),
@@ -195,15 +227,19 @@ describe("pinned swarm caller contract", () => {
     expect(await inventory(cwd)).toEqual(before);
   });
 
-  it.each(["missing", "directory", "absolute-escape", "symlink-escape", "symlink-inside", "symlink-directory"] as const)(
+  it.each((["missing", "directory", "absolute-escape", "symlink-escape", "symlink-inside", "symlink-directory"] as const)
+    .filter((kind) => nativeSupported || !kind.startsWith("symlink")))(
     "rejects %s targets before admissions",
     async (kind) => {
       const cwd = await workspace();
       const outside = await workspace();
       await fixtureFs.mkdir(join(cwd, "dir"));
-      await fixtureFs.symlink(join(outside, "input.bin"), join(cwd, "escape"));
-      await fixtureFs.symlink(join(cwd, "input.bin"), join(cwd, "alias"));
-      await fixtureFs.symlink(cwd, join(cwd, "dir-alias"));
+
+      if (nativeSupported) {
+        await fixtureFs.symlink(join(outside, "input.bin"), join(cwd, "escape"));
+        await fixtureFs.symlink(join(cwd, "input.bin"), join(cwd, "alias"));
+        await fixtureFs.symlink(cwd, join(cwd, "dir-alias"));
+      }
 
       const paths = {
         missing: "missing",
@@ -235,7 +271,7 @@ describe("pinned swarm caller contract", () => {
     },
   );
 
-  it("accepts 128 distinct inputs and canonicalizes a host cwd symlink", async () => {
+  nativeIt("accepts 128 distinct inputs and canonicalizes a host cwd symlink", async () => {
     const parent = await workspace();
     const cwd = join(parent, "actual");
     await fixtureFs.mkdir(cwd);

@@ -1,8 +1,9 @@
-import { realpath } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createCwdRef } from "../src/extension-context.ts";
 import { createValidateArtifactTool } from "../src/tools/validate-artifact.ts";
+import { validateArtifact } from "../../../skills/pstack-schema-validate/scripts/artifact-rules.mjs";
 
 const cwd = resolve(import.meta.dirname, "..");
 
@@ -25,6 +26,18 @@ describe("retained safe host fixtures", () => {
   ] as const)("validates the retained %s fixture %s", async (kind, name, findings) => {
     const path = `tests/fixtures/${name}`;
     const tool = createValidateArtifactTool(createCwdRef(cwd));
+    expect(validateArtifact(kind, JSON.parse(await readFile(resolve(cwd, path), "utf8")))).toEqual({
+      schemaVersion: 1, ok: findings.length === 0, findings,
+    });
+
+    if (process.platform !== "darwin" && process.platform !== "linux") {
+      await expect(tool.handler({ kind, path }, context)).rejects.toThrow(
+        "native workspace-confined validation requires macOS or Linux",
+      );
+
+      return;
+    }
+
     expect(JSON.parse(String(await tool.handler({ kind, path }, context)))).toEqual({
       kind, path: await realpath(resolve(cwd, path)),
       schemaVersion: 1, ok: findings.length === 0, findings,
@@ -34,6 +47,15 @@ describe("retained safe host fixtures", () => {
   it("validates retained plan fixtures with basic and default verified-stack profiles", async () => {
     const tool = createValidateArtifactTool(createCwdRef(cwd));
     const basic = "tests/fixtures/plan-basic-valid.md";
+
+    if (process.platform !== "darwin" && process.platform !== "linux") {
+      await expect(tool.handler({ kind: "plan", path: basic }, context)).rejects.toThrow(
+        "native workspace-confined validation requires macOS or Linux",
+      );
+
+      return;
+    }
+
     expect(JSON.parse(String(await tool.handler({ kind: "plan", path: basic, profile: "basic" }, context)))).toEqual({
       kind: "plan", path: await realpath(resolve(cwd, basic)),
       profile: "basic", ok: true, findings: [], report: ["1 checklist boxes"],

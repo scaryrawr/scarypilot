@@ -12,6 +12,11 @@ plugin includes native image and audio tools plus three skills:
 
 ## Prerequisites
 
+Local oMLX inference requires **macOS on Apple Silicon**. The HTTP client can run
+on Windows or Linux against an explicitly configured remote oMLX server.
+Recording transcription requires explicit remote-endpoint consent; the grounded
+writing workflow has separate transcript-transmission consent.
+
 - A current GitHub Copilot CLI release with plugin and skill support.
 - [`uv`](https://docs.astral.sh/uv/) and Python for optional `blogify`
   classification, direct-installed `blogify`, and the image skill's legacy fallback.

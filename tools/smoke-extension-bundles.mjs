@@ -17,7 +17,7 @@ const extensions = [
 ];
 
 for (const extension of extensions) {
-  const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "scarypilot-extension-"));
+  const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "scarypilot extension # "));
 
   try {
     const source = path.join(root, extension);
@@ -27,7 +27,6 @@ for (const extension of extensions) {
     await Promise.all([
       cp(path.join(source, "extension.mjs"), path.join(temporaryRoot, "extension.mjs")),
       cp(path.join(source, "dist"), path.join(temporaryRoot, "dist"), { recursive: true }),
-      writeFile(path.join(temporaryRoot, "gh"), "#!/bin/sh\nexit 0\n", { mode: 0o755 }),
       writeFile(path.join(temporaryRoot, "smoke.mjs"), [
         "globalThis.fetch = async () => { throw new Error('Network disabled during bundle smoke test'); };",
         "await import('./extension.mjs');",
@@ -56,15 +55,28 @@ for (const extension of extensions) {
       ].join("\n")),
     ]);
 
+    const env = {
+      HOME: temporaryRoot,
+      PATH: temporaryRoot,
+      SESSION_ID: "bundle-smoke",
+    };
+
+    if (process.platform === "win32") {
+      Object.assign(env, {
+        SystemRoot: process.env.SystemRoot,
+        ComSpec: process.env.ComSpec,
+        PATHEXT: process.env.PATHEXT,
+        USERPROFILE: temporaryRoot,
+        TEMP: temporaryRoot,
+        TMP: temporaryRoot,
+      });
+    }
+
     const result = spawnSync(process.execPath, ["smoke.mjs"], {
       cwd: temporaryRoot,
       encoding: "utf8",
       timeout: 15_000,
-      env: {
-        HOME: temporaryRoot,
-        PATH: temporaryRoot,
-        SESSION_ID: "bundle-smoke",
-      },
+      env,
     });
 
     if (result.error || result.status !== 0) {

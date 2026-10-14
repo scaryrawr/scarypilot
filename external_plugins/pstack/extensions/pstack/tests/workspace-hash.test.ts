@@ -7,11 +7,13 @@ import { hashWorkspaceFile } from "../src/workspace-reader.ts";
 
 const directories: string[] = [];
 
+const nativeIt = it.skipIf(process.platform !== "darwin" && process.platform !== "linux");
+
 afterEach(async () => {
   await Promise.all(directories.splice(0).map((path) => rm(path, { recursive: true })));
 });
 
-it("hashes exact bytes across bounded reads without whole-file buffering", async () => {
+nativeIt("hashes exact bytes across bounded reads without whole-file buffering", async () => {
   const cwd = await realpath(await mkdtemp(join(tmpdir(), "pstack-hash-")));
   directories.push(cwd);
   const bytes = Buffer.alloc(1024 * 1024 + 17);
@@ -45,7 +47,7 @@ it("hashes exact bytes across bounded reads without whole-file buffering", async
   expect(Math.max(...lengths)).toBe(64 * 1024);
 });
 
-it("propagates cancellation during streaming and closes the descriptor", async () => {
+nativeIt("propagates cancellation during streaming and closes the descriptor", async () => {
   const cwd = await realpath(await mkdtemp(join(tmpdir(), "pstack-hash-")));
   directories.push(cwd);
   await writeFile(join(cwd, "large.bin"), Buffer.alloc(200000, 255));
@@ -78,3 +80,15 @@ it("propagates cancellation during streaming and closes the descriptor", async (
   await expect(hashWorkspaceFile(cwd, "large.bin", controller.signal, confinedOpen, true)).rejects.toBe(reason);
   expect(closed).toBe(true);
 });
+
+it.skipIf(process.platform === "darwin" || process.platform === "linux")(
+  "rejects native hashing explicitly on unsupported platforms before opening bytes",
+  async () => {
+    const cwd = await realpath(await mkdtemp(join(tmpdir(), "pstack-hash-")));
+    directories.push(cwd);
+    await writeFile(join(cwd, "file"), "bytes");
+    await expect(hashWorkspaceFile(cwd, "file", new AbortController().signal)).rejects.toThrow(
+      "native workspace-confined validation requires macOS or Linux",
+    );
+  },
+);

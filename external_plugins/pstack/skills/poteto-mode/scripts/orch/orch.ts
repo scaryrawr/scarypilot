@@ -496,10 +496,10 @@ function createProgram(io: Io): Command {
 
   const frontier = program
     .command("frontier")
-    .description("manage the Graphite stack frontier")
+    .description("manage the gh-stack frontier")
     .action(() => requireSubcommand(program));
 
-  leaf(frontier, "set", "discover the Graphite stack and set the frontier")
+  leaf(frontier, "set", "observe gh-stack and refresh the frontier (may refresh its cache)")
     .addOption(
       new Option(
         "--repo <dir>",

@@ -6,7 +6,7 @@ export type CapabilityState =
 export interface PstackCapabilities {
   readonly git: CapabilityState;
   readonly githubCli: CapabilityState;
-  readonly graphite: CapabilityState;
+  readonly ghStack: CapabilityState;
   readonly bunLegacyScripts: CapabilityState;
   readonly taskAgents: CapabilityState;
   readonly sessionHistory: CapabilityState;

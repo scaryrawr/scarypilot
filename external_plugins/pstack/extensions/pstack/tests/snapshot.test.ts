@@ -5,7 +5,7 @@ import type { PstackCapabilities } from "../src/types.ts";
 const capabilities: PstackCapabilities = {
   git: { kind: "available", detail: "git" },
   githubCli: { kind: "unavailable", reason: "missing" },
-  graphite: { kind: "unavailable", reason: "missing" },
+  ghStack: { kind: "unavailable", reason: "missing" },
   bunLegacyScripts: { kind: "unavailable", reason: "missing" },
   taskAgents: { kind: "unknown", reason: "host" },
   sessionHistory: { kind: "unknown", reason: "host" },

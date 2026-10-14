@@ -64,6 +64,11 @@ unchanged in `inputFiles`. Replace the example paths with actual workspace
 files. The optional manifest accepts 1-128 unique files. It rejects missing
 files, directories, symlinks, outside paths, URLs, traversal, and duplicate
 canonical targets. Native confined reads require macOS or Linux.
+On Windows, use the Task-based legacy flow below for work requiring pinned
+inputs before invoking any native workflow. Give each worker the explicit file
+list and require before/after freshness evidence. Report that this fallback does
+not provide the native workflow's race-safe confinement or journaled pinning.
+Do not silently omit `inputFiles` to bypass the native platform restriction.
 
 The first attempt journals `pinnedInputSnapshot`, containing the canonical
 workspace path, directory identity, and each declared file's canonical path

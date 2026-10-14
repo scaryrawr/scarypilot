@@ -2,9 +2,9 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "aaaee198d43d4eec97007ce929843abd605c5fdb27c1e7b24422301a58b8a171",
-    "package.json": "3ebeb3fba677b9b4cf6e00c234859b7de0d40696f47eee722dd9825d9c6ac05a",
-    "src/capabilities.ts": "c1492db1ed2ae01d8d0f5b22ab40363eaacb5808ea7c1d08cc0f86822cfc928f",
+    "package-lock.json": "e5a32878e310bb4fc6debac60a04d804101c09130a88e541d385282bac075e43",
+    "package.json": "519e6f3273dfdc214121f18687f245d978ac86e0107c2a3e06f24462c9989e3c",
+    "src/capabilities.ts": "2ce0406e233d457421181c685ded3c9fd79b438d1f194a43cfb5f768832de582",
     "src/command.ts": "33a7020224ce2fd515a30ce6d57b1108e9a2586800f3fca48cc9a5acf838e339",
     "src/extension-context.ts": "25be6a0908e933fb3cbbf9c618a6debbd9565459e44c47aac35bd924c8889b55",
     "src/extension.ts": "8c02799fb8f43e090c03a076638ba8f74c1edd87644216ad3cb3882b057c75ec",
@@ -23,18 +23,18 @@
     "src/tools/status.ts": "f51962894036001d445b273a511b2525679dbaf409ae1d650fae5a7dc7369992",
     "src/tools/validate-artifact.ts": "7e0bc8599a6e9a56fbfb714f17a35e1d1eabba4fb11b0f36ca6807c4813e11ba",
     "src/tools/validate-plan.ts": "377d488dd2fd1114c3bdcca8b6bede8f2085deeed1e45512b091f0b878daf36b",
-    "src/types.ts": "d0705a485718db032881351961a6787827158b867dae96371b7ba01b9b51cee5",
+    "src/types.ts": "ef1c67cf9d81ccbb85bac13cdb69b78d5abea77f2518527979e3363767e8c280",
     "src/watch-reader.ts": "b11e63d38e88309266f6edf207aac4cfc10180831a8f7f994866e9a33f83c870",
     "src/workflows/index.ts": "c138bcf7f79fcdceb9d4086d8ec57392eaa3ec0db8dac03df0ac29ae6ca1dd71",
     "src/workflows/swarm.ts": "e8b820047ed991fea389397d20d4b578c18dfb10063e2d23a261e44c07ef4301",
     "src/workspace-reader.ts": "008bca07163364eb85322f1ff9625e84b432d2387d7408086139a756af3c93c5",
     "src/worktrees.ts": "f3a3a019c01663caf78c9a7e2efc9b5142f0d5aff56b2a7fa0b902815ed8bcd8",
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5",
-    "../../skills/poteto-mode/scripts/orch/store.ts": "cb865c8db6025ee334b4b3829960445e7d6d957d05ae5a2e8cfad6766c235836",
+    "../../skills/poteto-mode/scripts/orch/store.ts": "d2e96c14afdf029beb030e72a375c174e090f5ae7252bce55ebb9aa3170727b3",
     "../../skills/poteto-mode/scripts/plan-rules.mjs": "144bb8af2416d4a6a8f0d89a210bf224f41be309d1fe61c6cb9b94b02cc1103c",
     "../../skills/pstack-schema-validate/scripts/artifact-rules.mjs": "7584b25ee79bb5b47bf3e519bda5758dd7e9393d6ff9055e31bfef068fca773d"
   },
   "outputs": {
-    "dist/extension.mjs": "1ae0e9ccef4a191ab86da2388590947ccc22fba1671faa4bbb180736f7706f88"
+    "dist/extension.mjs": "cc658ac5570b61493c4c4e821a9010a342b07c90e4b8a0986508b83b04e293c6"
   }
 }

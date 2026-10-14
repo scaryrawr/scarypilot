@@ -13,6 +13,12 @@ it to.
 - A current [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli)
   release with plugin extension support.
 - Git, Node.js, and Bash available in the repository where experiments run.
+  On Windows, install Git for Windows and put its Bash on `PATH`; experiments
+  and `.sh` check scripts still run with Bash, not PowerShell or WSL.
+  Cancellation and timeouts use Windows `taskkill.exe /T /F` to stop the
+  experiment process tree; Unix systems signal the Bash process group.
+  If termination fails, output capture stops and unreturned logs are removed.
+  The error reports the process-tree root PID for caller-owned manual recovery.
 
 Autoresearch executes benchmark commands and intentionally creates Git
 commits or reverts experiment changes in the active repository. Use it only in

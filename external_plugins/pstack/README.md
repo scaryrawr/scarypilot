@@ -30,7 +30,11 @@ a workflow. It answers the question without starting the suggested task.
 - GitHub Copilot CLI with plugin, Agent Skills, and native extension support.
 - Git and GitHub CLI for GitHub and PR workflows.
 - Bun only for the legacy `poteto-mode` PR watcher and orchestration CLIs.
-- Graphite CLI only for playbooks that explicitly use stacked PRs.
+- Node.js for the cross-platform `show-me-your-work` decision-log helper.
+- GitHub CLI with the separately installed [`github/gh-stack`](https://github.com/github/gh-stack)
+  extension for stacked-PR playbooks, using the public v0.2.1 JSON contract or
+  a compatible release. Capability detection runs `gh stack --version`;
+  pstack never installs the extension automatically.
 
 The native extension and core skills need no extra runtime. Optional host
 capabilities are reported as available, unavailable, or unknown instead of
@@ -76,6 +80,28 @@ state database. Verification receipts and handoffs are durable JSON artifacts
 under the repository Git state directory. Their schemas live in
 [`contracts/`](./contracts/).
 
+The `1.0.0-copilot.1` release changes the stack dependency and capability key to
+`ghStack`. It no longer supports the previous stack backend. The reviewed
+upstream content version remains recorded separately in `upstream-sync.json`.
+
+`orch frontier set --repo <dir> [--prs <complete-bottom-to-top-pin>]` reads
+`gh stack view --json`, checks every branch's identity and lifecycle with
+`gh pr view`, and resolves local Git head SHAs. It preserves terminal PRs and
+the existing frontier shape, including the singular branch stored in `branches`.
+The first OPEN PR is the frontier, not proof of merge readiness. Acquisition can
+refresh gh-stack's local cache but never installs, adopts, rewrites branches,
+creates PRs, or merges. There is no cross-system transaction; failed acquisition
+leaves the previous frontier intact, and a retry reacquires the complete result.
+Run the Bun CLI through its absolute skill path as described in Poteto mode.
+
+Stack adoption and publication require the user's relevant scope and approval.
+Supported host PR-creation tools remain authoritative; `gh stack submit` is not
+a bypass. Shipping is a separate approved operation over a contiguous verified
+prefix through an explicit ceiling, not merge-when-ready. Released gh-stack
+resolves numeric merge targets as stack numbers before PR numbers, so target
+resolution must be proven before any merge. See the
+[Shipping playbook](./skills/poteto-mode/playbooks/shipping.md).
+
 Validate an explicitly requested workspace artifact with
 `pstack_validate_artifact`. Its input is `{ kind, path, profile? }`.
 `kind` is `snapshot`, `receipt`, `handoff`, or `plan`. Only plans accept
@@ -97,6 +123,10 @@ macOS rejects symlinks throughout the canonical open path with `O_NOFOLLOW_ANY`.
 Linux opens each path component through a pinned directory descriptor in
 `/proc/self/fd`, with `O_NOFOLLOW`. A replaced ancestor symlink cannot redirect
 the read. Other platforms raise an explicit unsupported-platform error.
+On Windows, select the approved-workspace CLI fallback before invoking native
+artifact reads. For pinned native swarms, select the Task fallback with explicit
+file lists and freshness evidence instead. This fallback does not claim native
+race-safe confinement or journaled pinning.
 Validation checks artifact shape, not the truth of recorded
 verification claims, snapshot hashes, or permission to perform later actions.
 `pstack_validate_plan` retains its existing `plan_path` input, defaults,

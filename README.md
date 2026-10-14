@@ -59,6 +59,28 @@ Copilot supplies its own SDK at runtime. Pstack's native read-only swarm
 requires a host exposing dynamic workflow tools; otherwise its skill uses
 the existing Task-agent fallback.
 
+## Platform support
+
+Shared plugins target Windows, macOS, and Linux with their documented prerequisites.
+Native extensions require Node.js 22.18.0 or later and a Copilot host that supports
+extensions. Platform CI checks extension startup and runtime contracts; it does not
+prove that an external service, browser bridge, or capture device is available.
+
+| Plugins | Platform requirements |
+| --- | --- |
+| `pstack` | Core skills target all three platforms. Stacked PR workflows use the official [`github/gh-stack`](https://github.com/github/gh-stack) extension for GitHub CLI. Native confined workspace reads currently require macOS or Linux; Windows uses documented CLI fallbacks. Apple simulator workflows remain macOS-only. |
+| `ado-codespaces`, `azure-devops` | Local clients target all three platforms. Codespaces workloads run in their Linux container. Azure DevOps workflows also need their documented CLI and authentication setup. |
+| `anti-slop`, `better-init`, `digivolution` | Target all three platforms with their documented tools. |
+| `copilot-autoresearch` | Targets all three platforms with Bash installed. Experiment commands and repository-specific tools must match the execution host. |
+| `copilot-local-llm` | The client targets all three platforms; individual model providers have their own OS and hardware requirements. |
+| `chrome-devtools`, `playwright-ext`, `smahties` | Require the documented external browser bridge or CLI on the host. These integrations are not bundled implementations of those dependencies. |
+| `screen-record` | Has Windows, macOS, and Linux capture backends. FFmpeg, capture permissions, and backend availability are required; Linux capture currently needs X11. |
+| `omlx-media`, `omlx-decisions` | Local oMLX inference requires macOS on Apple Silicon. HTTP clients may use an explicitly configured remote oMLX server from other platforms, subject to each tool's transmission-consent rules. |
+
+Do not translate POSIX shell snippets literally into PowerShell or `cmd.exe`.
+Use the host shell's quoting and environment syntax, quote absolute helper paths,
+and use bundled Node.js helpers where available.
+
 ## Contributing
 
 Interested in adding plugins to this marketplace? Check out the plugin development documentation:
