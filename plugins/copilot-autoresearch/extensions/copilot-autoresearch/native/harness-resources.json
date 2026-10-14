@@ -17,15 +17,7 @@
   },
   "binary": "ownership-harness.node",
   "provenance": "provenance.json",
-  "sourceFiles": [
-    "native/.gitattributes",
-    "native/harness-resources.json",
-    "native/harness/owned_job_harness.cc",
-    "native/build-harness.mjs",
-    "native/verify-artifact.mjs",
-    "native/tests/build-spec.mjs",
-    "native/tests/host.cjs",
-    "native/tests/ownership.mjs",
-    "native/tests/windows-architecture.mjs"
-  ]
+  "sourceDiscovery": {
+    "excludedDirectories": ["artifacts", "prebuilds", "build", "test-work"]
+  }
 }

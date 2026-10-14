@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { auditImports, inventory, packageRoot, peMachine, sha256, sourceProvenance, verifyArtifact } from "./verify-artifact.mjs";
+import { resource } from "./resources.mjs";
 
 if (process.platform !== "win32") throw new Error("MSVC Windows harness builds require Windows; no compiler/download fallback");
 
@@ -11,8 +12,8 @@ for (let i = 2; i < process.argv.length; i += 2) {
   const name = process.argv[i];
   const value = process.argv[i + 1];
 
-  if (!["--arch", "--node-include", "--node-lib", "--expect-msvc", "--expect-sdk"].includes(name) || !value || options.has(name)) {
-    throw new Error("Usage: --arch x64|arm64 --node-include <Node headers> --node-lib <target node.lib> --expect-msvc <VCToolsVersion> --expect-sdk <WindowsSDKVersion>");
+  if (!["--kind", "--arch", "--node-include", "--node-lib", "--expect-msvc", "--expect-sdk"].includes(name) || !value || options.has(name)) {
+    throw new Error("Usage: [--kind harness|runtime] --arch x64|arm64 --node-include <Node headers> --node-lib <target node.lib> --expect-msvc <VCToolsVersion> --expect-sdk <WindowsSDKVersion>");
   }
 
   options.set(name, value);
@@ -24,7 +25,9 @@ for (const required of ["--arch", "--node-include", "--node-lib", "--expect-msvc
 
 const arch = options.get("--arch");
 
-const target = inventory.architectures[arch];
+const kind = options.get("--kind") ?? "harness";
+
+const target = resource(kind, arch);
 
 if (!target || process.env.VSCMD_ARG_TGT_ARCH !== arch) throw new Error("Use the matching MSVC target developer environment");
 
@@ -60,7 +63,7 @@ if (headerVersion !== inventory.nodeHeadersVersion) throw new Error(`Require exp
 
 const directory = path.join(packageRoot, target.directory);
 
-const buildDirectory = path.join(packageRoot, "native/build", `win32-${arch}`);
+const buildDirectory = path.join(packageRoot, "native/build", kind, `win32-${arch}`);
 
 await rm(directory, { recursive: true, force: true });
 
@@ -100,14 +103,15 @@ for (const name of ["cl.exe", "link.exe", "dumpbin.exe"]) {
   tools[name] = { path: selected, relative, sha256: sha256(await readFile(selected)) };
 }
 
-const binary = path.join(directory, inventory.binary);
+const binary = path.join(directory, target.binary);
 
 const args = [
   "/nologo", "/Bv", "/std:c++20", "/O2", "/W4", "/WX", "/EHsc", "/MT", "/LD", "/Brepro",
   "/DWIN32_LEAN_AND_MEAN", "/DNOMINMAX", "/D_WIN32_WINNT=0x0A00", "/DNAPI_VERSION=8",
-  "/DNODE_GYP_MODULE_NAME=ownership_harness", "/DOWNERSHIP_HARNESS_TEST_ONLY=1",
+  "/DNODE_GYP_MODULE_NAME=owned_job",
+  ...(kind === "harness" ? ["/DOWNERSHIP_HARNESS_TEST_ONLY=1"] : []),
   `/I${include}`, `/Fo${path.join(buildDirectory, "owned_job_harness.obj")}`, `/Fe${binary}`,
-  path.join(packageRoot, "native/harness/owned_job_harness.cc"),
+  path.join(packageRoot, target.entry),
   "/link", "/WX", `/MACHINE:${arch === "x64" ? "X64" : "ARM64"}`, "/DYNAMICBASE", "/NXCOMPAT",
   "/INCREMENTAL:NO", "/Brepro", `/IMPLIB:${path.join(buildDirectory, "ownership-harness.lib")}`,
   nodeLib, "kernel32.lib",
@@ -145,12 +149,13 @@ const sources = await sourceProvenance();
 
 const metadata = {
   schemaVersion: 1,
-  purpose: inventory.purpose,
+  kind,
+  purpose: kind === "runtime" ? "Windows owned execution" : inventory.purpose,
   arch,
   nodeApiVersion: inventory.nodeApiVersion,
   nodeHeadersVersion: headerVersion,
   crt: "/MT",
-  binary: { name: inventory.binary, bytes: bytes.length, sha256: sha256(bytes), machine: peMachine(bytes) },
+  binary: { name: target.binary, bytes: bytes.length, sha256: sha256(bytes), machine: peMachine(bytes) },
   sources,
   inputs: { headers, nodeLibSha256: sha256(await readFile(nodeLib)) },
   toolchain: {
@@ -166,8 +171,10 @@ const metadata = {
   imports,
 };
 
+if (kind === "runtime") metadata.protocolVersion = 2;
+
 await writeFile(path.join(directory, inventory.provenance), `${JSON.stringify(metadata, null, 2)}\n`);
 
-await verifyArtifact(arch);
+await verifyArtifact(arch, directory, kind);
 
 console.log(JSON.stringify({ built: true, arch, directory: target.directory, sha256: metadata.binary.sha256, sourceFingerprint: sources.fingerprint }));

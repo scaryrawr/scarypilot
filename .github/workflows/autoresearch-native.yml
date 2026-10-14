@@ -81,12 +81,20 @@ jobs:
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -no_logo -host_arch=x64 -arch=%TARGET_ARCH% -vcvars_ver=%MSVC_PIN% -winsdk=%SDK_PIN%
           if errorlevel 1 exit /b 1
-          call npm run native:harness:build -- --arch %TARGET_ARCH% --node-include "%NODE_INCLUDE%" --node-lib "%NODE_LIB%" --expect-msvc "%MSVC_PIN%" --expect-sdk "%SDK_PIN%"
+          node native/build-harness.mjs --kind harness --arch %TARGET_ARCH% --node-include "%NODE_INCLUDE%" --node-lib "%NODE_LIB%" --expect-msvc "%MSVC_PIN%" --expect-sdk "%SDK_PIN%"
+          if errorlevel 1 exit /b 1
+          node native/build-harness.mjs --kind runtime --arch %TARGET_ARCH% --node-include "%NODE_INCLUDE%" --node-lib "%NODE_LIB%" --expect-msvc "%MSVC_PIN%" --expect-sdk "%SDK_PIN%"
           if errorlevel 1 exit /b 1
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ownership-win32-${{ matrix.arch }}
           path: plugins/copilot-autoresearch/extensions/copilot-autoresearch/native/artifacts/win32-${{ matrix.arch }}/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: owned-runtime-win32-${{ matrix.arch }}
+          path: plugins/copilot-autoresearch/extensions/copilot-autoresearch/native/prebuilds/win32-${{ matrix.arch }}/
           if-no-files-found: error
           retention-days: 14
 
@@ -119,6 +127,14 @@ jobs:
         with:
           name: ownership-win32-${{ matrix.target.arch }}
           path: plugins/copilot-autoresearch/extensions/copilot-autoresearch/native/artifacts/win32-${{ matrix.target.arch }}/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: owned-runtime-win32-x64
+          path: plugins/copilot-autoresearch/extensions/copilot-autoresearch/native/prebuilds/win32-x64/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: owned-runtime-win32-arm64
+          path: plugins/copilot-autoresearch/extensions/copilot-autoresearch/native/prebuilds/win32-arm64/
       - name: Execute owned-process and host-death gates
         shell: pwsh
         env:
@@ -128,11 +144,24 @@ jobs:
           $bash = Join-Path $env:ProgramFiles "Git\bin\bash.exe"
           if (-not (Test-Path $bash)) { throw "Git for Windows Bash is required" }
           $env:OWNERSHIP_BASH_EXE = $bash
+          $env:PATH = "$(Split-Path $bash);$env:PATH"
           node -e "console.log(JSON.stringify({platform:process.platform,arch:process.arch,machine:require('node:os').machine(),node:process.version}))"
           if ($LASTEXITCODE -ne 0) { throw "Native architecture inspection failed" }
           $architectures = @(Get-CimInstance Win32_Processor | Select-Object -ExpandProperty Architecture)
           Write-Output (ConvertTo-Json -Compress -InputObject @{ processorArchitectures = $architectures })
+          foreach ($arch in @("x64", "arm64")) {
+            node native/verify-artifact.mjs $arch "native/prebuilds/win32-$arch" runtime
+            if ($LASTEXITCODE -ne 0) { throw "Production prebuild verification failed: $arch" }
+          }
           node native/verify-artifact.mjs $env:OWNERSHIP_EXPECT_ARCH
           if ($LASTEXITCODE -ne 0) { throw "Native artifact verification failed" }
           npm run native:harness:test
           if ($LASTEXITCODE -ne 0) { throw "Native ownership gates failed" }
+          npm run native:runtime:test
+          if ($LASTEXITCODE -ne 0) { throw "Native stream and lifecycle gates failed" }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw "Production package assembly failed" }
+          npm run typecheck
+          if ($LASTEXITCODE -ne 0) { throw "Production typecheck failed" }
+          npm test
+          if ($LASTEXITCODE -ne 0) { throw "Production runner contracts failed" }

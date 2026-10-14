@@ -1,12 +1,13 @@
-# Windows ownership proof — not an execution backend
+# Windows owned execution and native proof
 
-This is the first native gate for replacing disproven Windows ancestry
-cancellation. It is **test-only**, not loaded by the extension or shipped in
-`dist/`. The existing runner, waiting Bash, census timing edits, and cancellation
-assertions remain unchanged.
+Windows execution uses an offline Node-API 8 addon backed by an unnamed kernel
+job. The production entry is `runtime/owned_job_runtime.cc`; the separate
+**test-only** entry is `harness/owned_job_harness.cc`. Both include the same
+`shared/owned_job.h` ownership engine. Harness artifacts and fault APIs are never
+loaded by the extension or installed in `dist/`.
 
-The C++ Node-API 8 harness creates an unnamed non-inheritable job with only
-`KILL_ON_JOB_CLOSE`, whitelists three NUL stdio handles, and creates the explicit
+The engine creates an unnamed non-inheritable job with only
+`KILL_ON_JOB_CLOSE`, whitelists exactly three stdio handles, and creates the explicit
 Unicode executable suspended with `PROC_THREAD_ATTRIBUTE_JOB_LIST`. It verifies
 membership before allowing resume. There is no create-then-assign window,
 breakaway flag, ancestry scan, taskkill fallback, PowerShell dependency, runtime
@@ -15,11 +16,58 @@ to the owned job.
 
 Allocation/freeing stays inside the addon. JS gets an opaque wrapped resource,
 not HANDLEs or fake Node file descriptors. All Node imports must be in the
-harness's stable Node-API 8 allowlist; no V8 or private libuv imports are allowed.
+stable Node-API 8 allowlist; no V8 or private libuv imports are allowed.
+
+## Production transport
+
+`src/execution.ts` is the private typed boundary shared by both capture runners.
+`src/windows-execution.ts` selects by **`process.arch`**, verifies the binary's
+raw hash, size, architecture and provenance index, checks the Node-API/protocol
+versions, and wraps native operations in genuine Node `Readable`/`Writable`
+streams. Missing or inconsistent resources fail closed with reinstall guidance.
+There is no compiler, download, ancestry kill, or alternate shell fallback.
+The physical/non-emulation architecture check below is **CI proof only**;
+x64 Node running on Windows ARM64 is not prohibited at runtime.
+
+Transport uses private anonymous Win32 pipes and dedicated native I/O threads,
+rather than named overlapped pipes. Only child stdio ends are inherited; the
+sole job handle and all parent pipe ends remain private. No HANDLE is passed as
+a Node fd, and no shared Node filesystem worker-pool thread blocks on a pipe.
+Creation, root waiting, stop and cleanup run on a separate lifecycle thread.
+The Node thread only validates/copies bounded payloads and receives completions.
+
+Protocol 2 sends typed notifications through the public Node-API thread-safe
+callback. The shared `src/native-run.ts` client owns all promises and credit
+resolvers in JavaScript; the addon never allocates `napi_deferred` handles.
+Environment teardown can therefore discard notifications without attempting
+prohibited JS calls or abandoning opaque native promise allocations. The native
+runtime proof uses this same client (Node 22.18+ built-in test-only type stripping);
+the installed extension bundles it as ordinary JavaScript.
+
+Each channel has one outstanding request, read/write chunks are at most 64 KiB,
+and the thread-safe completion queue holds at most eight records. Node readable
+high-water marks stop further native reads. Writable chunks are acknowledged
+sequentially before EOF. JSON input is serialized before starting an experiment.
+Output capture, tail policy and overflow files remain owned by `spawn.ts`.
+Cancellation is latched and serialized with resume; neither repeated stop nor
+resource disposal creates an ancestry recovery path.
+
+Normal root exit records its full DWORD status before stopping remaining job
+members. Output then drains with a five-second deadline. Failure/discard stops
+capture, closes and removes unreturned logs, cancels I/O, and confirms completion
+with another five-second deadline. Cleanup failures retain their stage, Win32
+code and known root PID; no error becomes a successful `killed` result.
+Successful completion is delivered only after I/O threads join and private
+kernel handles close.
+If Windows cannot complete synchronous I/O cancellation even after job endpoint
+closure, the execution receipt rejects but the engine retains live request memory and thread ownership
+until actual completion rather than freeing it unsafely. Such a kernel/driver
+failure can prevent host shutdown; restarting the host is recovery, not a
+claimed successful bounded cleanup. Real Worker teardown is a native CI gate.
 
 ## Builder contract
 
-Run from `extensions/copilot-autoresearch` in a Windows MSVC **v143** developer
+Run from `plugins/copilot-autoresearch/extensions/copilot-autoresearch` in a Windows MSVC **v143** developer
 environment with a Windows 10+ SDK exposing `PROC_THREAD_ATTRIBUTE_JOB_LIST`.
 Pin the exact installed MSVC and SDK versions in CI, then pass those pins to the
 script. The script fails on an environment/version/target mismatch.
@@ -42,19 +90,22 @@ builder, select `x64_arm64` (`VSCMD_ARG_TGT_ARCH=arm64`). Native ARM64 builders 
 use their corresponding ARM64 developer target.
 
 ```powershell
-node native/build-harness.mjs --arch x64 `
+node native/build-harness.mjs --kind runtime --arch x64 `
   --node-include "<node-v22.18.0>\include\node" `
   --node-lib "<downloaded win-x64>\node.lib" `
   --expect-msvc "<pinned VCToolsVersion>" --expect-sdk "<pinned WindowsSDKVersion>"
 
-node native/build-harness.mjs --arch arm64 `
+node native/build-harness.mjs --kind runtime --arch arm64 `
   --node-include "<node-v22.18.0>\include\node" `
   --node-lib "<downloaded win-arm64>\node.lib" `
   --expect-msvc "<pinned VCToolsVersion>" --expect-sdk "<pinned WindowsSDKVersion>"
 ```
 
-Switch the developer environment between the two commands. No Zig toolchain is
-needed when Windows CI provides MSVC and both target libraries.
+Switch the developer environment between the two commands. Repeat both commands
+with `--kind harness` to rebuild the proof addon from the same shared source.
+Omitting `--kind` retains the harness builder's original behavior. Build work
+directories are separated by kind and architecture. No Zig toolchain is needed
+when Windows CI provides MSVC and both target libraries.
 
 The build uses `/MT`, `/W4 /WX`, `NAPI_VERSION=8`, and explicit PE machine targets.
 Flags alone do not prove runtime independence: the script runs `dumpbin /imports`
@@ -62,20 +113,27 @@ and rejects VC++/UCRT DLLs, non-system DLLs, and non-Node-API imports from
 `node.exe`. An unexpected import or unsupported dumpbin format is a failed gate,
 not grounds to widen the allowlist silently.
 
-`harness-resources.json` is the one resource inventory. Output per architecture:
+`resources.mjs` is the authoritative discoverable resource interface. It scans
+the complete native source tree, excluding only generated `artifacts`,
+`prebuilds`, `build`, and `test-work` directories configured in
+`harness-resources.json`; symlinks cannot bypass provenance. There is no
+hand-maintained source-file list. Raw bytes matter, including source newlines:
+builders, native runners and assembly must check out identical source bytes.
+Output per architecture:
 
 ```text
-native/artifacts/win32-{x64,arm64}/
-  ownership-harness.node
+native/prebuilds/win32-{x64,arm64}/  # runtime
+  owned-job.node
   provenance.json
   imports.txt
   dependents.txt
   compile.txt
 ```
 
-CI may upload those directories with `actions/upload-artifact` for this draft
-proof. No release publication is authorized. The future installed plugin will
-ship reviewed offline prebuilds; these test artifacts are not that release.
+Harness output has the same metadata files under
+`native/artifacts/win32-{x64,arm64}/`, with `ownership-harness.node`.
+CI may upload these directories with `actions/upload-artifact` for draft proof
+and maintainer assembly. No release publication is part of this build.
 
 Provenance records the raw-byte SHA256 and size of the PE binary, raw-byte source
 fingerprints, Node headers/import-library hashes, exact toolchain versions, and
@@ -83,9 +141,64 @@ audited imports. Native input changes require a rebuild. This verifier rejects a
 binary whose bytes, architecture, imports, or current source fingerprint differ:
 
 ```powershell
-node native/verify-artifact.mjs x64
-node native/verify-artifact.mjs arm64
+node native/verify-artifact.mjs x64 native/prebuilds/win32-x64 runtime
+node native/verify-artifact.mjs arm64 native/prebuilds/win32-arm64 runtime
 ```
+
+`node native/resources.mjs` (or imported `resources()`) returns
+`{schemaVersion,nodeApiVersion,protocolVersion,sources,inputs,targets,outputs}`.
+Paths in `inputs`/`outputs` are extension-relative. Each target declares kind,
+architecture, PE machine, builder directory, installed directory, entry, binary
+and complete file list. `sources` fingerprints native source bytes only;
+`inputs` contains only those discovered source files, all intended for version
+control. `dist/native/` is the checked-in distribution source of truth.
+`native/prebuilds/` is an ignored, disposable build/CI cache, never a required
+shared-checker input. Shared freshness tooling should consume the descriptor's
+source inputs and require every declared installed output.
+
+The read-only `verifyInstalledResources()` export from `native/assemble.mjs`
+verifies both installed artifact sets, every declared resource, and
+`dist/native/resources.json` against the current source inventory without needing
+any cache.
+It returns the verified index:
+`{schemaVersion,nodeApiVersion,protocolVersion,sourceFingerprint,binaries}`.
+Assembly and validation share the same expected-index constructor, so callers
+must not reconstruct this index themselves. Importing the module never assembles
+or writes files; only direct CLI execution assembles.
+
+The optional `installedDirectory` argument selects another installed artifact
+directory containing `win32-x64/`, `win32-arm64/`, and `resources.json`. Its default
+derives from the current inventory. If `prebuildsDirectory` is explicitly supplied,
+the validator additionally verifies both cached artifacts and requires
+byte-identical copies of all declared resource files. It never hydrates or writes.
+Source provenance always refers to this module's current checkout, including
+when directory overrides are used.
+
+Once **both** fresh production architectures exist:
+
+```sh
+npm run build
+```
+
+First CI assembly requires both real runtime artifacts in their cache directories.
+On a fresh checkout containing trusted checked-in `dist/native/`, no download or
+compiler is needed to rebuild: `npm run build` first runs
+`node native/assemble.mjs --prepare`. This verifies a complete existing cache or,
+only when cache resources are missing, validates the installed distribution and
+copies its complete artifact sets into the cache before tsdown cleans dist.
+An existing corrupt/stale cache fails closed rather than silently replacing it.
+Missing/stale installed resources cannot bootstrap a build; obtain newly proven
+CI artifacts. No placeholder prebuild or stale digest is accepted.
+The explicitly mutating `preparePrebuilds({prebuildsDirectory, installedDirectory})`
+export implements this preparation step, with the same directory defaults.
+Importing it does not run it.
+
+After preparation the build bundles TypeScript, assembles and re-verifies
+`dist/native/win32-{x64,arm64}/{owned-job.node,provenance.json,imports.txt,dependents.txt,compile.txt}`,
+writes `dist/native/resources.json` with source fingerprint and binary hashes,
+then writes the extension bundle manifest. Missing, stale or mismatched native
+assets fail the build. Standalone `node native/assemble.mjs` assembles from the
+verified cache; importing that module has no assembly side effect.
 
 ## Native proof gate
 
@@ -108,6 +221,8 @@ No environment handoff or libuv machine-name exception authorizes execution.
 $env:OWNERSHIP_EXPECT_ARCH = "x64" # "arm64" on the native ARM64 runner
 $env:OWNERSHIP_BASH_EXE = "<resolved Git-for-Windows bash.exe>"
 npm run native:harness:test
+npm run native:runtime:test
+npm test
 ```
 
 The suite refuses non-Windows or wrong-machine execution, verifies the raw binary
@@ -132,21 +247,25 @@ Cases cover:
   replacement stub reporting an early or wrong root status blocks integration;
   job emptiness is not a substitute for the logical command's exit status.
 
-Cross-platform build-spec tests do **not** prove Win32 behavior:
+The production native suite additionally exercises actual pipe credits, bounded
+input, native status 259, startup errors, missing Bash, unconsumed-output drain
+failure, blocked-input cancellation, idempotent disposal and Node Worker
+shutdown with real descendants. Full Vitest runner tests cover both capture
+APIs, JSON/EOF, backpressure, saturated streams, UTF-8 splits, concurrent runs,
+the original timeout/readiness/late-marker gates and exact-owned-PID census
+disappearance. Tests do not replace the runner with a platform mock.
+
+Cross-platform build-spec/adapter tests do **not** prove Win32 behavior:
 
 ```sh
 npm run native:harness:check
 ```
 
-## Deliberately not implemented
-
-This bounded harness uses NUL stdio and synchronous, bounded test methods.
-Production stream transport, backpressure, asynchronous creation/cancellation
-serialization, host cleanup hooks, loader/distribution integration, and runner
-replacement are not implemented or validated. Existing capture/logging stays in
-Node. Do not promote the harness's public fault stages into a runtime API.
-
-First obtain pinned-commit native x64/ARM64 proof and import audits. If creation,
-nested-job policy, cold readiness, or host-death ownership fails, report that
-friction and revisit the shape. Do not add post-create assignment, breakaway,
-ancestry fallbacks, initialization exemptions, or weaker timing assertions.
+The original ownership primitive passed all 14 native gates on x64/ARM64 with
+Node 22.18.0 and 24.21 at head `3eaebc537c92f34706b0e48dc1f49d980402f8be`
+(run `38585029318`). That proof does **not** validate the shared-source extraction
+or production transport. Rebuild both kinds and architectures and rerun all
+four native lanes before accepting the runtime integration. If creation,
+transport, nested-job policy, cold readiness or host shutdown fails, report
+that friction instead of adding an ancestry fallback, initialization exemption,
+or weaker timing assertion.

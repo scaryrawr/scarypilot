@@ -1,9 +1,9 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { killTree, runShell, runShellStreaming, type ProcessControl, type SpawnOptions, type SpawnResult } from "../src/spawn.ts";
-import { censusCommand, observeCommand, ownedCensus, type CommandEvidence, type OwnedPids } from "./owned-process-census.ts";
+import { runShell, runShellStreaming, type ProcessControl, type SpawnOptions, type SpawnResult } from "../src/spawn.ts";
+import { censusCommand, observeCommand, ownedCensus, type OwnedPids } from "./owned-process-census.ts";
 
 const quote = (text: string) => `'${text.replace(/'/g, "'\\''")}'`;
 
@@ -85,13 +85,13 @@ describe.each(scenarios)("$name native Windows ownership census", ({ name, run, 
 
       const worker = [
         "const fs = require('node:fs')",
-        "fs.writeFileSync('ready', String(process.pid))",
+        "fs.writeFileSync('ready.writing', String(process.pid)); fs.renameSync('ready.writing','ready')",
         "const timer = setInterval(() => { if (fs.existsSync('release')) { clearInterval(timer); fs.writeFileSync('survived', 'alive') } }, 10)",
       ].join("; ");
 
       writeFileSync(
         path.join(directory, "marker.cjs"),
-        `require('node:fs').writeFileSync('parent', String(process.pid)); require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(worker)}], { stdio: 'inherit' });`,
+        `const fs=require('node:fs'); fs.writeFileSync('parent.writing',String(process.pid)); fs.renameSync('parent.writing','parent'); require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(worker)}], { stdio: 'inherit' });`,
       );
       const nodeCommand = `${quote(process.execPath.replaceAll("\\", "/"))} marker.cjs`;
       mkdirSync(path.join(directory, ".auto"));
@@ -104,26 +104,14 @@ describe.each(scenarios)("$name native Windows ownership census", ({ name, run, 
           ? path.join(directory, ".auto", "checks.sh")
           : nodeCommand;
 
-      let root: ChildProcess | undefined;
-      let taskkillObserved: Promise<CommandEvidence> | undefined;
-      let taskkillPid: number | undefined;
+      let root: number | undefined;
       const controller = new AbortController();
 
       const control: ProcessControl = {
         platform: process.platform,
         kill: process.kill.bind(process),
-        spawn: (...args) => {
-          const child = spawn(...args);
-
-          if (args[0] === "bash") root = child;
-
-          if (args[0] === "taskkill.exe") {
-            taskkillPid = Number(args[1][1]);
-            taskkillObserved = observeCommand(child);
-          }
-
-          return child;
-        },
+        spawn,
+        onWindowsStarted: (pid) => { root = pid; },
       };
 
       const pending = run(command, {
@@ -142,16 +130,15 @@ describe.each(scenarios)("$name native Windows ownership census", ({ name, run, 
       let pids: OwnedPids | undefined;
       let before: Awaited<ReturnType<typeof ownedCensus>> | undefined;
       let after: Awaited<ReturnType<typeof ownedCensus>> | undefined;
-      let taskkill: CommandEvidence | undefined;
       const failures: unknown[] = [];
 
       try {
         await vi.waitFor(() => expect(existsSync(ready)).toBe(true), { timeout: 1500 });
 
-        if (root?.pid === undefined) throw new Error("Fixture Bash did not report its native PID");
+        if (root === undefined) throw new Error("Owned execution did not report its native root PID");
 
         pids = {
-          root: root.pid,
+          root,
           markerParent: Number(readFileSync(parent, "utf-8")),
           readyGrandchild: Number(readFileSync(ready, "utf-8")),
         };
@@ -159,28 +146,22 @@ describe.each(scenarios)("$name native Windows ownership census", ({ name, run, 
 
         if (reason === "abort") controller.abort();
 
-        await vi.waitFor(() => expect(taskkillObserved).toBeDefined(), { timeout: 16_000 });
+        const outcome = await within(settled, 16_000);
 
-        if (!taskkillObserved) throw new Error("No taskkill subprocess was observed");
-
-        taskkill = await within(taskkillObserved, 6000);
+        if ("error" in outcome) throw outcome.error;
         after = await ownedCensus(pids);
         console.info("OWNED_PROCESS_CENSUS", JSON.stringify({
           runner: name,
           cancellation: reason,
           before,
-          taskkill: { pid: taskkillPid, ...taskkill },
+          completion: outcome.result,
           after,
         }));
         writeFileSync(release, "");
-        const outcome = await within(settled, 3000);
-
-        if ("error" in outcome) throw outcome.error;
-
         expect(before.probeError).toBeUndefined();
         expect(after.probeError).toBeUndefined();
         expect(before.actors.every((actor) => actor.identity !== null)).toBe(true);
-        expect(taskkillPid).toBe(pids.root);
+        expect(after.actors.every((actor) => actor.identity === null)).toBe(true);
         expect(outcome.result.killed).toBe(true);
         expect(existsSync(marker)).toBe(false);
       } catch (error) {
@@ -189,14 +170,10 @@ describe.each(scenarios)("$name native Windows ownership census", ({ name, run, 
         controller.abort();
         writeFileSync(release, "");
 
-        const cleanupPids = new Set([
-          ...(root?.pid !== undefined && root.exitCode === null && root.signalCode === null ? [root.pid] : []),
-          ...(pids ? [pids.markerParent, pids.readyGrandchild] : []),
-        ]);
-
         const cleanup = await Promise.allSettled([
-          ...[...cleanupPids].map((pid) => killTree(pid)),
-          within(settled, 6000),
+          within(settled, 6000).then((outcome) => {
+            if ("error" in outcome) throw outcome.error;
+          }),
         ]);
 
         rmSync(directory, { recursive: true, force: true });

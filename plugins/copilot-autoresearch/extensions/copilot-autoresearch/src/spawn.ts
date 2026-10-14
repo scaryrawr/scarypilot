@@ -1,8 +1,10 @@
-import { spawn, type ChildProcess, type SpawnOptions as NodeSpawnOptions } from "node:child_process";
 import { closeSync, openSync, unlinkSync, writeSync } from "node:fs";
-import { platform, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
+import { startBash, type ProcessControl } from "./execution.ts";
+
+export { killTree, ProcessTerminationError, type ProcessControl } from "./execution.ts";
 
 export interface SpawnResult {
   exitCode: number | null;
@@ -25,179 +27,9 @@ export interface SpawnOptions {
   processControl?: ProcessControl;
 }
 
-export interface ProcessControl {
-  platform: NodeJS.Platform;
-  kill: typeof process.kill;
-  spawn: (command: string, args: readonly string[], options: NodeSpawnOptions) => ChildProcess;
-}
-
-const nativeProcessControl: ProcessControl = {
-  platform: platform(),
-  kill: process.kill.bind(process),
-  spawn,
-};
-
-function alreadyExited(error: NodeJS.ErrnoException): boolean {
-  return error.code === "ESRCH";
-}
-
-/** Terminate Bash and its descendants, reporting failures to the caller. */
-export async function killTree(
-  pid: number,
-  control: ProcessControl = nativeProcessControl,
-): Promise<void> {
-  if (!Number.isSafeInteger(pid) || pid <= 0) {
-    throw new Error(`Invalid process ID: ${pid}`);
-  }
-
-  if (control.platform === "win32") {
-    await new Promise<void>((resolve, reject) => {
-      const killer = control.spawn("taskkill.exe", ["/PID", String(pid), "/T", "/F"], {
-        shell: false,
-        windowsHide: true,
-        timeout: 5_000,
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-
-      let output = "";
-
-      const capture = (data: Buffer) => {
-        output = (output + data.toString("utf-8")).slice(-8_192);
-      };
-
-      killer.stdout?.on("data", capture);
-      killer.stderr?.on("data", capture);
-      killer.on("error", reject);
-      killer.on("close", (code, signal) => {
-        if (code === 0) {
-          resolve();
-
-          return;
-        }
-
-        // taskkill can race with a process that has already finished.
-        if (code === 128 && !signal) {
-          try {
-            control.kill(pid, 0);
-          } catch (error) {
-            if (error instanceof Error && alreadyExited(error)) {
-              resolve();
-
-              return;
-            }
-          }
-        }
-
-        reject(new Error(
-          `Failed to terminate process tree ${pid}: taskkill.exe ${signal ? `received ${signal}` : `exited ${code}`}${output.trim() ? `: ${output.trim()}` : ""}`,
-        ));
-      });
-    });
-
-    return;
-  }
-
-  try {
-    control.kill(-pid, "SIGTERM");
-  } catch (error) {
-    if (!(error instanceof Error) || !alreadyExited(error)) throw error;
-
-    try {
-      control.kill(pid, "SIGTERM");
-    } catch (error) {
-      if (!(error instanceof Error) || !alreadyExited(error)) throw error;
-    }
-  }
-}
-
-function bashError(error: NodeJS.ErrnoException): Error {
-  return error.code === "ENOENT"
-    ? new Error("Bash is required to run experiments. Install Bash and add it to PATH (Git for Windows Bash on Windows).", { cause: error })
-    : error;
-}
-
-export class ProcessTerminationError extends Error {
-  readonly pid: number;
-
-  constructor(pid: number, cause: Error) {
-    super(
-      `Process tree rooted at PID ${pid} may still be running; the caller must terminate it manually. ${cause.message}`,
-      { cause },
-    );
-    this.name = "ProcessTerminationError";
-    this.pid = pid;
-  }
-}
-
-function watchCancellation(
-  child: ChildProcess,
-  opts: SpawnOptions,
-  onError: (error: Error) => void,
-) {
-  let killed = false;
-  let termination = Promise.resolve();
-
-  const stop = () => {
-    if (killed || child.pid === undefined) return;
-    const pid = child.pid;
-    killed = true;
-    termination = killTree(pid, opts.processControl);
-    void termination.catch((error: Error) => {
-      cleanup();
-      onError(new ProcessTerminationError(pid, error));
-    });
-  };
-
-  const timer = opts.timeoutMs && opts.timeoutMs > 0
-    ? setTimeout(stop, opts.timeoutMs)
-    : undefined;
-
-  const cleanup = () => {
-    clearTimeout(timer);
-    opts.signal?.removeEventListener("abort", stop);
-  };
-
-  if (opts.signal?.aborted) stop();
-  else opts.signal?.addEventListener("abort", stop, { once: true });
-
-  return { cleanup, finished: () => termination, killed: () => killed };
-}
-
-function spawnBash(
-  args: string[],
-  opts: SpawnOptions,
-  stdin: "pipe" | "ignore",
-): ChildProcess {
-  const control = opts.processControl ?? nativeProcessControl;
-
-  // MSYS exec can replace a Windows PID. Keep an outer Bash waiting for its child.
-  const shellArgs = control.platform === "win32"
-    ? [
-        "-c",
-        'if [ "$1" = set ]; then export BASH_ENV="$2"; else unset BASH_ENV; fi; shift 2; command bash "$@" <&0 & wait "$!"',
-        "copilot-autoresearch",
-        process.env.BASH_ENV === undefined ? "unset" : "set",
-        process.env.BASH_ENV ?? "",
-        ...args,
-      ]
-    : args;
-
-  // Only the experiment shell should load BASH_ENV, not its waiting supervisor.
-  const env = control.platform === "win32"
-    ? Object.fromEntries(Object.entries(process.env).filter(([name]) => name.toUpperCase() !== "BASH_ENV"))
-    : undefined;
-
-  return control.spawn("bash", shellArgs, {
-    cwd: opts.cwd,
-    env,
-    detached: true,
-    stdio: [stdin, "pipe", "pipe"],
-  });
-}
-
 /**
  * Run `bash -c <command>` (or `bash <script>`) and capture all output.
- * Detached so we can kill the entire process group on timeout/abort.
+ * Windows owns a kernel job; Unix owns a detached process group.
  */
 export function runShell(
   command: string | { script: string },
@@ -207,7 +39,8 @@ export function runShell(
   const t0 = Date.now();
 
   return new Promise((resolve, reject) => {
-    const child = spawnBash(args, opts, opts.stdinJson !== undefined ? "pipe" : "ignore");
+    const input = opts.stdinJson !== undefined ? JSON.stringify(opts.stdinJson) : undefined;
+    const child = startBash(args, { ...opts, startedAt: t0 }, opts.stdinJson !== undefined ? "pipe" : "ignore");
 
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
@@ -221,31 +54,19 @@ export function runShell(
     const fail = (error: Error) => {
       if (failed) return;
       failed = true;
-      cancellation.cleanup();
+      const cleanup = child.dispose();
       child.stdout?.removeListener("data", captureStdout);
       child.stderr?.removeListener("data", captureStderr);
       stdoutChunks.length = 0;
       stderrChunks.length = 0;
-      reject(error);
+      void Promise.resolve(cleanup).then(() => reject(error), (cause: Error) =>
+        reject(cause === error ? error : new AggregateError([error, cause], `${error.message} Execution cleanup was not confirmed: ${cause.message}`)));
     };
 
-    const cancellation = watchCancellation(child, opts, fail);
-
-    child.on("error", (err) => {
-      fail(bashError(err));
-    });
-
-    child.on("close", async (code) => {
+    child.stdout.on("error", fail);
+    child.stderr.on("error", fail);
+    void child.closed.then(({ exitCode: code, killed }) => {
       if (failed) return;
-      cancellation.cleanup();
-
-      try {
-        await cancellation.finished();
-      } catch (error) {
-        reject(error);
-
-        return;
-      }
 
       const stdout = Buffer.concat(stdoutChunks).toString("utf-8");
       const stderr = Buffer.concat(stderrChunks).toString("utf-8");
@@ -254,14 +75,13 @@ export function runShell(
         stdout,
         stderr,
         combined: (stdout + (stdout && stderr ? "\n" : "") + stderr).trim(),
-        killed: cancellation.killed(),
+        killed,
         durationMs: Date.now() - t0,
       });
-    });
+    }, fail);
 
     if (opts.stdinJson !== undefined && child.stdin) {
-      child.stdin.write(JSON.stringify(opts.stdinJson));
-      child.stdin.end();
+      child.stdin.end(input);
     }
   });
 }
@@ -294,7 +114,8 @@ export function runShellStreaming(
   const t0 = Date.now();
 
   return new Promise((resolve, reject) => {
-    const child = spawnBash(["-c", command], opts, "ignore");
+    const input = opts.stdinJson !== undefined ? JSON.stringify(opts.stdinJson) : undefined;
+    const child = startBash(["-c", command], { ...opts, startedAt: t0 }, opts.stdinJson !== undefined ? "pipe" : "ignore");
 
     const chunks: Buffer[] = [];
     let totalBytes = 0;
@@ -400,7 +221,7 @@ export function runShellStreaming(
 
       if (tick) clearInterval(tick);
 
-      cancellation.cleanup();
+      const cleanup = child.dispose();
       child.stdout?.removeListener("data", handleData);
       child.stderr?.removeListener("data", handleData);
       chunks.length = 0;
@@ -434,29 +255,16 @@ export function runShellStreaming(
         }
       }
 
-      reject(failure);
+      void Promise.resolve(cleanup).then(() => reject(failure), (cause: Error) =>
+        reject(cause === failure ? failure : new AggregateError([failure, cause], `${failure.message} Execution cleanup was not confirmed: ${cause.message}`)));
     };
 
-    const cancellation = watchCancellation(child, opts, fail);
-
-    child.on("error", (err) => {
-      fail(bashError(err));
-    });
-
-    child.on("close", async (code) => {
+    child.stdout.on("error", fail);
+    child.stderr.on("error", fail);
+    void child.closed.then(({ exitCode: code, killed }) => {
       if (failed) return;
 
       if (tick) clearInterval(tick);
-
-      cancellation.cleanup();
-
-      try {
-        await cancellation.finished();
-      } catch (error) {
-        reject(error);
-
-        return;
-      }
 
       const fullText = Buffer.concat(chunks).toString("utf-8");
       const allLines = fullText.split("\n");
@@ -480,7 +288,7 @@ export function runShellStreaming(
           stdout: fullText,
           stderr: "",
           combined: fullText.trim(),
-          killed: cancellation.killed(),
+          killed,
           durationMs: Date.now() - t0,
           tail,
           truncated: totalLines > opts.maxLines || totalBytes > opts.maxBytes,
@@ -505,6 +313,8 @@ export function runShellStreaming(
       }
 
       finish();
-    });
+    }, fail);
+
+    if (opts.stdinJson !== undefined && child.stdin) child.stdin.end(input);
   });
 }

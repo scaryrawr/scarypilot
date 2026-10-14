@@ -15,14 +15,24 @@ it to.
 - Git, Node.js, and Bash available in the repository where experiments run.
   On Windows, install Git for Windows and put its Bash on `PATH`; experiments
   and `.sh` check scripts still run with Bash, not PowerShell or WSL.
-  Cancellation and timeouts use Windows `taskkill.exe /T /F` to stop the
-  experiment process tree; Unix systems signal the Bash process group.
-  On Windows, a waiting outer Bash keeps the tree's root PID stable even when
-  an experiment uses `exec` or launches another Bash script.
-  Only the experiment Bash loads `BASH_ENV`; the supervisor forwards its
-  original value or absence without enabling POSIX mode.
+  Windows requires Windows 10 / Windows Server 2016 version 1709 or later
+  and x64 or ARM64 Node.js. The plugin includes matching offline Node-API 8
+  addons with a static C++ runtime; no compiler, download, .NET, or separately
+  installed VC++ runtime is needed. Selection follows Node's architecture,
+  including x64 Node on Windows ARM64.
+  Cancellation and timeouts use an owned Windows kernel job; Unix systems
+  signal the Bash process group. Windows job membership is established
+  atomically before the experiment can execute, so native descendants remain
+  owned across Bash `exec`. Remaining Windows job members are stopped even
+  when the root exits normally, without changing its recorded exit status.
+  There is no waiting Bash supervisor, ancestry fallback, or PowerShell backend.
+  `BASH_ENV` and other shell options reach the experiment Bash unchanged.
   If termination fails, output capture stops and unreturned logs are removed.
-  The error reports the process-tree root PID for caller-owned manual recovery.
+  Errors retain ownership/cleanup diagnostics rather than reporting successful
+  cancellation. A Windows root PID is diagnostic, not an ancestry recovery
+  handle; retain the error and restart the extension host if native cleanup
+  remains unconfirmed. Unix signaling failures identify the process group
+  requiring manual recovery.
 
 Autoresearch executes benchmark commands and intentionally creates Git
 commits or reverts experiment changes in the active repository. Use it only in

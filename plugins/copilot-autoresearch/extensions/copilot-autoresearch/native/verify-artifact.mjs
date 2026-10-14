@@ -1,15 +1,10 @@
-import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 
-export const packageRoot = fileURLToPath(new URL("../", import.meta.url));
+import { inventory, packageRoot, resource, sha256, sourceProvenance } from "./resources.mjs";
 
-export const inventory = JSON.parse(await readFile(new URL("./harness-resources.json", import.meta.url), "utf8"));
-
-export function sha256(bytes) {
-  return createHash("sha256").update(bytes).digest("hex");
-}
+export { inventory, packageRoot, sha256, sourceProvenance } from "./resources.mjs";
 
 export function peMachine(bytes) {
   if (bytes.length < 64 || bytes.readUInt16LE(0) !== 0x5a4d) {
@@ -37,6 +32,10 @@ const nodeApi8Imports = new Set([
   "napi_get_value_double", "napi_get_value_string_utf16", "napi_has_named_property",
   "napi_is_array", "napi_is_exception_pending", "napi_set_named_property", "napi_throw",
   "napi_throw_error", "napi_typeof", "napi_unwrap", "napi_wrap",
+  "napi_acquire_threadsafe_function", "napi_add_env_cleanup_hook", "napi_call_threadsafe_function",
+  "napi_create_buffer_copy", "napi_call_function", "napi_create_threadsafe_function", "napi_get_null",
+  "napi_get_typedarray_info", "napi_release_threadsafe_function",
+  "napi_remove_env_cleanup_hook",
 ]);
 
 export function auditImports(text) {
@@ -85,41 +84,38 @@ export function auditImports(text) {
   return { dlls: [...dlls].sort(), nodeImports: [...nodeImports].sort() };
 }
 
-export async function sourceProvenance() {
-  const files = [];
-
-  for (const relative of [...inventory.sourceFiles].sort()) {
-    const bytes = await readFile(path.join(packageRoot, relative));
-    files.push({ path: relative, sha256: sha256(bytes), bytes: bytes.length });
-  }
-
-  return { files, fingerprint: sha256(Buffer.from(JSON.stringify(files))) };
-}
-
-export async function verifyArtifact(arch, directory = path.join(packageRoot, inventory.architectures[arch]?.directory ?? "")) {
-  const target = inventory.architectures[arch];
-
-  if (!target) throw new Error(`Unsupported harness architecture: ${arch}`);
+export async function verifyArtifact(arch, directory, kind = "harness") {
+  const target = resource(kind, arch);
+  directory ??= path.join(packageRoot, target.directory);
 
   const metadata = JSON.parse(await readFile(path.join(directory, inventory.provenance), "utf8"));
-  const bytes = await readFile(path.join(directory, inventory.binary));
+  const bytes = await readFile(path.join(directory, target.binary));
   const imports = auditImports(await readFile(path.join(directory, "imports.txt"), "utf8"));
   const sources = await sourceProvenance();
 
-  if (metadata.arch !== arch || metadata.nodeApiVersion !== 8 || peMachine(bytes) !== target.machine) {
-    throw new Error("Harness architecture or stable Node-API version mismatch");
+  if (metadata.schemaVersion !== 1 || metadata.arch !== arch || metadata.nodeApiVersion !== 8 ||
+      metadata.binary.machine !== target.machine || peMachine(bytes) !== target.machine) {
+    throw new Error("Native artifact architecture or stable Node-API version mismatch");
+  }
+
+  if (metadata.kind !== kind || metadata.binary.name !== target.binary) {
+    throw new Error("Native artifact kind/name mismatch");
+  }
+
+  if (kind === "runtime" && metadata.protocolVersion !== 2) {
+    throw new Error("Native runtime notification protocol mismatch");
   }
 
   if (metadata.binary.sha256 !== sha256(bytes) || metadata.binary.bytes !== bytes.length) {
-    throw new Error("Harness raw-byte binary hash mismatch");
+    throw new Error("Native artifact raw-byte binary hash mismatch");
   }
 
-  if (metadata.sources.fingerprint !== sources.fingerprint) {
-    throw new Error("Harness source fingerprint is stale; rebuild the binary");
+  if (JSON.stringify(metadata.sources) !== JSON.stringify(sources)) {
+    throw new Error("Native artifact source provenance is stale or incomplete; rebuild the binary");
   }
 
   if (JSON.stringify(metadata.imports) !== JSON.stringify(imports) || metadata.crt !== "/MT") {
-    throw new Error("Harness import audit or static CRT provenance mismatch");
+    throw new Error("Native artifact import audit or static CRT provenance mismatch");
   }
 
   return { arch, directory, metadata };
@@ -128,6 +124,7 @@ export async function verifyArtifact(arch, directory = path.join(packageRoot, in
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const arch = process.argv[2];
   const directory = process.argv[3] ? path.resolve(process.argv[3]) : undefined;
-  const result = await verifyArtifact(arch, directory);
+  const kind = process.argv[4] ?? "harness";
+  const result = await verifyArtifact(arch, directory, kind);
   console.log(JSON.stringify({ verified: true, arch: result.arch, sourceFingerprint: result.metadata.sources.fingerprint }));
 }
