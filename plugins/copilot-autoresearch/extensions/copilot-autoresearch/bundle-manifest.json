@@ -15,7 +15,7 @@
     "src/jsonl.ts": "bcf69fa5d7b9ca97dca3df8a29705e5b4a568352566f5c3a7828abadde3dfb5b",
     "src/metric.ts": "4c6ba5dec2e0e93ea8091a9c6d93d69fb24479f39e91e49e1b3851bcb37e6cc0",
     "src/paths.ts": "b658b8baed99f8856236d5ecf5e0220d04dacde1cbeb2de2fdadcac743cdf17c",
-    "src/spawn.ts": "01df8e74732ec0e981c8bd52e52aa663084b4af5d5b8455b4a547caeb6f8e25e",
+    "src/spawn.ts": "6036d39d7bf26124e1951587a0145f5d85756c7221b1905ac396eb4fcbc417a8",
     "src/state.ts": "a3a7fed3e6d7dd5ab0a0227cd7f7f964ace2ac436829451da0e622b4b73fbf05",
     "src/system-prompt.ts": "417592f3c8304906c9a76110c321ffe2b38e9f3df778827f13fc012f9882be9c",
     "src/tools-init.ts": "f2151dac40737fef412d401b492df415f45ba17dd49b72c949ed1c282aa367b1",
@@ -24,6 +24,6 @@
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
   },
   "outputs": {
-    "dist/extension.mjs": "c4da66853fccea678b20393d200398ed6453f0b05e9fe2a67901e591887be2ab"
+    "dist/extension.mjs": "9001236259b3a319366a56d5d1004bf2c81e541e8e6c19a183ecbc853f176fd5"
   }
 }

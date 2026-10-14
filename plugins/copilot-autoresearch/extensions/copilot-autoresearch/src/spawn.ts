@@ -163,6 +163,38 @@ function watchCancellation(
   return { cleanup, finished: () => termination, killed: () => killed };
 }
 
+function spawnBash(
+  args: string[],
+  opts: SpawnOptions,
+  stdin: "pipe" | "ignore",
+): ChildProcess {
+  const control = opts.processControl ?? nativeProcessControl;
+
+  // MSYS exec can replace a Windows PID. Keep an outer Bash waiting for its child.
+  const shellArgs = control.platform === "win32"
+    ? [
+        "-c",
+        'if [ "$1" = set ]; then export BASH_ENV="$2"; else unset BASH_ENV; fi; shift 2; command bash "$@" <&0 & wait "$!"',
+        "copilot-autoresearch",
+        process.env.BASH_ENV === undefined ? "unset" : "set",
+        process.env.BASH_ENV ?? "",
+        ...args,
+      ]
+    : args;
+
+  // Only the experiment shell should load BASH_ENV, not its waiting supervisor.
+  const env = control.platform === "win32"
+    ? Object.fromEntries(Object.entries(process.env).filter(([name]) => name.toUpperCase() !== "BASH_ENV"))
+    : undefined;
+
+  return control.spawn("bash", shellArgs, {
+    cwd: opts.cwd,
+    env,
+    detached: true,
+    stdio: [stdin, "pipe", "pipe"],
+  });
+}
+
 /**
  * Run `bash -c <command>` (or `bash <script>`) and capture all output.
  * Detached so we can kill the entire process group on timeout/abort.
@@ -175,11 +207,7 @@ export function runShell(
   const t0 = Date.now();
 
   return new Promise((resolve, reject) => {
-    const child = (opts.processControl ?? nativeProcessControl).spawn("bash", args, {
-      cwd: opts.cwd,
-      detached: true,
-      stdio: [opts.stdinJson !== undefined ? "pipe" : "ignore", "pipe", "pipe"],
-    });
+    const child = spawnBash(args, opts, opts.stdinJson !== undefined ? "pipe" : "ignore");
 
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
@@ -266,11 +294,7 @@ export function runShellStreaming(
   const t0 = Date.now();
 
   return new Promise((resolve, reject) => {
-    const child = (opts.processControl ?? nativeProcessControl).spawn("bash", ["-c", command], {
-      cwd: opts.cwd,
-      detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const child = spawnBash(["-c", command], opts, "ignore");
 
     const chunks: Buffer[] = [];
     let totalBytes = 0;

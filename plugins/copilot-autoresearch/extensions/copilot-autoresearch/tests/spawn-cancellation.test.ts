@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { getEventListeners } from "node:events";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { platform } from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -58,18 +59,47 @@ describe.each(runners)("$name cancellation", ({ run }) => {
       const ready = path.join(directory, "ready");
       const parent = path.join(directory, "parent");
       const marker = path.join(directory, "survived");
-      const program = `require('node:fs').writeFileSync(${JSON.stringify(parent)}, String(process.ppid)); require('node:fs').writeFileSync(${JSON.stringify(ready)}, String(process.pid)); setTimeout(() => require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'alive'), 2500)`;
-      // Keep Bash alive while a separate Node descendant owns the delayed write.
-      const command = `${quote(process.execPath.replaceAll("\\", "/"))} -e ${quote(program)} & wait`;
+      const worker = "require('node:fs').writeFileSync('ready', String(process.pid)); setTimeout(() => require('node:fs').writeFileSync('survived', 'alive'), 2500)";
+      writeFileSync(
+        path.join(directory, "marker.cjs"),
+        `require('node:fs').writeFileSync('parent', String(process.pid)); require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(worker)}], { stdio: 'inherit' });`,
+      );
+      const command = `${quote(process.execPath.replaceAll("\\", "/"))} marker.cjs`;
       const controller = new AbortController();
+      let child: ChildProcess | undefined;
+      let diagnostic = "";
+
+      const control: ProcessControl = {
+        platform: platform(),
+        kill: process.kill.bind(process),
+        spawn: (...args) => {
+          const spawned = spawn(...args);
+
+          if (args[0] === "bash") {
+            child = spawned;
+
+            const capture = (data: Buffer) => {
+              diagnostic = (diagnostic + data.toString()).slice(-4096);
+            };
+
+            child.stdout?.on("data", capture);
+            child.stderr?.on("data", capture);
+          }
+
+          return spawned;
+        },
+      };
 
       const resultPromise = run(command, {
+        cwd: directory,
         timeoutMs: reason === "timeout" ? 1800 : 10_000,
         signal: controller.signal,
+        processControl: control,
       });
 
       try {
-        await vi.waitFor(() => expect(existsSync(ready)).toBe(true), { timeout: 1500 });
+        await vi.waitFor(() => expect(existsSync(ready), diagnostic).toBe(true), { timeout: 1500 });
+        expect(child?.exitCode).toBeNull();
 
         if (reason === "abort") controller.abort();
 
@@ -83,6 +113,8 @@ describe.each(runners)("$name cancellation", ({ run }) => {
         try {
           await resultPromise;
         } finally {
+          if (child?.pid) await killTree(child.pid);
+
           for (const file of [parent, ready]) {
             if (existsSync(file)) await killTree(Number(readFileSync(file, "utf-8")));
           }
@@ -204,6 +236,100 @@ describe.each(["runShell", "runShellStreaming"] as const)("%s failure teardown",
 });
 
 describe("killTree", () => {
+  it.each(runners)("runs BASH_ENV once through the Windows $name supervisor", async ({ run }) => {
+    const directory = path.resolve(`.spawn-test-${crypto.randomUUID()}`);
+    mkdirSync(directory);
+    directories.push(directory);
+    const startup = path.join(directory, "startup ' with spaces.sh").replaceAll("\\", "/");
+    writeFileSync(startup, "printf startup\nexport STARTUP_VALUE=loaded\n");
+    vi.stubEnv("BASH_ENV", startup);
+    vi.stubEnv("STARTUP_VALUE", undefined);
+    vi.stubEnv("AUTORESEARCH_ENV_SENTINEL", "preserved");
+    const control: ProcessControl = { platform: "win32", kill: process.kill.bind(process), spawn };
+
+    const result = await run(
+      'printf \'command|%s|%s|%s|%s\' "${BASH_ENV+x}" "${BASH_ENV-}" "$STARTUP_VALUE" "$AUTORESEARCH_ENV_SENTINEL"',
+      { processControl: control },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe(`startupcommand|x|${startup}|loaded|preserved`);
+  });
+
+  it.each(runners)("preserves BASH_ENV presence and exported shell options through $name", async ({ run }) => {
+    for (const startup of [undefined, ""]) {
+      vi.stubEnv("BASH_ENV", startup);
+      vi.stubEnv("SHELLOPTS", "braceexpand:hashall:interactive-comments:nounset");
+      const control: ProcessControl = { platform: "win32", kill: process.kill.bind(process), spawn };
+      const command = 'printf \'%s|%s|%s\' "${BASH_ENV+x}" "${BASH_ENV-}" "$SHELLOPTS"; if [[ -o posix ]]; then printf posix; fi';
+      const baseline = await runShell(command, { processControl: { ...control, platform: "linux" } });
+      const result = await run(command, { processControl: control });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe(baseline.stdout);
+      expect(result.stdout).not.toContain("posix");
+      expect(result.stdout.startsWith(startup === undefined ? "||" : "x||")).toBe(true);
+    }
+  });
+
+  it.each(runners)("keeps a Windows $name supervisor PID alive across an explicit exec", async ({ run }) => {
+    const control: ProcessControl = {
+      platform: "win32",
+      kill: process.kill.bind(process),
+      spawn,
+    };
+
+    let child: ChildProcess | undefined;
+    control.spawn = (...args) => {
+      child = spawn(...args);
+
+      return child;
+    };
+
+    let output = "";
+    const program = "console.log(process.pid); setTimeout(() => {}, 4000)";
+
+    const result = run(
+      `exec ${quote(process.execPath.replaceAll("\\", "/"))} -e ${quote(program)}`,
+      { processControl: control },
+    );
+
+    child?.stdout?.on("data", (data: Buffer) => {
+      output += data.toString();
+    });
+
+    try {
+      await vi.waitFor(() => expect(Number(output.trim())).toBeGreaterThan(0));
+      expect(child?.exitCode).toBeNull();
+      expect(child?.pid).not.toBe(Number(output.trim()));
+    } finally {
+      if (child?.pid) await killTree(child.pid);
+
+      await result;
+    }
+  });
+
+  it("preserves script arguments, JSON stdin, and exit status through the Windows supervisor", async () => {
+    const directory = path.resolve(`.spawn-test-${crypto.randomUUID()}`);
+    mkdirSync(directory);
+    directories.push(directory);
+    const script = path.join(directory, "checks with spaces.sh");
+    writeFileSync(script, "cat\nexit 23\n");
+    const startup = path.join(directory, "startup.sh").replaceAll("\\", "/");
+    writeFileSync(startup, "printf startup\n");
+    vi.stubEnv("BASH_ENV", startup);
+
+    const control: ProcessControl = {
+      platform: "win32",
+      kill: process.kill.bind(process),
+      spawn,
+    };
+
+    const input = { message: "input with spaces" };
+    const result = await runShell({ script }, { processControl: control, stdinJson: input });
+    expect(result.exitCode).toBe(23);
+    expect(result.stdout).toBe(`startup${JSON.stringify(input)}`);
+  });
+
   it.each([0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])(
     "rejects invalid process ID %s before invoking a command",
     async (pid) => {

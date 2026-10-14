@@ -17,6 +17,10 @@ it to.
   and `.sh` check scripts still run with Bash, not PowerShell or WSL.
   Cancellation and timeouts use Windows `taskkill.exe /T /F` to stop the
   experiment process tree; Unix systems signal the Bash process group.
+  On Windows, a waiting outer Bash keeps the tree's root PID stable even when
+  an experiment uses `exec` or launches another Bash script.
+  Only the experiment Bash loads `BASH_ENV`; the supervisor forwards its
+  original value or absence without enabling POSIX mode.
   If termination fails, output capture stops and unreturned logs are removed.
   The error reports the process-tree root PID for caller-owned manual recovery.
 
