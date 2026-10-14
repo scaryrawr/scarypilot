@@ -25,6 +25,17 @@ function fixture() {
 }
 
 describe("JS-owned native promises", () => {
+  it("does not acknowledge pending or future bytes after normal process closure", async () => {
+    const { run, control, notify } = fixture();
+    const write = run.write(Buffer.from("not acknowledged"));
+    const rejected = expect(write).rejects.toMatchObject({ code: "EPIPE" });
+    notify({ kind: "closed", result: { exitCode: 23, killed: false } });
+    await rejected;
+    await expect(run.write(Buffer.from("late input"))).rejects.toMatchObject({ code: "EPIPE" });
+    expect(control.write).toHaveBeenCalledTimes(1);
+    await expect(run.endInput()).resolves.toBeUndefined();
+  });
+
   it("returns each credit only after its native notification", async () => {
     const { run, control, notify } = fixture();
     const read = run.read(1);

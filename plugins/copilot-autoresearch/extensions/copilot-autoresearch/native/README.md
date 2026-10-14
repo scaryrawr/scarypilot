@@ -53,7 +53,11 @@ Cancellation is latched and serialized with resume; neither repeated stop nor
 resource disposal creates an ancestry recovery path.
 
 Normal root exit records its full DWORD status before stopping remaining job
-members. Output then drains with a five-second deadline. Failure/discard stops
+members. Only stdout and stderr participate in the five-second output drain:
+stdin may still be waiting for another write/EOF credit and is cancelled during
+I/O shutdown, never a prerequisite for requesting that shutdown. Interrupted or
+queued non-cancelled input writes remain failures rather than successful receipts.
+Failure/discard stops
 capture, closes and removes unreturned logs, cancels I/O, and confirms completion
 with another five-second deadline. Cleanup failures retain their stage, Win32
 code and known root PID; no error becomes a successful `killed` result.
@@ -254,6 +258,13 @@ shutdown with real descendants. Full Vitest runner tests cover both capture
 APIs, JSON/EOF, backpressure, saturated streams, UTF-8 splits, concurrent runs,
 the original timeout/readiness/late-marker gates and exact-owned-PID census
 disappearance. Tests do not replace the runner with a platform mock.
+Each native runtime terminal receipt carries bounded owned-only lifecycle
+snapshots from before output draining and after I/O cleanup: root PID, confirmed
+job emptiness, child-end closure, and each channel's thread phase, parent-end
+state, queued request, completion flag and last Win32 code. Runtime tests print
+these as `OWNERSHIP_RUNTIME_LIFECYCLE`; no process listing or command/environment
+capture is involved. The idle-stdin and blocked-writer stop regressions retain
+their five-second completion deadline.
 
 Cross-platform build-spec/adapter tests do **not** prove Win32 behavior:
 

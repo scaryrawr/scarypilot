@@ -62,8 +62,26 @@ function observe(run) {
   return completion;
 }
 
-function owned(t, launch) {
-  const run = createNativeRun(api, launch);
+function owned(t, launch, onLifecycle = () => {}) {
+  const observedApi = {
+    nodeApiVersion: api.nodeApiVersion,
+    protocolVersion: api.protocolVersion,
+    begin(specification, notify) {
+      return api.begin(specification, (event) => {
+        if (event.lifecycle) {
+          console.info("OWNERSHIP_RUNTIME_LIFECYCLE", JSON.stringify({
+            receipt: event.kind, stage: event.error?.stage, cleanupStage: event.error?.cleanupStage,
+            ...event.lifecycle,
+          }));
+          onLifecycle(event.lifecycle);
+        }
+
+        notify(event);
+      });
+    },
+  };
+
+  const run = createNativeRun(observedApi, launch);
   void run.started.catch(() => {});
   void run.closed.catch(() => {});
   t.after(async () => {
@@ -136,8 +154,37 @@ test("unconsumed output rejects at the bounded drain deadline, then discards ide
   run.discard();
 });
 
+test("owned stop closes an idle piped stdin without requiring a future EOF credit", async (t) => {
+  const snapshots = [];
+
+  const run = owned(t, spec("process.stdout.write('ready');setInterval(()=>{},1000)", packageRoot, true),
+    (snapshot) => snapshots.push(snapshot));
+
+  await within(run.started, 5000);
+  assert.equal(Buffer.from(await within(run.read(1), 5000)).toString(), "ready");
+  const completion = observe(run);
+  run.stop();
+  const [result] = await within(completion, 5000);
+  assert.equal(result.killed, true);
+  const census = snapshots.at(-1);
+  assert.equal(census.beforeOutputDrain.jobEmptyConfirmed, true);
+  assert.equal(census.beforeOutputDrain.childEndsClosed, true);
+  assert.equal(census.beforeOutputDrain.input.parentOpen, true);
+  assert.equal(census.beforeOutputDrain.input.queuedRequest, false);
+  assert.equal(census.beforeOutputDrain.input.done, false);
+
+  for (const channel of ["input", "stdout", "stderr"]) {
+    assert.equal(census.afterCleanup[channel].done, true);
+    assert.equal(census.afterCleanup[channel].parentOpen, false);
+  }
+});
+
 test("a blocked input pipe does not block owned stop or the shared JS event loop", async (t) => {
-  const run = owned(t, spec("process.stdin.pause(); setInterval(()=>{},1000)", packageRoot, true));
+  const snapshots = [];
+
+  const run = owned(t, spec("process.stdin.pause(); setInterval(()=>{},1000)", packageRoot, true),
+    (snapshot) => snapshots.push(snapshot));
+
   const completion = observe(run);
   await run.started;
   let acknowledgements = 0;
@@ -161,6 +208,12 @@ test("a blocked input pipe does not block owned stop or the shared JS event loop
   const [result] = await within(completion, 5000);
   await within(input, 5000);
   assert.equal(result.killed, true);
+  assert.equal(snapshots.at(-1).afterCleanup.jobEmptyConfirmed, true);
+
+  for (const channel of ["input", "stdout", "stderr"]) {
+    assert.equal(snapshots.at(-1).afterCleanup[channel].done, true);
+    assert.equal(snapshots.at(-1).afterCleanup[channel].parentOpen, false);
+  }
 });
 
 test("terminating a Node Worker closes runtime ownership and real descendant processes", { timeout: 20_000 }, async () => {

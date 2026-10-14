@@ -10,6 +10,18 @@ namespace {
 
 constexpr size_t kChunk = 65536;
 struct Runtime;
+struct ChannelCensus final {
+  DWORD phase = 0;
+  DWORD code = 0;
+  bool done = false;
+  bool parentOpen = false;
+  bool queued = false;
+};
+struct Census final {
+  std::array<ChannelCensus, 3> channels{};
+  bool childEndsClosed = false;
+  bool jobEmptyConfirmed = false;
+};
 struct Delivery final {
   size_t channel = 3;
   bool started = false;
@@ -23,6 +35,8 @@ struct Delivery final {
   DWORD code = 0;
   const char* cleanupStage = nullptr;
   DWORD cleanupCode = 0;
+  Census beforeDrain;
+  Census afterCleanup;
 };
 struct Request final {
   bool pending = false;
@@ -47,6 +61,10 @@ struct Runtime final {
   std::thread worker;
   std::array<std::thread, 3> io;
   std::array<std::atomic<bool>, 3> done{};
+  std::array<std::atomic<DWORD>, 3> phases{};
+  std::array<std::atomic<DWORD>, 3> ioCodes{};
+  std::array<std::atomic<bool>, 3> parentOpen{};
+  bool childEndsClosed = false;
   std::mutex mutex;
   std::condition_variable changed;
   std::atomic<bool> cancelled{false};
@@ -109,6 +127,7 @@ struct Runtime final {
       HANDLE writer = nullptr;
       Win(CreatePipe(&reader, &writer, &security, static_cast<DWORD>(kChunk)) != FALSE, "CreatePrivatePipe");
       pipes[channel].parent.reset(channel == 0 ? writer : reader);
+      parentOpen[channel] = true;
       pipes[channel].child.reset(channel == 0 ? reader : writer);
       Win(SetHandleInformation(pipes[channel].parent.get(), HANDLE_FLAG_INHERIT, 0) != FALSE,
           "ParentPipeMustNotBeInherited");
@@ -122,16 +141,28 @@ struct Runtime final {
         Request request;
         {
           std::unique_lock lock(mutex);
+          phases[channel] = 1;
           changed.wait(lock, [&] { return ioStop || requests[channel].pending; });
-          if (ioStop) break;
+          if (ioStop) {
+            const bool abandoned = channel == 0 && requests[0].pending &&
+                !requests[0].end && !requests[0].bytes.empty() && !cancelled && !discard;
+            lock.unlock();
+            if (abandoned) {
+              ioCodes[0] = ERROR_BROKEN_PIPE;
+              Fail("WriteInput", ERROR_BROKEN_PIPE);
+            }
+            break;
+          }
           request = std::move(requests[channel]);
           requests[channel] = Request{};
+          phases[channel] = channel == 0 ? (request.end ? 4UL : 3UL) : 2UL;
         }
         auto result = std::make_unique<Delivery>();
         result->channel = channel;
         if (channel == 0) {
           if (request.end) {
             pipes[0].parent.reset();
+            parentOpen[0] = false;
             active = Post(std::move(result));
             break;
           }
@@ -151,6 +182,7 @@ struct Runtime final {
                                     static_cast<DWORD>(kChunk), &bytes, nullptr);
           if (!read) {
             const DWORD code = GetLastError();
+            ioCodes[channel] = code;
             Require(code == ERROR_BROKEN_PIPE || code == ERROR_PIPE_NOT_CONNECTED ||
                         (ioStop && code == ERROR_OPERATION_ABORTED), "ReadOutput", code);
           }
@@ -162,14 +194,31 @@ struct Runtime final {
         if (!active || eof) break;
       }
     } catch (const Failure& error) {
-      if (!ioStop && !(channel == 0 && cancelled)) Fail(error.stage, error.code);
+      ioCodes[channel] = error.code;
+      if (channel == 0 ? (!cancelled && !discard) : !ioStop) Fail(error.stage, error.code);
     } catch (...) {
       Fail("NativeIoException", ERROR_NOT_ENOUGH_MEMORY);
     }
     pipes[channel].parent.reset();
+    parentOpen[channel] = false;
+    phases[channel] = 5;
     done[channel] = true;
     changed.notify_all();
     if (active) napi_release_threadsafe_function(callback, napi_tsfn_release);
+  }
+
+  Census Capture(bool jobEmptyConfirmed) {
+    Census census;
+    std::lock_guard lock(mutex);
+    census.jobEmptyConfirmed = jobEmptyConfirmed;
+    census.childEndsClosed = childEndsClosed;
+    for (size_t channel = 0; channel < 3; ++channel) {
+      census.channels[channel] = ChannelCensus{
+        phases[channel].load(), ioCodes[channel].load(), done[channel].load(),
+        parentOpen[channel].load(), requests[channel].pending,
+      };
+    }
+    return census;
   }
 
   void CloseIo() {
@@ -204,6 +253,7 @@ struct Runtime final {
         HANDLE stdio[] = {pipes[0].child.get(), pipes[1].child.get(), pipes[2].child.get()};
         core.Create(std::move(launch), stdio, &stopping);
         for (auto& pipe : pipes) pipe.child.reset();
+        childEndsClosed = true;
         if (core.process) {
           auto ready = std::make_unique<Delivery>();
           ready->started = true;
@@ -235,20 +285,23 @@ struct Runtime final {
     } catch (...) {
       Fail("NativeExecutionException", ERROR_NOT_ENOUGH_MEMORY);
     }
-    try { core.Stop(); }
+    bool jobEmptyConfirmed = false;
+    try { core.Stop(); jobEmptyConfirmed = true; }
     catch (const Failure& error) { Fail(error.stage, error.code, true); core.DisposeHandles(); }
     catch (...) { Fail("NativeStopException", ERROR_UNHANDLED_EXCEPTION, true); core.DisposeHandles(); }
+    result->beforeDrain = Capture(jobEmptyConfirmed);
     if (core.process) {
       const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
       std::unique_lock lock(mutex);
       if (!discard && !changed.wait_until(lock, deadline, [&] {
-            return discard || (done[0] && done[1] && done[2]);
+            return discard || (done[1] && done[2]);
           })) {
         failureStage = "OutputDrainTimeout";
         failureCode = WAIT_TIMEOUT;
       }
     }
     for (auto& pipe : pipes) pipe.child.reset();
+    childEndsClosed = true;
     CloseIo();
     bool ioClosed = false;
     {
@@ -273,9 +326,11 @@ struct Runtime final {
     const auto release = [&] {
       for (auto& thread : io) if (thread.joinable()) thread.join();
       for (auto& pipe : pipes) pipe.parent.reset();
+      for (auto& open : parentOpen) open = false;
       core.DisposeHandles();
     };
     if (ioClosed) release();
+    result->afterCleanup = Capture(jobEmptyConfirmed);
     settled = true;
     if (active) active = Post(std::move(result));
     // Retain live I/O memory until actual completion, even after a cleanup rejection.
@@ -323,6 +378,31 @@ void Kind(napi_env env, napi_value value, const char* kind) {
   Set(env, value, "kind", text);
 }
 
+napi_value CensusValue(napi_env env, const Census& census) {
+  napi_value value;
+  Check(napi_create_object(env, &value));
+  SetBool(env, value, "jobEmptyConfirmed", census.jobEmptyConfirmed);
+  SetBool(env, value, "childEndsClosed", census.childEndsClosed);
+  constexpr const char* names[] = {"input", "stdout", "stderr"};
+  constexpr const char* phases[] = {
+    "not-started", "waiting-for-credit", "reading", "writing", "ending-input", "closed",
+  };
+  for (size_t channel = 0; channel < 3; ++channel) {
+    const auto& entry = census.channels[channel];
+    napi_value state;
+    napi_value phase;
+    Check(napi_create_object(env, &state));
+    Check(napi_create_string_utf8(env, phases[entry.phase], NAPI_AUTO_LENGTH, &phase));
+    Set(env, state, "phase", phase);
+    Set(env, state, "lastWin32Code", Numeric(env, entry.code));
+    SetBool(env, state, "done", entry.done);
+    SetBool(env, state, "parentOpen", entry.parentOpen);
+    SetBool(env, state, "queuedRequest", entry.queued);
+    Set(env, value, names[channel], state);
+  }
+  return value;
+}
+
 void Deliver(napi_env env, napi_value callback, void* context, void* data) {
   std::unique_ptr<Delivery> result(static_cast<Delivery*>(data));
   if (!env) return;
@@ -337,6 +417,12 @@ void Deliver(napi_env env, napi_value callback, void* context, void* data) {
       if (state.terminalDelivered) return value;
       state.terminalDelivered = true;
       state.credits.fill(false);
+      napi_value census;
+      Check(napi_create_object(env, &census));
+      Set(env, census, "rootPid", Numeric(env, state.core.rootPid));
+      Set(env, census, "beforeOutputDrain", CensusValue(env, result->beforeDrain));
+      Set(env, census, "afterCleanup", CensusValue(env, result->afterCleanup));
+      Set(env, value, "lifecycle", census);
       if (result->stage) {
         Kind(env, value, "failed");
         Set(env, value, "error", ErrorValue(env, *result, state.core.rootPid));
@@ -387,10 +473,13 @@ Runtime& RuntimeReceiver(napi_env env, napi_callback_info info, size_t* count, n
 }
 
 napi_value Operation(napi_env env, Runtime& state, size_t channel, Request request) {
+  std::lock_guard lock(state.mutex);
   Require(!state.terminalDelivered && !state.credits[channel], "OutstandingIoCredit");
+  Require(!(channel == 0 && (state.ioStop || state.settled) && !request.end &&
+            !request.bytes.empty() && !state.cancelled && !state.discard),
+          "WriteInput", ERROR_BROKEN_PIPE);
   state.credits[channel] = true;
-  if (!state.settled) {
-    std::lock_guard lock(state.mutex);
+  if (!state.settled && !state.ioStop) {
     request.pending = true;
     state.requests[channel] = std::move(request);
     state.changed.notify_all();

@@ -52,6 +52,10 @@ export function createNativeRun(api: Static<typeof NativeAddon>, spec: Static<ty
   let error: Error | undefined;
   let pid: number | null = null;
   let control: Static<typeof Control> | undefined;
+  let killed = false;
+  let inputHasBytes = false;
+
+  const brokenInput = () => Object.assign(new Error("Experiment stdin closed before accepting this write"), { code: "EPIPE" });
 
   const finish = (outcome: { result: Static<typeof Completion> } | { error: Error }) => {
     if (done) return;
@@ -64,14 +68,18 @@ export function createNativeRun(api: Static<typeof NativeAddon>, spec: Static<ty
 
       for (const request of pending) request?.reject(outcome.error);
     } else {
+      killed = outcome.result.killed;
       started.resolve(pid);
       closed.resolve(outcome.result);
-      pending[0]?.resolve();
+
+      if (inputHasBytes && !killed) pending[0]?.reject(brokenInput());
+      else pending[0]?.resolve();
       pending[1]?.resolve(null);
       pending[2]?.resolve(null);
     }
 
     pending.fill(undefined);
+    inputHasBytes = false;
   };
 
   const notify: Parameters<Static<typeof NativeAddon>["begin"]>[1] = (event) => {
@@ -92,6 +100,7 @@ export function createNativeRun(api: Static<typeof NativeAddon>, spec: Static<ty
     else if (event.channel === 0) {
       pending[0]?.resolve();
       pending[0] = undefined;
+      inputHasBytes = false;
     } else {
       pending[event.channel]?.resolve(event.data);
       pending[event.channel] = undefined;
@@ -103,15 +112,17 @@ export function createNativeRun(api: Static<typeof NativeAddon>, spec: Static<ty
 
   if (error) resource.discard();
 
-  const input = (operation: () => void) => {
+  const input = (operation: () => void, hasBytes = false) => {
     if (pending[0]) throw Object.assign(new Error("Outstanding input credit"), { stage: "OutstandingIoCredit" });
 
-    if (done) return error ? Promise.reject(error) : Promise.resolve();
+    if (done) return error ? Promise.reject(error)
+      : hasBytes && !killed ? Promise.reject(brokenInput()) : Promise.resolve();
     const request = Promise.withResolvers<void>();
     pending[0] = request;
+    inputHasBytes = hasBytes;
 
     try { operation(); }
-    catch (failure) { pending[0] = undefined; throw failure; }
+    catch (failure) { pending[0] = undefined; inputHasBytes = false; throw failure; }
 
     return request.promise;
   };
@@ -132,7 +143,7 @@ export function createNativeRun(api: Static<typeof NativeAddon>, spec: Static<ty
 
       return request.promise;
     },
-    write(bytes: Uint8Array) { return input(() => resource.write(bytes)); },
+    write(bytes: Uint8Array) { return input(() => resource.write(bytes), bytes.byteLength !== 0); },
     endInput() { return input(() => resource.endInput()); },
     stop() { resource.stop(); }, discard() { resource.discard(); },
   };
