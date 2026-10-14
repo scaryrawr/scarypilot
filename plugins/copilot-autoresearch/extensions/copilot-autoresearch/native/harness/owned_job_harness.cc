@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <wow64apiset.h>
 #include <node_api.h>
 
 #include <algorithm>
@@ -590,12 +591,27 @@ napi_value Create(napi_env env, napi_callback_info info) {
   });
 }
 
+napi_value Architecture(napi_env env, napi_callback_info) {
+  return Boundary(env, [&]() {
+    USHORT processMachine = IMAGE_FILE_MACHINE_UNKNOWN;
+    USHORT nativeMachine = IMAGE_FILE_MACHINE_UNKNOWN;
+    Win(IsWow64Process2(GetCurrentProcess(), &processMachine, &nativeMachine) != FALSE,
+        "NativeArchitectureQuery");
+    napi_value value;
+    Check(napi_create_object(env, &value));
+    Set(env, value, "processMachine", Numeric(env, processMachine));
+    Set(env, value, "nativeMachine", Numeric(env, nativeMachine));
+    return value;
+  });
+}
+
 napi_value Initialize(napi_env env, napi_value exports) {
   return Boundary(env, [&]() {
-    const napi_property_descriptor create = {
-      "create", nullptr, Create, nullptr, nullptr, nullptr, napi_default, nullptr,
+    const napi_property_descriptor methods[] = {
+      {"create", nullptr, Create, nullptr, nullptr, nullptr, napi_default, nullptr},
+      {"architecture", nullptr, Architecture, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
-    Check(napi_define_properties(env, exports, 1, &create));
+    Check(napi_define_properties(env, exports, sizeof(methods) / sizeof(methods[0]), methods));
     Set(env, exports, "nodeApiVersion", Numeric(env, 8));
     SetBool(env, exports, "testOnly", true);
     return exports;

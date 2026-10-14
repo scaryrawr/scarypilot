@@ -7,17 +7,13 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { inventory, packageRoot, peMachine, verifyArtifact } from "../verify-artifact.mjs";
+import { isNativeWindowsArchitecture } from "./windows-architecture.mjs";
 
 assert.equal(process.platform, "win32", "Native ownership proof must run on Windows, not a platform seam");
 
 assert.ok(["x64", "arm64"].includes(process.arch), "Require a supported native Node architecture");
 
 assert.equal(process.arch, process.env.OWNERSHIP_EXPECT_ARCH, "CI must explicitly select the matching native Windows/Node architecture");
-
-const nativeMachine = machine().toLowerCase();
-
-assert.ok(process.arch === "arm64" ? ["arm64", "aarch64"].includes(nativeMachine) : ["x86_64", "amd64"].includes(nativeMachine),
-  "A cross-built artifact must be tested on its corresponding native Windows machine");
 
 assert.ok(Number(process.versions.node.split(".")[0]) >= 22, "Require Node 22+");
 
@@ -33,6 +29,20 @@ assert.equal(addon.nodeApiVersion, 8);
 
 assert.equal(addon.testOnly, true);
 
+const osMachine = machine();
+
+const nativeArchitecture = addon.architecture();
+
+console.log("OWNERSHIP_HARNESS_ARCHITECTURE", JSON.stringify({
+  nodeArch: process.arch,
+  nodeVersion: process.versions.node,
+  osMachine,
+  ...nativeArchitecture,
+}));
+
+assert.ok(isNativeWindowsArchitecture(process.arch, nativeArchitecture),
+  "IsWow64Process2 must prove a matching native Windows architecture and a non-emulated Node process");
+
 const bash = process.env.OWNERSHIP_BASH_EXE;
 
 assert.ok(bash && path.isAbsolute(bash) && existsSync(bash), "Set OWNERSHIP_BASH_EXE to the resolved Git-for-Windows bash.exe");
@@ -44,7 +54,8 @@ const hostScript = fileURLToPath(new URL("./host.cjs", import.meta.url));
 console.log("OWNERSHIP_HARNESS_PLATFORM", JSON.stringify({
   nodeArch: process.arch,
   nodeVersion: process.versions.node,
-  nativeMachine,
+  osMachine,
+  ...nativeArchitecture,
   bashMachine,
   sourceFingerprint: artifact.metadata.sources.fingerprint,
   binarySha256: artifact.metadata.binary.sha256,
@@ -162,6 +173,18 @@ function startHost(f, spec) {
 
   return { child, exit, stderr: () => stderr };
 }
+
+test("native architecture classification rejects emulation, other architectures and unknown hosts", () => {
+  const observed = addon.architecture();
+  const otherArch = process.arch === "arm64" ? "x64" : "arm64";
+  assert.deepEqual(observed, nativeArchitecture);
+  assert.equal(isNativeWindowsArchitecture(process.arch, observed), true);
+  assert.equal(isNativeWindowsArchitecture(otherArch, observed), false);
+  assert.equal(isNativeWindowsArchitecture(process.arch, {
+    ...observed, processMachine: inventory.architectures[process.arch].machine,
+  }), false);
+  assert.equal(isNativeWindowsArchitecture(process.arch, { ...observed, nativeMachine: 0 }), false);
+});
 
 test("atomic membership exists while the root is still suspended; stop is pre-resume and idempotent", { timeout: 10_000 }, async (t) => {
   const f = fixture(t, "suspended");

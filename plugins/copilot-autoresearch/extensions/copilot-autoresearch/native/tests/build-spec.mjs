@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import { auditImports, inventory, peMachine, sha256, sourceProvenance } from "../verify-artifact.mjs";
+import { isNativeWindowsArchitecture } from "./windows-architecture.mjs";
 
 const imports = `
   Section contains the following imports:
@@ -29,6 +30,35 @@ test("binary SHA256 uses bytes, not UTF-8 decoding or newline normalization", ()
   assert.notEqual(sha256(bytes), sha256(Buffer.from(bytes.toString("utf8"))));
   assert.notEqual(sha256(bytes), sha256(Buffer.from([0x4d, 0x5a, 0x00, 0xff, 0x80, 0x0a])));
   assert.equal(sha256(Buffer.from("abc")), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+});
+
+test("Windows API architecture evidence requires a matching native host and no emulation", () => {
+  for (const arch of ["x64", "arm64"]) {
+    const nativeMachine = inventory.architectures[arch].machine;
+    assert.equal(isNativeWindowsArchitecture(arch, { processMachine: 0, nativeMachine }), true);
+
+    for (const processMachine of [0x14c, 0x1c4, 0x8664, 0xaa64, undefined, "0"]) {
+      assert.equal(isNativeWindowsArchitecture(arch, { processMachine, nativeMachine }), false);
+    }
+
+    for (const unknown of [0, 0xffff, undefined, String(nativeMachine)]) {
+      assert.equal(isNativeWindowsArchitecture(arch, { processMachine: 0, nativeMachine: unknown }), false);
+    }
+  }
+
+  assert.equal(isNativeWindowsArchitecture("x64", { processMachine: 0x8664, nativeMachine: 0xaa64 }), false);
+  assert.equal(isNativeWindowsArchitecture("x64", { processMachine: 0, nativeMachine: 0xaa64 }), false);
+  assert.equal(isNativeWindowsArchitecture("arm64", { processMachine: 0, nativeMachine: 0x8664 }), false);
+  assert.equal(isNativeWindowsArchitecture("ia32", { processMachine: 0, nativeMachine: 0x14c }), false);
+});
+
+test("Node 22 ARM64's observed os.machine unknown cannot substitute for Windows API evidence", () => {
+  const observed = { arch: "arm64", osMachine: "unknown", processMachine: 0, nativeMachine: 0xaa64 };
+  assert.equal(isNativeWindowsArchitecture(observed.arch, observed), true);
+  assert.equal(isNativeWindowsArchitecture(observed.arch, { ...observed, nativeMachine: 0 }), false);
+  assert.equal(isNativeWindowsArchitecture(observed.arch, {
+    ...observed, osMachine: "arm64", nativeMachine: 0,
+  }), false);
 });
 
 test("PE machine is read from validated binary headers", () => {
@@ -79,6 +109,7 @@ test("creation requires a suspended atomic JOB_LIST and a stdio-only HANDLE_LIST
   assert.match(source, /limits\.BasicLimitInformation\.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;/);
   assert.doesNotMatch(source, /AssignProcessToJobObject|CREATE_BREAKAWAY_FROM_JOB/);
   assert.doesNotMatch(source, /\buv_[A-Za-z_]+\s*\(|v8::|node::/);
+  assert.match(source, /IsWow64Process2\(GetCurrentProcess\(\), &processMachine, &nativeMachine\)/);
   const calls = [...new Set([...source.matchAll(/\b(napi_[a-z_]+)\s*\(/g)].map((match) => match[1]))];
   const actualImports = `\n    node.exe\n${calls.map((name) => `       1 ${name}`).join("\n")}\n    KERNEL32.dll\n`;
   assert.equal(auditImports(actualImports).nodeImports.length, calls.length);

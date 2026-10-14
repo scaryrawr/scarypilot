@@ -3,7 +3,7 @@
   "purpose": "test-only ownership proof, not an installed execution backend",
   "nodeApiVersion": 8,
   "nodeHeadersVersion": "22.18.0",
-  "minimumWindows": "Windows 10 / Windows Server 2016",
+  "minimumWindows": "Windows 10 / Windows Server 2016, version 1709 or later (IsWow64Process2)",
   "crt": "static /MT; verified DLL imports are authoritative",
   "architectures": {
     "x64": {
@@ -25,6 +25,7 @@
     "native/verify-artifact.mjs",
     "native/tests/build-spec.mjs",
     "native/tests/host.cjs",
-    "native/tests/ownership.mjs"
+    "native/tests/ownership.mjs",
+    "native/tests/windows-architecture.mjs"
   ]
 }

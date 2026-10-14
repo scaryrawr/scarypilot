@@ -94,6 +94,16 @@ native Windows hardware/VM with matching Node architecture; x64 emulation on ARM
 does not count as the x64 native gate. Test both Node 22.18.0 and a newer supported
 Node against the same artifact to exercise the stable ABI.
 
+The verified addon queries `IsWow64Process2(GetCurrentProcess())` before any
+ownership tests. Its native machine must match `process.arch` (x64 `0x8664`,
+ARM64 `0xaa64`), and its process machine must be `IMAGE_FILE_MACHINE_UNKNOWN`
+(`0`), which means non-emulated in this API. An unknown **native** machine,
+emulated process, or failed query rejects the gate. This test-only API requires
+Windows 10 / Windows Server 2016 version 1709 or later.
+`os.machine()` is diagnostic-only: native ARM64 Node 22.18.0 was observed
+reporting `unknown` while Node 24 reported `arm64` on the same ARM64 host.
+No environment handoff or libuv machine-name exception authorizes execution.
+
 ```powershell
 $env:OWNERSHIP_EXPECT_ARCH = "x64" # "arm64" on the native ARM64 runner
 $env:OWNERSHIP_BASH_EXE = "<resolved Git-for-Windows bash.exe>"
@@ -102,6 +112,8 @@ npm run native:harness:test
 
 The suite refuses non-Windows or wrong-machine execution, verifies the raw binary
 hash/source provenance before loading, and records Node/Bash architecture.
+`OWNERSHIP_HARNESS_ARCHITECTURE` reports only Node architecture/version,
+`os.machine()`, and the two Windows API machine codes before asserting the gate.
 Cases cover:
 
 - Atomic suspended membership, no inherited job handle or breakaway permissions,
