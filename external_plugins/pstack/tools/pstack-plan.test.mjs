@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -140,43 +140,14 @@ test("the CLI accepts the shipped skeleton and rejects a missing cadence", (t) =
   }
 });
 
-test("the shipped bundle validates both cadences through its native tools", {
+test("the portable artifact CLI validates both cadences with the shared rules", {
   skip: !["darwin", "linux"].includes(process.platform),
 }, (t) => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "pstack-bundle-")));
+  const root = mkdtempSync(join(tmpdir(), "pstack-artifact-plan-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
 
   const path = join(root, "plan.md");
-  const entry = new URL("../extensions/pstack/extension.mjs", import.meta.url).href;
-
-  const host = `
-    import { registerHooks } from "node:module";
-    const sdk = \`
-      export const defineWorkflow = (value) => value;
-      export async function joinSession(options) {
-        const results = {};
-        for (const name of ["pstack_validate_plan", "pstack_validate_artifact"]) {
-          const tool = options.tools.find((item) => item.name === name);
-          const args = name === "pstack_validate_plan"
-            ? { plan_path: process.argv[2] }
-            : { kind: "plan", path: process.argv[2] };
-          const result = JSON.parse(await tool.handler(args));
-          results[name] = { ok: result.ok, findings: result.findings };
-        }
-        console.log(JSON.stringify(results));
-        return { log: async () => {} };
-      }
-    \`;
-    registerHooks({
-      resolve(specifier, context, nextResolve) {
-        if (specifier === "@github/copilot-sdk/extension") {
-          return { url: "data:text/javascript," + encodeURIComponent(sdk), shortCircuit: true };
-        }
-        return nextResolve(specifier, context);
-      },
-    });
-    await import(process.argv[1]);
-  `;
+  const cli = fileURLToPath(new URL("../skills/pstack-schema-validate/scripts/validate.mjs", import.meta.url));
 
   const line = template.split(/\r?\n/).indexOf("## Program checklist") + 1;
 
@@ -203,15 +174,15 @@ test("the shipped bundle validates both cadences through its native tools", {
   ]) {
     writeFileSync(path, plan);
 
-    const result = spawnSync(process.execPath, ["--input-type=module", "-e", host, entry, path], {
+    const result = spawnSync(process.execPath, [cli, "plan", "plan.md", "verified-stack"], {
       cwd: root,
       encoding: "utf8",
     });
 
-    assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(JSON.parse(result.stdout), {
-      pstack_validate_plan: expected,
-      pstack_validate_artifact: expected,
-    });
+    assert.equal(result.status, expected.ok ? 0 : 1, result.stderr);
+    assert.equal(result.stdout, expected.ok ? "plan contract valid: plan.md\n" : "");
+    assert.equal(result.stderr, expected.findings.map((finding) =>
+      `plan.md:${finding.line}: [${finding.rule}] ${finding.message}\n`
+    ).join(""));
   }
 });

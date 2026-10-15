@@ -101,7 +101,7 @@ If you run several agents against one repository, they can fight over the workin
 /poteto-mode new task. branch off <base> in a fresh worktree, then port the parser change there.
 ```
 
-Each writing task needs its own branch and worktree. Give app instances separate ports and build outputs too. Worktrees cost disk and machine resources, so concurrency depends on your machine. If the current Copilot host exposes cloud sessions, they may provide stronger isolation, but neither cloud execution nor its availability is a pstack guarantee. Check `/pstack capabilities` and the actual host tools before choosing that route.
+Each writing task needs its own branch and worktree. Give app instances separate ports and build outputs too. Worktrees cost disk and machine resources, so concurrency depends on your machine. If the current Copilot host exposes cloud sessions, they may provide stronger isolation, but neither cloud execution nor its availability is a pstack guarantee. Check the actual host tools before choosing that route.
 
 The [Opening a PR playbook](../../skills/poteto-mode/playbooks/opening-a-pr.md) already works from a worktree for code changes, so mostly you only say this when a specific base or location matters.
 

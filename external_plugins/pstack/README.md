@@ -12,8 +12,8 @@ planning, delegation, review, and verification.
   `architect`, `arena`, `swarm`, `interrogate`, `correct`, `benchmark-checklist`,
   `tdd`, `deslop`, `unslop`, and 24 pstack principles.
 - The `poteto-agent` and `comment-sicko` custom agents.
-- Native `pstack_status`, capability, artifact-validation, plan-validation, verification-receipt,
-  handoff, and worktree-inspection tools plus the `/pstack` command.
+- Portable artifact and plan validation using deterministic contract rules and
+  workspace-confined file reads.
 - PR watching, orchestration, decision-log, and worktree-audit helpers used by
   advanced playbooks.
 - Verified multi-phase planning with an executable checklist checker.
@@ -28,18 +28,18 @@ a workflow. It answers the question without starting the suggested task.
 
 ## Prerequisites
 
-- GitHub Copilot CLI with plugin, Agent Skills, and native extension support.
+- GitHub Copilot CLI with plugin and Agent Skills support.
 - Git and GitHub CLI for GitHub and PR workflows.
 - Bun only for the legacy `poteto-mode` PR watcher and orchestration CLIs.
-- Node.js for the cross-platform `show-me-your-work` decision-log helper.
+- Node.js for the decision-log and validation helpers. Confined artifact
+  validation requires macOS or Linux and fails explicitly on other platforms.
 - GitHub CLI with the separately installed [`github/gh-stack`](https://github.com/github/gh-stack)
   extension for stacked-PR playbooks, using the public v0.2.1 JSON contract or
   a compatible release. Capability detection runs `gh stack --version`;
   pstack never installs the extension automatically.
 
-The native extension and core skills need no extra runtime. Optional host
-capabilities are reported as available, unavailable, or unknown instead of
-being assumed.
+The plugin has no native extension or SDK dependency. Core skills use the
+current host's advertised tools; optional capabilities are not assumed.
 
 ## Installation
 
@@ -70,19 +70,23 @@ Use the full workflow style:
 /poteto-mode implement this feature and prove it works
 ```
 
-Inspect native state and capabilities:
+### Migration from the native extension
 
-```text
-/pstack status
-/pstack capabilities
-/pstack resume
-```
+`2.0.0-copilot.1` removes the Copilot-only extension, its seven tools, the
+`/pstack` command, automatic handoff injection on resume, and the journaled
+swarm workflow. This is an intentional breaking change, not a transparent
+replacement of those services.
 
-The status tool builds a versioned `PstackSnapshot` from existing orch,
-watch-pr, handoff, and Git facts. It is a read-only projection, not another
-state database. Verification receipts and handoffs are durable JSON artifacts
-under the repository Git state directory. Their schemas live in
-[`contracts/`](./contracts/).
+Skills, custom agents, contract schemas and useful scripts remain. Existing
+receipts, handoffs and orchestration state are not deleted or rewritten.
+Read a supplied handoff or scoped session history explicitly during pickup.
+The pause playbook writes its existing Markdown resume note; orchestration uses
+its existing Bun ledger. Neither recreates the removed native services.
+
+Swarms use Task agents. Read-only instructions and before/after evidence do not
+provide tool-level write prevention, journaled replay or pinned inputs. If a task
+requires those guarantees and the current host cannot enforce them, report it
+blocked. Writing workers still require isolated workspaces.
 
 The `1.0.0-copilot.1` release changes the stack dependency and capability key to
 `ghStack`. It no longer supports the previous stack backend. The reviewed
@@ -122,41 +126,38 @@ resolves numeric merge targets as stack numbers before PR numbers, so target
 resolution must be proven before any merge. See the
 [Shipping playbook](./skills/poteto-mode/playbooks/shipping.md).
 
-Validate an explicitly requested workspace artifact with
-`pstack_validate_artifact`. Its input is `{ kind, path, profile? }`.
-`kind` is `snapshot`, `receipt`, `handoff`, or `plan`. Only plans accept
-`profile`, either `basic` or `verified-stack`, defaulting to `verified-stack`.
+### Validate a workspace artifact
 
-JSON results contain `{ kind, path, schemaVersion: 1, ok, findings }`.
-Each finding has `{ path, rule, message }`. Plan results contain
-`{ kind, path, profile, ok, findings, report }`. Each plan finding has
-`{ line, rule, message }`. Contract violations return `ok: false`.
-Invalid arguments, unreadable paths, and malformed JSON raise tool errors.
-The result's `path` is the canonical absolute file path. The TypeScript
-input and output contracts are exported from the
-[native tool module](./extensions/pstack/src/tools/validate-artifact.ts).
+Invoke [`/pstack-schema-validate`](./skills/pstack-schema-validate/SKILL.md), or
+run its CLI from the approved workspace. Resolve the script from the installed
+skill's absolute directory; do not change the working directory to the plugin.
 
-The tool reads only the selected file inside the current workspace.
-It rejects outside paths and symlink escapes, and never reads evidence paths
-or runs commands. Native confined reads require macOS or Linux.
+```sh
+node "<schema-skill>/scripts/validate.mjs" receipt receipt.json
+node "<schema-skill>/scripts/validate.mjs" plan plan.md basic
+```
+
+Kinds are `snapshot`, `receipt`, `handoff`, and `plan`. Plans accept `basic` or
+`verified-stack`, defaulting to `verified-stack`. The CLI reports all contract
+findings and exits `0` for valid input, `1` for contract violations, and `2` for
+invocation, access or parse errors. JSON contracts remain in
+[`contracts/`](./contracts/). A valid contract is not proof that evidence is true,
+fresh, or authorized.
+
+The validator reads only the selected file inside its current workspace.
+It rejects outside paths, traversal and symlink escapes; it does not follow
+evidence paths or execute artifact contents. Confined reads require macOS or Linux.
 macOS rejects symlinks throughout the canonical open path with `O_NOFOLLOW_ANY`.
 Linux opens each path component through a pinned directory descriptor in
 `/proc/self/fd`, with `O_NOFOLLOW`. A replaced ancestor symlink cannot redirect
 the read. Other platforms raise an explicit unsupported-platform error.
-On Windows, select the approved-workspace CLI fallback before invoking native
-artifact reads. For pinned native swarms, select the Task fallback with explicit
-file lists and freshness evidence instead. This fallback does not claim native
-race-safe confinement or journaled pinning.
-Validation checks artifact shape, not the truth of recorded
-verification claims, snapshot hashes, or permission to perform later actions.
-`pstack_validate_plan` retains its existing `plan_path` input, defaults,
-output, and path behavior.
+There is no unconstrained fallback. The workspace root is the CLI's working
+directory, so the caller must retain the approved root; the reader does not
+sandbox the caller's other shell commands.
 
-The [schema-validation skill](./skills/pstack-schema-validate/SKILL.md)
-routes to the native tool and provides a CLI fallback using the same pure
-validation rules. The standalone CLI does not enforce workspace confinement.
-It preserves legacy positional handling, including an ignored optional third
-argument for JSON kinds. Native JSON inputs reject `profile`.
+The standalone [`check-plan.mjs`](./skills/poteto-mode/scripts/check-plan.mjs)
+keeps its existing human-readable checklist diagnostics. Both entrypoints share
+the same pure plan rules.
 
 Configure Task models across Copilot projects:
 
@@ -172,9 +173,8 @@ Task agent's default model.
 ## Copilot adaptation
 
 The manifest omits the canonical Agent Plugins `$schema` selector so Copilot
-uses its legacy manifest format. This preserves the native `extensions`
-directory paths and the existing root `agents` and `skills` fields.
-With the canonical selector, `extensions` instead contains client namespaces.
+uses its legacy manifest format with the existing root `agents` and `skills`
+fields. It does not register an `extensions` directory.
 See the [CLI plugin reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference#legacy-manifest-fields).
 
 The upstream skills use the Agent Skills format, but their orchestration layer
@@ -184,58 +184,14 @@ Copilot Task agents, scoped session history, background completion
 notifications, `.github/skills/`, and available browser, computer-use,
 terminal, and project verification tools.
 
-The native extension centralizes capability detection, deterministic state
-access, and the experimental read-only `pstack-swarm` workflow. The extension
-registers a non-invocable workflow worker limited to read and search tools. The
-`swarm` skill keeps its existing Task-agent flow as a compatibility fallback
-and for all writing work, where separate worktrees remain mandatory.
 Host-controlled surfaces such as Task agents, dynamic workflows, session history,
 browser automation, MCP tools, and App sidebar state remain conditional until
 the host proves they are available.
-
-Read-only swarms use `run_dynamic_workflow` and `dynamic_workflows_manage`.
-The host must expose these experimental tools; a CLI version alone does not
-guarantee they are enabled.
-The extension targets SDK 1.0.16 and registers its worker and workflow together
-through `joinSession({ customAgents, workflows })`. The workflow name and
-legacy v1 arguments and results remain supported.
-
-The optional v1 `inputFiles` manifest pins 1-128 explicitly declared workspace
-files. For example, add `"inputFiles": ["src/api.ts", "tests/api.test.ts"]`
-to the swarm arguments. Missing files, directories, symlinks, outside paths,
-URLs, traversal, and duplicate canonical targets raise workflow errors before
-worker admission. Pinned reads use the same native confined reader as artifact
-validation and require macOS or Linux.
-
-Pinned results add `pinnedInputSnapshot` with `schemaVersion: 1`,
-`workspace: { root, dev, ino }`, and
-`files: [{ path, sha256 }]` in manifest order. `root` and `path` are canonical
-absolute paths. Directory device and inode identifiers are decimal strings.
-Digests cover exact file bytes, not decoded text. Pinning hashes through
-bounded 64 KiB reads and checks cancellation between reads instead of
-buffering whole files. Raw worker reports may include extra metadata;
-normalization retains only status, summary, and evidence. Journaled
-snapshots and normalized aggregate results remain strict.
-The first attempt journals
-that snapshot. Fresh reads outside the journal precede worker admission,
-aggregation, and result return, including on resume. Drift in workspace
-identity, canonical paths, or declared bytes raises an error rather than
-returning memoized results. Unchanged inputs allow existing workers and
-aggregate results to replay. Changed inputs require a new run.
-
-This guarantee covers only declared file bytes and workspace identity at
-workflow boundaries. It does not cover the whole repository, undeclared
-reads, or a transient edit restored between checks. It does not provide
-immutable worker inputs. Legacy runs without a manifest have no freshness
-guarantee. Neither a recorded SHA, digest, path, evidence string, nor a
-`PASS` proves truth. `ISSUES` still counts as completed coverage, and empty
-evidence still needs caller review. The swarm skill's Phase C remains the
-evidence-acceptance boundary.
-
-Artifact validation is a separate read-only increment. The CLI and native
-tool share [`artifact-rules.mjs`](./skills/pstack-schema-validate/scripts/artifact-rules.mjs)
-and the existing plan rules. The adaptation keeps orch, watch-pr, setup, and
-recall unchanged.
+The swarm skill uses Task agents directly and accepts evidence explicitly.
+Artifact validation retains the shared
+[`artifact-rules.mjs`](./skills/pstack-schema-validate/scripts/artifact-rules.mjs)
+and plan rules without a native adapter. Orch, watch-pr, setup and recall keep
+their existing portable interfaces.
 
 Autopilot playbooks now use an hourly audit through an available, approved
 host scheduling mechanism. They do not assume Cursor's `/loop` or a wake-up
@@ -270,24 +226,22 @@ rules.
 node external_plugins/pstack/tools/pstack-sync.mjs check
 node external_plugins/pstack/tools/pstack-sync.mjs plan --upstream /path/to/cursor-plugins
 node --test external_plugins/pstack/tools/pstack-sync.test.mjs external_plugins/pstack/tools/pstack-plan.test.mjs
+node --test external_plugins/pstack/skills/pstack-schema-validate/tests/validation.test.mjs external_plugins/pstack/skills/pstack-schema-validate/tests/workspace-reader.test.mjs
 ```
 
 On a POSIX host, also run
 `node --test external_plugins/pstack/tools/worktree-audit.test.mjs` for the
-legacy shell fallback. CI runs these regressions on macOS and Linux; native
-and portable core contracts retain their three-platform matrix.
+POSIX shell helper. CI runs these regressions on macOS and Linux; portable
+core checks also run on Windows, including explicit rejection of unsupported
+confined reads.
 
-`check` validates the shipped inventory, provenance, links, extension
-registration, and Copilot-compatible skill metadata. `plan` produces a bounded,
+`check` validates the shipped inventory, provenance, links, extension-free
+packaging, and Copilot-compatible skill metadata. `plan` produces a bounded,
 fail-closed classification of newer upstream changes.
 The plan regressions exercise the shipped skeleton, saved legacy plans,
-the CLI, and both native validators in the checked-in bundle with a test
-SDK registration boundary. They do not start a live workflow or worker.
-
-When changing the native extension, install dependencies in
-`external_plugins/pstack/extensions/pstack`, run `npm run build`, and commit its
-generated `dist/` and `bundle-manifest.json`. Installed plugins use the bundle
-without an npm install; Copilot supplies the SDK at runtime.
+the CLI, and the portable artifact validator. Reader regressions exercise
+outside/symlink rejection and ancestor-swap confinement on supported platforms.
+No extension bundle, SDK install or live model worker is required.
 
 ## License and resources
 

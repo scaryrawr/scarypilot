@@ -35,7 +35,7 @@ Walk through what each line buys you:
 
 Because you'll review this work after stepping away, `/poteto-mode` routes it through [`/figure-it-out`](../../skills/figure-it-out/SKILL.md), which designs the run's phases before any code and wires in the decision log.
 
-To stop a run on purpose, ask it to pause safely before going offline or restarting Copilot. The [Pause safely playbook](../../skills/poteto-mode/playbooks/pause-safely.md) finishes or backs out of the current step, makes a permitted work-in-progress checkpoint, and writes a durable resume note. Session pickup reads that note. `/pstack resume` can inspect existing handoff facts without starting the task. Saying "keep going" never triggers a pause.
+To stop a run on purpose, ask it to pause safely before going offline or restarting Copilot. The [Pause safely playbook](../../skills/poteto-mode/playbooks/pause-safely.md) finishes or backs out of the current step, makes a permitted work-in-progress checkpoint, and writes a durable resume note. Session pickup must read that note explicitly; no automatic resume hook is provided. Saying "keep going" never triggers a pause.
 
 ## What the loop does all night
 
@@ -89,7 +89,7 @@ The contract above drives one task to one finish condition. Some nights hold mor
 
 ## Coordinate several bodies of work
 
-If the current Copilot host exposes persistent sessions, messaging, and isolated child workspaces, a standing coordinator can direct owners instead of writing their code. Otherwise use bounded Task agents and durable handoffs, or keep the program supervised. `/pstack capabilities` reports available, unavailable, and unknown host surfaces. Treat unknown as unavailable until the current host proves otherwise.
+If the current Copilot host exposes persistent sessions, messaging, and isolated child workspaces, a standing coordinator can direct owners instead of writing their code. Otherwise use bounded Task agents and durable handoffs, or keep the program supervised. Inspect the actual host's advertised tools and treat unknown capabilities as unavailable until proven otherwise.
 
 A few habits help:
 

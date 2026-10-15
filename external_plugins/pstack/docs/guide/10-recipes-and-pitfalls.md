@@ -99,15 +99,16 @@ The fix belongs in architecture, a type, a lint, or a test, so later runs don't 
 
 You get an answer, a prompt to send, and a source link. The suggested task does not start until you request it.
 
-## Inspect pstack without a model run
+## Run deterministic validation without a model
 
-```text
-/pstack status
-/pstack capabilities
-/pstack resume
+```sh
+node "<schema-skill>/scripts/validate.mjs" plan plan.md basic
 ```
 
-These native commands are deterministic and read-only. They don't spend model tokens or launch workers. `/pstack resume` inspects existing handoff facts; it doesn't execute the next step. Interpreting the output in an agent conversation still uses that agent.
+Resolve the installed [schema skill](../../skills/pstack-schema-validate/SKILL.md)
+path and run from the approved workspace on macOS or Linux. The CLI performs no
+model call and launches no workers. Contract validity is not evidence validity;
+asking an agent to interpret the result still uses that agent.
 
 ## Keep a run honest while you're away
 

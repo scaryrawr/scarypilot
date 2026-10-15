@@ -8,7 +8,7 @@
     "contentCommit": "6ce45c59b9301a638c1fe1a7b8dc2a82b650898f",
     "version": "0.15.25"
   },
-  "localVersion": "1.1.0-copilot.1",
+  "localVersion": "2.0.0-copilot.1",
   "requiredSkills": [
     "how",
     "why",
@@ -70,7 +70,7 @@
       "localPaths": [
         "plugin.json"
       ],
-      "reason": "The upstream Agent Plugins v1 manifest maps to the legacy Copilot manifest; its schema selector must not replace native extension, skill, or agent registration."
+      "reason": "The upstream Agent Plugins v1 manifest maps to Copilot skill and agent registration; the adaptation intentionally has no native extension."
     },
     {
       "path": "agents",
@@ -81,6 +81,10 @@
     }
   ],
   "excludedUpstreamPaths": [
+    {
+      "path": "extensions",
+      "reason": "pstack ships portable skills and scripts, not a native extension runtime."
+    },
     {
       "path": "automations/benny",
       "reason": "Copilot plugins do not expose the Cursor Automations runtime."
@@ -100,7 +104,6 @@
   ],
   "copilotOwnedPaths": [
     "contracts",
-    "extensions",
     "skills/deslop",
     "skills/pstack-schema-validate",
     "NOTICE.md",

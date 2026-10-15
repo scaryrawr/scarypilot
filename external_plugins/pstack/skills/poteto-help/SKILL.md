@@ -27,7 +27,7 @@ Inspect state only when it changes the answer:
 
 - Resolve Copilot home from `$COPILOT_HOME`, defaulting to `$HOME/.copilot`. If `instructions/pstack-models.instructions.md` or a role line is absent, omit the Task `model` argument and let the host select its default. A missing file does not prove setup never ran.
 - If the project has neither a `verify-*` skill nor an equivalent harness, suggest `/create-verification-skill` for questions about proving app behavior.
-- Use the current host's advertised tools as authoritative. `/pstack capabilities` or `pstack_capabilities`, when installed, reports available, unavailable, or unknown capabilities. Unknown is not permission to assume support.
+- Use the current host's advertised tools and the required helper runtimes as authoritative. Unknown is not permission to assume support.
 
 ## Get set up
 
@@ -46,7 +46,10 @@ For inventory or version questions, read the current README and [`plugin.json`](
 
 For cost questions, explain that Task agents and panels add model work. Choose lower-cost available models only where they meet the quality bar, reduce panel entries, and reserve heavy playbooks for work that needs them. `auto` and `inherit-parent` both omit `model`; the host selects its default. Neither guarantees the parent model, fewer tokens, or a cheaper run.
 
-The native `/pstack status`, `/pstack capabilities`, and `/pstack resume` commands are deterministic, read-only inspection with no model calls or workers. Resume inspects existing state and handoffs, not the next task. An agent conversation interpreting their output still uses its model.
+The plugin supplies skills and scripts, not a native command, automatic resume
+hook or status service. Read a supplied handoff or scoped session history
+explicitly. Running a deterministic helper directly does not require a model;
+asking an agent to interpret its output still uses the agent.
 
 ## Start a task with `/poteto-mode`
 
@@ -106,9 +109,13 @@ Close calls:
 - `/in-your-own-words` checks understanding without starting work. `/sharpen` improves the task brief; neither authorizes implementation.
 - `/figure-it-out` designs one rigorous run. Orchestrate is a multi-day program; Autonomous run drives one task to a finish condition.
 
-Both `/deslop` and `/pstack-schema-validate` are bundled in this Copilot pstack adaptation. For validation, `pstack_validate_artifact` checks one selected workspace artifact's contract without running commands or reading evidence paths. Valid structure is not proof of behavior, freshness, or permission to act. The validation skill documents its CLI fallback.
+Both `/deslop` and `/pstack-schema-validate` are bundled in this Copilot pstack adaptation. The validation skill's Node CLI checks one selected workspace artifact without running artifact contents or reading evidence paths. Its confined reader requires macOS or Linux and rejects unsupported platforms rather than falling back to an unconstrained read. Valid structure is not proof of behavior, freshness, or permission to act.
 
-The opt-in `pstack-swarm` native workflow is read-only coverage, requires dynamic workflow tools in the current host and explicit user consent, and can pin declared file bytes through `inputFiles`. It rejects drift at workflow boundaries, including resume, but does not freeze the whole repository or prove worker evidence. Races and writing work use Task agents, with separate worktrees for writing. Do not invoke a workflow from help.
+Swarms use the current host's Task agents, with explicit scope and evidence
+checks. Writing workers need separate worktrees. Read-only briefs do not enforce
+tool permissions or provide journaled input pinning. If those guarantees are
+required and unavailable, report the limit instead of claiming equivalence.
+Do not launch workers from help.
 
 ## Playbooks and principles
 
@@ -143,7 +150,7 @@ Principles are one-rule skills. `/poteto-mode` reads and cites those it applies.
 | Parallel agents overwrote each other | Give writing workers separate worktrees, ports, and outputs. Use cloud sessions only if this host exposes them. |
 | An overnight run moved but finished nothing | Give it a pass/fail predicate, working verification, and an authorized wake mechanism if the host has one. |
 | The reply claims success from a green build | Ask for the real command, flow, stored value, or profile. |
-| A resumed report may be stale | Inspect `/pstack resume`, then verify the inherited evidence at the actual revision before acting. |
+| A resumed report may be stale | Read the supplied handoff or scoped prior trail, then verify inherited evidence at the actual revision before acting. |
 
 [`references/prompting.md`](references/prompting.md) has one-line steers. [Guide page 10](../../docs/guide/10-recipes-and-pitfalls.md) has pitfalls and recipes.
 

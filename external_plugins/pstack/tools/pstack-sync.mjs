@@ -223,11 +223,11 @@ export function checkRepository(pluginRoot = DEFAULT_PLUGIN_ROOT) {
     );
   }
 
-  if (!Array.isArray(plugin.extensions) || !plugin.extensions.includes("extensions")) {
+  if (Object.hasOwn(plugin, "extensions")) {
     findings.push(
       finding(
-        "missing-extension",
-        "plugin.json must continue to publish the Copilot extension directory",
+        "unexpected-extension",
+        "pstack must publish skills and scripts without native extension registration",
         "plugin.json",
       ),
     );

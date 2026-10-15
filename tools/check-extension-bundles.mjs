@@ -8,7 +8,6 @@ import { hashBundleFile } from "./bundle-hash.mjs";
 const root = path.resolve(import.meta.dirname, "..");
 
 const extensions = [
-  "external_plugins/pstack/extensions/pstack",
   "plugins/ado-codespaces/extensions/ado-codespaces",
   "plugins/copilot-autoresearch/extensions/copilot-autoresearch",
   "plugins/copilot-local-llm/extensions/copilot-local-llm",
@@ -72,14 +71,6 @@ for (const extension of selected ? [selected] : extensions) {
   ];
 
   if (existsSync(path.join(directory, "package-lock.json"))) inputs.push("package-lock.json");
-
-  if (extension.startsWith("external_plugins/pstack/")) {
-    inputs.push(
-      "../../skills/poteto-mode/scripts/plan-rules.mjs",
-      "../../skills/poteto-mode/scripts/orch/store.ts",
-      "../../skills/pstack-schema-validate/scripts/artifact-rules.mjs",
-    );
-  }
 
   if (extension === "plugins/screen-record/extensions/screen-record") {
     inputs.push(

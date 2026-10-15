@@ -6,7 +6,6 @@ import path from "node:path";
 const root = path.resolve(import.meta.dirname, "..");
 
 const extensions = [
-  "external_plugins/pstack/extensions/pstack",
   "plugins/ado-codespaces/extensions/ado-codespaces",
   "plugins/copilot-autoresearch/extensions/copilot-autoresearch",
   "plugins/copilot-local-llm/extensions/copilot-local-llm",
@@ -122,9 +121,7 @@ for (const extension of extensions) {
 
     const registration = registrationLine && JSON.parse(registrationLine.slice("SCARYPILOT_SMOKE:".length));
 
-    if (!registration || (extension.includes("/pstack/") &&
-      (!registration.workflows.includes("pstack-swarm") ||
-        !registration.agents.includes("pstack-swarm-worker")))) {
+    if (!registration) {
       throw new Error(`${extension}: missing expected session registration`);
     }
 

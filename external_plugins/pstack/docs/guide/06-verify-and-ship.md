@@ -83,7 +83,7 @@ Treat the verification skill as infrastructure. Commit it when you're ready to s
 
 Make the dev setup repeatable too: seeded data, test users, and one command that brings the environment up the same way every time.
 
-For recorded pstack receipts, handoffs, snapshots, and plans, [`/pstack-schema-validate`](../../skills/pstack-schema-validate/SKILL.md) routes to `pstack_validate_artifact` when available. The native tool reads one selected workspace file and checks its contract without running commands or reading evidence paths. Contract validity does not prove behavior, freshness, or permission for later actions.
+For recorded pstack receipts, handoffs, snapshots, and plans, [`/pstack-schema-validate`](../../skills/pstack-schema-validate/SKILL.md) runs its Node CLI from the approved workspace. On macOS and Linux it confines the selected file read, without executing artifact contents or reading evidence paths; unsupported platforms fail explicitly. Contract validity does not prove behavior, freshness, or permission for later actions.
 
 ## Keep the verification skill honest
 

@@ -58,7 +58,7 @@ The panel comes from your [`/setup-pstack`](../../skills/setup-pstack/SKILL.md) 
 
 Reach for it when parallelism buys coverage or lets independent checks race. `/arena` gives every worker the same design or code brief, then picks a base and grafts the best parts. `/swarm` covers slices or runs a race with a selection rule declared up front. It does not use the base-selection and grafting ceremony.
 
-An opt-in native `pstack-swarm` workflow supports read-only coverage when the current host exposes dynamic workflows. It requires explicit consent because it launches model workers. Its optional `inputFiles` manifest pins declared workspace files and rejects drift at workflow boundaries, including on resume. This is not an immutable whole-repository snapshot, and it does not prove the workers' claims. You still review the evidence. Races and writing work use Task agents; writing workers need separate worktrees. Read the [swarm skill](../../skills/swarm/SKILL.md) for the limits before choosing a run.
+Swarms use the current host's Task agents for coverage and races. Give read-only workers explicit file lists, prohibited actions and freshness checks; these instructions do not enforce tool permissions or pin inputs. If stronger guarantees are required and the host cannot provide them, report the work blocked. Writing workers need separate worktrees. Read the [swarm skill](../../skills/swarm/SKILL.md) before choosing a run.
 
 ## Break it with `/interrogate`
 
@@ -116,7 +116,7 @@ For a migration, state the bar:
 
 "bugs included" keeps the migration from quietly fixing things on the way, which would make old and new output impossible to compare. Plans normally live in session artifacts. For a multi-day project, explicitly request a repository plan if other agents need to read it, then remove it when the work lands.
 
-[`/pstack-schema-validate`](../../skills/pstack-schema-validate/SKILL.md) can check the plan's required shape through the native `pstack_validate_artifact` tool. A valid plan is not proof that its verification claims are true.
+[`/pstack-schema-validate`](../../skills/pstack-schema-validate/SKILL.md) checks the plan's required shape through its portable Node CLI. Confined artifact reads require macOS or Linux. A valid plan is not proof that its verification claims are true.
 
 New program plans specify hourly audits through available approved session automation or a bounded timer while the session remains active. The shared plan validator also accepts legacy 30-minute audit plans; that compatibility does not change a new plan's hourly cadence or guarantee a closed session can wake.
 

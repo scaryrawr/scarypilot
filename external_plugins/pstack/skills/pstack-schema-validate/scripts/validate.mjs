@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { readFileSync } from "node:fs";
 import { validatePlanText } from "../../poteto-mode/scripts/plan-rules.mjs";
 import { ARTIFACT_KINDS, validateArtifact } from "./artifact-rules.mjs";
+import { readWorkspaceFile } from "./workspace-reader.mjs";
 
 const [kind, file, profile = "verified-stack", ...extra] = process.argv.slice(2);
 
@@ -14,7 +14,8 @@ if (
 }
 
 try {
-  const raw = readFileSync(file, "utf8");
+  const { bytes } = await readWorkspaceFile(process.cwd(), file);
+  const raw = bytes.toString("utf8");
 
   const findings = kind === "plan"
     ? validatePlanText(raw, profile).findings.map(
