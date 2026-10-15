@@ -7,17 +7,13 @@ description: Spawn three parallel review subagents over the active transcript, s
 
 Mine the current conversation for durable learnings, then route them into skill edits.
 
-## When to invoke
-
 Invoke when the user says "reflect" or "/reflect". Skip when the conversation is trivial, off-topic, or already covered by an existing skill the parent followed correctly. One-offs are not learnings.
 
-## Process
-
-### 1. Gather the active conversation
+## 1. Gather the active conversation
 
 Use the active conversation already in context. When `session_store_sql` is available, query only the current session ID and the time range needed for this task. Do not search unrelated sessions. If the current session cannot be queried, write a tight digest from the visible conversation and pass that instead.
 
-### 2. Spawn three reviewers in parallel
+## 2. Spawn three reviewers in parallel
 
 One message, three `Task` calls with `agent_type: "general-purpose"`. Set `model` from the role line in `instructions/pstack-models.instructions.md` in Copilot home. If the configuration or the line is missing, or the value is `auto` or `inherit-parent`, omit `model`. If the Task tool rejects a slug, omit `model` and say so. Each prompt forbids file writes; the parent applies edits.
 
@@ -29,30 +25,30 @@ One message, three `Task` calls with `agent_type: "general-purpose"`. Set `model
 
 Pass each template verbatim, substituting the scoped conversation digest where marked. Use a transcript reference only when the current Copilot host explicitly provides one. Reviewers return findings in the `Task` response body.
 
-### 3. Synthesize
+## 3. Synthesize
 
 One `Task` call with `agent_type: "general-purpose"` and the configured reflect-judgment model. Omit `model` when the configuration or role line is missing, or the value is `auto` or `inherit-parent`, and let Copilot choose the agent's default. If the Task tool rejects that configured slug before starting the synthesizer, retry the same read-only brief once without `model` and report the fallback. Keep the completed reviewer outputs; do not repeat their reviews or guess a substitute model. Surface any other error rather than treating it as a model rejection. The prompt forbids file writes but allows available integrations for citation checks. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
 
-### 4. Structural enforcement check
+## 4. Structural enforcement check
 
-Sanity-check the synthesizer's Accepted list. For any item that would be enforced more reliably by a lint rule, script, metadata flag, or runtime check, move it from Accepted to Backlog. See the **encode-lessons-in-structure** principle skill.
+Move any Accepted item that a lint rule, script, metadata flag, or runtime check would enforce more reliably to Backlog. See the **encode-lessons-in-structure** principle skill.
 
-### 5. Apply
+## 5. Apply
 
-Before applying any Accepted edit, present the synthesizer's full Accepted/Rejected/Backlog output to the user and wait for explicit approval. The user picks which subset to apply and may redirect routings. Skill changes affect every future agent in the org. Do not auto-apply.
+Present the synthesizer's full Accepted / Rejected / Backlog output and wait for explicit approval before applying any Accepted edit. The user picks the subset and may redirect routings. Skill changes affect every future agent in the org. Do not auto-apply.
 
-Backlog items file to whatever devex / backlog tracker your team uses automatically. Only the Accepted list waits for approval.
+File Backlog items to the team's devex tracker only within existing external-write authorization; otherwise leave them as proposals. Include `- Generated with AI 🤖` once at the end of agent-authored text submitted to an external system.
 
-For each approved Accepted item, follow the Routing field exactly:
+Follow each approved row's Routing exactly:
 
-- Trivial existing-skill edit (a one-line bullet, a tightened sentence, a stale fact corrected): parent does directly.
+- Trivial existing-skill edit (a one-line bullet, a tightened sentence, a stale fact corrected): the parent does it directly.
 - Substantive existing-skill edit (a new section, a new pattern table, more than ~10 lines): follow the poteto-mode Authoring a skill playbook and run focused task or trigger evals when an eval harness is available.
 - `tune description: <skill path>` (the skill exists but did not trigger when it should have): add realistic positive and negative trigger cases, then tighten the description against them.
 - `new skill via authoring playbook: <kebab-name>`: follow the Authoring a skill playbook. Do not invent the shape ad hoc.
 
-If your environment ships a SKILL.md validator, run it on every touched skill before declaring done. Skip this step if it doesn't.
+If your environment ships a SKILL.md validator, run it on every touched skill before declaring done.
 
-### 6. Summarize for the user
+## 6. Summarize for the user
 
 Short list, no preamble:
 

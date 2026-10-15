@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { WatcherQueryError } from "./github.ts";
+import { WatcherQueryError, mapRollupNode, parseFastCheck } from "./github.ts";
 import {
   applyQueueSnapshot,
   assessGitHubMerge,
@@ -96,6 +96,59 @@ describe("readiness truth table", () => {
 });
 
 describe("snapshot query planning", () => {
+  it("blocks readiness on unresolved threads from a later page", async () => {
+    const reader = fakeReader({
+      threadPages: [
+        {
+          threads: Array.from({ length: 100 }, (_, i) => ({
+            id: `resolved-${i}`, firstComment: null, resolved: true,
+          })),
+          endCursor: "late-page",
+        },
+        { threads: [{ id: "late", firstComment: null, resolved: false }], endCursor: null },
+      ],
+    });
+
+    const snapshot = await readSnapshot({
+      reader, context: context(1), pendingHistory: "omit", allowDraft: false,
+    });
+
+    expect(classifyPr(snapshot)).toMatchObject({
+      kind: "blocker",
+      blocker: { kind: "review-threads", threads: [{ id: "late" }] },
+    });
+    expect(reader.calls).toContain("reviewThreadPage:late-page");
+  });
+
+  it("ignores owner-approval ACTION_REQUIRED checks but retains ordinary failures on both paths", async () => {
+    for (const path of ["fast", "rollup"]) {
+      for (const name of ["Code Review Gate", "ci"]) {
+        const check = path === "fast"
+          ? parseFastCheck({ name, state: "ACTION_REQUIRED", bucket: "fail" })
+          : mapRollupNode({
+              __typename: "CheckRun", name, status: "COMPLETED", conclusion: "ACTION_REQUIRED",
+            });
+
+        if (check === null) throw new Error("expected CheckRun");
+
+        const reader = fakeReader(path === "fast"
+          ? { fastPath: { kind: "checks", checks: [check] } }
+          : {
+              fastPath: { kind: "unusable", exitCode: 8, stderr: "" },
+              rollupPages: [{ checks: [check], endCursor: null }],
+            });
+
+        const snapshot = await readSnapshot({
+          reader, context: context(1), pendingHistory: "omit", allowDraft: false,
+        });
+
+        expect(classifyPr(snapshot)).toMatchObject(name === "Code Review Gate"
+          ? { kind: "ready" }
+          : { kind: "blocker", blocker: { kind: "failing-checks" } });
+      }
+    }
+  });
+
   it("does not query commit rollups while queued checks are pending", async () => {
     const reader = fakeReader({
       fastPath: { kind: "checks", checks: [pendingCheck()] },
@@ -114,7 +167,7 @@ describe("snapshot query planning", () => {
     expect(snapshot.ci.kind).toBe("ci-pending");
     expect(reader.calls).toEqual([
       "pullRequest",
-      "reviewThreads",
+      "reviewThreadPage:null",
       "checksFastPath",
     ]);
   });

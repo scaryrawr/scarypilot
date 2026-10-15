@@ -5,6 +5,8 @@ description: poteto's agent style for concise, detailed responses, deliberate su
 
 # Poteto mode
 
+The chat that receives `/poteto-mode` runs the playbook, owns its todo list, and dispatches delegates. Do not delegate the whole run to `poteto-agent`. Bundled leaf skills live at `../<name>/SKILL.md` relative to this file. Give every poteto-agent delegate this file's absolute path so it reads the same installed copy.
+
 ## Non-negotiables
 
 The Principles section below grounds every trigger. In your reply, name each principle that shaped a decision and the specific choice it changed. Cite only principles whose leaf SKILL.md you read this session.
@@ -12,7 +14,7 @@ The Principles section below grounds every trigger. In your reply, name each pri
 Remaining triggers:
 
 - Nontrivial change, architecture decision, or "are we sure?" → the **how** skill.
-- About to `ask_user` on a "which approach", "how should I", or "what should this do" fork → classify it before you ask. If the answer is a fact you could observe by running something (behavior, timing, layout, output, perf, even whether an eval separates), it is not the human's to answer. Sketch it via the Prototype playbook (`playbooks/prototype.md`) and let the result decide. If the task is a read-only Investigation whose deliverable is a cited answer, stay in it and answer from the evidence rather than building a sketch. Reserve the question for a genuine product or preference call no experiment can settle. The ask is the slow path. A throwaway probe usually answers faster, and it hands the human a result to react to instead of a decision to make.
+- About to `ask_user` on a "which approach", "how should I", or "what should this do" fork → classify it before you ask. If the answer is a fact you could observe by running something (behavior, timing, layout, output, perf, even whether an eval separates), it is not the human's to answer. Sketch it via the Prototype playbook (`playbooks/prototype.md`) and let the result decide. If the task is a read-only Investigation whose deliverable is a cited answer, stay in it and answer from the evidence rather than building a sketch. Reserve the question for a genuine product or preference call no experiment can settle. Under an autonomy grant, decide only calls the grant covers and report the choice. Named operator gates and the Always-pause list still need the operator. Use the host's question tool for a user-owned call, never an invented reply token or an approval question in ordinary prose.
 - Any code → name the data shape first, and choose its organizing structure per **principle-model-the-domain**.
 - Code crossing a function boundary → the **architect** skill, parallel design exploration before implementing.
 - Parallel fan-out → the **swarm** skill for coverage matrices, races, gauntlets, and exploration partitions. Use **arena** for design or code bakeoffs with base selection and grafting.
@@ -92,9 +94,11 @@ Read the leaf skill in full for any principle you apply. Each entry names when i
 
 ## Subagents
 
-**Use the `poteto-agent` custom agent for playbook delegates when the Task tool advertises it.** Otherwise use `agent_type: "general-purpose"` and tell the delegate to read the `poteto-mode` skill before starting. Routed workflow skills (`how`, `why`, `interrogate`, `reflect`, `swarm`) set their own agent types; respect what the skill prescribes.
+**Use the `poteto-agent` custom agent for playbook delegates when the Task tool advertises it, not as the playbook runner.** Otherwise use `agent_type: "general-purpose"` and give the delegate the absolute `poteto-mode` skill path to read before starting. Routed workflow skills (`how`, `why`, `interrogate`, `reflect`, `swarm`) set their own agent types; respect what the skill prescribes.
 
 **Defaults for every `Task` call.** Use `mode: "background"` only when the parent has independent work to do; otherwise prefer `mode: "sync"`. Pass file pointers instead of large inlined context. Model choices are configurable through `/setup-pstack`; omit `model` when a configured value is `inherit-parent` or `auto`. If no configuration exists, use the Task tool's default model rather than assuming every Copilot account exposes the same model catalog. Use `agent_type: "explore"` for read-only codebase exploration, `agent_type: "code-review"` for an existing diff, and `agent_type: "general-purpose"` for implementation or synthesis.
+
+**Match effort to the job without overriding configuration.** A difficult design, subtle algorithm, or concurrency change needs stronger reasoning than a mechanical edit. Use only model and reasoning settings the host supports and the user's explicit configuration authorizes. Preserve pinned settings and panel diversity. Do not derive fast or effort variants by changing model-ID strings. An unconfigured role or model alias stays on the host default without explicit overrides.
 
 You own every subagent's work. Review the diff and write your own summary, don't pass through what it said. A second opinion is the same prompt against a different model. Agreement is high-signal.
 

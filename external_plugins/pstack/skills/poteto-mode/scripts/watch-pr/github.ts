@@ -3,7 +3,7 @@ import type * as T from "./types.ts";
 import { nonEmpty, parsePrNumber } from "./types.ts";
 
 export const REVIEW_THREADS_QUERY =
-  "\nquery ReviewThreads($owner: String!, $repo: String!, $pr: Int!) {\n  repository(owner: $owner, name: $repo) {\n    pullRequest(number: $pr) {\n      reviewThreads(first: 100) {\n        nodes {\n          id\n          isResolved\n          comments(first: 10) {\n            nodes {\n              body\n              createdAt\n              path\n              line\n              author { login }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n";
+  "\nquery ReviewThreads($owner: String!, $repo: String!, $pr: Int!, $after: String) {\n  repository(owner: $owner, name: $repo) {\n    pullRequest(number: $pr) {\n      reviewThreads(first: 100, after: $after) {\n        pageInfo {\n          hasNextPage\n          endCursor\n        }\n        nodes {\n          id\n          isResolved\n          comments(first: 10) {\n            nodes {\n              body\n              createdAt\n              path\n              line\n              author { login }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n";
 
 export const PR_COMMIT_STATUS_QUERY =
   "\nquery PrCommitStatuses($owner: String!, $repo: String!, $pr: Int!) {\n  repository(owner: $owner, name: $repo) {\n    pullRequest(number: $pr) {\n      commits(last: 50) {\n        nodes {\n          commit {\n            oid\n            statusCheckRollup {\n              state\n            }\n          }\n        }\n      }\n    }\n  }\n}\n";
@@ -288,13 +288,12 @@ export function parseFastCheck(value: unknown): T.Check {
   const state = string(object.state, "check.state").toUpperCase();
   const bucket = string(object.bucket, "check.bucket");
 
-  if (
-    bucket === "fail" ||
-    ["FAILURE", "ERROR", "ACTION_REQUIRED"].includes(state)
-  )
+  if (state === "ACTION_REQUIRED") return gateOr("failed", details, state);
+
+  if (bucket === "fail" || ["FAILURE", "ERROR"].includes(state))
     return { ...details, kind: "failed", reportedState: state };
 
-  if (bucket === "pending") return pendingOrGate(details, state);
+  if (bucket === "pending") return gateOr("pending", details, state);
 
   if (bucket === "pass")
     return { ...details, kind: "passed", reportedState: state };
@@ -305,10 +304,10 @@ export function parseFastCheck(value: unknown): T.Check {
   return { ...details, kind: "failed", reportedState: state };
 }
 
-// The owner-approval gate is excluded from pending everywhere, so the rule has
-// one home. Classifying it as pending on either read path makes the watcher
-// wait on a human, which is the behaviour #172004 removed from the Python.
-function pendingOrGate(
+// Pending and owner-approval gates must not count as pending or failed checks
+// on either acquisition path, or the watcher waits on a human.
+function gateOr(
+  kind: "pending" | "failed",
   details: {
     readonly name: string;
     readonly description: string;
@@ -324,7 +323,7 @@ function pendingOrGate(
         name: "Code Review Gate",
         reportedState,
       }
-    : { ...details, kind: "pending", reportedState };
+    : { ...details, kind, reportedState };
 }
 
 export function mapRollupNode(value: unknown): T.Check | null {
@@ -351,7 +350,7 @@ export function mapRollupNode(value: unknown): T.Check | null {
         : "";
 
     if (status !== "COMPLETED")
-      return pendingOrGate({ ...details, link }, "PENDING");
+      return gateOr("pending", { ...details, link }, "PENDING");
 
     if (conclusion === "SUCCESS")
       return { ...details, link, kind: "passed", reportedState: "SUCCESS" };
@@ -359,19 +358,17 @@ export function mapRollupNode(value: unknown): T.Check | null {
     if (conclusion === "NEUTRAL" || conclusion === "SKIPPED")
       return { ...details, link, kind: "skipped", reportedState: conclusion };
 
-    return {
-      ...details,
-      link,
-      kind: "failed",
-      reportedState: conclusion === "ACTION_REQUIRED" ? conclusion : "FAILURE",
-    };
+    if (conclusion === "ACTION_REQUIRED")
+      return gateOr("failed", { ...details, link }, conclusion);
+
+    return { ...details, link, kind: "failed", reportedState: "FAILURE" };
   }
 
   const state =
     typeof object.state === "string" ? object.state.toUpperCase() : "";
 
   if (state === "PENDING" || state === "EXPECTED")
-    return pendingOrGate({ ...details, link }, "PENDING");
+    return gateOr("pending", { ...details, link }, "PENDING");
 
   return state === "SUCCESS"
     ? { ...details, link, kind: "passed", reportedState: state }
@@ -438,17 +435,14 @@ function passKey(comment: T.ReviewComment | null): string | null {
   return null;
 }
 
-export function parseReviewThreads(value: unknown): readonly T.ReviewThread[] {
-  const nodes = list(
-    at(value, ["data", "repository", "pullRequest", "reviewThreads", "nodes"]),
-    "reviewThreads.nodes"
+export function parseReviewThreadPage(value: unknown): T.ReviewThreadPage {
+  const reviewThreads = record(
+    at(value, ["data", "repository", "pullRequest", "reviewThreads"]),
+    "reviewThreads"
   );
 
-  const threads: {
-    readonly id: string;
-    readonly firstComment: T.ReviewComment | null;
-    readonly resolved: boolean;
-  }[] = [];
+  const nodes = list(reviewThreads.nodes, "reviewThreads.nodes");
+  const threads: T.RawReviewThread[] = [];
 
   for (const node of nodes) {
     const thread = record(node, "review thread");
@@ -468,6 +462,25 @@ export function parseReviewThreads(value: unknown): readonly T.ReviewThread[] {
     });
   }
 
+  const page = record(reviewThreads.pageInfo, "reviewThreads.pageInfo");
+
+  if (typeof page.hasNextPage !== "boolean")
+    missing("reviewThreads.pageInfo.hasNextPage", page.hasNextPage);
+
+  const cursor = optionalString(
+    page.endCursor,
+    "reviewThreads.pageInfo.endCursor"
+  );
+
+  if (page.hasNextPage && !cursor)
+    missing("reviewThreads.pageInfo.endCursor", page.endCursor);
+
+  return { threads, endCursor: page.hasNextPage ? cursor : null };
+}
+
+export function buildReviewThreads(
+  threads: readonly T.RawReviewThread[]
+): readonly T.ReviewThread[] {
   const keys = new Set<string>();
   let keyless = false;
 
@@ -684,12 +697,15 @@ export class GhGitHubReader implements T.GitHubReader {
 
     return { checks, endCursor: page.hasNextPage && cursor ? cursor : null };
   }
-  async reviewThreads(
-    context: T.PrContext
-  ): Promise<readonly T.ReviewThread[]> {
-    return parseReviewThreads(
-      await runJson(graphqlArgs(REVIEW_THREADS_QUERY, context))
-    );
+  async reviewThreadPage(
+    context: T.PrContext,
+    after: string | null
+  ): Promise<T.ReviewThreadPage> {
+    const argv = graphqlArgs(REVIEW_THREADS_QUERY, context);
+
+    if (after !== null) argv.push("-f", `after=${after}`);
+
+    return parseReviewThreadPage(await runJson(argv));
   }
   async commitRollups(
     context: T.PrContext
@@ -718,6 +734,29 @@ export class GhGitHubReader implements T.GitHubReader {
       };
     });
   }
+}
+
+export async function resolveReviewThreads(
+  reader: T.GitHubReader,
+  context: T.PrContext
+): Promise<readonly T.ReviewThread[]> {
+  const threads: T.RawReviewThread[] = [];
+  const cursors = new Set<string>();
+  let after: string | null = null;
+
+  do {
+    const page = await reader.reviewThreadPage(context, after);
+    threads.push(...page.threads);
+    after = page.endCursor;
+
+    if (after !== null) {
+      if (!after || cursors.has(after))
+        missing("reviewThreads pagination cursor", after);
+      cursors.add(after);
+    }
+  } while (after !== null);
+
+  return buildReviewThreads(threads);
 }
 
 export async function resolveChecks(

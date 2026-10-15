@@ -1,12 +1,10 @@
 # Epistemics
 
-How to reason about confidence when evidence is historical, fragmentary, and sometimes contradictory, and how to communicate it without flattening it into false certainty.
-
-Code doesn't carry its own motivation. You can read what code does. You can't read *why it exists*. That lives in commits, PRs, tickets, docs, and conversations, all incomplete, biased, and sometimes missing entirely. Pretending otherwise produces confident-sounding guesses that mislead the user.
+How to reason about confidence when evidence is historical, fragmentary, and sometimes contradictory, and how to tell the user without flattening it into false certainty. Code shows what it does, not *why it exists*. The why lives in commits, PRs, tickets, docs, and conversations, all incomplete, biased, and sometimes missing. Pretending otherwise produces confident-sounding guesses that mislead the user.
 
 ## Confidence Tiers
 
-Every claim in the final output must sit in one of these tiers. The tier determines which output section the claim goes in and how it's phrased.
+Every claim in the output must sit in one tier. The tier sets its section and its phrasing.
 
 ### 1. Direct
 
@@ -60,33 +58,11 @@ Phrasing: "We searched X, Y, and Z and found no evidence of why." Be specific ab
 
 ## Phrasing Guide
 
-### Words that carry confidence. Use carefully
+**Confidence words** imply Direct or Supported evidence and need a citation immediately adjacent. Never use them for inferences: "because", "the reason is", "was designed to" (claims author intent), "fixes" / "addresses" / "solves" (claims the change achieved its goal), "the team decided" (claims a group decision happened).
 
-These imply **Direct** or **Supported** confidence. Don't use them for inferences.
+**Hedges** signal interpretation, not report. Use them liberally in What We Can Reasonably Infer: "appears to", "seems to", "likely", "suggests", "is consistent with", "one reading is", "plausibly", "may have been", "the evidence points toward".
 
-- "because". Implies a causal claim with evidence
-- "the reason is". Same
-- "was designed to". Claims author intent
-- "fixes", "addresses", "solves". Claims the change achieved its goal
-- "the team decided". Claims a group decision happened
-
-If you're using these, you should have a citation immediately adjacent.
-
-### Words that hedge. Use for inferences
-
-- "appears to"
-- "seems to"
-- "likely"
-- "suggests"
-- "is consistent with"
-- "one reading is"
-- "plausibly"
-- "may have been"
-- "the evidence points toward"
-
-These signal that you're interpreting, not reporting. Use them liberally in the "What We Can Reasonably Infer" section.
-
-### Words to avoid
+**Words to avoid:**
 
 - "obviously". If it were obvious, the user wouldn't be asking
 - "clearly". Almost always precedes a claim that isn't clear
@@ -105,9 +81,7 @@ Resist the urge to:
 
 ## The Sycophancy Trap
 
-Users often phrase `why` questions with an embedded hypothesis: "Why do we do it this way, I assume it's for performance?" Don't simply confirm it. Treat it as one candidate among others and check the evidence independently. If the evidence supports it, say so with citations. If not, say so and present what the evidence *does* support.
-
-The user's guess is a prompt for investigation, not a conclusion to validate.
+Users often embed a hypothesis: "Why do we do it this way, I assume it's for performance?" Don't simply confirm it. The guess is a prompt for investigation, not a conclusion to validate. Treat it as one candidate among others and check the evidence independently. If the evidence supports it, say so with citations. If not, say so, and present what the evidence *does* support.
 
 ## When Evidence Contradicts
 

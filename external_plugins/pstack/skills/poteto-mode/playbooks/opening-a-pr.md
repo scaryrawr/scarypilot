@@ -4,7 +4,7 @@ Invoked at the end of every other playbook.
 
 **Worktree.** Work from a git worktree off main. Parallel writers use separate worktrees or disjoint file scopes. Never assume Task agents receive isolated worktrees automatically. Preserve dirty work and create a fresh worktree instead of resetting it.
 
-**Commits.** Commit liberally. Rebase into small, ordered commits before opening PRs. Each commit is a future PR: landable, ordered to tell the story. Amend when the fix belongs in a just-made commit. New commit when separable.
+**Commits.** Commit liberally. Rebase into small, ordered commits before opening PRs when authorized. Each commit is a future PR: landable, ordered to tell the story. A commit body does not restate its subject. Amend only when the user authorizes it; otherwise make a new commit.
 
 **PRs.** Run `/deslop` over the diff before commit. Then run the repository's formatter and linter. Run `/no-comments` before review. Write every PR title, PR description, and commit body with `/technical-writing`, then apply `/unslop`. Apply every technical-writing layer except Diátaxis. Use one word for each action, keep articles, and avoid `-ing` when a plain verb works.
 

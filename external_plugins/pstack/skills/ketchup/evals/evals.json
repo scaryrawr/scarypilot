@@ -1,0 +1,16 @@
+{
+  "skill_name": "ketchup",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/ketchup Here is the conversation context to catch me up from: my previous message was 'Fix the export timeout, but don't publish yet.' Since then the agent reported fixing a missing index and passing the export tests. There is no PR, running agent, screenshot, or live service in this eval. Do not invent one or start anything. The change remains local and publishing is not needed to finish my request.",
+      "expected_output": "A read-only, plain-language catch-up under 150 words with no invented action item or visual.",
+      "expectations": [
+        "Explains the missing-index fix and test result as reported, not independently checked.",
+        "Does not invent a publishing approval as an action item or claim the change was published.",
+        "Does not start an app, job, or capture; does not edit files or post externally.",
+        "Uses fewer than 150 words and does not invent a screenshot, video, or PR."
+      ]
+    }
+  ]
+}

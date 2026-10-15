@@ -3,12 +3,12 @@
   "upstream": {
     "repository": "https://github.com/cursor/plugins",
     "subtree": "pstack",
-    "reviewedFromCommit": "2cbf58508f40de470d7490b55c51d71241928fa2",
-    "integratedCommit": "d0ef80d86795816da932a153458c5dbe192d294e",
-    "contentCommit": "df581122cde17e6e27686b5a448bde23e4ad4318",
-    "version": "0.15.15"
+    "reviewedFromCommit": "d0ef80d86795816da932a153458c5dbe192d294e",
+    "integratedCommit": "6ce45c59b9301a638c1fe1a7b8dc2a82b650898f",
+    "contentCommit": "6ce45c59b9301a638c1fe1a7b8dc2a82b650898f",
+    "version": "0.15.25"
   },
-  "localVersion": "1.0.0-copilot.1",
+  "localVersion": "1.1.0-copilot.1",
   "requiredSkills": [
     "how",
     "why",
@@ -19,7 +19,10 @@
     "benchmark-checklist",
     "correct",
     "poteto-help",
-    "principle-explain-the-number"
+    "principle-explain-the-number",
+    "ketchup",
+    "in-your-own-words",
+    "sharpen"
   ],
   "forbiddenSkillFrontmatter": [
     "disable-model-invocation"
@@ -61,6 +64,13 @@
         "plugin.json"
       ],
       "reason": "Version, attribution, and descriptive metadata are mapped into the Copilot manifest."
+    },
+    {
+      "path": "plugin.json",
+      "localPaths": [
+        "plugin.json"
+      ],
+      "reason": "The upstream Agent Plugins v1 manifest maps to the legacy Copilot manifest; its schema selector must not replace native extension, skill, or agent registration."
     },
     {
       "path": "agents",
