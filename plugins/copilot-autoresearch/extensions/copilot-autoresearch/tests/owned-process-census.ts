@@ -29,7 +29,9 @@ export function censusCommand(pids: OwnedPids): string {
 
   return [
     "$ErrorActionPreference = 'Stop'",
+    "[Console]::Error.WriteLine('OWNED_CENSUS_PHASE script-started')",
     `$rows = @(Get-CimInstance -ClassName Win32_Process -Filter '${filter}' | Select-Object ProcessId, ParentProcessId, Name)`,
+    "[Console]::Error.WriteLine('OWNED_CENSUS_PHASE query-completed')",
     "ConvertTo-Json -InputObject $rows -Compress",
   ].join("; ");
 }
@@ -107,6 +109,7 @@ export async function ownedCensus(pids: OwnedPids) {
     queryExitCode: evidence.exitCode,
     querySignal: evidence.signal,
     querySpawnErrorCode: evidence.spawnErrorCode,
+    queryStderr: evidence.stderr,
     probeError,
     actors: actors.map(({ role, pid }) => ({
       role,
