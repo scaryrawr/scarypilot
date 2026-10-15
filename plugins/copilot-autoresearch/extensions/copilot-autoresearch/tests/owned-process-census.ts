@@ -29,7 +29,9 @@ export function censusCommand(pids: OwnedPids): string {
 
   return [
     "$ErrorActionPreference = 'Stop'",
+    "[Console]::Error.WriteLine('OWNED_CENSUS_PHASE script-started')",
     `$rows = @(Get-CimInstance -ClassName Win32_Process -Filter '${filter}' | Select-Object ProcessId, ParentProcessId, Name)`,
+    "[Console]::Error.WriteLine('OWNED_CENSUS_PHASE query-completed')",
     "ConvertTo-Json -InputObject $rows -Compress",
   ].join("; ");
 }
@@ -40,6 +42,7 @@ export interface CommandEvidence {
   spawnErrorCode?: string;
   stdout: string;
   stderr: string;
+  firstStderrMs: number | null;
   durationMs: number;
 }
 
@@ -47,11 +50,13 @@ export function observeCommand(child: ChildProcess): Promise<CommandEvidence> {
   const started = Date.now();
   let stdout = "";
   let stderr = "";
+  let firstStderrMs: number | null = null;
   let spawnErrorCode: string | undefined;
   child.stdout?.on("data", (data: Buffer) => {
     stdout = (stdout + data.toString("utf-8")).slice(-4096);
   });
   child.stderr?.on("data", (data: Buffer) => {
+    firstStderrMs ??= Date.now() - started;
     stderr = (stderr + data.toString("utf-8")).slice(-4096);
   });
   child.on("error", (error: NodeJS.ErrnoException) => {
@@ -60,7 +65,7 @@ export function observeCommand(child: ChildProcess): Promise<CommandEvidence> {
 
   return new Promise((resolve) => {
     child.once("close", (exitCode, signal) => {
-      resolve({ exitCode, signal, spawnErrorCode, stdout, stderr, durationMs: Date.now() - started });
+      resolve({ exitCode, signal, spawnErrorCode, stdout, stderr, firstStderrMs, durationMs: Date.now() - started });
     });
   });
 }
@@ -68,7 +73,7 @@ export function observeCommand(child: ChildProcess): Promise<CommandEvidence> {
 export async function ownedCensus(pids: OwnedPids) {
   const command = censusCommand(pids);
 
-  const evidence = await observeCommand(spawn("powershell.exe", [
+  const evidence = await observeCommand(spawn("pwsh.exe", [
     "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command,
   ], {
     shell: false,
@@ -107,6 +112,8 @@ export async function ownedCensus(pids: OwnedPids) {
     queryExitCode: evidence.exitCode,
     querySignal: evidence.signal,
     querySpawnErrorCode: evidence.spawnErrorCode,
+    queryStderr: evidence.stderr,
+    queryFirstStderrMs: evidence.firstStderrMs,
     probeError,
     actors: actors.map(({ role, pid }) => ({
       role,

@@ -198,9 +198,13 @@ For the native Windows cancellation ownership census, run
 The six live cases cover abort/timeout on both runners plus the benchmark and
 checks script launch shapes. They report `OWNED_PROCESS_CENSUS` JSON for only the fixture's
 known Bash root, marker parent, and ready grandchild, before and after
-cancellation. Probes use exact-PID PowerShell CIM filters and return only native
-PID, parent PID, and process name; taskkill stdout/stderr are capped at 4096
-characters each. A gated marker keeps the actors observable until both snapshots
+cancellation. These test-only probes require PowerShell 7 (`pwsh.exe`), matching
+the Windows CI shell, rather than cold-starting legacy Windows PowerShell inside
+the timed fixture. They use exact-PID CIM filters and return only native PID,
+parent PID, and process name; probe stdout/stderr are capped at 4096 characters
+each. Probe evidence includes stderr phase markers and time to first stderr so
+shell startup can be distinguished from query execution without changing the
+10-second deadline. A gated marker keeps the actors observable until both snapshots
 are complete. Existing cancellation assertions and implementation are unchanged;
 the census cases also fail if a surviving descendant writes the released marker.
 Non-Windows hosts validate probe scope and capture bounds, but do not infer

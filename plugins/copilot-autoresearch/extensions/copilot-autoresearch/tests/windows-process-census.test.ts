@@ -40,6 +40,19 @@ describe("owned Windows process census scope", () => {
     expect(result.signal).toBeNull();
     expect(result.stdout).toBe("o".repeat(4096));
     expect(result.stderr).toBe("e".repeat(4096));
+    expect(result.firstStderrMs).toBeGreaterThanOrEqual(0);
+    expect(result.firstStderrMs).toBeLessThanOrEqual(result.durationMs);
+  });
+
+  it("does not invent a script-start observation when stderr is empty", async () => {
+    const result = await observeCommand(spawn(process.execPath, ["-e", "process.stdout.write('[]')"], {
+      shell: false, timeout: 3000, stdio: ["ignore", "pipe", "pipe"],
+    }));
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("[]");
+    expect(result.stderr).toBe("");
+    expect(result.firstStderrMs).toBeNull();
   });
 
   it.each([0, -1, NaN, Infinity, 1.5, 0x1_0000_0000])(
