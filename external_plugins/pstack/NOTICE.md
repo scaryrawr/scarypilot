@@ -25,6 +25,16 @@ The original and adapted files are distributed under the MIT License in
 
 ScaryPilot changed the integration layer for GitHub Copilot:
 
+- Removed the native extension in `2.0.0-copilot.1` in favor of skills and
+  portable scripts. Retired its status/capability tools, receipt/handoff
+  services, command, automatic resume injection and journaled pinned swarm.
+  Swarms use Task agents without claiming equivalent enforcement. Preserved
+  artifact/plan contracts and pure rules, moving the race-resistant confined
+  reader into the schema-validation skill's Node scripts. Existing durable
+  artifacts are not deleted. This is a local breaking integration change,
+  not a new upstream content boundary.
+- The remaining native-extension entries below describe prior releases, not
+  the current shipped runtime.
 - Ported compatible `0.15.16`-`0.15.25` updates in `1.1.0-copilot.1`.
   Added `ketchup`, `in-your-own-words`, and `sharpen`. Ketchup uses supported
   host presentation and existing evidence rather than a companion visualization

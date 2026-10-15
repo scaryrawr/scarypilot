@@ -45,7 +45,7 @@ pstack spends extra tokens on Task agents and review panels. To spend fewer:
 - Use `auto` or `inherit-parent` to defer model selection to the host, not as a promise of savings.
 - Shorten a panel list. Each entry runs one subagent.
 - Save `/poteto-mode` for work that needs rigor. A small, obvious edit doesn't need a panel.
-- Use `/pstack status`, `/pstack capabilities`, or `/pstack resume` for deterministic, read-only inspection. These native commands do not start model calls or workers; asking an agent to interpret their results still uses the agent.
+- Inspect the current host's advertised tools and required helper runtimes before choosing a workflow. Pstack ships skills and scripts, not native status commands or automatic resume hooks. Read a supplied handoff explicitly.
 
 Setup configures role models only. An expensive dynamic workflow also needs your explicit consent. Installing pstack or asking for help does not authorize a workflow run.
 

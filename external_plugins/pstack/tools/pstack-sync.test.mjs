@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import {
@@ -34,15 +35,16 @@ const policy = {
   ],
   excludedUpstreamPaths: [
     { path: "automations/benny", reason: "unsupported" },
+    { path: "extensions", reason: "native runtime retired" },
   ],
-  copilotOwnedPaths: ["extensions", "skills/deslop"],
+  copilotOwnedPaths: ["skills/deslop"],
 };
 
 test("shipped pstack integration satisfies the sync policy", () => {
   assert.deepEqual(checkRepository(), []);
 });
 
-test("the mapped manifest retains Copilot legacy registrations", () => {
+test("the mapped manifest retains skills and agents without an extension", () => {
   const plugin = JSON.parse(
     readFileSync(new URL("../plugin.json", import.meta.url), "utf8"),
   );
@@ -50,7 +52,58 @@ test("the mapped manifest retains Copilot legacy registrations", () => {
   assert.equal(plugin.$schema, undefined);
   assert.deepEqual(plugin.skills, ["skills/"]);
   assert.equal(plugin.agents, "agents/");
-  assert.deepEqual(plugin.extensions, ["extensions"]);
+  assert.equal(Object.hasOwn(plugin, "extensions"), false);
+});
+
+test("rejects native extension registration, including an empty registration", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "pstack-sync-portable-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, "skills"));
+  writeFileSync(join(root, "upstream-sync.json"), JSON.stringify({
+    upstream: {
+      version: "test",
+      reviewedFromCommit: "test",
+      integratedCommit: "test",
+      contentCommit: "test",
+    },
+    localVersion: "test",
+    requiredSkills: [],
+    forbiddenSkillFrontmatter: [],
+    forbiddenContent: [],
+    excludedUpstreamPaths: [],
+  }));
+  writeFileSync(join(root, "NOTICE.md"), "test");
+  writeFileSync(join(root, "README.md"), "- 0 Agent Skills\n");
+  writeFileSync(join(root, "plugin.json"), JSON.stringify({ version: "test" }));
+  assert.deepEqual(checkRepository(root), []);
+
+  for (const extensions of [[], ["extensions/"], null]) {
+    writeFileSync(join(root, "plugin.json"), JSON.stringify({ version: "test", extensions }));
+    assert.deepEqual(checkRepository(root), [{
+      code: "unexpected-extension",
+      message: "pstack must publish skills and scripts without native extension registration",
+      path: "plugin.json",
+    }]);
+  }
+});
+
+test("shipped skills and guides do not invoke retired native surfaces", () => {
+  const retired = /\bpstack_(?:status|capabilities|validate_plan|validate_artifact|record_verification|inspect_worktrees|handoff)\b|\bpstack-swarm\b|\/pstack(?:\s|`)/;
+
+  function checkDocs(root) {
+    for (const entry of readdirSync(root, { withFileTypes: true })) {
+      if (entry.name === "node_modules" || entry.name === ".git") continue;
+      const path = join(root, entry.name);
+
+      if (entry.isDirectory()) checkDocs(path);
+      else if (entry.isFile() && entry.name.endsWith(".md")) {
+        assert.doesNotMatch(readFileSync(path, "utf8"), retired, path);
+      }
+    }
+  }
+
+  checkDocs(fileURLToPath(new URL("../skills", import.meta.url)));
+  checkDocs(fileURLToPath(new URL("../docs/guide", import.meta.url)));
 });
 
 test("classifies a bounded upstream change set", () => {
@@ -80,7 +133,7 @@ test("classifies a bounded upstream change set", () => {
       ["automations/benny/README.md", "excluded"],
       [".cursor-plugin/plugin.json", "mapped"],
       ["agents/poteto-agent.md", "mapped"],
-      ["extensions/runtime.mjs", "copilot-owned"],
+      ["extensions/runtime.mjs", "excluded"],
       ["new-runtime/file.md", "unclassified"],
     ],
   );
@@ -104,10 +157,10 @@ test("maps the upstream root manifest before Copilot-owned paths", () => {
   }]);
 });
 
-test("rejects Cursor invocation guards in every shipped skill", () => {
+test("rejects Cursor invocation guards in every shipped skill", (t) => {
   const root = mkdtempSync(join(tmpdir(), "pstack-sync-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, "skills", "how"), { recursive: true });
-  mkdirSync(join(root, "extensions"), { recursive: true });
   writeFileSync(
     join(root, "skills", "how", "SKILL.md"),
     [
@@ -140,7 +193,6 @@ test("rejects Cursor invocation guards in every shipped skill", () => {
     join(root, "plugin.json"),
     JSON.stringify({
       version: "0.15.1-copilot.9",
-      extensions: ["extensions"],
     }),
   );
   writeFileSync(
@@ -157,10 +209,10 @@ test("rejects Cursor invocation guards in every shipped skill", () => {
   );
 });
 
-test("rejects a notice with a stale reviewed boundary", () => {
+test("rejects a notice with a stale reviewed boundary", (t) => {
   const root = mkdtempSync(join(tmpdir(), "pstack-sync-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, "skills", "how"), { recursive: true });
-  mkdirSync(join(root, "extensions"), { recursive: true });
   writeFileSync(
     join(root, "skills", "how", "SKILL.md"),
     "---\nname: how\ndescription: test\n---\n\n# How\n",
@@ -185,7 +237,6 @@ test("rejects a notice with a stale reviewed boundary", () => {
     join(root, "plugin.json"),
     JSON.stringify({
       version: "0.15.1-copilot.9",
-      extensions: ["extensions"],
     }),
   );
   writeFileSync(join(root, "NOTICE.md"), "0.15.1 target-sha content-sha");
@@ -199,10 +250,10 @@ test("rejects a notice with a stale reviewed boundary", () => {
   );
 });
 
-test("rejects quoted forbidden skill frontmatter keys", () => {
+test("rejects quoted forbidden skill frontmatter keys", (t) => {
   const root = mkdtempSync(join(tmpdir(), "pstack-sync-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, "skills", "how"), { recursive: true });
-  mkdirSync(join(root, "extensions"), { recursive: true });
   writeFileSync(
     join(root, "skills", "how", "SKILL.md"),
     [
@@ -235,7 +286,6 @@ test("rejects quoted forbidden skill frontmatter keys", () => {
     join(root, "plugin.json"),
     JSON.stringify({
       version: "0.15.1-copilot.9",
-      extensions: ["extensions"],
     }),
   );
   writeFileSync(
@@ -251,10 +301,10 @@ test("rejects quoted forbidden skill frontmatter keys", () => {
   );
 });
 
-test("scans non-Markdown files for forbidden content", () => {
+test("scans non-Markdown files for forbidden content", (t) => {
   const root = mkdtempSync(join(tmpdir(), "pstack-sync-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, "skills", "how"), { recursive: true });
-  mkdirSync(join(root, "extensions"), { recursive: true });
   writeFileSync(
     join(root, "skills", "how", "SKILL.md"),
     "---\nname: how\ndescription: test\n---\n\n# How\n",
@@ -283,7 +333,6 @@ test("scans non-Markdown files for forbidden content", () => {
     join(root, "plugin.json"),
     JSON.stringify({
       version: "0.15.1-copilot.9",
-      extensions: ["extensions"],
     }),
   );
   writeFileSync(

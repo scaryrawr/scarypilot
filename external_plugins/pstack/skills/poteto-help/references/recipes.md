@@ -13,7 +13,9 @@ Swap in real paths, installed skills, and done checks. Give at most one recipe f
 - `/teach me why you implemented it this way and not <other way>. what did you trade off?`
 - `/poteto-mode take over this branch. read the decision log, find what's done, and continue. don't redo finished work.`
 
-For deterministic native inspection, recommend `/pstack status`, `/pstack capabilities`, or `/pstack resume`. These commands make no model calls and launch no workers; resume does not execute a task.
+For pickup, read the supplied handoff and scoped session history explicitly.
+Check current Git facts before relying on the prior report. No automatic
+resume-context injection is provided.
 
 ## Build
 
@@ -39,7 +41,7 @@ Capture needs actual tools and permission. A plan is the deliverable, not permis
 ## Review and ship
 
 - `/interrogate the whole branch, but skeptically. don't change anything yet. no nitpicks unless it's a real bug or regression.` Read the dismissals too.
-- `/swarm check every package under <dir> against its check script. one worker per package. one report.` Confirm host tools and scope; an expensive native workflow needs explicit consent.
+- `/swarm check every package under <dir> against its check script. one worker per package. one report.` Confirm host Task tools, scope and worker budget before launching.
 - `/benchmark-checklist vet this speedup before it goes in the pr description.`
 - `/pstack-schema-validate validate this pstack plan at <workspace path>.` Contract validity does not prove the recorded evidence.
 - `/poteto-mode open the pr. small ordered commits, evidence in the description.`

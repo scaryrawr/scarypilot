@@ -72,7 +72,7 @@ When another agent (or you, last week) left a branch mid-flight:
 
 The [Session pickup playbook](../../skills/poteto-mode/playbooks/session-pickup.md) treats the prior trail as authoritative. It reconstructs the branch state and decisions, names the resume point, and verifies inherited claims against the original goal instead of re-deriving everything from scratch.
 
-For deterministic inspection first, `/pstack resume` reads existing handoff and state facts without starting workers or resuming the task itself. The recorded claims still need verification before you act on them.
+Read a supplied handoff or scoped prior session before resuming work. Pstack does not inject that context automatically. Recorded claims still need verification before you act on them.
 
 **Pitfall:** don't skip this page's skills because "the agent will read the code anyway." An agent that starts editing without a traced model tends to fix the symptom at the first plausible spot. `/how` first is cheaper than the second bug.
 

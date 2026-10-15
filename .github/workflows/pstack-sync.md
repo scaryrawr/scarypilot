@@ -61,8 +61,9 @@ Work in `${{ github.workspace }}`; treat
 
 1. Read `AGENTS.md`, `external_plugins/pstack/README.md`,
    `external_plugins/pstack/NOTICE.md`,
-   `external_plugins/pstack/upstream-sync.json`, both relevant `package.json`
-   files, and `external_plugins/pstack/plugin.json`.
+   `external_plugins/pstack/upstream-sync.json`,
+   `external_plugins/pstack/skills/poteto-mode/scripts/package.json`,
+   and `external_plugins/pstack/plugin.json`.
 2. Run `node external_plugins/pstack/tools/pstack-sync.mjs check`. Fix any
    local integration drift before reviewing upstream. In particular, every
    shipped skill must remain available to Copilot's model-facing skill tool;
@@ -72,9 +73,10 @@ Work in `${{ github.workspace }}`; treat
    classification as the review worklist. Do not proceed if it reports an
    unclassified path.
 4. Classify each upstream change as compatible, adaptable, Cursor-only, already
-   represented by a Copilot-native equivalent, or unsafe/ambiguous. This is a
+   represented by a Copilot equivalent, or unsafe/ambiguous. This is a
    Copilot adaptation, not a mirror. Preserve the documented Copilot Task,
-   session-history, extension, path, verification, and capability changes.
+   session-history, path, verification, and capability changes. Keep pstack
+   extension-free; do not restore native tools, hooks or swarm registration.
    Continue excluding Cursor-only models, commands, control skills, UI/runtime
    assumptions, marketplace metadata, and `automations/benny`.
 5. Port only meaningful compatible behavior into
@@ -89,9 +91,10 @@ Work in `${{ github.workspace }}`; treat
    `-copilot.N` convention. Do not bump versions for repository-only docs.
 7. Run `node external_plugins/pstack/tools/pstack-sync.mjs check` again plus
    bounded validation appropriate to every changed area. At minimum, validate
-   changed JSON. If the native extension changes, run `npm install
-   --allow-remote=all --no-package-lock`, `npm run typecheck`, and `npm test` from
-   `external_plugins/pstack/extensions/pstack`. If the poteto helper package
+   changed JSON. Run `node --test
+   external_plugins/pstack/skills/pstack-schema-validate/tests/validation.test.mjs
+   external_plugins/pstack/skills/pstack-schema-validate/tests/workspace-reader.test.mjs`
+   for artifact rules, CLI or confined-reader changes. If the poteto helper package
    changes and Bun is available, run its existing `typecheck` and `test`
    scripts. Do not add dependency lockfiles solely as a validation side effect.
 8. Review the final diff. It must contain only the allowed pstack subtree and
