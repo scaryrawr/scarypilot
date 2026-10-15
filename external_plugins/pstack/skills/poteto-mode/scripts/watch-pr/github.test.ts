@@ -1,13 +1,17 @@
 import { describe, expect, it } from "bun:test";
 import {
   ChecksUnavailable,
+  REVIEW_THREADS_QUERY,
   WatcherQueryError,
+  buildReviewThreads,
   mapRollupNode,
   orderStack,
+  parseFastCheck,
   parsePullRequest,
-  parseReviewThreads,
+  parseReviewThreadPage,
   resolveChecks,
   resolveContext,
+  resolveReviewThreads,
 } from "./github.ts";
 import {
   fakeReader,
@@ -83,6 +87,38 @@ describe("checks fallback chain", () => {
 });
 
 describe("rollup node mapping", () => {
+  it("exempts only the exact owner-approval gate on both acquisition paths", () => {
+    for (const name of ["Code Review Gate", "ci", "Code Review Gate extra"]) {
+      const expected = {
+        kind: name === "Code Review Gate" ? "code-review-gate" : "failed",
+        reportedState: "ACTION_REQUIRED",
+        name,
+      };
+
+      expect(parseFastCheck({
+        name,
+        state: "ACTION_REQUIRED",
+        bucket: "fail",
+      })).toMatchObject(expected);
+      expect(mapRollupNode({
+        __typename: "CheckRun",
+        name,
+        status: "COMPLETED",
+        conclusion: "ACTION_REQUIRED",
+      })).toMatchObject(expected);
+    }
+  });
+
+  it("does not hide a genuinely failed Code Review Gate", () => {
+    expect(parseFastCheck({
+      name: "Code Review Gate", state: "FAILURE", bucket: "fail",
+    })).toMatchObject({ kind: "failed", reportedState: "FAILURE" });
+    expect(mapRollupNode({
+      __typename: "CheckRun", name: "Code Review Gate",
+      status: "COMPLETED", conclusion: "FAILURE",
+    })).toMatchObject({ kind: "failed", reportedState: "FAILURE" });
+  });
+
   it("maps terminal and non-terminal CheckRun states fail closed", () => {
     const cases = [
       ["IN_PROGRESS", null, "pending", "PENDING"],
@@ -204,6 +240,7 @@ it("annotates Bugbot threads with distinct review-pass counts", () => {
       repository: {
         pullRequest: {
           reviewThreads: {
+            pageInfo: { hasNextPage: false, endCursor: null },
             nodes: [
               {
                 id: "one",
@@ -257,10 +294,90 @@ it("annotates Bugbot threads with distinct review-pass counts", () => {
     },
   };
 
-  const threads = parseReviewThreads(response);
+  const threads = buildReviewThreads(parseReviewThreadPage(response).threads);
   expect(threads).toHaveLength(2);
   expect(threads.map((thread) => thread.isBugbot)).toEqual([true, true]);
   expect(threads.map((thread) => thread.bugbotReviewPasses)).toEqual([3, 3]);
+});
+
+describe("review thread pagination", () => {
+  const thread = (id: string, resolved = false, runId?: string) => ({
+    id,
+    resolved,
+    firstComment: {
+      authorLogin: runId ? "copilot-pull-request-reviewer" : "someone",
+      body: runId ? `COPILOT_AUTOMATION_ID: ${runId} severity high` : "please fix",
+      path: "a.ts",
+      line: 1,
+      createdAt: "now",
+    },
+  });
+
+  const response = (pageInfo: unknown) => ({
+    data: { repository: { pullRequest: { reviewThreads: { nodes: [], pageInfo } } } },
+  });
+
+  it("requests cursored GraphQL pages with explicit pageInfo", () => {
+    expect(REVIEW_THREADS_QUERY).toContain("$after: String");
+    expect(REVIEW_THREADS_QUERY).toContain("reviewThreads(first: 100, after: $after)");
+    expect(REVIEW_THREADS_QUERY).toContain("hasNextPage");
+    expect(REVIEW_THREADS_QUERY).toContain("endCursor");
+    expect(parseReviewThreadPage(response({ hasNextPage: true, endCursor: "next" })))
+      .toEqual({ threads: [], endCursor: "next" });
+    expect(parseReviewThreadPage(response({ hasNextPage: false, endCursor: "last" })))
+      .toEqual({ threads: [], endCursor: null });
+  });
+
+  it("reads beyond 100 resolved threads and counts Copilot passes across all pages", async () => {
+    const reader = fakeReader({
+      threadPages: [
+        {
+          threads: Array.from({ length: 100 }, (_, i) => thread(`early-${i}`, true, "run-1")),
+          endCursor: "next",
+        },
+        { threads: [thread("resolved-later", true, "run-2")], endCursor: "last" },
+        { threads: [thread("late", false, "run-3")], endCursor: null },
+      ],
+    });
+
+    expect(await resolveReviewThreads(reader, context)).toMatchObject([{
+      id: "late", isBugbot: true, bugbotReviewPasses: 3,
+    }]);
+    expect(reader.calls).toEqual([
+      "reviewThreadPage:null", "reviewThreadPage:next", "reviewThreadPage:last",
+    ]);
+  });
+
+  it("stops after a terminal first page", async () => {
+    const reader = fakeReader({ threadPages: [{ threads: [thread("only")], endCursor: null }] });
+    expect((await resolveReviewThreads(reader, context)).map(({ id }) => id)).toEqual(["only"]);
+    expect(reader.calls).toEqual(["reviewThreadPage:null"]);
+  });
+
+  it("fails closed on missing pageInfo or an invalid continuation cursor", () => {
+    for (const pageInfo of [
+      undefined,
+      { endCursor: null },
+      { hasNextPage: "true", endCursor: "next" },
+      { hasNextPage: true, endCursor: null },
+      { hasNextPage: true, endCursor: "" },
+      { hasNextPage: true },
+    ]) {
+      expect(() => parseReviewThreadPage(response(pageInfo))).toThrow(WatcherQueryError);
+    }
+  });
+
+  it("rejects repeated cursors rather than looping or reporting readiness", async () => {
+    const reader = fakeReader({
+      threadPages: [
+        { threads: [], endCursor: "next" },
+        { threads: [], endCursor: "next" },
+      ],
+    });
+
+    await expect(resolveReviewThreads(reader, context)).rejects.toBeInstanceOf(WatcherQueryError);
+    expect(reader.calls).toHaveLength(2);
+  });
 });
 
 describe("context and stack discovery", () => {

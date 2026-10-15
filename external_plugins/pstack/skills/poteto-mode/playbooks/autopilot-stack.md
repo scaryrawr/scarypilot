@@ -23,4 +23,4 @@ actual base and fresh verification evidence before the next landing.
 
 **Choosing between the autopilots.** Autopilot-full when the PRs are independent and landing authority is granted. Autopilot-stack when the operator wants review before landing, the work is sequenced or coupled, or merge authority is withheld.
 
-**Reply:** links to the stack root and tip, a one-line verdict summary per link, and anything parked or excluded with the reason.
+**Reply:** catch the operator up through the **ketchup** skill, with links to the stack root and tip, a one-line verdict summary per link, and anything parked or excluded with the reason.

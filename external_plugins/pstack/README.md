@@ -7,7 +7,8 @@ planning, delegation, review, and verification.
 
 ## What this plugin provides
 
-- 52 Agent Skills, including `poteto-mode`, `poteto-help`, `how`, `why`,
+- 55 Agent Skills, including `poteto-mode`, `poteto-help`, `ketchup`,
+  `in-your-own-words`, `sharpen`, `how`, `why`,
   `architect`, `arena`, `swarm`, `interrogate`, `correct`, `benchmark-checklist`,
   `tdd`, `deslop`, `unslop`, and 24 pstack principles.
 - The `poteto-agent` and `comment-sicko` custom agents.
@@ -16,7 +17,7 @@ planning, delegation, review, and verification.
 - PR watching, orchestration, decision-log, and worktree-audit helpers used by
   advanced playbooks.
 - Verified multi-phase planning with an executable checklist checker.
-- Compatible upstream changes through pstack 0.15.15, with Cursor-only features
+- Compatible upstream changes through pstack 0.15.25, with Cursor-only features
   intentionally excluded.
 - User-level model configuration through `/setup-pstack`.
 
@@ -58,6 +59,9 @@ Invoke a focused skill:
 /unslop tighten this PR description
 /correct prevent the config mistakes agents keep repeating
 /benchmark-checklist vet this speedup before it goes in the PR
+/in-your-own-words play back the goal and problem before starting
+/sharpen plan this diagnosis without expanding the scope
+/ketchup catch me up on what changed since my last message
 ```
 
 Use the full workflow style:
@@ -83,6 +87,22 @@ under the repository Git state directory. Their schemas live in
 The `1.0.0-copilot.1` release changes the stack dependency and capability key to
 `ghStack`. It no longer supports the previous stack backend. The reviewed
 upstream content version remains recorded separately in `upstream-sync.json`.
+
+The `1.1.0-copilot.1` release adds the three focused skills above and refreshes
+portable upstream content through `0.15.25`. Ketchup is a read-only catch-up,
+using existing evidence and supported host visuals rather than launching apps.
+Autopilot audits use it for meaningful updates and stay quiet when nothing
+changed. The receiving chat runs poteto-mode; its custom agent is a delegate
+that reads the parent's absolute skill path.
+
+The PR watcher now reads all GitHub review-thread pages and treats the named
+Code Review Gate's `ACTION_REQUIRED` state as a review gate, while ordinary
+action-required checks remain failures. When GitHub blocks merging solely on
+that owner-approval gate, the watcher reports an explicit approval blocker,
+not failing CI or merge readiness. Genuine failures and rollup errors still
+block CI. Legacy POSIX worktree auditing accepts
+`--base <local-ref>` or detects the locally recorded default branch without
+fetching. Inspection still never grants deletion permission.
 
 `orch frontier set --repo <dir> [--prs <complete-bottom-to-top-pin>]` reads
 `gh stack view --json`, checks every branch's identity and lifecycle with
@@ -251,6 +271,11 @@ node external_plugins/pstack/tools/pstack-sync.mjs check
 node external_plugins/pstack/tools/pstack-sync.mjs plan --upstream /path/to/cursor-plugins
 node --test external_plugins/pstack/tools/pstack-sync.test.mjs external_plugins/pstack/tools/pstack-plan.test.mjs
 ```
+
+On a POSIX host, also run
+`node --test external_plugins/pstack/tools/worktree-audit.test.mjs` for the
+legacy shell fallback. CI runs these regressions on macOS and Linux; native
+and portable core contracts retain their three-platform matrix.
 
 `check` validates the shipped inventory, provenance, links, extension
 registration, and Copilot-compatible skill metadata. `plan` produces a bounded,

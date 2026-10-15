@@ -63,10 +63,13 @@ Default to `/poteto-mode` for non-trivial work that needs its discipline. Name a
 | The user wants to | Skill |
 |---|---|
 | Do non-trivial work with rigor | [`/poteto-mode`](../poteto-mode/SKILL.md) |
+| Check the goal and underlying problem before starting | [`/in-your-own-words`](../in-your-own-words/SKILL.md) |
+| Aim a task higher without overspecifying the implementation | [`/sharpen`](../sharpen/SKILL.md) |
 | Know how code works or where code should live | [`/how`](../how/SKILL.md) |
 | Know why code is shaped this way or where a choice came from | [`/why`](../why/SKILL.md) |
 | Understand a change or subsystem plainly | [`/teach`](../teach/SKILL.md) |
 | Catch up on recent work from available history | [`/recall`](../recall/SKILL.md) |
+| Catch up on this chat since their last message, with decisions and action items | [`/ketchup`](../ketchup/SKILL.md) |
 | Prove what a small diff could break elsewhere | [`/blast-radius`](../blast-radius/SKILL.md) |
 | Settle types and module boundaries before implementation | [`/architect`](../architect/SKILL.md) |
 | Compare attempts at one brief and graft the best parts | [`/arena`](../arena/SKILL.md) |
@@ -99,7 +102,8 @@ Close calls:
 - `/arena` repeats one brief and grafts the best parts. `/swarm` partitions coverage or races declared arms and aggregates one report.
 - `/architect` normally implements after design. Add "with checkpoint" to review the design before implementation.
 - `/interrogate` challenges a diff. `/blast-radius` proves a safety assumption outside it.
-- `/recall` rebuilds topic context. Session pickup resumes one specific branch or session.
+- `/recall` rebuilds topic context across available history. `/ketchup` covers only this chat since the user's last message. Session pickup resumes one specific branch or session.
+- `/in-your-own-words` checks understanding without starting work. `/sharpen` improves the task brief; neither authorizes implementation.
 - `/figure-it-out` designs one rigorous run. Orchestrate is a multi-day program; Autonomous run drives one task to a finish condition.
 
 Both `/deslop` and `/pstack-schema-validate` are bundled in this Copilot pstack adaptation. For validation, `pstack_validate_artifact` checks one selected workspace artifact's contract without running commands or reading evidence paths. Valid structure is not proof of behavior, freshness, or permission to act. The validation skill documents its CLI fallback.

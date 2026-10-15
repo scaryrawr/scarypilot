@@ -1,12 +1,38 @@
-import { WatcherQueryError, resolveChecks } from "./github.ts";
+import {
+  WatcherQueryError,
+  resolveChecks,
+  resolveReviewThreads,
+} from "./github.ts";
 import type * as T from "./types.ts";
 import { nonEmpty } from "./types.ts";
 
 export function assessGitHubMerge(args: {
   readonly mergeStateStatus: T.MergeStateStatus;
   readonly headRollupState: T.RollupState;
+  readonly checks: readonly T.Check[];
 }): T.GitHubMergeAssessment {
   if (args.mergeStateStatus === "BLOCKED") {
+    if (
+      args.headRollupState === "FAILURE" &&
+      args.checks.some(
+        (check) =>
+          check.kind === "code-review-gate" &&
+          check.reportedState === "ACTION_REQUIRED"
+      ) &&
+      args.checks.every(
+        (check) =>
+          check.kind === "passed" ||
+          check.kind === "skipped" ||
+          (check.kind === "code-review-gate" &&
+            check.reportedState === "ACTION_REQUIRED")
+      )
+    )
+      return {
+        kind: "review-gate",
+        mergeStateStatus: args.mergeStateStatus,
+        headRollupState: args.headRollupState,
+      };
+
     if (args.headRollupState === "ERROR" || args.headRollupState === "FAILURE")
       return {
         kind: "refused",
@@ -32,7 +58,8 @@ export function assessGitHubMerge(args: {
 
 async function mergeAssessment(
   reader: T.GitHubReader,
-  facts: T.PullRequestFacts
+  facts: T.PullRequestFacts,
+  checks: readonly T.Check[]
 ) {
   const commits = await reader.commitRollups(facts.context);
 
@@ -49,6 +76,7 @@ async function mergeAssessment(
     github: assessGitHubMerge({
       mergeStateStatus: facts.mergeStateStatus,
       headRollupState,
+      checks,
     }),
   };
 }
@@ -73,7 +101,7 @@ export async function readSnapshot(args: {
 
   if (facts.state === "CLOSED")
     return { kind: "closed", context: args.context, facts };
-  const threads = await args.reader.reviewThreads(args.context);
+  const threads = await resolveReviewThreads(args.reader, args.context);
   const checks = await resolveChecks(args.reader, args.context);
 
   const failed = nonEmpty(
@@ -100,7 +128,7 @@ export async function readSnapshot(args: {
       hadPreviousPassingCi: false,
     };
   else {
-    const merge = await mergeAssessment(args.reader, facts);
+    const merge = await mergeAssessment(args.reader, facts, checks.checks);
 
     const base = {
       source: checks.source,
@@ -179,14 +207,16 @@ function gateReason(
   row: T.PrSnapshot,
   allowDraft: boolean
 ): T.MergeGateReason | null {
-  if (row.kind === "merged") return null;
-
-  if (row.kind === "closed") return "closed-without-merge";
+  if (row.kind !== "open")
+    return row.kind === "closed" ? "closed-without-merge" : null;
 
   if (row.facts.isDraft && !allowDraft) return "draft-pr";
 
-  return row.facts.reviewDecision === "CHANGES_REQUESTED"
-    ? "changes-requested"
+  if (row.facts.reviewDecision === "CHANGES_REQUESTED")
+    return "changes-requested";
+
+  return row.ci.kind === "ci-clean" && row.ci.github.kind === "review-gate"
+    ? "code-review-gate"
     : null;
 }
 
@@ -218,6 +248,7 @@ function readyContribution(
   if (
     row.kind !== "open" ||
     row.ci.kind !== "ci-clean" ||
+    row.ci.github.kind !== "allowed" ||
     row.threads.length !== 0 ||
     conflictBlocker(row) !== null ||
     gateReason(row, allowDraft) !== null
@@ -233,7 +264,7 @@ function readyContribution(
     proof: {
       mergeability: "clear",
       threads: [],
-      ci: row.ci,
+      ci: { ...row.ci, github: row.ci.github },
       gate: {
         state: "OPEN",
         reviewDecision,

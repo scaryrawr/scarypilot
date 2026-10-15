@@ -1,0 +1,15 @@
+{
+  "skill_name": "in-your-own-words",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/in-your-own-words I want pstack updated from its upstream source, but keep our Copilot changes and don't publish anything yet. Play back my goal and the problem before doing any work.",
+      "expected_output": "A concise goal and problem restatement, with no implementation or publication.",
+      "expectations": [
+        "States that upstream improvements should be integrated while preserving the Copilot adaptation.",
+        "Retains the no-publication boundary.",
+        "Does not edit files, start implementation, or claim the update is done."
+      ]
+    }
+  ]
+}

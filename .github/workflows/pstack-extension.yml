@@ -59,3 +59,7 @@ jobs:
       - name: Check sync policy and portable plan validation
         working-directory: .
         run: node --test external_plugins/pstack/tools/pstack-sync.test.mjs external_plugins/pstack/tools/pstack-plan.test.mjs external_plugins/pstack/tools/log.test.mjs
+      - name: Check the legacy POSIX worktree audit
+        if: runner.os != 'Windows'
+        working-directory: .
+        run: node --test external_plugins/pstack/tools/worktree-audit.test.mjs

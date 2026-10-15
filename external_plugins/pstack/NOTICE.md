@@ -5,13 +5,13 @@ This plugin is adapted from
 The adaptation originally imported upstream commit
 `46125561306434d8a1d7745d540d8932ab0cd2a2` and had included the compatible
 changes through upstream repository commit
-`d0ef80d86795816da932a153458c5dbe192d294e` (pstack version `0.15.15`). The
-last commit in that range that changes the `pstack/` subtree is
-`df581122cde17e6e27686b5a448bde23e4ad4318`.
+`6ce45c59b9301a638c1fe1a7b8dc2a82b650898f` (pstack version `0.15.25`). That
+commit also changes the `pstack/` subtree, so it is the content boundary.
 
 The reviewed range starts after
-`2cbf58508f40de470d7490b55c51d71241928fa2`, the last upstream content commit
-included by the previous Copilot adaptation. The machine-readable boundary,
+`d0ef80d86795816da932a153458c5dbe192d294e`, the previous reviewed repository
+boundary (`0.15.15`, with content last changed at
+`df581122cde17e6e27686b5a448bde23e4ad4318`). The machine-readable boundary,
 ownership rules, and exclusions live in [`upstream-sync.json`](./upstream-sync.json).
 
 The `make-bot-ui` feature remains excluded because it depends on Cursor-only
@@ -25,6 +25,29 @@ The original and adapted files are distributed under the MIT License in
 
 ScaryPilot changed the integration layer for GitHub Copilot:
 
+- Ported compatible `0.15.16`-`0.15.25` updates in `1.1.0-copilot.1`.
+  Added `ketchup`, `in-your-own-words`, and `sharpen`. Ketchup uses supported
+  host presentation and existing evidence rather than a companion visualization
+  plugin, and routes real decisions to host approval tools. The receiving chat
+  remains the poteto-mode runner; delegates read the parent's absolute skill
+  path and resolve bundled leaves relative to it.
+- Ported review-thread pagination and Code Review Gate handling for
+  `ACTION_REQUIRED`, retaining ordinary action-required failures and Copilot
+  review-bot recognition. The final merge assessment distinguishes a blocked
+  owner-approval gate from failing CI without granting merge readiness.
+  The legacy POSIX worktree audit selects an explicit
+  or locally detected default base without fetching. Native inspection's
+  existing base selection and no-deletion-permission behavior are unchanged.
+- Adapted portable prompt simplifications and verification-readiness guidance.
+  Kept host model defaults and explicitly configured settings rather than
+  importing Cursor effort/fast model slugs. Kept Copilot session-history,
+  native confinement, pinned swarms, evidence checks, and approval boundaries.
+  Upstream's fence fix is already covered by the shared CLI/native plan rules.
+- Mapped the new upstream Agent Plugins v1 root manifest to the local legacy
+  Copilot manifest without its `$schema`. Retained PR #110's gh-stack frontier
+  and approved-prefix shipping instead of upstream's gh/origin base-chain
+  rewrite. Retained stronger base-freshness verification instead of accepting
+  disjoint-path, unchanged-patch, or lockfile shortcuts as integration proof.
 - Released the breaking gh-stack dependency migration as `1.0.0-copilot.1`,
   independently of the reviewed upstream `0.15.15` content version. The
   capability key is now `ghStack`. Frontier acquisition uses the public released

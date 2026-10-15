@@ -8,6 +8,7 @@ import type {
   PullRequestFacts,
   Repository,
   ReviewThread,
+  ReviewThreadPage,
   RollupPage,
 } from "./types.ts";
 import { parsePrNumber } from "./types.ts";
@@ -17,6 +18,7 @@ export interface FakeReaderOptions {
   readonly fastPath?: ChecksFastPath;
   readonly rollupPages?: readonly RollupPage[];
   readonly threads?: readonly ReviewThread[];
+  readonly threadPages?: readonly ReviewThreadPage[];
   readonly commitRollups?: readonly CommitRollup[];
   readonly openPullRequests?: readonly OpenPullRequest[];
   readonly origin?: Repository | null;
@@ -81,6 +83,7 @@ export function fakeReader(
   };
 
   let page = 0;
+  let threadPage = 0;
 
   return {
     calls,
@@ -116,10 +119,17 @@ export function fakeReader(
 
       return options.rollupPages?.[page++] ?? { checks: [], endCursor: null };
     },
-    async reviewThreads() {
-      calls.push("reviewThreads");
+    async reviewThreadPage(_requested, after) {
+      calls.push(`reviewThreadPage:${after ?? "null"}`);
 
-      return options.threads ?? [];
+      return options.threadPages?.[threadPage++] ?? {
+        threads: (options.threads ?? []).map((thread) => ({
+          id: thread.id,
+          firstComment: thread.firstComment,
+          resolved: false,
+        })),
+        endCursor: null,
+      };
     },
     async commitRollups() {
       calls.push("commitRollups");

@@ -97,3 +97,23 @@ void refusalIsNotClean;
 void readyWithBlockerExit;
 
 void readyWithoutProof;
+
+const reviewGate = {
+  kind: "review-gate",
+  mergeStateStatus: "BLOCKED",
+  headRollupState: "FAILURE",
+} as const;
+
+const approvalPendingCi = { ...cleanCi, github: reviewGate } satisfies CiClean;
+
+const approvalPendingProof = { ...readyPr.proof, ci: approvalPendingCi };
+
+// @ts-expect-error A required owner-approval gate is not permission to merge.
+const approvalGateIsNotAllowed: GitHubMergeAllowed = reviewGate;
+
+// @ts-expect-error Clean CI with a required owner approval is not READY.
+const approvalGateIsNotReady: ReadyPr = { ...readyPr, proof: approvalPendingProof };
+
+void approvalGateIsNotAllowed;
+
+void approvalGateIsNotReady;

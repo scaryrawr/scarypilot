@@ -4,6 +4,8 @@ Swap in real paths, installed skills, and done checks. Give at most one recipe f
 
 ## Understand
 
+- `/in-your-own-words <long or messy ask>. don't start the work yet.`
+- `/sharpen <task>. aim for the outcome without prescribing the implementation.`
 - `/poteto-mode read <thread>. restate the underlying issue in your own words, in plain english. don't change any code yet.`
 - `/poteto-mode investigate why <symptom>. give me what we know, what data you used, and your best hypotheses. don't change any code yet.`
 - `use /how to understand <subsystem>. then use /why to find out why it broke recently.`
@@ -48,6 +50,7 @@ PR creation and updates prefer matching built-in tools within their actual scope
 
 ## Away and back
 
+- `/ketchup` catches up on this chat since your last message, not other sessions.
 - `/poteto-mode im stepping away. <goal> in a fresh worktree off <base>. done means <checks>. keep a decision log. you may commit, but don't push or merge. keep running while the session is active. if truly stuck, stop and write up why.`
 - `/show-me-your-work catch me up on what you did last night.` Read its Attention section first.
 - `/poteto-mode full autopilot on this queue. each item is independent.` Requires agreed external-write permissions and independent verification.

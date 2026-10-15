@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -16,6 +16,11 @@ const policy = {
     subtree: "pstack",
   },
   mappedUpstreamPaths: [
+    {
+      path: "plugin.json",
+      localPaths: ["plugin.json"],
+      reason: "legacy Copilot registration",
+    },
     {
       path: ".cursor-plugin/plugin.json",
       localPaths: ["plugin.json"],
@@ -35,6 +40,17 @@ const policy = {
 
 test("shipped pstack integration satisfies the sync policy", () => {
   assert.deepEqual(checkRepository(), []);
+});
+
+test("the mapped manifest retains Copilot legacy registrations", () => {
+  const plugin = JSON.parse(
+    readFileSync(new URL("../plugin.json", import.meta.url), "utf8"),
+  );
+
+  assert.equal(plugin.$schema, undefined);
+  assert.deepEqual(plugin.skills, ["skills/"]);
+  assert.equal(plugin.agents, "agents/");
+  assert.deepEqual(plugin.extensions, ["extensions"]);
 });
 
 test("classifies a bounded upstream change set", () => {
@@ -68,6 +84,24 @@ test("classifies a bounded upstream change set", () => {
       ["new-runtime/file.md", "unclassified"],
     ],
   );
+});
+
+test("maps the upstream root manifest before Copilot-owned paths", () => {
+  const plan = buildPlan({
+    policy: { ...policy, copilotOwnedPaths: ["plugin.json"] },
+    changes: [{ status: "A", path: "plugin.json" }],
+    from: "a",
+    to: "b",
+    targetVersion: "0.15.25",
+  });
+
+  assert.deepEqual(plan.changes, [{
+    status: "A",
+    path: "plugin.json",
+    disposition: "mapped",
+    localPaths: ["plugin.json"],
+    reason: "legacy Copilot registration",
+  }]);
 });
 
 test("rejects Cursor invocation guards in every shipped skill", () => {

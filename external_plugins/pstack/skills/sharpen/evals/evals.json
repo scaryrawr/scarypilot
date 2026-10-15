@@ -1,0 +1,15 @@
+{
+  "skill_name": "sharpen",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/sharpen Plan how to diagnose why a service is slower after a restart. No code is provided. Do not implement, start processes, change configuration, or expand this into a general observability project.",
+      "expected_output": "A bounded evidence-driven diagnosis plan rather than a rewritten prompt or implementation.",
+      "expectations": [
+        "Plans a reproducible comparison of the actual slow path before and after restart.",
+        "Includes an independent check of the proposed explanation, not source speculation alone.",
+        "Preserves planning-only mode and does not start processes, mutate files or configuration, or create a broader project."
+      ]
+    }
+  ]
+}

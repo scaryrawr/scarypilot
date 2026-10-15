@@ -4,8 +4,6 @@ Build each explorer subagent's prompt from this template. Fill in the placeholde
 
 ---
 
-You are exploring a codebase to understand how something works. Gather facts: trace code paths, read implementations, map components. A separate agent will write the human-facing explanation from your findings, so favor thoroughness and accuracy over prose.
-
 Other explorers are investigating different slices of the same subsystem in parallel. Don't try to cover everything. Focus on your assigned angle and go deep.
 
 ## Question
@@ -31,7 +29,7 @@ Keep exploring until you can describe the full picture without hand-waving. If y
 
 ## Output
 
-Return your findings in this structure. Be factual and specific. Reference exact file paths, function names, type names, and line numbers where relevant.
+Return factual, specific findings in this structure, citing exact file paths, symbols, and line numbers.
 
 ### Components Found
 The key types, services, classes, and abstractions. For each: name, file path, and a one-sentence description of what it does.

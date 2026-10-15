@@ -1,6 +1,6 @@
 # The pstack guide
 
-This guide covers the Copilot adaptation `0.15.15-copilot.1`, with 52 Agent Skills including 24 principles.
+This guide covers the Copilot adaptation `1.1.0-copilot.1`, with 55 Agent Skills including 24 principles and portable upstream changes through `0.15.25`.
 
 pstack works best when you stop micromanaging the agent. You describe what you want and how you'll know it's done. `/poteto-mode` picks the playbook, runs the other skills as the steps need them, and shows you the evidence. This guide teaches that habit with realistic prompts.
 
@@ -36,5 +36,12 @@ Give the agent a goal and a way to check it, in your own words:
 ```
 
 You don't need to name a playbook or list skills. "repro first" and a checkable outcome are all the routing signal `/poteto-mode` needs. It matches the Bug fix playbook, copies the steps into a todo list, and calls the right skills as each step fires.
+
+Use [`/in-your-own-words`](../../skills/in-your-own-words/SKILL.md) to check that
+the agent understood the goal before it starts.
+[`/sharpen`](../../skills/sharpen/SKILL.md) improves the approach without
+expanding your scope or taking over your decisions.
+[`/ketchup`](../../skills/ketchup/SKILL.md) catches you up from existing evidence
+without changing code, starting jobs, or posting externally.
 
 Next: [Set up pstack](./01-setup.md).
