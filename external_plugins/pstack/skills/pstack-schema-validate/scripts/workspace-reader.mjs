@@ -1,6 +1,6 @@
 import { constants } from "node:fs";
 import { open, realpath } from "node:fs/promises";
-import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { isAbsolute, posix, relative, resolve, sep } from "node:path";
 
 function inside(root, path) {
   const child = relative(root, path);
@@ -36,13 +36,13 @@ export async function openConfinedFile(path, openFile = open) {
   let parent = await openFile("/", directoryFlags);
 
   try {
-    for (const directory of dirname(path).split(sep).filter(Boolean)) {
+    for (const directory of posix.dirname(path).split("/").filter(Boolean)) {
       const previous = parent;
       parent = await openFile(`/proc/self/fd/${parent.fd}/${directory}`, directoryFlags);
       await previous.close();
     }
 
-    return await openFile(`/proc/self/fd/${parent.fd}/${basename(path)}`, flags);
+    return await openFile(`/proc/self/fd/${parent.fd}/${posix.basename(path)}`, flags);
   } finally {
     await parent.close();
   }
