@@ -73,7 +73,7 @@ export function observeCommand(child: ChildProcess): Promise<CommandEvidence> {
 export async function ownedCensus(pids: OwnedPids) {
   const command = censusCommand(pids);
 
-  const evidence = await observeCommand(spawn("powershell.exe", [
+  const evidence = await observeCommand(spawn("pwsh.exe", [
     "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command,
   ], {
     shell: false,
