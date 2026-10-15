@@ -33,7 +33,9 @@ ScaryPilot changed the integration layer for GitHub Copilot:
   path and resolve bundled leaves relative to it.
 - Ported review-thread pagination and Code Review Gate handling for
   `ACTION_REQUIRED`, retaining ordinary action-required failures and Copilot
-  review-bot recognition. The legacy POSIX worktree audit selects an explicit
+  review-bot recognition. The final merge assessment distinguishes a blocked
+  owner-approval gate from failing CI without granting merge readiness.
+  The legacy POSIX worktree audit selects an explicit
   or locally detected default base without fetching. Native inspection's
   existing base selection and no-deletion-permission behavior are unchanged.
 - Adapted portable prompt simplifications and verification-readiness guidance.

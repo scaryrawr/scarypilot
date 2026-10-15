@@ -28,6 +28,7 @@ import type {
   RollupState,
 } from "./types.ts";
 import { parsePrNumber } from "./types.ts";
+import { renderPretty, renderStatusTable } from "./render.ts";
 
 const context = (number: number): PrContext => ({
   owner: "owner",
@@ -65,7 +66,7 @@ describe("readiness truth table", () => {
 
     for (const [mergeStateStatus, headRollupState, expected] of cases) {
       expect(
-        assessGitHubMerge({ mergeStateStatus, headRollupState }).kind
+        assessGitHubMerge({ mergeStateStatus, headRollupState, checks: [] }).kind
       ).toBe(expected);
     }
   });
@@ -96,6 +97,88 @@ describe("readiness truth table", () => {
 });
 
 describe("snapshot query planning", () => {
+  it("reports BLOCKED/FAILURE owner approval as a merge gate on both acquisition paths", async () => {
+    for (const path of ["fast", "rollup"]) {
+      const gate = path === "fast"
+        ? parseFastCheck({ name: "Code Review Gate", state: "ACTION_REQUIRED", bucket: "fail" })
+        : mapRollupNode({
+            __typename: "CheckRun", name: "Code Review Gate",
+            status: "COMPLETED", conclusion: "ACTION_REQUIRED",
+          });
+
+      if (gate === null) throw new Error("expected CheckRun");
+
+      const checks = [passingCheck(), gate];
+
+      const reader = fakeReader({
+        facts: { mergeStateStatus: "BLOCKED", reviewDecision: "REVIEW_REQUIRED" },
+        commitRollups: [{ oid: "head", state: "FAILURE" }],
+        ...(path === "fast"
+          ? { fastPath: { kind: "checks", checks } }
+          : {
+              fastPath: { kind: "unusable", exitCode: 8, stderr: "" },
+              rollupPages: [{ checks, endCursor: null }],
+            }),
+      });
+
+      const snapshot = await readSnapshot({
+        reader, context: context(1), pendingHistory: "omit", allowDraft: false,
+      });
+
+      expect(snapshot.kind).toBe("open");
+
+      if (snapshot.kind !== "open") throw new Error("expected open snapshot");
+      expect(snapshot.ci.kind).toBe("ci-clean");
+      expect(classifyPr(snapshot)).toMatchObject({
+        kind: "blocker",
+        blocker: { kind: "merge-gate", reason: "code-review-gate" },
+      });
+      expect(renderStatusTable([snapshot])).toContain("owner approval");
+      expect(renderPretty({
+        kind: "BLOCKER",
+        schemaVersion: 1, sequence: 1, observedAt: "now",
+        mode: "single", terminal: true, exitCode: 6,
+        blocker: { kind: "merge-gate", pr: snapshot.context, reason: "code-review-gate" },
+      })).toContain("do not bypass");
+    }
+  });
+
+  it("does not exempt ordinary failures, pending checks, or rollup errors beside an approval gate", async () => {
+    for (const path of ["fast", "rollup"]) {
+      const gate = parseFastCheck({
+        name: "Code Review Gate", state: "ACTION_REQUIRED", bucket: "fail",
+      });
+
+      for (const scenario of [
+        { checks: [gate, failedCheck()], state: "FAILURE", expected: "ci-failing" },
+        { checks: [failedCheck("Code Review Gate")], state: "FAILURE", expected: "ci-failing" },
+        { checks: [gate, pendingCheck()], state: "FAILURE", expected: "ci-pending" },
+        { checks: [gate, passingCheck()], state: "ERROR", expected: "ci-github-rejected" },
+      ] as const) {
+        const reader = fakeReader({
+          facts: { mergeStateStatus: "BLOCKED" },
+          commitRollups: [{ oid: "head", state: scenario.state }],
+          ...(path === "fast"
+            ? { fastPath: { kind: "checks", checks: scenario.checks } }
+            : {
+                fastPath: { kind: "unusable", exitCode: 8, stderr: "" },
+                rollupPages: [{ checks: scenario.checks, endCursor: null }],
+              }),
+        });
+
+        const snapshot = await readSnapshot({
+          reader, context: context(1), pendingHistory: "omit", allowDraft: false,
+        });
+
+        expect(snapshot.kind).toBe("open");
+
+        if (snapshot.kind !== "open") throw new Error("expected open snapshot");
+        expect(snapshot.ci.kind).toBe(scenario.expected);
+        expect(classifyPr(snapshot).kind).not.toBe("ready");
+      }
+    }
+  });
+
   it("blocks readiness on unresolved threads from a later page", async () => {
     const reader = fakeReader({
       threadPages: [

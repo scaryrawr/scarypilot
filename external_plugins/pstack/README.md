@@ -97,7 +97,10 @@ that reads the parent's absolute skill path.
 
 The PR watcher now reads all GitHub review-thread pages and treats the named
 Code Review Gate's `ACTION_REQUIRED` state as a review gate, while ordinary
-action-required checks remain failures. Legacy POSIX worktree auditing accepts
+action-required checks remain failures. When GitHub blocks merging solely on
+that owner-approval gate, the watcher reports an explicit approval blocker,
+not failing CI or merge readiness. Genuine failures and rollup errors still
+block CI. Legacy POSIX worktree auditing accepts
 `--base <local-ref>` or detects the locally recorded default branch without
 fetching. Inspection still never grants deletion permission.
 

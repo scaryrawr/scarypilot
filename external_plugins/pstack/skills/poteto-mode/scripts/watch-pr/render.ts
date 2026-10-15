@@ -38,14 +38,16 @@ function reviewCell(row: T.PrSnapshot): string {
 }
 
 function mergeCell(row: T.PrSnapshot): string {
-  if (row.kind === "merged") return "✅ merged";
-
-  if (row.kind === "closed") return "❌ closed";
+  if (row.kind !== "open")
+    return row.kind === "merged" ? "✅ merged" : "❌ closed";
 
   if (row.facts.isDraft) return "⏸ draft";
 
   if (row.facts.reviewDecision === "CHANGES_REQUESTED")
     return "⚠️ changes requested";
+
+  if (row.ci.kind === "ci-clean" && row.ci.github.kind === "review-gate")
+    return "⏸ owner approval";
 
   return row.facts.mergeable === "CONFLICTING" ||
     row.facts.mergeStateStatus === "DIRTY" ||
@@ -132,7 +134,9 @@ function renderBlocker(blocker: T.MergeBlocker | StatusQueryBlocker): string {
           ? "restore or remove the closed PR from the queued stack"
           : blocker.reason === "draft-pr"
             ? "mark the PR ready for review before waiting for the merge queue"
-            : "resolve the changes-requested review before waiting for the merge queue";
+            : blocker.reason === "code-review-gate"
+              ? "obtain the required owner approval; do not bypass the forge gate"
+              : "resolve the changes-requested review before waiting for the merge queue";
 
       return [
         `BLOCKER: ${blocker.reason}`,
