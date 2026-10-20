@@ -13,6 +13,7 @@ When writing or reviewing a test:
 2. Invoke the subject through its normal caller-facing boundary. Replace only uncontrollable dependencies, such as a clock, network, or filesystem, at an explicit seam; do not mock the subject or its private collaborators.
 3. Assert a specific observable outcome against an independent oracle: a literal example, an external specification, a known fixture produced outside the subject, or a property checked over varied inputs. Do not compute the expected value by calling the same logic again.
 4. Check that the test fails if the named defect is introduced. For a risky or ambiguous test, temporarily inject that defect or mutate the subject and run the focused test, then restore it. If no realistic defect would make the test fail, strengthen it or remove it.
+5. Imagine a refactor that preserves every caller-visible result. The test should still pass. If it would fail only because private steps changed, rewrite it against the observable contract.
 
 For example, check that `slugify("Hello, World!")` yields `"hello-world"`, not that it called a lowercasing helper. In Go, compare a result and error to a known case; in Rust, assert the `Result` or state seen by the caller; in Zig, use `expectEqual` on the outcome; in C or C++, assert the returned value, output buffer, or externally visible effect. The assertion syntax changes, not the standard of evidence.
 

@@ -68,3 +68,7 @@ Tell the user which user-level configuration was written and which roles use exp
 ### 7. Offer a verification skill
 
 Check whether the project already has a `verify-*` skill or an equivalent runtime harness. If not, offer `/create-verification-skill` once. Do not push after a no.
+
+### 8. Offer a formal verification skill
+
+Check whether the project already has a formal verification skill: a project skill that runs a model checker, a proof, or another verifier against named code. This is separate from the runtime harness in step 7. If none exists, offer once to generate one with [`/create-formal-verification-skill`](../create-formal-verification-skill/SKILL.md), explaining that it checks one key property in every case within a stated scope, not only the cases tests reach. On yes, invoke that installed skill. On no, move on without pushing. Do not install a verifier or start verification merely because setup ran.

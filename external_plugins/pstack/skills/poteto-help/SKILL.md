@@ -27,6 +27,7 @@ Inspect state only when it changes the answer:
 
 - Resolve Copilot home from `$COPILOT_HOME`, defaulting to `$HOME/.copilot`. If `instructions/pstack-models.instructions.md` or a role line is absent, omit the Task `model` argument and let the host select its default. A missing file does not prove setup never ran.
 - If the project has neither a `verify-*` skill nor an equivalent harness, suggest `/create-verification-skill` for questions about proving app behavior.
+- If no project skill checks a formal property, mention `/create-formal-verification-skill` for a race, invariant, or other case tests rarely reach. If one exists and its covered code changed after its recorded sync commit, mention `/maintain-formal-verification-skill` when the question touches that code. A runtime harness alone is not a formal verification skill.
 - Use the current host's advertised tools and the required helper runtimes as authoritative. Unknown is not permission to assume support.
 
 ## Get set up
@@ -38,7 +39,7 @@ copilot plugin marketplace add scaryrawr/scarypilot
 copilot plugin install pstack@scarypilot
 ```
 
-Then recommend [`/setup-pstack`](../setup-pstack/SKILL.md) to configure available Task model roles, followed by a small `/poteto-mode` task with a pass/fail check. Setup writes `instructions/pstack-models.instructions.md` in Copilot home, normally `~/.copilot`, for new or resumed sessions. It configures role models only.
+Then recommend [`/setup-pstack`](../setup-pstack/SKILL.md) to configure available Task model roles, followed by a small `/poteto-mode` task with a pass/fail check. Setup writes `instructions/pstack-models.instructions.md` in Copilot home, normally `~/.copilot`, for new or resumed sessions. It configures role models, then offers once each to generate a runtime verification skill and a formal verification skill unless the project already has the corresponding check. Each offer is optional and requires acceptance before starting.
 
 Copilot supports natural-language skill triggers as well as typed skill names. Setup is not the only naturally invokable skill, and installation is not authorization to execute every workflow. The [README](../../README.md) and [guide page 1](../../docs/guide/01-setup.md) own installation and capability details.
 
@@ -67,12 +68,12 @@ Default to `/poteto-mode` for non-trivial work that needs its discipline. Name a
 |---|---|
 | Do non-trivial work with rigor | [`/poteto-mode`](../poteto-mode/SKILL.md) |
 | Check the goal and underlying problem before starting | [`/in-your-own-words`](../in-your-own-words/SKILL.md) |
-| Aim a task higher without overspecifying the implementation | [`/sharpen`](../sharpen/SKILL.md) |
+| Get a prompt rewritten deeper, not bigger, before sending it; return the prompt without doing the task | [`/sharpen`](../sharpen/SKILL.md) |
 | Know how code works or where code should live | [`/how`](../how/SKILL.md) |
 | Know why code is shaped this way or where a choice came from | [`/why`](../why/SKILL.md) |
 | Understand a change or subsystem plainly | [`/teach`](../teach/SKILL.md) |
 | Catch up on recent work from available history | [`/recall`](../recall/SKILL.md) |
-| Catch up on this chat since their last message, with decisions and action items | [`/ketchup`](../ketchup/SKILL.md) |
+| Catch up on this chat since their last message, with every waiting item listed and decidable from the reply alone | [`/ketchup`](../ketchup/SKILL.md) |
 | Prove what a small diff could break elsewhere | [`/blast-radius`](../blast-radius/SKILL.md) |
 | Settle types and module boundaries before implementation | [`/architect`](../architect/SKILL.md) |
 | Compare attempts at one brief and graft the best parts | [`/arena`](../arena/SKILL.md) |
@@ -87,6 +88,8 @@ Default to `/poteto-mode` for non-trivial work that needs its discipline. Name a
 | Hear the last reply in plain words | [`/bro`](../bro/SKILL.md) |
 | Give agents a repeatable way to drive the app | [`/create-verification-skill`](../create-verification-skill/SKILL.md) |
 | Audit a verification skill and feature map | [`/maintain-verification-skill`](../maintain-verification-skill/SKILL.md) |
+| Formally verify a race, invariant, or other property tests rarely reach | [`/create-formal-verification-skill`](../create-formal-verification-skill/SKILL.md) |
+| Bring formal verification back in line with changed code and distinguish drift from bugs | [`/maintain-formal-verification-skill`](../maintain-formal-verification-skill/SKILL.md) |
 | Vet a measured performance number | [`/benchmark-checklist`](../benchmark-checklist/SKILL.md) |
 | Validate a pstack snapshot, receipt, handoff, or plan contract | [`/pstack-schema-validate`](../pstack-schema-validate/SKILL.md) |
 | Run a large change or work to review after stepping away | [`/figure-it-out`](../figure-it-out/SKILL.md) |
@@ -106,7 +109,7 @@ Close calls:
 - `/architect` normally implements after design. Add "with checkpoint" to review the design before implementation.
 - `/interrogate` challenges a diff. `/blast-radius` proves a safety assumption outside it.
 - `/recall` rebuilds topic context across available history. `/ketchup` covers only this chat since the user's last message. Session pickup resumes one specific branch or session.
-- `/in-your-own-words` checks understanding without starting work. `/sharpen` improves the task brief; neither authorizes implementation.
+- `/in-your-own-words` checks understanding without starting work. `/sharpen` returns a rewritten prompt with an expert approach, raw sources, methods and an outside check; neither executes the task or authorizes implementation.
 - `/figure-it-out` designs one rigorous run. Orchestrate is a multi-day program; Autonomous run drives one task to a finish condition.
 
 Both `/deslop` and `/pstack-schema-validate` are bundled in this Copilot pstack adaptation. The validation skill's Node CLI checks one selected workspace artifact without running artifact contents or reading evidence paths. Its confined reader requires macOS or Linux and rejects unsupported platforms rather than falling back to an unconstrained read. Valid structure is not proof of behavior, freshness, or permission to act.
