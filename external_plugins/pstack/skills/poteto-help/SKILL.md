@@ -26,7 +26,7 @@ In a non-interactive host, state the likely interpretation and answer it without
 Inspect state only when it changes the answer:
 
 - Resolve Copilot home from `$COPILOT_HOME`, defaulting to `$HOME/.copilot`. If `instructions/pstack-models.instructions.md` or a role line is absent, omit the Task `model` argument and let the host select its default. A missing file does not prove setup never ran.
-- If the project has neither a `verify-*` skill nor an equivalent harness, suggest `/create-verification-skill` for questions about proving app behavior.
+- For questions about proving app behavior, look for a skill or equivalent runtime harness that launches or connects to the real app, drives user-facing behavior, and checks the result. Read its launch/drive instructions or harness commands rather than trusting a `verify-*` name. A formal-only model-checking, proof, or code-verification skill does not satisfy this runtime check. If that runtime capability is missing, suggest `/create-verification-skill`.
 - If no project skill checks a formal property, mention `/create-formal-verification-skill` for a race, invariant, or other case tests rarely reach. If one exists and its covered code changed after its recorded sync commit, mention `/maintain-formal-verification-skill` when the question touches that code. A runtime harness alone is not a formal verification skill.
 - Use the current host's advertised tools and the required helper runtimes as authoritative. Unknown is not permission to assume support.
 

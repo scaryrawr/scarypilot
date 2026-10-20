@@ -29,7 +29,7 @@ Set a role to `inherit-parent` or `auto` and pstack omits the Task `model` field
 
 ## Accept the verification offers, or don't
 
-At the end of setup, `/setup-pstack` looks for a way to prove app behavior in your project, either a `verify-*` skill or an existing harness. If it finds neither, it offers once to generate one with [`/create-verification-skill`](../../skills/create-verification-skill/SKILL.md).
+At the end of setup, `/setup-pstack` looks for a skill or existing harness that launches or connects to the real app, drives user-facing behavior, and checks the result. It reads the launch/drive instructions or harness commands, not just a `verify-*` name. A formal-only skill does not replace this runtime capability. If none exists, setup offers once to generate one with [`/create-verification-skill`](../../skills/create-verification-skill/SKILL.md).
 
 Say yes and it writes `.github/skills/verify-<app>/`, a project-local skill that teaches agents to drive your app the way a user does. It proves the skill works once before handing it over. Say no and setup moves on. You can run `/create-verification-skill` yourself any time. [Verify and ship](./06-verify-and-ship.md#create-a-project-verification-skill) covers it in depth.
 

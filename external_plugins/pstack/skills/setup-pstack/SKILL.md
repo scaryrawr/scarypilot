@@ -67,7 +67,7 @@ Tell the user which user-level configuration was written and which roles use exp
 
 ### 7. Offer a verification skill
 
-Check whether the project already has a `verify-*` skill or an equivalent runtime harness. If not, offer `/create-verification-skill` once. Do not push after a no.
+Check whether the project already has a skill or equivalent runtime harness that launches or connects to the real app, drives user-facing behavior, and checks the result. Read the candidate's launch/drive instructions or harness commands; a `verify-*` name alone is not evidence. A formal-only skill that runs a model checker, proof, or code-level verifier does not satisfy this runtime check. If no runtime capability exists, offer `/create-verification-skill` once. Do not push after a no.
 
 ### 8. Offer a formal verification skill
 
