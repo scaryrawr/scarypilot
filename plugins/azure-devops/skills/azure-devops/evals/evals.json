@@ -68,10 +68,11 @@
     {
       "id": 6,
       "name": "private-review-without-extension",
-      "prompt": "Use the azure-devops skill to write a read-only execution plan, without calling tools or the network. Review https://dev.azure.com/example/Widgets/_git/app/pullrequest/42 privately and keep findings in chat. Do not post anything. Save the plan to private-review.md in the outputs directory.",
+      "prompt": "Use the azure-devops skill to write a read-only execution plan, without calling tools or the network. Review https://dev.azure.com/example/Widgets/_git/app/pullrequest/42 privately and keep findings in chat. The eligibility helper returns status active, isDraft true, and eligible false. Do not post anything. Save the plan to private-review.md in the outputs directory.",
       "expected_output": "The plan uses the helper-based review workflow and reports findings in chat without a canvas or any remote write.",
       "expectations": [
         "The plan uses the bundled parse-url and review-pr.py eligibility helpers and inspects the pull request diff.",
+        "The plan continues inspecting the active draft despite eligible being false, rather than skipping the private review.",
         "The plan does not open a paired-review canvas or invoke extension tools.",
         "The plan reports only high-confidence findings in chat.",
         "The plan does not post comments, replies, votes, review labels, or other remote writes.",

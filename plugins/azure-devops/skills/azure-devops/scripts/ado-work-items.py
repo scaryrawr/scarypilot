@@ -15,7 +15,7 @@ from typing import Any
 
 from shared import ado
 from shared.ado import normalize_organization, request_json
-from shared.boards import BoardsClient, integer, organization_name, project_name, string, string_list, validate_request
+from shared.boards import BoardsClient, integer, organization_name, project_name, search_response, string, string_list, validate_request
 from shared.transport import AdoError, Deferred, Transport
 
 
@@ -154,6 +154,7 @@ def search_work_items(args: argparse.Namespace) -> None:
             headers=auth_headers("application/json"),
             replay_safe=True,
         )
+    payload = search_response(payload)
     results = []
     for result in payload.get("results", []):
         fields = result.get("fields") or {}
