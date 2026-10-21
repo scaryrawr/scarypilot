@@ -7,18 +7,19 @@ planning, delegation, review, and verification.
 
 ## What this plugin provides
 
-- 55 Agent Skills, including `poteto-mode`, `poteto-help`, `ketchup`,
+- 57 Agent Skills, including `poteto-mode`, `poteto-help`, `ketchup`,
   `in-your-own-words`, `sharpen`, `how`, `why`,
   `architect`, `arena`, `swarm`, `interrogate`, `correct`, `benchmark-checklist`,
-  `tdd`, `deslop`, `unslop`, and 24 pstack principles.
+  `tdd`, `deslop`, `unslop`, `create-formal-verification-skill`,
+  `maintain-formal-verification-skill`, and 24 pstack principles.
 - The `poteto-agent` and `comment-sicko` custom agents.
 - Portable artifact and plan validation using deterministic contract rules and
   workspace-confined file reads.
 - PR watching, orchestration, decision-log, and worktree-audit helpers used by
   advanced playbooks.
 - Verified multi-phase planning with an executable checklist checker.
-- Compatible upstream changes through pstack 0.15.25, with Cursor-only features
-  intentionally excluded.
+- Compatible upstream changes through pstack 0.15.29, with client-specific
+  Cursor and Claude Code features intentionally excluded.
 - User-level model configuration through `/setup-pstack`.
 
 The adapted [pstack guide](./docs/guide/README.md) walks through the workflow
@@ -60,8 +61,10 @@ Invoke a focused skill:
 /correct prevent the config mistakes agents keep repeating
 /benchmark-checklist vet this speedup before it goes in the PR
 /in-your-own-words play back the goal and problem before starting
-/sharpen plan this diagnosis without expanding the scope
+/sharpen rewrite this diagnosis prompt deeper, not bigger
 /ketchup catch me up on what changed since my last message
+/create-formal-verification-skill the job lease and retry logic
+/maintain-formal-verification-skill
 ```
 
 Use the full workflow style:
@@ -69,6 +72,25 @@ Use the full workflow style:
 ```text
 /poteto-mode implement this feature and prove it works
 ```
+
+### Upstream refresh in `2.1.0-copilot.1`
+
+The refresh adds formal-verification creation and maintenance skills.
+[`/create-formal-verification-skill`](./skills/create-formal-verification-skill/SKILL.md)
+chooses one costly, hard-to-test property, verifies it with suitable tooling,
+and generates `.github/skills/verify-<area>/SKILL.md` for repeatable checks.
+[`/maintain-formal-verification-skill`](./skills/maintain-formal-verification-skill/SKILL.md)
+keeps those checks aligned with changed code and separates verification drift
+from product bugs. Bounds, assumptions, mutation checks, and sync commits make
+the result reviewable; a bounded model pass is not proof of the whole system.
+Setup offers formal verification once when none exists, but does not start it
+without acceptance.
+
+`/sharpen` now returns a rewritten prompt instead of doing the underlying task.
+It names the expert approach, raw material, methods, and outside check while
+leaving your choices open. Send the rewrite when you want the work to start.
+`/ketchup` lists every item waiting on you, with its recommendation, evidence,
+and risk. It stays read-only and never drops items to meet a total word count.
 
 ### Migration from the native extension
 
@@ -92,7 +114,7 @@ The `1.0.0-copilot.1` release changes the stack dependency and capability key to
 `ghStack`. It no longer supports the previous stack backend. The reviewed
 upstream content version remains recorded separately in `upstream-sync.json`.
 
-The `1.1.0-copilot.1` release adds the three focused skills above and refreshes
+The `1.1.0-copilot.1` release added `ketchup`, `in-your-own-words`, and `sharpen`, and refreshed
 portable upstream content through `0.15.25`. Ketchup is a read-only catch-up,
 using existing evidence and supported host visuals rather than launching apps.
 Autopilot audits use it for meaningful updates and stay quiet when nothing
@@ -215,6 +237,10 @@ Cursor's `disable-model-invocation` skill metadata is also intentionally
 removed. Copilot currently filters skills carrying that key from the
 model-facing skill tool, which breaks direct invocation and skill-to-skill
 orchestration.
+
+Upstream's Claude Code adapter and generated harness tree are not shipped.
+This package already maps tools, models, paths, and packaging directly to
+Copilot, so a second client's adapter would conflict with those mappings.
 
 ## Maintaining the adaptation
 

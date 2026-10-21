@@ -157,6 +157,35 @@ test("maps the upstream root manifest before Copilot-owned paths", () => {
   }]);
 });
 
+test("excludes the Claude Code adapter without allowing unrelated harness paths", () => {
+  const shippedPolicy = JSON.parse(
+    readFileSync(new URL("../upstream-sync.json", import.meta.url), "utf8"),
+  );
+
+  const plan = buildPlan({
+    policy: shippedPolicy,
+    changes: parseNameStatus([
+      "A\tpstack/docs/harness/claude-code.md",
+      "A\tpstack/docs/harness/new-client.md",
+      "A\tpstack/skills/create-formal-verification-skill/SKILL.md",
+      "A\tpstack/skills/maintain-formal-verification-skill/SKILL.md",
+    ].join("\n")),
+    from: "a",
+    to: "b",
+    targetVersion: "0.15.29",
+  });
+
+  assert.deepEqual(
+    plan.changes.map(({ path, disposition }) => [path, disposition]),
+    [
+      ["docs/harness/claude-code.md", "excluded"],
+      ["docs/harness/new-client.md", "unclassified"],
+      ["skills/create-formal-verification-skill/SKILL.md", "adapted"],
+      ["skills/maintain-formal-verification-skill/SKILL.md", "adapted"],
+    ],
+  );
+});
+
 test("rejects Cursor invocation guards in every shipped skill", (t) => {
   const root = mkdtempSync(join(tmpdir(), "pstack-sync-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));

@@ -102,7 +102,7 @@
     },
     {
       "name": "pstack",
-      "description": "Copilot adaptation of pstack with rigorous workflow skills, portable validation, planning, review, and verification helpers.",
+      "description": "Copilot adaptation of pstack with rigorous workflow skills, portable validation, planning, review, and runtime and formal verification helpers.",
       "author": {
         "name": "Lauren Tan"
       },

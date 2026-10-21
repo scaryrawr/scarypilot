@@ -65,11 +65,13 @@ When you're back, ask for the run in review form:
 
 Before the skill hands back its summary, it spawns a reviewer on a different model family to read the trail and the transcript, and the reply ends with an Attention section listing what deserves your scrutiny. Read that section first, then the log rows it points at. You're auditing decisions, not re-reading the whole night.
 
+For a quick status instead of an audit, run [`/ketchup`](../../skills/ketchup/SKILL.md) in the chat that ran the work. It reads only and tells you in plain words what changed since your last message, using existing screenshots and small diagrams where helpful. It lists every item waiting on you, with its recommendation, evidence, and risk, so you can decide from the reply alone.
+
 ## When the night holds a queue, not a task
 
 The contract above drives one task to one finish condition. Some nights hold more, a queue of independent changes or a whole program. Three playbooks scale the same trust up.
 
-[Autopilot-full](../../skills/poteto-mode/playbooks/autopilot-full.md) runs a queue of independent PRs to merged. Each PR gets one owner agent that carries it from build through merge, and no owner merges on its own verdict. A swarm of fresh verifiers checks every merge-ready head, and only a clean verdict authorizes the merge:
+[Autopilot-full](../../skills/poteto-mode/playbooks/autopilot-full.md) runs a queue of independent PRs to merged. Each PR gets one owner agent that carries it from build through merge, and no owner merges on its own verdict. A swarm starts at the code-ready head and again when the patch changes. The root then audits final self-proof, CI, and babysit receipts at merge-ready. Any trunk or intended-base movement requires fresh integration evidence on the combined base and head. Only a clean verdict under those checks authorizes the merge:
 
 ```text
 /poteto-mode full autopilot on this queue. each item is independent. i want them merged by morning.

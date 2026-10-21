@@ -4,11 +4,13 @@
     {
       "id": 1,
       "prompt": "/sharpen Plan how to diagnose why a service is slower after a restart. No code is provided. Do not implement, start processes, change configuration, or expand this into a general observability project.",
-      "expected_output": "A bounded evidence-driven diagnosis plan rather than a rewritten prompt or implementation.",
+      "expected_output": "An expert framing followed by a rewritten prompt asking for a bounded evidence-driven restart diagnosis plan, without performing the planning task or implementing it.",
       "expectations": [
-        "Plans a reproducible comparison of the actual slow path before and after restart.",
-        "Includes an independent check of the proposed explanation, not source speculation alone.",
-        "Preserves planning-only mode and does not start processes, mutate files or configuration, or create a broader project."
+        "Names the expert approach, raw source material, specific methods and tools, and an independent check before returning the rewritten prompt.",
+        "The rewritten prompt asks for a reproducible comparison of the actual slow path before and after restart and an independent check of the explanation, not source speculation alone.",
+        "Returns a rewritten prompt, not the diagnosis plan itself, and does not execute the underlying planning task.",
+        "Keeps the absence of provided code and the user's planning-only scope explicit in the rewritten prompt, without authorizing implementation, process startup, file or configuration changes, or a general observability project.",
+        "Leaves choices owned by the user open rather than deciding them."
       ]
     }
   ]

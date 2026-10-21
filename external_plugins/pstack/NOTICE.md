@@ -3,15 +3,15 @@
 This plugin is adapted from
 [pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan.
 The adaptation originally imported upstream commit
-`46125561306434d8a1d7745d540d8932ab0cd2a2` and had included the compatible
-changes through upstream repository commit
-`6ce45c59b9301a638c1fe1a7b8dc2a82b650898f` (pstack version `0.15.25`). That
-commit also changes the `pstack/` subtree, so it is the content boundary.
+`46125561306434d8a1d7745d540d8932ab0cd2a2` and includes compatible changes
+through upstream repository commit
+`29fa9382c9c250d134f6a2f1aa86c01c5f63119d` (pstack version `0.15.29`).
+The latest commit changing the `pstack/` subtree at that boundary is
+`88d47514b82e7c44f00f2b2a72ff6dd12158038c`, the content boundary.
 
 The reviewed range starts after
-`d0ef80d86795816da932a153458c5dbe192d294e`, the previous reviewed repository
-boundary (`0.15.15`, with content last changed at
-`df581122cde17e6e27686b5a448bde23e4ad4318`). The machine-readable boundary,
+`6ce45c59b9301a638c1fe1a7b8dc2a82b650898f`, the previous reviewed repository
+and content boundary (`0.15.25`). The machine-readable boundary,
 ownership rules, and exclusions live in [`upstream-sync.json`](./upstream-sync.json).
 
 The `make-bot-ui` feature remains excluded because it depends on Cursor-only
@@ -25,6 +25,34 @@ The original and adapted files are distributed under the MIT License in
 
 ScaryPilot changed the integration layer for GitHub Copilot:
 
+- Ported compatible `0.15.26`-`0.15.29` changes in `2.1.0-copilot.1`.
+  Added `create-formal-verification-skill` and
+  `maintain-formal-verification-skill`, wired them into setup, help, recipes,
+  and the guide, and increased the shipped inventory to 57 skills. Generated
+  skills live under `.github/skills/`. Verifier installation and mutation
+  checks respect host approvals and isolated scratch work. Generated-input
+  testing is not described as exhaustive proof; maintenance records dirty
+  covered code separately from its sync commit.
+- Adopted upstream's `/sharpen` prompt-rewrite behavior. It names the expert
+  approach, raw sources, methods, and outside check, then returns a prompt
+  without executing the task. Retained explicit scope and approval limits;
+  unlike upstream, it remains model-callable in Copilot.
+- Ported `/ketchup`'s complete waiting-item inventory with per-item evidence,
+  recommendation, and risk, without a reply-wide word cap. Retained read-only
+  catch-up, scoped history, supported host visuals, and native approval gates.
+- Ported premise-testing, legitimate-state root-cause reasoning, idempotent
+  reconciliation, and portable instruction trims. Kept the existing
+  cross-language test guidance and added the behavior-preserving-refactor
+  check. Branded TypeScript values now narrow through a verifying type guard
+  instead of a cast. Kept Copilot's explicit swarm sizing, isolation, model
+  resolution and evidence acceptance; removed only its redundant report line.
+- Updated compatible guide and help content without copying upstream's
+  Cursor/Claude installation, Custom Mode, or Origin CLI assumptions.
+  Kept stronger local integration and merge-ready verification rather than
+  adopting the guide's reduced post-rebase reviewer requirements.
+  The new `docs/harness/claude-code.md` and upstream repository's generated
+  Claude Code tree are not part of this Copilot package. Existing portable
+  skills/scripts packaging and gh-stack safeguards remain unchanged.
 - Removed the native extension in `2.0.0-copilot.1` in favor of skills and
   portable scripts. Retired its status/capability tools, receipt/handoff
   services, command, automatic resume injection and journaled pinned swarm.
