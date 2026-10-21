@@ -11,8 +11,7 @@ threads, policy evaluations, and current-merge build summary together:
 uv run ./scripts/ado-pr.py snapshot --id {prId} --detect true
 ```
 
-If the extension is available, use `azure_devops_pr_snapshot` with the PR URL
-instead. Both routes use the same request owner. Reuse one snapshot within the
+Reuse one snapshot within the
 pass rather than repeating each lookup. Refresh after a push and immediately
 before a readiness-dependent write.
 

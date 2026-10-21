@@ -69,6 +69,10 @@ Uploading does not post a comment or change permission to publish findings.
 
 ## Workflow
 
+For a private review or discussion, perform only the inspection and validation
+steps below and report findings in chat. Do not post threads, sync labels, vote,
+or make any other remote write unless the user explicitly authorizes it.
+
 1. Check eligibility with `uv run ./scripts/review-pr.py eligibility --id {prId} --detect true`.
 2. Skip review when the PR is not active or is a draft.
 3. Gather context: reuse `targetBranch`, `projectName`, and `repositoryId` from eligibility output; read authoritative repository instructions such as `.github/copilot-instructions.md`, `AGENTS.md`, and `CLAUDE.md` from `origin/{targetBranchName}` before checking out the PR; check out the PR branch locally with `az repos pr checkout --id {prId}`; use `targetBranchName` to generate the diff with `git diff "origin/{targetBranchName}"...HEAD`.
@@ -76,7 +80,7 @@ Uploading does not post a comment or change permission to publish findings.
 5. Validate issues: post only high-confidence findings and ignore style-only nits, pre-existing issues, CI-only issues, and unmodified-line complaints.
 6. Confirm before posting unless the user explicitly asked you not to confirm.
 7. Post one inline thread per issue with exact file and right-side diff line range. Prefer single-line ranges. Build payloads with `thread-payload` before posting. Do not post a separate top-level summary for the same finding; a singular comment request means the inline finding only. Use a top-level thread only when the user explicitly asks for a standalone summary or the content has no file anchor.
-8. Sync review labels after the review completes. Always include `ai-reviewed` plus one `ai-model-<model-id>` label per model used.
+8. For an authorized posted review, sync review labels after the review completes. Always include `ai-reviewed` plus one `ai-model-<model-id>` label per model used.
 
 Post inline comments with:
 

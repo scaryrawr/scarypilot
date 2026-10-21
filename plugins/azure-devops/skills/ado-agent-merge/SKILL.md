@@ -70,9 +70,7 @@ PR. Create a draft only when the user explicitly requested one.
 
 ### 2. Refresh authoritative state
 
-At the start of each pass, gather one fresh readiness snapshot. Prefer the
-`azure_devops_pr_snapshot` extension tool when available and you have the PR URL.
-Otherwise run:
+At the start of each pass, gather one fresh readiness snapshot:
 
 ```text
 uv run ../azure-devops/scripts/ado-pr.py snapshot --id {prId} --detect true
