@@ -1,0 +1,37 @@
+{
+  "synthetic_fixture": true,
+  "delivery": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 25,
+    "side_by_side_context_readable": true,
+    "small_cell_text_readable_at_half_scale": false,
+    "detail_source_region": { "x": 640, "y": 360, "width": 480, "height": 240 },
+    "detail_relevant_seconds_after_trim": [1, 3]
+  },
+  "before": {
+    "raw": "before-raw.mp4",
+    "build": "synthetic-before-r1",
+    "request": "synthetic-request-before",
+    "duration_seconds": 4.4,
+    "irrelevant_leading_setup_seconds": 0.4,
+    "dispatch": { "seconds": 2.6, "visible": true, "request_correspondence_proven": true },
+    "completion_seconds": 4.2,
+    "independent_assertion": "Persisted model has exactly 40 rows, 2 columns, and all expected synthetic cell values."
+  },
+  "after": {
+    "raw": "after-raw.mp4",
+    "build": "synthetic-after-r2",
+    "request": "synthetic-request-after",
+    "duration_seconds": 7.2,
+    "irrelevant_leading_setup_seconds": 1.2,
+    "dispatch": { "seconds": 3.4, "visible": true, "request_correspondence_proven": true },
+    "completion_seconds": 7,
+    "reload": { "same_document": true, "start_seconds": 4.2, "end_seconds": 4.6 },
+    "independent_assertion": "Persisted model has exactly 40 rows, 2 columns, and all expected synthetic cell values."
+  },
+  "left_audio_duration_after_trim_seconds": 1.5,
+  "audio_requested": false,
+  "existing_derivative": "comparison-v0.mp4",
+  "later_integrated_build": "synthetic-integrated-r3"
+}

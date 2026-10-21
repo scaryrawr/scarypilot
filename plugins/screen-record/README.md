@@ -51,6 +51,12 @@ copilot plugin install screen-record@scarypilot
 - "Narrate this demo with Microsoft Mark and replace the original audio."
 - Run the `demo-producer` agent for an end-to-end, rehearsed recording.
 
+Comparisons follow the
+[evidence-video standard](skills/screen-record/references/editing.md#evidence-video-standard).
+It defaults to readable BEFORE/AFTER panels and timed highlights, with
+same-frame magnified detail when small text needs it. The standard preserves
+operation timing and source provenance rather than making clips finish together.
+
 The skill writes recordings and edits only to paths chosen in the user's
 workspace. Recording state and FFmpeg logs are kept in the operating system's
 temporary directory.
