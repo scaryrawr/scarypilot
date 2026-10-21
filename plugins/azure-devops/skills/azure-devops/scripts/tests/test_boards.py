@@ -511,6 +511,27 @@ class BoardsTests(unittest.TestCase):
             cli.search_work_items(argparse.Namespace(org=SCOPE["org"], project=[], top=25, text="login", type=[], area=[]))
         self.assertEqual(json.loads(output.getvalue()), {"count": 0, "results": []})
 
+    def test_cli_search_rejects_index_failure_without_printing_empty_results(self):
+        for info_code in (1, 2, -1, "0", None, False):
+            with self.subTest(info_code=info_code):
+                self.outcomes.append(response({"count": 0, "results": [], "infoCode": info_code}))
+                output = StringIO()
+                with patch.object(ado, "Transport", return_value=self.transport), redirect_stdout(output):
+                    with self.assertRaisesRegex(AdoError, "search is unavailable or incomplete"):
+                        cli.search_work_items(argparse.Namespace(
+                            org="example", project=["Project"], top=25, text="login", type=[], area=[],
+                        ))
+                self.assertEqual(output.getvalue(), "")
+
+    def test_cli_search_zero_info_code_preserves_successful_empty_result(self):
+        self.outcomes.append(response({"count": 0, "results": [], "infoCode": 0}))
+        output = StringIO()
+        with patch.object(ado, "Transport", return_value=self.transport), redirect_stdout(output):
+            cli.search_work_items(argparse.Namespace(
+                org="example", project=["Project"], top=25, text="login", type=[], area=[],
+            ))
+        self.assertEqual(json.loads(output.getvalue()), {"count": 0, "results": []})
+
     def test_cli_search_nonpositive_top_preserves_legacy_default_twenty_five(self):
         for top in (0, -3):
             with self.subTest(top=top):

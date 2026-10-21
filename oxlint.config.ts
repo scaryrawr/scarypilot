@@ -17,7 +17,6 @@ export default defineConfig({
     "**/coverage/**",
     "**/dist/**",
     "**/out/**",
-    "plugins/azure-devops/extensions/paired-review/public/**",
     "tools/oxlint/anti-slop/**",
   ],
   jsPlugins: [
