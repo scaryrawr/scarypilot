@@ -1,0 +1,28 @@
+{
+  "synthetic_fixture": true,
+  "scenarios": [
+    {
+      "name": "small-cell-comparison",
+      "before_and_after": true,
+      "context_readable_in_split_panels": true,
+      "small_result_text_readable_in_split_panels": false,
+      "space_for_detail_without_covering_evidence": true,
+      "relevant_result_interval_seconds": [2, 4]
+    },
+    {
+      "name": "dense-context-comparison",
+      "before_and_after": true,
+      "context_readable_in_split_panels": false,
+      "context_readable_full_frame": true,
+      "space_for_detail_without_covering_evidence": false,
+      "all_context_controls_needed_for_interpretation": true
+    },
+    {
+      "name": "single-flow-demo",
+      "before_and_after": false,
+      "context_readable_full_frame": true,
+      "result_text_readable_full_frame": true,
+      "relevant_result_interval_seconds": [3, 5]
+    }
+  ]
+}

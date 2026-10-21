@@ -1,0 +1,20 @@
+{
+  "synthetic_fixture": true,
+  "raw": "feature-raw.mp4",
+  "existing_derivative": "feature-v1.mp4",
+  "probe_succeeded": true,
+  "frame_review_flags": [
+    { "seconds": 0.5, "issue": "private content visible" },
+    { "start_seconds": 2, "end_seconds": 2.5, "issue": "black frames during pending work" },
+    { "seconds": 4, "issue": "unrelated overlay obscures result" }
+  ],
+  "available_final_evidence": ["screenshot", "success response"],
+  "replacement_screen_capture_requested": false,
+  "replacement_audio_requested": false,
+  "os_permission_granted": false,
+  "interrupted_stop": {
+    "output": "feature-raw.mp4",
+    "retained_recording_id": "synthetic-recording-a",
+    "possible_replacement_id": "synthetic-recording-b"
+  }
+}

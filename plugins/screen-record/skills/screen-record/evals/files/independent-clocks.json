@@ -1,0 +1,30 @@
+{
+  "synthetic_fixture": true,
+  "context_and_text_readable_side_by_side": true,
+  "meaningful_intervals_start_at_source_zero": true,
+  "before": {
+    "raw": "before-original.mp4",
+    "build": "synthetic-historical-r1",
+    "request": "synthetic-old-request",
+    "duration_seconds": 8,
+    "click_seconds": 1,
+    "spinner_seconds": 1.4,
+    "completion_seconds": 7.8,
+    "dispatch_visible": false
+  },
+  "after": {
+    "raw": "after-original.mp4",
+    "build": "synthetic-candidate-r2",
+    "request": "synthetic-new-request",
+    "duration_seconds": 11,
+    "click_seconds": 2,
+    "spinner_seconds": 2.5,
+    "completion_seconds": 10.8,
+    "dispatch_visible": false
+  },
+  "pending_intervals_are_meaningful": true,
+  "existing_derivative": "independent-v0.mp4",
+  "later_integrated_build": "synthetic-integrated-r3",
+  "available_final_evidence": ["screenshot", "success response"],
+  "independent_state_checks_not_yet_run": true
+}
