@@ -41,7 +41,7 @@ for (const parent of ["plugins", "external_plugins"]) {
   }
 }
 
-const expected = [...extensions, "plugins/azure-devops/extensions/paired-review"];
+const expected = [...extensions];
 
 if (JSON.stringify(discovered.sort()) !== JSON.stringify(expected.sort())) {
   throw new Error(`Extension inventory changed: expected ${expected}, found ${discovered}`);

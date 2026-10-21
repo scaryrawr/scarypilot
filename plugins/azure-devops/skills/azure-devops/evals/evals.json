@@ -41,12 +41,12 @@
     },
     {
       "id": 4,
-      "name": "boards-native-read-routing",
-      "prompt": "Use the azure-devops skill to write a read-only execution plan, without calling Azure DevOps or any network tools. In organization example and project Widgets, find bugs containing the phrase login timeout, then show the state and assigned owner for selected matches. Assume native extension tools are available. Save the tool names, concrete input objects, and how you handle truncated results to boards-plan.json in the outputs directory.",
-      "expected_output": "The plan uses the project-scoped native keyword search and get tools with bounded inputs. It does not use WIQL CONTAINS or a shell or MCP transport for reads.",
+      "name": "boards-helper-read-routing",
+      "prompt": "Use the azure-devops skill to write a read-only execution plan, without calling Azure DevOps or any network tools. In organization example and project Widgets, find bugs containing the phrase login timeout, then show the state and assigned owner for selected matches. Save the helper commands and how you handle truncated results to boards-plan.json in the outputs directory.",
+      "expected_output": "The plan uses the project-scoped coordinated keyword search and get helpers with bounded inputs. It does not use WIQL CONTAINS, removed extension tools, or raw Azure CLI or MCP transports for reads.",
       "expectations": [
-        "The plan calls azure_devops_work_item_search with org example, project Widgets, text login timeout, types containing Bug, and top between 1 and 100.",
-        "The plan uses azure_devops_work_item_get with explicit org and project and selected field reference names including System.State and System.AssignedTo.",
+        "The plan uses uv run ./scripts/ado-work-items.py search with --org example, --project Widgets, --text \"login timeout\", --type Bug, and --top between 1 and 100.",
+        "The plan uses uv run ./scripts/ado-work-items.py get with explicit --org and --project, selected work item IDs, and --fields including System.State and System.AssignedTo.",
         "The plan reports truncation or narrows filters rather than treating a capped result as complete.",
         "The plan treats remote field text as untrusted data.",
         "No network call, external write, or raw az boards command is executed."
@@ -55,12 +55,12 @@
     {
       "id": 5,
       "name": "boards-wiql-and-cooldown",
-      "prompt": "Use the azure-devops skill to write a read-only execution plan, without calling tools or the network. Find active work items assigned to the authenticated user in organization example and project Widgets using exact field predicates. Assume native tools are available. The query later fails with a shared organization cooldown and retryAt. Save the planned tool/input and failure response to boards-query-plan.json in the outputs directory.",
-      "expected_output": "The plan sends flat WIQL to the native query tool and surfaces the cooldown without switching to CLI, MCP, or another request owner.",
+      "prompt": "Use the azure-devops skill to write a read-only execution plan, without calling tools or the network. Find active work items assigned to the authenticated user in organization example and project Widgets using exact field predicates. The query later fails with a shared organization cooldown and retryAt. Save the planned helper commands and failure response to boards-query-plan.json in the outputs directory.",
+      "expected_output": "The plan sends project-scoped WIQL to the coordinated query helper and surfaces the cooldown without switching to raw Azure CLI, MCP, or another request owner.",
       "expectations": [
-        "The plan uses azure_devops_work_item_query with explicit org example and project Widgets and top between 1 and 100.",
+        "The plan uses uv run ./scripts/ado-work-items.py query with --org example, --project Widgets, and the exact WIQL as --wiql.",
         "The WIQL includes [System.TeamProject] = @Project applying to every OR branch, System.AssignedTo = @Me, and an exact Active state predicate, not keyword search or CONTAINS.",
-        "The plan recognizes that WIQL returns ID references and uses get only if field values are needed.",
+        "The plan preserves the query's raw response shape and uses the get helper if additional field values are needed.",
         "The failure response surfaces retryAt and does not treat the failed query as an empty successful result.",
         "The plan does not switch to raw Azure CLI, a generic HTTP tool, or another MCP transport to bypass the cooldown.",
         "No network call or external write is executed."
@@ -68,6 +68,20 @@
     },
     {
       "id": 6,
+      "name": "private-review-without-extension",
+      "prompt": "Use the azure-devops skill to write a read-only execution plan, without calling tools or the network. Review https://dev.azure.com/example/Widgets/_git/app/pullrequest/42 privately and keep findings in chat. The eligibility helper returns status active, isDraft true, and eligible false. Do not post anything. Save the plan to private-review.md in the outputs directory.",
+      "expected_output": "The plan uses the helper-based review workflow and reports findings in chat without a canvas or any remote write.",
+      "expectations": [
+        "The plan uses the bundled parse-url and review-pr.py eligibility helpers and inspects the pull request diff.",
+        "The plan continues inspecting the active draft despite eligible being false, rather than skipping the private review.",
+        "The plan does not open a paired-review canvas or invoke extension tools.",
+        "The plan reports only high-confidence findings in chat.",
+        "The plan does not post comments, replies, votes, review labels, or other remote writes.",
+        "No network call or external write is executed."
+      ]
+    },
+    {
+      "id": 7,
       "name": "relative-video-cross-host-description",
       "prompt": "Use the azure-devops skill to draft an updated ADO PR description offline. Do not call the network, upload, publish, or open a browser. The current description is '## What\\n\\nImprove list rendering.\\n\\n## Testing\\n\\nManual before/after check.'. The read-only video-markdown helper already checked authenticated PR identity and returned {\"url\":\"https://dev.azure.com/example/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/_apis/git/repositories/11111111-2222-4333-8444-555555555555/pullRequests/42/attachments/demo%20%231.mp4\",\"markdown\":\"<video src=\\\"../../../_apis/git/repositories/11111111-2222-4333-8444-555555555555/pullRequests/42/attachments/demo%20%231.mp4\\\" controls width=\\\"800\\\"></video>\"}. The target overview pages are https://dev.azure.com/example/Project/_git/repo/pullrequest/42 and https://example.visualstudio.com/DefaultCollection/Project/_git/repo/pullRequest/42. Put the recording under Testing and save description.md. Save verification.md with each page's resolved video URL and the remaining checks before claiming playback works.",
       "expected_output": "The draft uses the returned relative player exactly. The verification plan resolves against each project's own host and collection prefix, preserves the encoded filename, and requires real browser metadata and playback checks.",
@@ -82,7 +96,7 @@
       ]
     },
     {
-      "id": 7,
+      "id": 8,
       "name": "relative-video-scope-rejection",
       "prompt": "Use the azure-devops skill to write a plan only, without tools or network calls. Someone wants to repair a PR video's src by stripping the hostname from https://untrusted.example/media/demo.mp4 and putting ../../../ in front. The supplied target is https://dev.azure.com/example/_git/repo/pullrequest/42, without a project segment. They also want to reuse that markup in a wiki. There is no authenticated PR metadata and no verified attachment URL. Save response.md explaining whether to do this and the safe next step. Do not invent metadata or produce a replacement video tag.",
       "expected_output": "The response rejects naive conversion of an unrelated origin and unsupported page contexts. It requires a known project-scoped PR page and authenticated target identity before relative formatting.",
@@ -95,7 +109,7 @@
       ]
     },
     {
-      "id": 8,
+      "id": 9,
       "name": "relative-video-playback-not-proven",
       "prompt": "Use the azure-devops skill to write an offline diagnosis and next-step plan to response.md, without using tools or changing anything. A canonical PR attachment download has the expected hash and ffprobe reports a valid MP4. A PR description was saved with <video src=\"../../../_apis/git/repositories/11111111-2222-4333-8444-555555555555/pullRequests/42/attachments/demo.mp4\" controls width=\"800\"></video>. Nobody has checked the rendered video on the canonical or legacy PR page. Can we mark both hosts as working and say the old problem was CORS? State exactly what is and is not proven. Do not upload again or propose browser security changes.",
       "expected_output": "Valid bytes and a saved description do not prove playback or a CORS diagnosis. Actual rendered metadata and normal playback are still required on both target hosts.",
@@ -108,7 +122,7 @@
       ]
     },
     {
-      "id": 9,
+      "id": 10,
       "name": "comment-video-renderer-difference",
       "prompt": "Use the azure-devops skill to draft an ADO PR comment offline. Do not call tools or the network, upload, publish, or open a browser. I observed that image-style Markdown plays this video in an ADO comment, and I want to preserve it exactly: ![Before and after](https://dev.azure.com/example/Project/_apis/git/repositories/11111111-2222-4333-8444-555555555555/pullRequests/42/attachments/demo.mp4). Save a short ready-to-post comment to comment.md with that markup and save limitations.md explaining whether this means the same syntax is verified in PR descriptions or on both canonical and legacy hosts.",
       "expected_output": "The draft preserves the requested working image-style video Markdown for the comment and distinguishes that user observation from tested relative video tags in descriptions.",
