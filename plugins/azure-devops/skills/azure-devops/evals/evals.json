@@ -5,13 +5,14 @@
       "id": 1,
       "name": "inline-video-description",
       "prompt": "Use the azure-devops skill to draft an updated ADO PR description, without network calls, uploads, or publishing. The current description is '## What\\n\\nImprove list rendering.\\n\\n## Testing\\n\\nManual before/after check.'. A video is already uploaded at https://dev.azure.com/example/project/_apis/git/repositories/repo/pullRequests/42/attachments/demo.mp4. Add the recording under Testing so reviewers can watch it. Save the complete description to description.md in the outputs directory.",
-      "expected_output": "The existing sections and text are preserved, with an inline HTML video player under Testing and AI attribution once at the end.",
+      "expected_output": "Without verified PR page context, the existing absolute source and description sections are preserved, with an inline HTML video player under Testing and AI attribution once at the end. No cross-host playback claim is made.",
       "expectations": [
         "description.md contains <video src=\"https://dev.azure.com/example/project/_apis/git/repositories/repo/pullRequests/42/attachments/demo.mp4\" controls width=\"800\"></video> outside code fences.",
         "The original What and Testing sections and their text are preserved.",
         "The video is not replaced with image Markdown, a bare URL, or a clickable download link.",
         "The description ends with exactly one - Generated with AI 🤖 suffix.",
-        "No upload or external write is performed."
+        "No upload or external write is performed.",
+        "The response does not claim that download validity or the draft description proves playback on either host."
       ]
     },
     {
@@ -77,6 +78,60 @@
         "The plan reports only high-confidence findings in chat.",
         "The plan does not post comments, replies, votes, review labels, or other remote writes.",
         "No network call or external write is executed."
+      ]
+    },
+    {
+      "id": 7,
+      "name": "relative-video-cross-host-description",
+      "prompt": "Use the azure-devops skill to draft an updated ADO PR description offline. Do not call the network, upload, publish, or open a browser. The current description is '## What\\n\\nImprove list rendering.\\n\\n## Testing\\n\\nManual before/after check.'. The read-only video-markdown helper already checked authenticated PR identity and returned {\"url\":\"https://dev.azure.com/example/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/_apis/git/repositories/11111111-2222-4333-8444-555555555555/pullRequests/42/attachments/demo%20%231.mp4\",\"markdown\":\"<video src=\\\"../../../_apis/git/repositories/11111111-2222-4333-8444-555555555555/pullRequests/42/attachments/demo%20%231.mp4\\\" controls width=\\\"800\\\"></video>\"}. The target overview pages are https://dev.azure.com/example/Project/_git/repo/pullrequest/42 and https://example.visualstudio.com/DefaultCollection/Project/_git/repo/pullRequest/42. Put the recording under Testing and save description.md. Save verification.md with each page's resolved video URL and the remaining checks before claiming playback works.",
+      "expected_output": "The draft uses the returned relative player exactly. The verification plan resolves against each project's own host and collection prefix, preserves the encoded filename, and requires real browser metadata and playback checks.",
+      "expectations": [
+        "description.md preserves the original What and Testing sections and their text.",
+        "description.md contains <video src=\"../../../_apis/git/repositories/11111111-2222-4333-8444-555555555555/pullRequests/42/attachments/demo%20%231.mp4\" controls width=\"800\"></video> outside code fences.",
+        "description.md ends with exactly one - Generated with AI 🤖 suffix.",
+        "verification.md gives https://dev.azure.com/example/Project/_apis/git/repositories/11111111-2222-4333-8444-555555555555/pullRequests/42/attachments/demo%20%231.mp4 and https://example.visualstudio.com/DefaultCollection/Project/_apis/git/repositories/11111111-2222-4333-8444-555555555555/pullRequests/42/attachments/demo%20%231.mp4.",
+        "The plan requires checking rendered src, currentSrc against actual baseURI, controls, width, finite nonzero duration, readyState, media errors, and normal playback to an actual final frame on both hosts.",
+        "The plan distinguishes seeking from playback after a seek and does not promise universal host support or a known HTTP/auth/cookie/CORS cause.",
+        "No upload, network call, browser action, or external write occurs."
+      ]
+    },
+    {
+      "id": 8,
+      "name": "relative-video-scope-rejection",
+      "prompt": "Use the azure-devops skill to write a plan only, without tools or network calls. Someone wants to repair a PR video's src by stripping the hostname from https://untrusted.example/media/demo.mp4 and putting ../../../ in front. The supplied target is https://dev.azure.com/example/_git/repo/pullrequest/42, without a project segment. They also want to reuse that markup in a wiki. There is no authenticated PR metadata and no verified attachment URL. Save response.md explaining whether to do this and the safe next step. Do not invent metadata or produce a replacement video tag.",
+      "expected_output": "The response rejects naive conversion of an unrelated origin and unsupported page contexts. It requires a known project-scoped PR page and authenticated target identity before relative formatting.",
+      "expectations": [
+        "The response rejects hostname stripping and refuses to convert the untrusted media URL into a PR attachment source.",
+        "The response identifies the organization-scoped PR route and wiki context as outside the supported relative-video page shapes.",
+        "The safe next step obtains the real project-scoped PR overview URL and uses the read-only video-markdown helper with authenticated PR metadata and a matching canonical attachment URL.",
+        "The response does not invent repository GUIDs, project identity, or a replacement video tag.",
+        "No network call, upload, publish, credential change, or browser security bypass occurs."
+      ]
+    },
+    {
+      "id": 9,
+      "name": "relative-video-playback-not-proven",
+      "prompt": "Use the azure-devops skill to write an offline diagnosis and next-step plan to response.md, without using tools or changing anything. A canonical PR attachment download has the expected hash and ffprobe reports a valid MP4. A PR description was saved with <video src=\"../../../_apis/git/repositories/11111111-2222-4333-8444-555555555555/pullRequests/42/attachments/demo.mp4\" controls width=\"800\"></video>. Nobody has checked the rendered video on the canonical or legacy PR page. Can we mark both hosts as working and say the old problem was CORS? State exactly what is and is not proven. Do not upload again or propose browser security changes.",
+      "expected_output": "Valid bytes and a saved description do not prove playback or a CORS diagnosis. Actual rendered metadata and normal playback are still required on both target hosts.",
+      "expectations": [
+        "The response explicitly says browser playback on both hosts is unverified and does not claim universal compatibility.",
+        "The response does not diagnose CORS, HTTP, auth, cookie, or redirect behavior without evidence.",
+        "The plan checks preserved rendered src, currentSrc against actual baseURI, controls and width, finite nonzero duration, readyState, media error, and normal playback to a visible final frame on both hosts.",
+        "The response does not equate a successful seek with resume-to-end playback.",
+        "The response preserves the existing upload and does not propose re-encoding, another upload, credential changes, or security bypasses."
+      ]
+    },
+    {
+      "id": 10,
+      "name": "comment-video-renderer-difference",
+      "prompt": "Use the azure-devops skill to draft an ADO PR comment offline. Do not call tools or the network, upload, publish, or open a browser. I observed that image-style Markdown plays this video in an ADO comment, and I want to preserve it exactly: ![Before and after](https://dev.azure.com/example/Project/_apis/git/repositories/11111111-2222-4333-8444-555555555555/pullRequests/42/attachments/demo.mp4). Save a short ready-to-post comment to comment.md with that markup and save limitations.md explaining whether this means the same syntax is verified in PR descriptions or on both canonical and legacy hosts.",
+      "expected_output": "The draft preserves the requested working image-style video Markdown for the comment and distinguishes that user observation from tested relative video tags in descriptions.",
+      "expectations": [
+        "comment.md contains ![Before and after](https://dev.azure.com/example/Project/_apis/git/repositories/11111111-2222-4333-8444-555555555555/pullRequests/42/attachments/demo.mp4) exactly, outside code fences.",
+        "The comment does not replace the requested markup with a video tag, relative source, ordinary link, or linked thumbnail.",
+        "comment.md ends with exactly one - Generated with AI 🤖 suffix.",
+        "limitations.md labels this as user-observed comment-renderer behavior, not verified PR-description or cross-host support.",
+        "No network call, upload, publish, browser action, or security change occurs."
       ]
     }
   ]

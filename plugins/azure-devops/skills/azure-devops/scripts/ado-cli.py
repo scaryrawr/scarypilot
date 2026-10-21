@@ -11,7 +11,7 @@ import json
 import sys
 from typing import Any
 
-from shared.ado import parse_azure_devops_https_url, upload_pr_attachment
+from shared.ado import PR_PAGE_URL_CONTRACT, parse_azure_devops_https_url, upload_pr_attachment, video_markdown
 from shared.transport import AdoError, Deferred
 
 
@@ -74,7 +74,7 @@ def parse_azure_devops_url(raw_url: str) -> dict[str, Any]:
 
 
 def upload_attachment(args: argparse.Namespace) -> None:
-    """Upload a pull request attachment and print the created metadata."""
+    """Upload an attachment with optional PR-description video markup."""
     print(
         json.dumps(
             upload_pr_attachment(
@@ -84,6 +84,7 @@ def upload_attachment(args: argparse.Namespace) -> None:
                 pull_request_id=args.pull_request_id,
                 file=args.file,
                 file_name=args.file_name,
+                pr_page_url=args.pr_page_url,
             ),
             indent=2,
         )
@@ -102,12 +103,25 @@ def main() -> None:
     upload.add_argument("--pull-request-id", required=True)
     upload.add_argument("--file", required=True)
     upload.add_argument("--file-name", default="")
+    upload.add_argument("--pr-page-url", default=None, help=PR_PAGE_URL_CONTRACT)
+    video = subparsers.add_parser(
+        "video-markdown", help="Read-only video formatter for project-scoped PR descriptions, not comments",
+    )
+    for flag in ("org", "project", "repository-id", "pull-request-id", "file-name", "url"):
+        video.add_argument(f"--{flag}", required=True)
+    video.add_argument("--pr-page-url", required=True, help=PR_PAGE_URL_CONTRACT)
     args = parser.parse_args()
 
     if args.command == "parse-url":
         print(json.dumps(parse_azure_devops_url(args.url), indent=2))
     elif args.command == "upload-attachment":
         upload_attachment(args)
+    elif args.command == "video-markdown":
+        print(json.dumps(video_markdown(
+            org=args.org, project=args.project, repository_id=args.repository_id,
+            pull_request_id=args.pull_request_id, pr_page_url=args.pr_page_url,
+            file_name=args.file_name, url=args.url,
+        ), indent=2))
 
 
 if __name__ == "__main__":

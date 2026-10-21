@@ -63,11 +63,20 @@ uv run ./scripts/review-pr.py upload-attachment --org {org-or-url} --project {pr
 
 Use `id`, `url`, and `markdown` from the JSON result. Include `markdown` in the
 relevant review comment's `thread-payload --content` outside code fences so images
-and videos render inline. Images use `![filename](url)`; videos use
-`<video src="url" controls width="800"></video>`, not image syntax, a bare URL,
-or a linked thumbnail. Use ordinary links only for non-media attachments, an
+and videos render inline. Keep the default absolute-source helper output for
+comments. A user observed `![description](video-url)` playing video in an ADO
+comment. Preserve working comment syntax or use it when requested; this is not
+verified description or cross-host compatibility. Do not impose the description
+renderer's markup rules on comments. Follow
+[the skill's attachment and playback checks](../SKILL.md#uploading-a-pr-attachment).
+The helper still returns `![filename](url)` for images and
+`<video src="url" controls width="800"></video>` for videos without page context.
+Use ordinary links only for non-media attachments, an
 explicit user request, or an observed inline-rendering failure.
 Uploading does not post a comment or change permission to publish findings.
+Verify rendered metadata and normal playback on each target host before claiming
+success. Use `--pr-page-url` or `ado-cli.py video-markdown` only for the scoped
+relative-video description workflow, not as a default comment rewrite.
 
 ## Workflow
 

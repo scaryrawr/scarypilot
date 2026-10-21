@@ -87,19 +87,80 @@ repository IDs when a later operation requires project context.
 Use `uv run ./scripts/ado-cli.py upload-attachment ...` (or the workflow-specific
 helper's attachment command). Run `--help` for exact flags.
 
-Insert the returned `markdown` into the PR description or comment, outside code
-fences. It embeds images as `![filename](url)` and videos as
-`<video src="url" controls width="800"></video>` so reviewers can view them
-inline. Prefer browser-playable MP4 for recordings; do not use image syntax for
-video or substitute a bare URL, download link, or linked thumbnail.
+For videos in descriptions on project-scoped PR overview pages, pass
+`--pr-page-url` with the actual target page. The helper checks the page against
+authenticated PR metadata and returns project-relative video `markdown`, while retaining the canonical
+absolute attachment `url` as reference data. Insert `markdown` outside code fences:
 
-If the attachment is already uploaded, reuse its URL with the same syntax rather
-than uploading it again. Preserve the existing description/template and unrelated
-comment text, and keep AI attribution once at the end of agent-authored text.
-Use ordinary links for non-media files, when the user explicitly requests links,
-or when inline rendering actually fails on the target ADO surface; explain that
-fallback instead of claiming inline playback. Uploading alone does not publish
-the media in a description or comment, and does not authorize an unrequested post.
+```html
+<video src="../../../_apis/git/repositories/11111111-2222-4333-8444-555555555555/pullRequests/42/attachments/demo.mp4" controls width="800"></video>
+```
+
+The supported page shapes are
+`https://dev.azure.com/{org}/{project}/_git/{repository}/pullrequest/{prId}` and
+`https://{org}.visualstudio.com/DefaultCollection/{project}/_git/{repository}/pullRequest/{prId}`.
+Use the overview URL without a query, fragment, trailing slash, or extra path.
+The relative source resolves from that page's project directory, preserving its
+current host and collection prefix. Do not strip an arbitrary URL's hostname or
+reuse this source in wiki pages, work items, organization-scoped repository pages,
+or other page layouts.
+
+For an already-uploaded video, reuse its canonical URL without another upload:
+
+```text
+uv run ./scripts/ado-cli.py video-markdown --org {org-or-url} --project {project} --repository-id {repositoryId} --pull-request-id {prId} --pr-page-url "{prOverviewUrl}" --file-name "{filename}" --url "{canonicalAttachmentUrl}"
+```
+
+This command reads PR metadata and returns `url` and `markdown`; it does not
+download, upload, or publish media. It rejects mismatched attachment identities
+and unsupported page contexts instead of guessing. It requires a canonical
+attachment URL without a query or fragment. Let the helper encode the filename
+as one path segment; separators, control characters, and nested encodings of them
+are rejected. If an upload response fails validation after the POST, inspect
+existing attachments before retrying instead of uploading blindly.
+Keep `controls` and `width="800"` and prefer
+browser-playable MP4. Do not replace description players with image syntax or
+linked thumbnails.
+
+Without `--pr-page-url`, uploads retain their absolute-source markup. Images
+remain `![filename](url)` and other files remain ordinary links. Preserve the
+current description/template, unrelated comment text, and AI attribution once
+at the end of agent-authored text. For an existing description, replace only the
+intended video sources. Uploading or formatting does not authorize a new post.
+
+### Distinguish comments from descriptions
+
+ADO comments use a different renderer. A user observed
+`![description](video-url)` playing a video in a comment. Preserve that syntax
+when it already works or the user requests it for a comment; do not reject it
+just because the URL is a video. This observation does not establish cross-host
+comment support or compatibility with PR descriptions. Keep the validated
+relative `<video>` approach scoped to descriptions. The helper's default output
+does not change for all comment surfaces.
+
+### Verify rendered playback
+
+After an authorized description or comment update, open the actual authenticated
+PR page. If both canonical and legacy hosts matter, check both.
+
+1. Confirm that the rendered video retains the intended relative `src`, controls,
+   and width. Check that `currentSrc` resolves against the actual page `baseURI`
+   to the expected same-host, project-scoped attachment route.
+2. Wait for finite, nonzero duration and loaded media metadata. Check `readyState`
+   and any media error. Use normal controls to play through to an actual final
+   frame. Verify seeking separately if needed; do not infer seek-to-end resume
+   from a successful seek.
+3. If playback fails or browser verification is unavailable, state that explicitly.
+   A successful download, matching hash, valid encoding, or saved description
+   alone does not prove rendered playback. Do not bypass authentication or change
+   browser security settings, inject scripts/styles into shared content, or
+   attribute the failure to cookies, redirects, HTTP, or CORS without evidence.
+
+The relative-source description approach played successfully on both page shapes
+in one authenticated Edge experiment, including full playback and separate
+near-end seeks. This is observed compatibility, not a universal Azure DevOps media
+contract. Keep other contexts unchanged. Use ordinary media links when explicitly
+requested or when inline playback actually fails, and explain that fallback.
 
 ## Organization detection
 
