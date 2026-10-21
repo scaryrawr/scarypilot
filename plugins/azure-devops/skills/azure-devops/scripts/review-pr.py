@@ -13,6 +13,7 @@ import urllib.parse
 from typing import Any
 
 from shared.ado import (
+    PR_PAGE_URL_CONTRACT,
     build_thread_payload,
     normalize_ado_file_path,
     normalize_organization,
@@ -144,7 +145,7 @@ def build_code_link(args: argparse.Namespace) -> None:
 
 
 def upload_attachment(args: argparse.Namespace) -> None:
-    """Upload a pull request attachment and print the created metadata."""
+    """Upload an attachment with optional PR-description video markup."""
     print(
         json.dumps(
             upload_pr_attachment(
@@ -154,6 +155,7 @@ def upload_attachment(args: argparse.Namespace) -> None:
                 pull_request_id=args.pull_request_id,
                 file=args.file,
                 file_name=args.file_name,
+                pr_page_url=args.pr_page_url,
             ),
             indent=2,
         )
@@ -199,6 +201,7 @@ def main() -> None:
     upload_parser.add_argument("--pull-request-id", required=True)
     upload_parser.add_argument("--file", required=True)
     upload_parser.add_argument("--file-name", default="")
+    upload_parser.add_argument("--pr-page-url", default=None, help=PR_PAGE_URL_CONTRACT)
     args = parser.parse_args()
 
     if args.command == "eligibility":

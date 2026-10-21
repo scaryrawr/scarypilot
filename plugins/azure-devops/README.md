@@ -288,6 +288,23 @@ Attachment helpers return a ready-to-paste `markdown` field: inline image
 Markdown for screenshots and `<video src="..." controls width="800"></video>`
 for recordings. Agents prefer these embeds in PR descriptions and comments so
 reviewers can see images or play videos without following a download link.
+For project-scoped PR overview description videos, `--pr-page-url` selects
+project-relative sources after checking the page and attachment identity against authenticated PR
+metadata. The canonical absolute `url` remains reference data. The read-only
+`ado-cli.py video-markdown` command formats already-uploaded clips without a
+second upload. Images, non-media links, and calls without page context retain
+their previous behavior.
+
+Relative description video sources played on canonical `dev.azure.com` and legacy
+`*.visualstudio.com/DefaultCollection` project-scoped PR pages in one authenticated
+Edge experiment. This is not a universal host guarantee or a diagnosis of why
+absolute sources failed in the legacy context. Agents must check rendered
+metadata and actual playback on each target host, not just download or hash
+validity. See [attachment usage and verification](skills/azure-devops/SKILL.md#uploading-a-pr-attachment).
+Comments have a separate renderer. A user observed `![description](video-url)`
+playing video in an ADO comment. The skill preserves working comment syntax
+without claiming description or cross-host support for that observation.
+
 Browser-playable MP4 is preferred. Other file types remain ordinary links;
 media links are used only when requested or when the target ADO surface cannot
 render the embed. Uploading is separate from updating a description or posting

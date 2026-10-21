@@ -2,18 +2,18 @@
   "version": 1,
   "inputs": {
     "../../skills/azure-devops/scripts/ado-bridge.py": "01ac5301be435ce066e0279fec0e1286d531eaa5311bc2b333b8880f7a31583a",
-    "../../skills/azure-devops/scripts/ado-cli.py": "1ab15aacf0b72502aa242c503f003bf19bfad582cd4980d417914a51c7d32058",
+    "../../skills/azure-devops/scripts/ado-cli.py": "db1e3770f1f9153a8859615a02b1bdd8ff8d493ce983219d74094460dba5b0f5",
     "../../skills/azure-devops/scripts/ado-pr.py": "229f92be4b558c8414d3b5d1d43e70b95f503928f80db4975ac67ab9e276289b",
     "../../skills/azure-devops/scripts/ado-work-items.py": "b7f224b71a27fa5dc4752756b5ec0934bd140c7953759c0e3528cfb59e204cc8",
-    "../../skills/azure-devops/scripts/make-pr.py": "c7972abae896c7d0e0d4dbee8aa2088c6fe5c63ac4540222b7b1ef53b5c80d84",
-    "../../skills/azure-devops/scripts/review-pr.py": "66dbc311f56179c2065db436592015d6a8ff7d0fb152d84bd56a12683fd26427",
+    "../../skills/azure-devops/scripts/make-pr.py": "3fc652270cee943ebace83be3133aa5872180ae4dee1bf46b9ac31d70916bdf8",
+    "../../skills/azure-devops/scripts/review-pr.py": "622a598182b1df2f23dc1bc3a1e9bb12cd798cc56f0c4a9a0864fad38bab3b0d",
     "../../skills/azure-devops/scripts/shared/__init__.py": "531ade2640028f38442d2711989ecdb62c67513cb1e02642aa7e0c8f1fab266d",
-    "../../skills/azure-devops/scripts/shared/ado.py": "5a19d564656f6326931521ee3480ead604e62ff260697623e3b6c0e45c4fc38b",
+    "../../skills/azure-devops/scripts/shared/ado.py": "529b18399ae3645b9cad24abf2d30d77b545c42063122d54ef8bac33307a5b1a",
     "../../skills/azure-devops/scripts/shared/boards.py": "4f8669d9f2fe3be07d3c4bf1ad595764f35a59801eb6e7e8480c4116fcb99364",
     "../../skills/azure-devops/scripts/shared/pr.py": "421e050d39807bd1dfa53fee781be85084a6cb557013e2977aaacd1d02b815a4",
     "../../skills/azure-devops/scripts/shared/transport.py": "fb5333cdfaf0ac8eee8c1a5b69c209fc6b5d8520362bb250f373e69f283f03e8",
     "index.html": "082572d9dc35ccb5e6f0e89bd379ba8565235822b465a26f9f701f04253abfa4",
-    "package.json": "6b1cd6f32aca9fe26f32fb2a24824a4011990f15f774b5f1461715f107907b6f",
+    "package.json": "5f8cb41b4d246429d7fc52fb353c0718e6fc2e35f7011d07b2ad658cee563910",
     "src/ado-bridge.ts": "63b0cbe4947dd4e265f41fc099e929b2b127f43bfef68c7a2cdaff9eba32eb6b",
     "src/ado-loader.ts": "d6a00b761787947fa84cb0f5b55b41e24cc97c111e20685a7b20039760464fc6",
     "src/ado-tools.ts": "586caf41075f4356f2ea982c95661aad64564f1ef99932dbfb6ae31695db61bb",
@@ -35,8 +35,8 @@
     "vite.config.ts": "9878acad507425f4f0303cf43507c83f8962638baf82fb5a76f281d56fc48974"
   },
   "outputs": {
-    "dist/extension.mjs": "0dcdd04952dca0353048c85eeedefc03a90ad24e3960d4610b8a38302d826353",
-    "public/assets/app.js": "5cade0987e2e9c78ec97f3dcc0ef112aa7e1b24038882aa0b4bf8ca732ade0f0",
+    "dist/extension.mjs": "751a3c18628f82c764c9c63ad6402b646d1538ef6352abe4c4f469cdf5e803ea",
+    "public/assets/app.js": "eb26a578b0c7075dbad8d85eba6e1d44d0dc2c8b269541e0804e0d63e0174b02",
     "public/assets/index.css": "c8d2b32c4be48d4feb2595eb4c4705afbfb9e7482ae1c7b6a7b257652ed0181e",
     "public/index.html": "d31fab13763f3ac9a17295d810e9bf9f8df7f2a77f68896f6cb057b3e95c53ad"
   }

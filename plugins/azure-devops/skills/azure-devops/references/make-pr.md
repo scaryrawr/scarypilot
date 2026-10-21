@@ -47,18 +47,26 @@ Use these fields directly:
 Use the helper instead of rebuilding token lookup and binary upload flow inline:
 
 ```text
-uv run ./scripts/make-pr.py upload-attachment --org {org-or-url} --project {project} --repository-id {repositoryId} --pull-request-id {prId} --file {absolute_path_to_media}
+uv run ./scripts/make-pr.py upload-attachment --org {org-or-url} --project {project} --repository-id {repositoryId} --pull-request-id {prId} --file {absolute_path_to_media} --pr-page-url "{prOverviewUrl}"
 ```
 
 Use `id`, `url`, `fileName`, `filePath`, and `markdown` from the JSON response.
 After uploading, insert `markdown` into the existing PR description's relevant
 demo/testing section, preserving every template section and unrelated content.
-Images render inline with `![filename](url)`; videos use
-`<video src="url" controls width="800"></video>`. Do not replace media embeds with
+For description videos, `--pr-page-url` selects identity-checked project-relative
+markup for the supported canonical or legacy project-scoped PR overview page. `url` stays
+absolute. Images render inline with `![filename](url)`; videos use
+`<video src="../../../_apis/git/repositories/{repositoryId}/pullRequests/{prId}/attachments/{encodedFilename}" controls width="800"></video>`.
+Omit the page option for other contexts to retain existing absolute markup.
+Follow [the skill's attachment and playback checks](../SKILL.md#uploading-a-pr-attachment).
+Reuse already-uploaded videos with `ado-cli.py video-markdown`, not another upload.
+Do not replace media embeds with
 clickable links unless the user requests links or inline rendering fails.
 Keep embeds outside code fences and the AI attribution once at the end.
 Updating the description is a separate write after uploading; do not stop at
 returning the attachment URL when the user requested media in the description.
+Verify the actual rendered player's metadata and normal playback on each target
+host before claiming success. A download or hash check alone is insufficient.
 
 ### `create-pr`
 

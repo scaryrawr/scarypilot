@@ -80,12 +80,24 @@ The helper appends `- Generated with AI 🤖` once to agent-authored comments. P
 ## Media in descriptions and comments
 
 Upload requested media with `scripts/ado-cli.py upload-attachment` using the
-resolved PR context, or reuse an already uploaded attachment's URL. Insert the
-returned `markdown` into the description, `thread-payload --content`, or reply
-content. Images use `![filename](url)`; playable videos use
-`<video src="url" controls width="800"></video>`, not image syntax or a download
+resolved PR context. For videos in project-scoped PR overview descriptions, add
+`--pr-page-url` with the actual canonical or legacy overview URL to get identity-checked
+project-relative markup. For an existing video, use `ado-cli.py video-markdown`
+with its canonical attachment URL instead of uploading again. Follow
+[the skill's attachment and playback checks](../SKILL.md#uploading-a-pr-attachment).
+Insert the returned `markdown` into the description. Images use
+`![filename](url)`; description videos use
+`<video src="../../../_apis/git/repositories/{repositoryId}/pullRequests/{prId}/attachments/{encodedFilename}" controls width="800"></video>`
+in those overview pages, not image syntax or a download
 link. Keep embeds outside code fences. Prefer inline media unless the user
 requests links or inline rendering actually fails on the target ADO surface.
+Without page context, keep existing absolute-source markup. Images and non-media
+links do not change. In comments, preserve working `![description](video-url)`
+markup or use it when requested. A user observed that comment-specific syntax
+playing video; this does not prove description or cross-host compatibility.
+Do not force the description's relative player into comments. Verify rendered
+metadata and actual playback on each target host; downloading valid bytes does
+not prove playback.
 
 For description updates, read the current description first, preserve its
 template sections and unrelated content, and keep AI attribution once at the end
