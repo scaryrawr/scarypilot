@@ -22,7 +22,7 @@
     "oxlint": "^1.75.0",
     "tsdown": "^0.22.14",
     "typescript": "^5.9.0",
-    "vitest": "^4.0.0"
+    "vitest": "^4.1.12"
   },
   "engines": {
     "node": ">=22.18.0"
