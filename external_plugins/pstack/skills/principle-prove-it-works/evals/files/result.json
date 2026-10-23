@@ -1,0 +1,7 @@
+{
+  "build": "old-unrelated-build",
+  "input": "empty-records",
+  "command": "export.py --json",
+  "verdict": "pass",
+  "output": []
+}

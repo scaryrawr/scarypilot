@@ -47,6 +47,14 @@ ScaryPilot changed the integration layer for GitHub Copilot:
 - Added a short Copilot-owned practical guide with generic task prompts,
   scope-preserving follow-ups, and explicit agent-cost tradeoffs. Personal
   history and source quotations are not part of the shipped guide.
+- Added evidence-by-default guidance in `2.1.1-copilot.1` as an intentional
+  Copilot adaptation, without changing the reviewed upstream boundary.
+  Broadened the existing proof principle's description for ordinary code-change
+  requests and shared its proportionate completion gate with Feature, Bug fix
+  and Refactoring. Added consent-gated runtime replay guidance, independent
+  persistence readback, current-build evidence checks, and focused synthetic
+  discovery/task evals. This adds no enforcement runtime, automatic capture,
+  upload dependency or implicit full poteto-mode workflow.
 - Ported compatible `0.15.26`-`0.15.29` changes in `2.1.0-copilot.1`.
   Added `create-formal-verification-skill` and
   `maintain-formal-verification-skill`, wired them into setup, help, recipes,
