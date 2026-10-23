@@ -715,14 +715,21 @@ const inSecond = (l) => `${within} ${L}, ${l}`;
 const modelEdges = new Map(now.edges);
 
 if (secondQ)
-  for (const [id, e] of secondQ.edges)
-    if (!modelEdges.has(id))
-      modelEdges.set(id, {
-        ...e,
-        labels: new Set([...e.labels].map(inSecond)),
-        guards: new Map([...e.guards].map(([l, words]) => [inSecond(l), words])),
-        secondOnly: true,
-      });
+  for (const [id, e] of secondQ.edges) {
+    const current = modelEdges.get(id);
+    const labels = [...e.labels].filter((label) => !current?.labels.has(label));
+
+    if (!labels.length) continue;
+    modelEdges.set(id, {
+      ...(current ?? e),
+      labels: new Set([...(current?.labels ?? []), ...labels.map(inSecond)]),
+      guards: new Map([
+        ...(current?.guards ?? []),
+        ...labels.map((label) => [inSecond(label), e.guards.get(label)]),
+      ]),
+      secondOnly: !current,
+    });
+  }
 
 function divergence(s) {
   if (s?.key === undefined) return s;

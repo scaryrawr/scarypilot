@@ -1823,6 +1823,42 @@ test(
   },
 );
 
+test("comparison charts preserve second-only labels and guards on shared screen transitions", () => {
+  const dir = mkdtempSync(join(tmpdir(), "statechart-"));
+
+  const graph = (actions) => `strict digraph DiskGraph {
+1 [label=${JSON.stringify('screen = "Saving"')},style = filled]
+2 [label=${JSON.stringify('screen = "Saved"')}]
+${actions.map((action) => `1 -> 2 [label="${action}"];`).join("\n")}
+}
+`;
+
+  writeFileSync(join(dir, "now.dot"), graph(["Save", "Shared"]));
+  writeFileSync(join(dir, "second.dot"), graph(["Retry", "Shared"]));
+  writeFileSync(
+    join(dir, "labels.map.mjs"),
+    `export const state = (v) => v.screen;
+export const step = (a) => ({ Save: "you save", Retry: "you retry", Shared: "the request finishes" })[a];
+export const guard = (a) => a === "Retry" ? "when connected" : "";
+`,
+  );
+
+  for (const [flag, prefix] of [["--fixed-dot", "with"], ["--against-dot", "in"]]) {
+    const r = node(
+      "tlc-to-chart.mjs",
+      ["--dot", "now.dot", flag, "second.dot", "--label", "the candidate", "--map", "labels.map.mjs", "--out", "chart.mmd"],
+      dir,
+    );
+
+    assert.equal(r.status, 0, r.stderr);
+    const chart = readFileSync(join(dir, "chart.mmd"), "utf8").replaceAll("<br/>", " ");
+    assert.ok(chart.includes(`${prefix} the candidate, you retry [when connected]`), chart);
+    assert.match(chart, /you save/i);
+    assert.match(chart, /the request finishes/i);
+    assert.ok(!chart.includes(`${prefix} the candidate, the request finishes`), chart);
+  }
+});
+
 test(
   "from-spec writes a mapping to fill in, then draws each bug in every view the mapping has",
   needsTlc,
