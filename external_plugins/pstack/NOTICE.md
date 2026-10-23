@@ -5,13 +5,14 @@ This plugin is adapted from
 The adaptation originally imported upstream commit
 `46125561306434d8a1d7745d540d8932ab0cd2a2` and includes compatible changes
 through upstream repository commit
-`29fa9382c9c250d134f6a2f1aa86c01c5f63119d` (pstack version `0.15.29`).
+`9b93e81fb2921b9263d9463c15bafeabfe3903aa` (pstack version `0.15.30`).
 The latest commit changing the `pstack/` subtree at that boundary is
-`88d47514b82e7c44f00f2b2a72ff6dd12158038c`, the content boundary.
+`4ec7ffa173eaa70d3d9467a627baf0954645a353`, the content boundary.
 
 The reviewed range starts after
-`6ce45c59b9301a638c1fe1a7b8dc2a82b650898f`, the previous reviewed repository
-and content boundary (`0.15.25`). The machine-readable boundary,
+`29fa9382c9c250d134f6a2f1aa86c01c5f63119d`, the previous reviewed repository
+boundary (`0.15.29`, content `88d47514b82e7c44f00f2b2a72ff6dd12158038c`).
+The machine-readable boundary,
 ownership rules, and exclusions live in [`upstream-sync.json`](./upstream-sync.json).
 
 The `make-bot-ui` feature remains excluded because it depends on Cursor-only
@@ -25,6 +26,27 @@ The original and adapted files are distributed under the MIT License in
 
 ScaryPilot changed the integration layer for GitHub Copilot:
 
+- Ported upstream `0.15.30` in `2.2.0-copilot.1`, including the statechart
+  fixes and helper renames through the content boundary above. Added
+  `statechart`, its portable scripts, output-folder model, and upstream
+  regression tests. The shipped inventory is now 58 skills. Removed its
+  model-invocation guard for Copilot accessibility. Kept the TLA+ and TLC
+  workflow, explicit model limits, and real-code replay requirement.
+  Adapted scratch paths, artifact replacement, executable mapping review,
+  optional image inspection, and permission boundaries. PNG rendering uses
+  `npx --no-install` instead of upstream's automatic package installation.
+  Java and TLC are optional prerequisites for this skill, not the rest of
+  pstack. Repository lint adds mechanical spacing and equivalent collection
+  transformations to imported scripts. The existing portable-helper CI job
+  provisions Java 21 and checksum-pinned official TLC on Linux and macOS.
+  Required model-checking mode fails on missing prerequisites instead of
+  silently skipping them. Windows retains the dependency-free subset.
+  Accept both legacy and named temporal-property violations from TLC.
+  Gate Linux `LD_PRELOAD` fault-injection tests to Linux rather than treating
+  successful compilation as evidence that macOS supports the injection.
+- Added a short Copilot-owned practical guide with generic task prompts,
+  scope-preserving follow-ups, and explicit agent-cost tradeoffs. Personal
+  history and source quotations are not part of the shipped guide.
 - Ported compatible `0.15.26`-`0.15.29` changes in `2.1.0-copilot.1`.
   Added `create-formal-verification-skill` and
   `maintain-formal-verification-skill`, wired them into setup, help, recipes,

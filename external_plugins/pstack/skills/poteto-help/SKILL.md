@@ -90,6 +90,7 @@ Default to `/poteto-mode` for non-trivial work that needs its discipline. Name a
 | Audit a verification skill and feature map | [`/maintain-verification-skill`](../maintain-verification-skill/SKILL.md) |
 | Formally verify a race, invariant, or other property tests rarely reach | [`/create-formal-verification-skill`](../create-formal-verification-skill/SKILL.md) |
 | Bring formal verification back in line with changed code and distinguish drift from bugs | [`/maintain-formal-verification-skill`](../maintain-formal-verification-skill/SKILL.md) |
+| Show user-visible behavior and numbered bug paths from a TLA+ model, turn an agreed chart into a spec, or audit code against a spec | [`/statechart`](../statechart/SKILL.md) |
 | Vet a measured performance number | [`/benchmark-checklist`](../benchmark-checklist/SKILL.md) |
 | Validate a pstack snapshot, receipt, handoff, or plan contract | [`/pstack-schema-validate`](../pstack-schema-validate/SKILL.md) |
 | Run a large change or work to review after stepping away | [`/figure-it-out`](../figure-it-out/SKILL.md) |
@@ -113,6 +114,12 @@ Close calls:
 - `/figure-it-out` designs one rigorous run. Orchestrate is a multi-day program; Autonomous run drives one task to a finish condition.
 
 Both `/deslop` and `/pstack-schema-validate` are bundled in this Copilot pstack adaptation. The validation skill's Node CLI checks one selected workspace artifact without running artifact contents or reading evidence paths. Its confined reader requires macOS or Linux and rejects unsupported platforms rather than falling back to an unconstrained read. Valid structure is not proof of behavior, freshness, or permission to act.
+
+`/statechart` needs Node.js, Java 11 or later, and the TLC jar selected by
+`TLA2TOOLS`. PNGs additionally need an already available Mermaid CLI and browser
+runtime. Missing dependencies do not authorize installation. A model finding
+needs real-code replay. For a short starting workflow, use
+[Use pstack for a focused task](../../docs/guide/quick-start.md).
 
 Swarms use the current host's Task agents, with explicit scope and evidence
 checks. Writing workers need separate worktrees. Read-only briefs do not enforce
