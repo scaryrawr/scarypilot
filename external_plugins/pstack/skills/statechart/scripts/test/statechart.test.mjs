@@ -965,6 +965,21 @@ test("statechart.mjs writes the spec next to the chart, keeps it on the next run
   );
 });
 
+test("statechart.mjs accepts missing relative and absolute output folders before checking TLC", () => {
+  const dir = mkdtempSync(join(tmpdir(), "statechart-"));
+  writeFileSync(join(dir, "Pay.tla"), "---- MODULE Pay ----\n====\n");
+  writeFileSync(join(dir, "Pay.cfg"), "SPECIFICATION Spec\n");
+  writeFileSync(join(dir, "Pay.map.mjs"), "export default {};\n");
+
+  for (const out of ["new output", join(dir, "absolute output"), join("missing parent", "output")]) {
+    const r = node("statechart.mjs", ["from-spec", "Pay.tla", "--out", out], dir, noTlc);
+    assert.equal(r.status, 2, r.stderr);
+    assert.equal(r.stderr, NO_TLC);
+  }
+
+  assert.deepEqual(readdirSync(dir).sort(), ["Pay.cfg", "Pay.map.mjs", "Pay.tla"]);
+});
+
 test("statechart.mjs writes no output folder when it refuses the input", () => {
   const dir = mkdtempSync(join(tmpdir(), "statechart-"));
   writeFileSync(join(dir, "tla2tools.jar"), "");
