@@ -18,8 +18,8 @@
     "native/tests/runtime.mjs": "845368c7572cf5cfc4d7677573cab11419542abef0e53daf040ba5288fc42809",
     "native/tests/windows-architecture.mjs": "48f722d54867c007bd33f4b234672ee7e91f30b284d254a8b1c4b4835f3cb8b2",
     "native/verify-artifact.mjs": "cd1c85ad9a60c018ead877a660f0c1b48f9cb1730e29e1dc51969f9b04f658a6",
-    "package-lock.json": "72189b781c052d3731e0b2df19a368db809cbea95c67910ab2b3409bfc8023c0",
-    "package.json": "92b95202f277db1a0e6df4fef532de60cd2415f7283468c2ae3143321e3513c1",
+    "package-lock.json": "464ad95bbd4976b021b14536184863815139dedbc7b1059df838d3849df5b9cb",
+    "package.json": "4d3a372ed158de8054b2d5859c712305333c8b110663b3135abfe869f5353042",
     "src/auto-resume.ts": "0055178b9e0d8190484ec9ae434fa96fa2bdb2225c71b44d5327df5d6082b339",
     "src/command.ts": "0b5ab75f01501ea9cee9805780c4c8b489158425d6bf9fe4ffe14fa7a81e66b8",
     "src/confidence.ts": "7ce8857e95e7b83a6a34045ef0d3745034fbd1e84202423a98e9439db0ac343f",
@@ -43,7 +43,7 @@
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
   },
   "outputs": {
-    "dist/extension.mjs": "b570e4591ebe691500d55deda1836cf73c3410348c01c4329cd2a57ae7416dbb",
+    "dist/extension.mjs": "43c83e14685791d6c75dabfbabc444e4fa011f59c45da5c74afdcdf66f30e4f4",
     "dist/native/resources.json": "ad31fcc013c3b48e14ac4ec9ca4760843312aafdac4fb373f64fea13d84f72d0",
     "dist/native/win32-arm64/compile.txt": "1f8a78139209981fd5bfb3907dc670244eb9e033a0aa3f3e86a59f54077f4aa0",
     "dist/native/win32-arm64/dependents.txt": "83d3e071bfafcf3cc8442b011489a10b664544022eb6bb84aa629136f64f54a2",

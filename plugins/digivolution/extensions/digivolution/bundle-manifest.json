@@ -2,14 +2,14 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "f8b53bfe42f79f99966384af6c191f206278753e1348759d83810c395eee351b",
-    "package.json": "1afb07e8ef4b9a280b3c2a599e6bc75628415e78be379cc83009300ae1131836",
+    "package-lock.json": "8c2870ea839c28bdf986e31f3e4eb8b90d389ca78379a181e3921078dba8f769",
+    "package.json": "1ef9bf4c2b10fa30c856ba700c47af194ed3bb060765d8bd90a9c174faee1b4b",
     "src/extension.ts": "8cd26ee6a84822056a6be46fd0259d10eb31d87d55f444e05e5d7df99af01df6",
     "src/register.ts": "a43c748d8b63a79e121d60ac51abd6cafeadea3648c0b18dc09792eb5a6219e7",
     "src/turn-monitor.ts": "bf4115eae0a641eb92442d000c726056f487800738914879b1bcacf2ce4d9995",
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
   },
   "outputs": {
-    "dist/extension.mjs": "38c3584181eb4fb462d8717f54344cc41febe04ce4609c8d91364c63adbf64ab"
+    "dist/extension.mjs": "21619a0c121779d1d37bf7d6502ba331f3e0bbf69da6d0ff28180124ad53cbad"
   }
 }

@@ -2,8 +2,8 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "c673c90d298558edc69033be3a8d9c3c1dc08f18724f858df1cf0b4bafd7b2c8",
-    "package.json": "a7832b4e959024d6b0cd289360bdd65abc330e6aff82dd7becdd2a80bb588541",
+    "package-lock.json": "7243727cd33c11e407869425690bf0cef50f91493e88859dd9974bddb9b8f042",
+    "package.json": "7dfce30bef6cf5d45453f6b6d3165947188a95b6595a63d2f5d0bdaf7fc45c47",
     "src/extension.ts": "acfbaf1dcf41cf99b178370211ace791bd35ba8e36e9f26554d8362946ca838e",
     "src/local-providers.ts": "51f832f94aa040a4022b5290045ee9df0b40377675e879bd0aacfa398c285e30",
     "src/providers/geniex.ts": "8ee5be695037cccf8e5cb30a9bbef4956d1c61bf2b6f16dba5cfbeb9bf0a0442",
@@ -15,6 +15,6 @@
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
   },
   "outputs": {
-    "dist/extension.mjs": "4bd2330158420d75c9013e5f771f571debf9bd225b4c9db9f6b5bef81eb7f296"
+    "dist/extension.mjs": "cdd3e1a50f0f7f36c4c18911582a174d757792919a1dbba5bb067736a505f283"
   }
 }
