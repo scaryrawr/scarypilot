@@ -725,7 +725,10 @@ const OWN =
 
 function foreign(dir) {
   try {
-    if (!fs.lstatSync(dir).isDirectory()) return ["."];
+    const stat = fs.lstatSync(dir, { throwIfNoEntry: false });
+
+    if (!stat) return [];
+    if (!stat.isDirectory()) return ["."];
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     const summary = entries.find((e) => e.name === "summary.json");
     let inventory = null;
@@ -759,7 +762,6 @@ function foreign(dir) {
 
     return others.sort();
   } catch (e) {
-    if (e.code === "ENOENT" && e.path === dir) return [];
     throw new CannotFinish(`cannot use ${rel(dir)} as the output folder: ${e.message}`);
   }
 }
