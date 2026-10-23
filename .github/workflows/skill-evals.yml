@@ -1,0 +1,65 @@
+name: Skill eval coverage
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Comparison base commit or branch
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22.18.0"
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - name: Check coverage selection contracts
+        run: node --test tools/skill-evals.test.mjs
+      - name: Check runner contracts without inference
+        run: python3 -m unittest discover -s tools/skill-evals/skill-creator/tests -v
+      - name: Validate inventory and report affected coverage
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || inputs.base }}
+        run: node tools/skill-evals.mjs check --base "$BASE_REF" --head HEAD --output "$RUNNER_TEMP/skill-eval-coverage.json"
+      - name: Summarize coverage without claiming behavioral success
+        run: |
+          node --input-type=module <<'JS'
+          import { appendFileSync, readFileSync } from "node:fs";
+          const report = JSON.parse(readFileSync(`${process.env.RUNNER_TEMP}/skill-eval-coverage.json`, "utf8"));
+          const uncovered = report.selected.filter((skill) => skill.coverage === "missing_evals").length;
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
+            "## Skill eval coverage",
+            "",
+            `Structural validation: ${report.structuralStatus}.`,
+            `Model-backed behavior: ${report.behavioralStatus}. This job never runs models.`,
+            `Affected skills: ${report.selected.length}. Skills without evals: ${uncovered}.`,
+            `Proposed approval-required model calls: ${report.proposedExecution.maxCalls}.`,
+            "",
+            "Inspect the coverage artifact for selection reasons and excluded cases.",
+            "A green coverage check is not a behavioral pass.",
+            ""
+          ].join("\n"));
+          JS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: skill-eval-coverage
+          path: ${{ runner.temp }}/skill-eval-coverage.json
+          if-no-files-found: error
+          retention-days: 14
