@@ -26,6 +26,8 @@ The original and adapted files are distributed under the MIT License in
 
 ScaryPilot changed the integration layer for GitHub Copilot:
 
+- In `2.2.0-copilot.3`, separated output-folder validation guards to satisfy
+  repository lint without changing their behavior.
 - Ported upstream `0.15.30` in `2.2.0-copilot.1`, including the statechart
   fixes and helper renames through the content boundary above. Added
   `statechart`, its portable scripts, output-folder model, and upstream

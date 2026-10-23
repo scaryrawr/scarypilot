@@ -1,6 +1,6 @@
 {
   "name": "@scarypilot/digivolution-extension",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "private": true,
   "description": "Adaptive turn monitor for the ScaryPilot digivolution plugin.",
   "type": "module",

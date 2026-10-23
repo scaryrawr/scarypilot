@@ -2,8 +2,8 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "9bad31007a9f876bf9a24080a5bff8971e2bd477221cfb01b8f9130968524676",
-    "package.json": "744c193775b968bdb7a4a02ff0e53368a96efacf9561eab33381f67b20c63978",
+    "package-lock.json": "8ec984604cb78645df7920ccc506047c8efeb8797795aa38601c2c02fe43d16f",
+    "package.json": "e96d8a20bf607dc9d63e3c857abf3abf1d82ea2be0abc8afd3b9cf9c287d2b36",
     "src/agent-event-inbox.ts": "cf9a64a9569c4bff28c786e1adbff45df4ec02b4e18275921e21b0034d325712",
     "src/extension.ts": "553ad9063c96164e8dae58e8b7e13f19028dc494abfa19bff599519c657318fc",
     "src/supervisor-client.ts": "069aece503cff7efed2814683bef38d95161930dae006112761d7909744df5e9",
@@ -11,6 +11,6 @@
     "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
   },
   "outputs": {
-    "dist/extension.mjs": "c1d2c6e2ab49d2b25585da494da970d653dcfba6e6c1237ec049c922afcaf848"
+    "dist/extension.mjs": "3bb7b92353587db69094d8f3dd6da279ba5aae527996775e48740a5bf4ad98c5"
   }
 }

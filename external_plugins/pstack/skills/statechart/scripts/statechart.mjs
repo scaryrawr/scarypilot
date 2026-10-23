@@ -728,6 +728,7 @@ function foreign(dir) {
     const stat = fs.lstatSync(dir, { throwIfNoEntry: false });
 
     if (!stat) return [];
+
     if (!stat.isDirectory()) return ["."];
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     const summary = entries.find((e) => e.name === "summary.json");
