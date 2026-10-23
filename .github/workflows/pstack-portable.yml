@@ -46,13 +46,35 @@ jobs:
       - name: Check CLI types
         working-directory: external_plugins/pstack/skills/poteto-mode/scripts
         run: bun run typecheck
+      - name: Set up Java for statechart model checking
+        if: runner.os != 'Windows'
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Provision pinned official TLC
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/pstack-tlc"
+          jar="$RUNNER_TEMP/pstack-tlc/tla2tools-1.8.0.jar"
+          curl --fail --location --retry 3 --silent --show-error \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar \
+            --output "$jar"
+          printf '%s  %s\n' \
+            5bd7b64db99ae4c6c35f290de5e809c0ee41af43f8699cf696099ffb6452b1e2 \
+            "$jar" | shasum -a 256 --check
+          printf 'TLA2TOOLS=%s\nJAVA=%s/bin/java\n' "$jar" "$JAVA_HOME" >> "$GITHUB_ENV"
       - name: Check sync policy and portable helpers
+        env:
+          PSTACK_REQUIRE_TLC: ${{ runner.os != 'Windows' && '1' || '0' }}
         run: >-
           node external_plugins/pstack/tools/pstack-sync.mjs check &&
           node --test
           external_plugins/pstack/tools/pstack-sync.test.mjs
           external_plugins/pstack/tools/pstack-plan.test.mjs
           external_plugins/pstack/tools/log.test.mjs
+          external_plugins/pstack/skills/statechart/scripts/test/statechart.test.mjs
       - name: Check the legacy POSIX worktree audit
         if: runner.os != 'Windows'
         working-directory: .

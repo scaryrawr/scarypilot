@@ -33,7 +33,7 @@ copilot plugin install chrome-devtools@scarypilot
 | **omlx-media**      | Media              | Generate or edit images, synthesize speech, transcribe audio, or turn recordings into grounded written content with local OMLX models.                                | [📖 Docs](./plugins/omlx-media/README.md)               |
 | **omlx-decisions** | AI Models | Use installed oMLX SystemOne decision models for routing, classification, and rubric evaluation. | [📖 Docs](./plugins/omlx-decisions/README.md) |
 | **playwright-ext**  | Browser Automation | Browser automation using Playwright with extension bridge. Testing, web scraping, form automation with logged-in sessions.                                             | [📖 Docs](./external_plugins/playwright-ext/README.md)  |
-| **pstack**          | Workflow           | Skill-based pstack workflows, prompt rewriting, complete read-only catch-up, formal verification, benchmark checks, and portable validation helpers.                         | [📖 Docs](./external_plugins/pstack/README.md)          |
+| **pstack**          | Workflow           | Skill-based workflows, prompt rewriting, read-only catch-up, formal verification, model-checked statecharts, benchmark checks, and portable validation helpers.                | [📖 Docs](./external_plugins/pstack/README.md)          |
 | **screen-record**   | Media              | Record agent-driven demos and edit them with trimming, side-by-side layouts, captions, and local narration.                                                              | [📖 Docs](./plugins/screen-record/README.md)            |
 | **smahties**        | Code Search        | Local semantic code-search MCP server from smahtutils with indexing, embeddings, and keyword/hybrid query support. Requires the `smahties` CLI first.                  | [📖 Docs](./plugins/smahties/README.md)                 |
 
@@ -67,7 +67,7 @@ prove that an external service, browser bridge, or capture device is available.
 
 | Plugins | Platform requirements |
 | --- | --- |
-| `pstack` | Core skills target all three platforms. Stacked PR workflows use the official [`github/gh-stack`](https://github.com/github/gh-stack) extension for GitHub CLI. Confined artifact validation requires macOS or Linux and fails explicitly on unsupported platforms. Apple simulator workflows remain macOS-only. |
+| `pstack` | Core skills target all three platforms. Statechart model checking additionally requires Java and TLC; PNG rendering needs an available Mermaid CLI and browser runtime. Stacked PR workflows use the official [`github/gh-stack`](https://github.com/github/gh-stack) extension for GitHub CLI. Confined artifact validation requires macOS or Linux and fails explicitly on unsupported platforms. Apple simulator workflows remain macOS-only. |
 | `ado-codespaces`, `azure-devops` | Local clients target all three platforms. Codespaces workloads run in their Linux container. Azure DevOps workflows also need their documented CLI and authentication setup. |
 | `anti-slop`, `better-init`, `digivolution` | Target all three platforms with their documented tools. |
 | `copilot-autoresearch` | Targets all three platforms with Bash installed. Experiment commands and repository-specific tools must match the execution host. |

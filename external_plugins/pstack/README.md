@@ -7,21 +7,23 @@ planning, delegation, review, and verification.
 
 ## What this plugin provides
 
-- 57 Agent Skills, including `poteto-mode`, `poteto-help`, `ketchup`,
+- 58 Agent Skills, including `poteto-mode`, `poteto-help`, `ketchup`,
   `in-your-own-words`, `sharpen`, `how`, `why`,
   `architect`, `arena`, `swarm`, `interrogate`, `correct`, `benchmark-checklist`,
   `tdd`, `deslop`, `unslop`, `create-formal-verification-skill`,
-  `maintain-formal-verification-skill`, and 24 pstack principles.
+  `maintain-formal-verification-skill`, `statechart`, and 24 pstack principles.
 - The `poteto-agent` and `comment-sicko` custom agents.
 - Portable artifact and plan validation using deterministic contract rules and
   workspace-confined file reads.
 - PR watching, orchestration, decision-log, and worktree-audit helpers used by
   advanced playbooks.
 - Verified multi-phase planning with an executable checklist checker.
-- Compatible upstream changes through pstack 0.15.29, with client-specific
+- Compatible upstream changes through pstack 0.15.30, with client-specific
   Cursor and Claude Code features intentionally excluded.
 - User-level model configuration through `/setup-pstack`.
 
+Start with [Use pstack for a focused task](./docs/guide/quick-start.md) for
+copy/paste prompts, short follow-ups, and when extra agents are worth the cost.
 The adapted [pstack guide](./docs/guide/README.md) walks through the workflow
 from setup and code understanding through verification and long-running work.
 Ask [`/poteto-help`](./skills/poteto-help/SKILL.md) when you need help choosing
@@ -34,6 +36,11 @@ a workflow. It answers the question without starting the suggested task.
 - Bun only for the legacy `poteto-mode` PR watcher and orchestration CLIs.
 - Node.js for the decision-log and validation helpers. Confined artifact
   validation requires macOS or Linux and fails explicitly on other platforms.
+- For `/statechart` model checking only, Java 11 or later and `tla2tools.jar`
+  configured through `JAVA` and `TLA2TOOLS`. Optional PNG rendering needs an
+  already available Mermaid CLI and its browser runtime. It does not install
+  missing packages. The bundled PNG launcher requires a POSIX `npx` executable;
+  Windows users can keep Mermaid sources or use a separately approved renderer.
 - GitHub CLI with the separately installed [`github/gh-stack`](https://github.com/github/gh-stack)
   extension for stacked-PR playbooks, using the public v0.2.1 JSON contract or
   a compatible release. Capability detection runs `gh stack --version`;
@@ -41,6 +48,14 @@ a workflow. It answers the question without starting the suggested task.
 
 The plugin has no native extension or SDK dependency. Core skills use the
 current host's advertised tools; optional capabilities are not assumed.
+
+On macOS, install Java for statechart with `brew install openjdk@21`. The
+Homebrew Java path is `$(brew --prefix openjdk@21)/bin/java`; using that path
+does not require system Java registration. Obtain `tla2tools.jar` from the
+[official TLA+ releases](https://github.com/tlaplus/tlaplus/releases), with
+approval, and set `TLA2TOOLS` to its absolute path. Homebrew's Toolbox cask is
+the GUI, not a required CLI dependency. Do not substitute Node or Python
+property-based tests for a TLC model-checking result.
 
 ## Installation
 
@@ -65,6 +80,7 @@ Invoke a focused skill:
 /ketchup catch me up on what changed since my last message
 /create-formal-verification-skill the job lease and retry logic
 /maintain-formal-verification-skill
+/statechart show what the user sees when an upload retries
 ```
 
 Use the full workflow style:
@@ -73,7 +89,19 @@ Use the full workflow style:
 /poteto-mode implement this feature and prove it works
 ```
 
-### Upstream refresh in `2.1.0-copilot.1`
+### Upstream refresh in `2.2.0-copilot.1`
+
+[`/statechart`](./skills/statechart/SKILL.md) turns a TLA+ model into Mermaid
+charts with numbered bug paths. It can also turn an agreed chart into a TLA+
+skeleton or compare a code model with an unchanged spec. Model findings need
+real-code replay before they count as product bugs. Work stays in approved
+scratch storage, and missing Java, TLC, or rendering tools are reported rather
+than installed automatically.
+
+The [focused-task guide](./docs/guide/quick-start.md) covers a smaller set of
+entry points and follow-up phrases without requiring the full workflow catalog.
+
+### Earlier refresh in `2.1.0-copilot.1`
 
 The refresh adds formal-verification creation and maintenance skills.
 [`/create-formal-verification-skill`](./skills/create-formal-verification-skill/SKILL.md)
@@ -253,6 +281,7 @@ node external_plugins/pstack/tools/pstack-sync.mjs check
 node external_plugins/pstack/tools/pstack-sync.mjs plan --upstream /path/to/cursor-plugins
 node --test external_plugins/pstack/tools/pstack-sync.test.mjs external_plugins/pstack/tools/pstack-plan.test.mjs
 node --test external_plugins/pstack/skills/pstack-schema-validate/tests/validation.test.mjs external_plugins/pstack/skills/pstack-schema-validate/tests/workspace-reader.test.mjs
+node --test external_plugins/pstack/skills/statechart/scripts/test/statechart.test.mjs
 ```
 
 On a POSIX host, also run
@@ -268,6 +297,23 @@ The plan regressions exercise the shipped skeleton, saved legacy plans,
 the CLI, and the portable artifact validator. Reader regressions exercise
 outside/symlink rejection and ancestor-swap confinement on supported platforms.
 No extension bundle, SDK install or live model worker is required.
+
+The existing portable-helper workflow provisions Temurin Java 21 and the
+official TLC `v1.8.0` jar on Linux and macOS. This is the official prerelease
+used for this integration's model-checking coverage. The download is pinned
+by version and SHA-256
+`5bd7b64db99ae4c6c35f290de5e809c0ee41af43f8699cf696099ffb6452b1e2`.
+CI sets `PSTACK_REQUIRE_TLC=1`, so a missing jar or unusable Java fails the
+suite instead of silently skipping model checking. Windows runs the
+dependency-free subset; POSIX process tests are not claimed as Windows coverage.
+
+For the same required local check, set `TLA2TOOLS` and `JAVA` to approved local
+installations and set `PSTACK_REQUIRE_TLC=1` in the host shell before running
+the statechart test command. Without that flag, missing TLC produces explicit
+skips so Java is not a global requirement for pstack. The suite also has
+Linux-only filesystem and namespace checks. Missing platform facilities are
+reported as skips. PNG tests use a fake renderer, not a real browser-rendering
+check. A skipped model run is not proof that model checking works on that host.
 
 ## License and resources
 

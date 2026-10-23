@@ -121,6 +121,26 @@ It writes `.github/skills/verify-<area>/SKILL.md`, a project-local skill that te
 
 The skill also records which code each check covers and the commit where the check last matched it. Merges and refactors that skip the skill can leave the check passing on a description of code that's gone. After them, run [`/maintain-formal-verification-skill`](../../skills/maintain-formal-verification-skill/SKILL.md). It updates the verification from the code, reruns it, shows that each updated check can still fail, and tells you whether each failure is drift in the verification or a bug in the code. It reports `in sync`, `updated`, `bug`, or `blocked` for each check without weakening a property just to make it pass.
 
+## Show behavior as a checked statechart
+
+When someone needs to judge behavior without reading a formal spec, use:
+
+```text
+/statechart show what the user sees when an upload retries. do not change product code.
+```
+
+[`/statechart`](../../skills/statechart/SKILL.md) draws Mermaid charts from a
+TLA+ model, with numbered paths for bugs TLC finds. It can also turn an agreed
+chart into a TLA+ skeleton or compare a code model against an unchanged spec.
+Replay each reported bug against real code. A model counterexample alone
+does not establish a product bug, and a passing model does not prove the whole app.
+
+Model checking requires Java 11 or later and `tla2tools.jar` selected through
+`TLA2TOOLS`. PNGs additionally require an already available Mermaid CLI and its
+browser runtime. Missing dependencies or image-reading tools are reported
+explicitly. They are not installed automatically. Keep original specs unchanged
+and use fresh approved scratch outputs.
+
 ## Open the PR
 
 ```text
