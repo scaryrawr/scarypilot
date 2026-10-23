@@ -8,6 +8,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -23,6 +24,7 @@ import {
   parseTraces,
   parseValue,
   ruleSentences,
+  splitRules,
   stateKey,
   tlcOutputWarning,
   uncitedConditions,
@@ -33,6 +35,20 @@ const here = dirname(fileURLToPath(import.meta.url));
 const scripts = dirname(here);
 
 const fixture = (name) => readFileSync(join(here, name), "utf8");
+
+const collidingRegions = `stateDiagram-v2
+state Overall {
+  state "Connection" as Conn {
+    [*] --> Offline
+    Offline --> Online: connect
+  }
+  --
+  state "Connection States" as Badge {
+    [*] --> Hidden
+    Hidden --> Shown: show
+  }
+}
+`;
 
 const edges = (r) => r.transitions.map((t) => `${t.from} -> ${t.to} : ${t.label}`).sort();
 
@@ -267,6 +283,60 @@ x = 1
     { action: null, vars: { x: 0 } },
     { action: "Inc", vars: { x: 1 } },
   ]);
+});
+
+test("TLC control escapes survive value, graph and trace parsing without merging states", () => {
+  const literal = String.raw`"a\nb\tc\rd\fe\"f\\g"`;
+  const value = "a\nb\tc\rd\fe\"f\\g";
+  assert.equal(parseValue(literal), value);
+  const label = JSON.stringify(`x = ${literal}`);
+  const graph = parseDot(`strict digraph DiskGraph {\n1 [label=${label},style = filled]\n}`);
+  assert.equal(graph.nodes.get("1").vars.x, value);
+
+  const [trace] = parseTraces(
+    `Error: Invariant Good is violated.\nState 1: <Initial predicate>\nx = ${literal}\n`,
+  );
+
+  assert.equal(trace.steps[0].vars.x, value);
+  assert.notEqual(stateKey({ x: parseValue('"a\\nb"') }), stateKey({ x: "anb" }));
+  assert.notEqual(stateKey({ x: parseValue('"a\\nb"') }), stateKey({ x: "a\\nb" }));
+});
+
+test("parallel regions cannot silently replace another region with the same caption", () => {
+  assert.throws(
+    () => parseMermaid(collidingRegions.replace('"Connection States"', '"Connection"')),
+    /duplicate region name: Connection/,
+  );
+});
+
+test("config rule extraction preserves quoted keywords, comments and all other config bytes", () => {
+  const constants = 'CONSTANTS Flag = "PROPERTY" \\* INVARIANT NotARule\n';
+  const comments = "(* INVARIANT Outer (* PROPERTY Inner *) ignored *)\n";
+  assert.deepEqual(
+    splitRules(`${constants}${comments}INVARIANTS Good Good\nPROPERTY Good Eventual\nVIEW V\n`),
+    {
+      cfgWithoutRules: `${constants}${comments}  \n  \nVIEW V\n\n`,
+      rules: ["Good"],
+      properties: ["Eventual"],
+    },
+  );
+});
+
+test("uncited delegated action guards are found without treating temporal specs as actions", () => {
+  const tla = `---- MODULE Delegation ----
+VARIABLES ready, paid
+Init == ready = TRUE /\\ paid = FALSE
+DoPay == paid' = TRUE /\\ UNCHANGED ready
+Wrapped == DoPay
+Pay == ready /\\ Wrapped
+ReadOnly == ready
+Next == Pay
+Behavior == [][Next]_<<ready, paid>>
+Spec == Init /\\ Behavior
+====
+`;
+
+  assert.deepEqual(uncitedConditions(tla), [{ line: 6, action: "Pay", condition: "ready" }]);
 });
 
 const done = "Model checking completed. No error has been found.\n";
@@ -1114,6 +1184,23 @@ const tools = (() => {
 
 const needsTlc = { skip: tools ? false : "cannot find TLC" };
 
+test("generated variables cannot collide with state operators in either allocation order", needsTlc, () => {
+  const dir = mkdtempSync(join(tmpdir(), "statechart-"));
+
+  for (const chart of [
+    collidingRegions,
+    collidingRegions.replace('"Connection"', '"Connection States"').replace(
+      '"Connection States" as Badge',
+      '"Connection" as Badge',
+    ),
+  ]) {
+    writeFileSync(join(dir, "Collision.mmd"), chart);
+    const r = node("statechart.mjs", ["from-chart", "Collision.mmd"], dir);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /TypeOK holds/);
+  }
+});
+
 if (process.env.PSTACK_REQUIRE_TLC === "1") {
   assert.ok(tools, "PSTACK_REQUIRE_TLC=1 requires TLA2TOOLS to name an existing TLC jar");
 
@@ -1217,7 +1304,7 @@ test("TLC reads a label with a guarded and an unguarded move in one region", nee
 const syncStory = `## 1. Offline | Synced
 
 Rule broken: You never see "Synced" while you are offline.
-This is the only way to get here in the model.
+This group has 1 reported counterexample state.
 
 0. Start: Online | Synced
 1. The network drops. Now: Offline | Waiting to sync
@@ -1369,7 +1456,10 @@ while [ $# -gt 0 ]; do
   shift
 done
 for c in $UNRENDERED; do
-  case "$chart" in */$c.mmd) echo "${launch}" >&2; exit 1 ;; esac
+  case "$chart" in */$c.mmd)
+    if [ "$PARTIAL_PNG" = "1" ]; then echo partial > "$png"; fi
+    echo "${launch}" >&2; exit 1 ;;
+  esac
 done
 echo png > "$png"
 `,
@@ -1408,6 +1498,24 @@ echo png > "$png"
         [...written, "stories.md", "summary.json", "tlc"].sort(),
       );
     }
+
+    const dir = mkdtempSync(join(tmpdir(), "statechart-"));
+    writeFileSync(join(dir, "sync.mmd"), fixture("sync.mmd"));
+
+    const partial = node("statechart.mjs", args, dir, {
+      PATH: `${bin}${delimiter}${process.env.PATH}`,
+      UNRENDERED: "bug-1",
+      PARTIAL_PNG: "1",
+    });
+
+    assert.equal(partial.status, 2, partial.stderr);
+    const out = join(dir, "Sync-statechart");
+    const summary = JSON.parse(readFileSync(join(out, "summary.json"), "utf8"));
+    assert.ok(summary.generatedFiles.includes("bug-1.png"));
+    assert.equal(readFileSync(join(out, "bug-1.png"), "utf8"), "partial\n");
+    const rerun = node("statechart.mjs", args.slice(0, -1), dir);
+    assert.equal(rerun.status, 0, rerun.stderr);
+    assert.equal(existsSync(join(out, "bug-1.png")), false);
   },
 );
 
@@ -1769,7 +1877,7 @@ Chart: 5 states and 4 transitions from 5 model states.
 
 Rule broken: \`NoDoubleCharge\`
 Why: each charge request charges again.
-This is the only way to get here in the model.
+This group has 1 reported counterexample state.
 
 0. Start: Cart
 1. You pay. Now: Paying
@@ -1794,11 +1902,11 @@ Wrote chart.mmd, bug-1.mmd, bug-1-developer.mmd, bug-1-layered.mmd, stories.md, 
     ]);
     assert.equal(
       readFileSync(join(dir, "Pay-statechart", "tlc", "Pay.cfg"), "utf8"),
-      "SPECIFICATION Spec\n",
+      "SPECIFICATION Spec\n\\* The reader's rule.\n\n  \n\n",
     );
     assert.equal(
       readFileSync(join(dir, "Pay-statechart", "tlc", "Pay-NoDoubleCharge.cfg"), "utf8"),
-      "SPECIFICATION Spec\nINVARIANT NoDoubleCharge\nCONSTRAINT NoDoubleCharge\n",
+      "SPECIFICATION Spec\n\\* The reader's rule.\n\n  \n\nINVARIANT NoDoubleCharge\nCONSTRAINT NoDoubleCharge\n",
     );
   },
 );
@@ -2114,7 +2222,7 @@ Chart: 4 states and 4 transitions from 10 model states.
 
 Rule broken: You never see "Saved" while the note is still a draft.
 Why: the app stops after one retry and shows Saved anyway.
-There are 2 ways to get here in the model. This is the shortest.
+This group has 2 reported counterexample states.
 
 0. Start: Editing, draft
 1. You press Save. Now: Saving, draft
@@ -2967,6 +3075,87 @@ const writeLamp = (dir) => {
   return join(dir, "Lamp-statechart");
 };
 
+test("config strings and nested comments retain their exact meaning in every TLC run", needsTlc, () => {
+  const dir = mkdtempSync(join(tmpdir(), "statechart-"));
+  const out = writeLamp(dir);
+  writeFileSync(
+    join(dir, "Lamp.tla"),
+    readFileSync(join(dir, "Lamp.tla"), "utf8").replace(
+      "VARIABLE on",
+      "CONSTANTS Label, Marker, Keyword\nVARIABLE on",
+    ).replace(
+      "====",
+      'InputsIntact == Label = "a  b" /\\ Marker = "(* literal *)" /\\ Keyword = "INVARIANT"\n====',
+    ),
+  );
+  const constants = 'CONSTANTS Label = "a  b"\nMarker = "(* literal *)"\nKeyword = "INVARIANT"\n';
+  const comments = "(* outer (* INVARIANT NotARule *) PROPERTY NotAProperty *)\n";
+  writeFileSync(
+    join(dir, "Lamp.cfg"),
+    `${constants}${comments}INVARIANT InputsIntact\nSPECIFICATION Spec\n`,
+  );
+  const r = node("statechart.mjs", ["from-spec", "Lamp.tla"], dir);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /InputsIntact holds/);
+
+  for (const file of readdirSync(join(out, "tlc")).filter((f) => f.endsWith(".cfg"))) {
+    const cfg = readFileSync(join(out, "tlc", file), "utf8");
+    assert.ok(cfg.startsWith(constants + comments), cfg);
+  }
+});
+
+test("a rerun preserves unlisted nested files even when they have generated-looking names", needsTlc, () => {
+  const dir = mkdtempSync(join(tmpdir(), "statechart-"));
+  const out = writeLamp(dir);
+  const first = node("statechart.mjs", ["from-spec", "Lamp.tla"], dir);
+  assert.equal(first.status, 0, first.stderr);
+  const chart = readFileSync(join(out, "chart.mmd"), "utf8");
+
+  for (const name of ["notes.md", "Lamp-extra.cfg"]) {
+    const note = join(out, "tlc", name);
+    writeFileSync(note, "mine\n");
+    const rerun = node("statechart.mjs", ["from-spec", "Lamp.tla"], dir);
+    assert.equal(rerun.status, 2, rerun.stderr);
+    assert.ok(rerun.stderr.includes(join("tlc", name)), rerun.stderr);
+    assert.equal(readFileSync(note, "utf8"), "mine\n");
+    assert.equal(readFileSync(join(out, "chart.mmd"), "utf8"), chart);
+    rmSync(note);
+  }
+
+  const rerun = node("statechart.mjs", ["from-spec", "Lamp.tla"], dir);
+  assert.equal(rerun.status, 0, rerun.stderr);
+});
+
+test("generated-looking directories and symlinked TLC folders are not owned output", () => {
+  const dir = mkdtempSync(join(tmpdir(), "statechart-"));
+  const out = writeLamp(dir);
+  mkdirSync(out);
+  mkdirSync(join(out, "chart.mmd"));
+  const directory = node("statechart.mjs", ["from-spec", "Lamp.tla"], dir);
+  assert.equal(directory.status, 2, directory.stderr);
+  assert.match(directory.stderr, /did not write: chart\.mmd/);
+  assert.ok(existsSync(join(out, "chart.mmd")));
+  rmSync(join(out, "chart.mmd"), { recursive: true });
+  const target = join(dir, "notes");
+  mkdirSync(target);
+  writeFileSync(join(target, "notes.md"), "mine\n");
+  symlinkSync(target, join(out, "tlc"), "junction");
+  const linked = node("statechart.mjs", ["from-spec", "Lamp.tla"], dir);
+  assert.equal(linked.status, 2, linked.stderr);
+  assert.match(linked.stderr, /did not write: tlc/);
+  assert.equal(readFileSync(join(target, "notes.md"), "utf8"), "mine\n");
+  rmSync(join(out, "tlc"));
+  mkdirSync(join(out, "tlc", "Lamp.cfg"), { recursive: true });
+  writeFileSync(
+    join(out, "summary.json"),
+    JSON.stringify({ generatedFiles: ["summary.json", "tlc/Lamp.cfg"] }),
+  );
+  const nested = node("statechart.mjs", ["from-spec", "Lamp.tla"], dir);
+  assert.equal(nested.status, 2, nested.stderr);
+  assert.ok(nested.stderr.includes(join("tlc", "Lamp.cfg")), nested.stderr);
+  assert.ok(existsSync(join(out, "tlc", "Lamp.cfg")));
+});
+
 test("a rerun without --png removes the chart.png of an earlier run", needsTlc, () => {
   const dir = mkdtempSync(join(tmpdir(), "statechart-"));
   const out = writeLamp(dir);
@@ -3164,6 +3353,22 @@ test(
     assert.deepEqual(staged(dir), []);
   },
 );
+
+test("a nested file added during a run is preserved at publication", needsTlc, async () => {
+  const dir = mkdtempSync(join(tmpdir(), "statechart-"));
+  const out = writeSlowPay(dir, 20000);
+  const tmp = ownTmp(dir, "tmp");
+  const run = startRun(dir, { env: { TMPDIR: tmp } });
+  await until(() => tlcStarted(tmp));
+  mkdirSync(join(out, "tlc"), { recursive: true });
+  const note = join(out, "tlc", "notes.md");
+  writeFileSync(note, "mine\n");
+  const r = await run.done;
+  assert.equal(r.status, 2, r.stderr);
+  assert.ok(r.stderr.includes(join("tlc", "notes.md")), r.stderr);
+  assert.equal(readFileSync(note, "utf8"), "mine\n");
+  assert.deepEqual(staged(dir), []);
+});
 
 const failRenames = `#define _GNU_SOURCE
 #include <dlfcn.h>

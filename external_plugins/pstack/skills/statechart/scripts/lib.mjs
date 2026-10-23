@@ -110,17 +110,14 @@ export function parseValue(text) {
     }
 
     if (peek('"')) {
-      i++;
-      let s = "";
+      const start = i++;
 
       while (i < src.length && src[i] !== '"') {
         if (src[i] === "\\") i++;
-        s += src[i++];
+        i++;
       }
 
-      i++;
-
-      return s;
+      return JSON.parse(src.slice(start, ++i));
     }
 
     const m = /^-?\d+|^[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
@@ -253,6 +250,44 @@ function splitCommentsKeepingOffsets(text) {
   return { code, notes };
 }
 
+const CFG_KEYWORD =
+  /^(SPECIFICATION|INIT|NEXT|CONSTANTS?|INVARIANTS?|PROPERTY|PROPERTIES|SYMMETRY|VIEW|CONSTRAINTS?|ACTION_CONSTRAINTS?|CHECK_DEADLOCK|POSTCONDITION|ALIAS)$/;
+
+export function splitRules(cfg) {
+  const { code } = splitCommentsKeepingOffsets(cfg);
+  const kept = [];
+  const rules = [];
+  const properties = [];
+  let section = "";
+  let cursor = 0;
+
+  for (const token of code.matchAll(/"(?:[^"\\]|\\.)*"|[^\s"]+/g)) {
+    const word = token[0];
+
+    if (CFG_KEYWORD.test(word)) section = word;
+
+    const list = /^INVARIANTS?$/.test(section)
+      ? rules
+      : /^PROPERT(Y|IES)$/.test(section)
+        ? properties
+        : null;
+
+    if (!list) continue;
+    kept.push(cfg.slice(cursor, token.index));
+    cursor = token.index + word.length;
+
+    if (word !== section && !list.includes(word)) list.push(word);
+  }
+
+  // TLC checks state predicates given as PROPERTY only in the initial states,
+  // which the separate INVARIANT run checks too.
+  return {
+    cfgWithoutRules: `${kept.join("")}${cfg.slice(cursor)}\n`,
+    rules,
+    properties: properties.filter((p) => !rules.includes(p)),
+  };
+}
+
 const IDENTIFIER = /(?<![\\.\w])[A-Za-z_]\w*(?!\w)(?!\s*\|->)/g;
 
 const CITATION = /[\w./-]+\.[A-Za-z]\w*:\d+|#L\d+/;
@@ -360,6 +395,7 @@ export function uncitedConditions(text) {
       writes: [...body.matchAll(/(?<![\\.\w])([A-Za-z_]\w*)'/g)]
         .flatMap((m) => variables.has(m[1]) ? [m[1]] : []),
       acts: PRIMES_OR_UNCHANGED.test(body),
+      temporal: /\[\]|<>|~>|-\+->|\b(?:WF|SF)_/.test(body),
       calls: [...new Set(ids.filter((id) => defs.has(id)))],
     };
   };
@@ -367,7 +403,13 @@ export function uncitedConditions(text) {
   const own = new Map([...defs].map(([name, d]) => [name, direct(bare.slice(d.from, d.to))]));
 
   const through = (start) => {
-    const out = { reads: new Set(start.reads), writes: new Set(start.writes), acts: start.acts };
+    const out = {
+      reads: new Set(start.reads),
+      writes: new Set(start.writes),
+      acts: start.acts,
+      temporal: start.temporal,
+    };
+
     const seen = new Set(start.calls);
     const todo = [...seen];
 
@@ -376,6 +418,7 @@ export function uncitedConditions(text) {
       d.reads.forEach((v) => out.reads.add(v));
       d.writes.forEach((v) => out.writes.add(v));
       out.acts ||= d.acts;
+      out.temporal ||= d.temporal;
 
       for (const c of d.calls.filter((c) => !seen.has(c))) {
         seen.add(c);
@@ -398,8 +441,10 @@ export function uncitedConditions(text) {
   const found = [];
 
   for (const [action, d] of defs) {
-    if (!own.get(action).acts) continue;
-    const changes = through(own.get(action)).writes;
+    const effects = through(own.get(action));
+
+    if (!effects.acts || effects.temporal) continue;
+    const changes = effects.writes;
 
     for (const [a, b] of conjuncts(bare, d.from, d.to, lineStart) ?? []) {
       const part = through(direct(bare.slice(a, b)));
@@ -918,6 +963,8 @@ export function parseMermaid(text) {
         throw new Error(`${display(holder.name)} splits into regions below the top level`);
       const name = holder ? display(holder.name) : `Region${Object.keys(regions).length + 1}`;
       const [r, ids] = region(holder ? holder.parts[0] : p);
+
+      if (Object.hasOwn(regions, name)) throw new Error(`duplicate region name: ${name}`);
       regions[name] = r;
 
       for (const [id, { all }] of ids) owners.set(id, { name, all });

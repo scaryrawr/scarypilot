@@ -80,8 +80,11 @@ function ident(words, lower) {
   if (/^[0-9]/.test(id)) id = `${lower ? "r" : "S"}${id}`;
   let unique = id;
 
-  for (let n = 2; taken.has(unique); n++) unique = `${id}${n}`;
+  for (let n = 2; taken.has(unique) || (lower && taken.has(`${unique}States`)); n++)
+    unique = `${id}${n}`;
   taken.add(unique);
+
+  if (lower) taken.add(`${unique}States`);
 
   return unique;
 }

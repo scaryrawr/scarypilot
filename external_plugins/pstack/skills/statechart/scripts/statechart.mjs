@@ -8,9 +8,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   BROKEN_PROPERTY,
   findTlc,
+  isRecord,
   joinAnd,
   parseDot,
   PRIMES_OR_UNCHANGED,
+  splitRules,
   tlaVariables,
   tlcOutputWarning,
   uncitedConditions,
@@ -295,43 +297,6 @@ function script(name, scriptArgs, about, { okExits = [0] } = {}) {
   if (okExits.includes(r.status)) return r;
   const thrown = r.stderr.match(/^Error: (.*)$/m)?.[1];
   throw new CannotFinish(thrown ? `${rel(about)}: ${thrown}` : r.stderr.trim());
-}
-
-const KEYWORD =
-  /^(SPECIFICATION|INIT|NEXT|CONSTANTS?|INVARIANTS?|PROPERTY|PROPERTIES|SYMMETRY|VIEW|CONSTRAINTS?|ACTION_CONSTRAINTS?|CHECK_DEADLOCK|POSTCONDITION|ALIAS)$/;
-
-function splitRules(cfg) {
-  const words = cfg
-    .replace(/\(\*[^]*?\*\)/g, " ")
-    .replace(/\\\*.*/g, " ")
-    .split(/\s+/)
-    .filter(Boolean);
-
-  const kept = [];
-  const rules = [];
-  const properties = [];
-  let section = "";
-
-  for (const w of words) {
-    if (KEYWORD.test(w)) section = w;
-
-    const list = /^INVARIANTS?$/.test(section)
-      ? rules
-      : /^PROPERT(Y|IES)$/.test(section)
-        ? properties
-        : null;
-
-    if (!list) kept.push(KEYWORD.test(w) && kept.length ? `\n${w}` : w);
-    else if (w !== section && !list.includes(w)) list.push(w);
-  }
-
-  // TLC takes only a state predicate as an INVARIANT, and checks a state predicate given as a
-  // PROPERTY only in the initial states, which the INVARIANT run checks too.
-  return {
-    cfgWithoutRules: `${kept.join(" ")}\n`,
-    rules,
-    properties: properties.filter((p) => !rules.includes(p)),
-  };
 }
 
 function tlc(tools, spec, cfg, base, { dump, workers = "1" } = {}) {
@@ -722,6 +687,24 @@ function render(charts, shown) {
 function finish({ work, out, inputs }, { files, charts }, ok, png) {
   unchanged(inputs, out);
   const pngs = png ? render(charts, published(work, out)) : [];
+  const summary = JSON.parse(fs.readFileSync(files.summary, "utf8"));
+
+  const generatedFiles = fs.readdirSync(work, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isFile()) return [entry.name];
+
+    if (entry.name !== "tlc" || !entry.isDirectory())
+      throw new CannotFinish(`unexpected generated output entry: ${entry.name}`);
+
+    return fs.readdirSync(path.join(work, "tlc"), { withFileTypes: true }).map((child) => {
+      if (!child.isFile())
+        throw new CannotFinish(`generated TLC output is not a regular file: ${child.name}`);
+
+      return `tlc/${child.name}`;
+    });
+  });
+
+  summary.generatedFiles = generatedFiles.sort();
+  fs.writeFileSync(files.summary, `${JSON.stringify(summary, null, 2)}\n`);
   publish(work, out, inputs);
 
   const written = [...charts, ...pngs, files.stories, files.summary]
@@ -742,12 +725,41 @@ const OWN =
 
 function foreign(dir) {
   try {
-    return fs
-      .readdirSync(dir)
-      .filter((f) => !OWN.test(f))
-      .sort();
+    if (!fs.lstatSync(dir).isDirectory()) return ["."];
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const summary = entries.find((e) => e.name === "summary.json");
+    let inventory = null;
+
+    if (summary?.isFile()) {
+      const metadata = JSON.parse(fs.readFileSync(path.join(dir, summary.name), "utf8"));
+
+      if (
+        !isRecord(metadata) ||
+        !Array.isArray(metadata.generatedFiles) ||
+        metadata.generatedFiles.some((file) => typeof file !== "string")
+      )
+        throw new Error("summary.json has no valid generated-file inventory; pass --out with a new folder");
+      inventory = new Set(metadata.generatedFiles);
+    }
+
+    const others = [];
+
+    for (const entry of entries) {
+      if (entry.name === "tlc" && entry.isDirectory()) {
+        for (const child of fs.readdirSync(path.join(dir, "tlc"), { withFileTypes: true }))
+          if (!child.isFile() || !inventory?.has(`tlc/${child.name}`))
+            others.push(path.join("tlc", child.name));
+      } else if (
+        !entry.isFile() ||
+        !OWN.test(entry.name) ||
+        (inventory && entry.name !== ".DS_Store" && !inventory.has(entry.name))
+      )
+        others.push(entry.name);
+    }
+
+    return others.sort();
   } catch (e) {
-    if (e.code === "ENOENT") return [];
+    if (e.code === "ENOENT" && e.path === dir) return [];
     throw new CannotFinish(`cannot use ${rel(dir)} as the output folder: ${e.message}`);
   }
 }

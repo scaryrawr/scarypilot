@@ -44,6 +44,12 @@ ScaryPilot changed the integration layer for GitHub Copilot:
   Accept both legacy and named temporal-property violations from TLC.
   Gate Linux `LD_PRELOAD` fault-injection tests to Linux rather than treating
   successful compilation as evidence that macOS supports the injection.
+  Reserve generated state-operator names, decode TLC string escapes, reject
+  duplicate parallel captions, and preserve config strings and nested comments.
+  Check delegated action guards without treating temporal specs as actions.
+  Stories count reported counterexample states rather than claiming exhaustive
+  paths. Record generated files in `summary.json` and refuse nested foreign
+  entries or symlinks before replacing output; older output needs a fresh folder.
 - Added a short Copilot-owned practical guide with generic task prompts,
   scope-preserving follow-ups, and explicit agent-cost tradeoffs. Personal
   history and source quotations are not part of the shipped guide.

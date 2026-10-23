@@ -11,7 +11,7 @@ Resolve this installed skill's absolute directory, then run `node "<skill dir>/s
 
 Node.js runs the bundled scripts. Model checking also needs Java 11 or later and `tla2tools.jar`. Set `TLA2TOOLS` to the jar's absolute path and, if needed, `JAVA` to the Java executable using the actual host shell. Check that Java runs before starting. Missing tools are a blocker, not permission to download or install them. Ask for the required approval and report the missing prerequisite if it is unavailable.
 
-Use a fresh `--out` directory for each run. A rerun replaces the entire generated output folder, including earlier PNGs, so reusing a folder requires approval to replace those artifacts. Mapping `.mjs` files execute as code. Read them before running, and do not execute an untrusted mapping.
+Use a fresh `--out` directory for each run. A rerun replaces the entire generated output folder, including earlier PNGs, so reusing a folder requires approval to replace those artifacts. `summary.json` records the generated-file inventory; unlisted nested files, directories and symlinks block replacement. Older output without that inventory needs a fresh folder. Mapping `.mjs` files execute as code. Read them before running, and do not execute an untrusted mapping.
 
 PNG rendering is optional and needs an already available Mermaid CLI and its browser runtime. `--png` uses `npx --no-install` and must not install dependencies. Obtain approval before acquiring missing software. When rendering is unavailable, keep the Mermaid sources and report that PNGs were not inspected. Use the host's actual image-reading capability to inspect rendered PNGs. Do not claim visual verification from Mermaid source alone.
 

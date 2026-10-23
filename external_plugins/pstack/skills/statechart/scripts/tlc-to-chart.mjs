@@ -1664,9 +1664,7 @@ if (args.story) {
 
     if (args.listed) lines.push(listedLine(c));
     lines.push(
-      c.count === 1
-        ? "This is the only way to get here in the model."
-        : `There are ${c.count} ways to get here in the model. This is the shortest.`,
+      `This group has ${c.count} reported counterexample state${c.count === 1 ? "" : "s"}.`,
       "",
     );
     c.path.forEach((p, j) =>
