@@ -25,6 +25,14 @@ The original and adapted files are distributed under the MIT License in
 
 ScaryPilot changed the integration layer for GitHub Copilot:
 
+- Added evidence-by-default guidance in `2.1.1-copilot.1` as an intentional
+  Copilot adaptation, without changing the reviewed upstream boundary.
+  Broadened the existing proof principle's description for ordinary code-change
+  requests and shared its proportionate completion gate with Feature, Bug fix
+  and Refactoring. Added consent-gated runtime replay guidance, independent
+  persistence readback, current-build evidence checks, and focused synthetic
+  discovery/task evals. This adds no enforcement runtime, automatic capture,
+  upload dependency or implicit full poteto-mode workflow.
 - Ported compatible `0.15.26`-`0.15.29` changes in `2.1.0-copilot.1`.
   Added `create-formal-verification-skill` and
   `maintain-formal-verification-skill`, wired them into setup, help, recipes,
