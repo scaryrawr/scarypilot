@@ -6,6 +6,8 @@ ScaryPilot is a GitHub Copilot plugin marketplace. Treat `.github/plugin/marketp
 
 Prefer the repository's declarative plugin patterns: skills in `skills/*/SKILL.md`, MCP configuration in `.mcp.json`, agents in `agents/*.md`, native extensions in `extensions/<name>/extension.mjs`, and optional `lsp.json`. MCP files use top-level server names, not an `mcpServers` envelope. A plugin exposing native extensions must list `extensions/` in `plugin.json`; each immediate child is a separate extension.
 
+Keep legacy Copilot manifests schema-free. A canonical Agent Plugins `$schema` selects different loading semantics: legacy component fields are ignored, and `extensions` must be a namespace object rather than native extension paths.
+
 Plugin hook `matcher` values are regular expressions, not exact tool names. Anchor supported tool-name alternatives and test that unrelated tools with overlapping names do not match.
 
 ## Build, Test, and Development Commands
