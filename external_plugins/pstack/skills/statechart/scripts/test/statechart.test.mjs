@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -983,12 +984,12 @@ test("statechart.mjs names the chart it refuses and the argument it does not kno
   assert.equal(sameName.status, 2);
   assert.equal(
     sameName.stderr,
-    "fix/C.tla needs its own file and module name, such as CFixed.tla.\n",
+    `${join("fix", "C.tla")} needs its own file and module name, such as CFixed.tla.\n`,
   );
   const sameAgreed = node("statechart.mjs", ["from-spec", "C.tla", "--against", "a/C.tla"], dir);
   assert.equal(
     sameAgreed.stderr,
-    "a/C.tla needs its own file and module name, such as CAgreed.tla.\n",
+    `${join("a", "C.tla")} needs its own file and module name, such as CAgreed.tla.\n`,
   );
 
   for (const [extra, stderr] of [
@@ -3078,7 +3079,7 @@ test(
 );
 
 const changedMidRun = async ({ wrap = [], env = {} }) => {
-  const dir = mkdtempSync(join(tmpdir(), "statechart-"));
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "statechart-")));
   const out = writeSlowPay(dir, 20000);
   const tmp = ownTmp(dir, "tmp-a");
   const first = startRun(dir, { wrap, env: { ...env, TMPDIR: tmp } });
@@ -3146,7 +3147,7 @@ test(
   "a file that is put in the output folder during a run stays, and the run exits 2",
   needsTlc,
   async () => {
-    const dir = mkdtempSync(join(tmpdir(), "statechart-"));
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), "statechart-")));
     const out = writeSlowPay(dir, 20000);
     const tmp = ownTmp(dir, "tmp");
     const run = startRun(dir, { env: { TMPDIR: tmp } });
@@ -3283,7 +3284,7 @@ test(
   "a run whose input changes before --png renders stops before it renders, and keeps its files",
   needsTlc,
   async () => {
-    const dir = mkdtempSync(join(tmpdir(), "statechart-"));
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), "statechart-")));
     writeSlowPay(dir, 20000);
     const bin = ownTmp(dir, "bin");
     const rendered = join(dir, "rendered");
@@ -3368,7 +3369,7 @@ test(
   "each TLC run writes the standard modules in its own temp folder, so overlapping runs cannot rewrite them under each other",
   needsTlc,
   () => {
-    const dir = mkdtempSync(join(tmpdir(), "statechart-"));
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), "statechart-")));
     writeSlowPay(dir, 0);
     const tmp = ownTmp(dir, "tmp");
     const log = join(dir, "java.log");
