@@ -37,27 +37,6 @@ REQUIRED_VIEWS = {
     "inputs/simple-repository/test/index.test.js",
     "inputs/simple-repository/.mcp.json",
 }
-FIXTURE_VOCABULARY = set("""
-a about add adding agent agents all also an and any applicable are as at avoid
-be behavior behaviour before by can change changes changing check checks client
-clients code code-review compatibility compatible concise configuration configured context
-contract contributor contributors coverage covers create default describes
-description developer development directory do does edit editing entry
-entrypoint exact existing exported exports fast file files focus for format
-from function general generated greeting greetings greet grounded guidance has
-hello hosted if implementation in incident index initialize instructions is it
-javascript js json keep local locally local-only maps match mcp md name names
-no node not npm of on only or otherwise output outputs package paths preserve
-preserving project pull repository request requests require required requires
-review reviewing reviews root run running runs same see server skill skills
-small source specific src structure test testing tests that the their them
-these this to under use used uses using validate validation verified verify
-when which with without workflow write github available unavailable cannot
-must never always should ensure maintain update related relies rely relied
-exactly unchanged api public exported return returns string strings example
-""".split())
-
-
 def sentences(text: str) -> list[str]:
     return re.split(r"(?<=[.!?])\s+|\n+", text.lower())
 
@@ -82,13 +61,6 @@ def mcp_scope_check(text: str) -> bool | None:
     return None if ambiguous else True
 
 
-def unsupported_requirement(text: str) -> bool:
-    # Unknown substantive vocabulary may be harmless, but is not independently
-    # grounded by this small fixture. Leave the broad "no invented requirements"
-    # assertion ungraded rather than treating a blacklist miss as proof.
-    return bool(set(re.findall(r"[a-z]+(?:-[a-z]+)*", text.lower())) - FIXTURE_VOCABULARY)
-
-
 def grade(case_id: int, assertions: list[str], outputs: Path, evidence: Evidence, require_candidate: bool = True) -> dict:
     if assertions != ASSERTIONS.get(case_id):
         return {
@@ -100,6 +72,8 @@ def grade(case_id: int, assertions: list[str], outputs: Path, evidence: Evidence
     review_path = outputs / ".github/skills/code-review"
     review_file = ".github/skills/code-review/SKILL.md"
     review = (outputs / review_file).read_text() if review_file in inventory else ""
+    normalized_review = re.sub(r"[`*_~]", "", review)
+    normalized_guidance = re.sub(r"[`*_~]", "", agents) + "\n" + normalized_review
     schema_ok = False
     if review:
         try:
@@ -111,18 +85,17 @@ def grade(case_id: int, assertions: list[str], outputs: Path, evidence: Evidence
     mapping = all(word in review for word in ("src/index.js", "test/index.test.js"))
     mapping = mapping and ("npm test" in review or ("AGENTS.md" in review and bool(re.search(r"validat|test command", review, re.I))))
     mapping = mapping and bool(re.search(r"chang|review", review, re.I)) and bool(re.search(r"greeting", review, re.I))
-    invalid_validation = bool(re.search(r"(?:do not|never|avoid|skip)\s+(?:run(?:ning)?\s+)?npm test", agents + "\n" + review, re.I))
+    invalid_validation = bool(re.search(r"(?:do not|never|avoid|skip)\s+(?:run(?:ning)?\s+)?npm test", normalized_guidance, re.I))
     structure = structure and not invalid_validation
     mapping = mapping and not invalid_validation
     compatibility = (
         "Hello, <name>!" in review
         and bool(re.search(r"preserv|exact|compatib", review, re.I))
         and bool(re.search(r"client|contract|format", review, re.I))
-        and not re.search(r"(?:do not|never|avoid)\s+(?:preserv|keep)", review, re.I)
+        and not re.search(r"(?:do not|never|avoid)\s+(?:preserv|keep)", normalized_review, re.I)
     )
-    no_hosted_claim = mcp_scope_check(agents + "\n" + review)
+    no_hosted_claim = mcp_scope_check(normalized_guidance)
     only_expected = set(inventory) == EXPECTED_FILES
-    ambiguous = unsupported_requirement(agents + "\n" + review)
     required_views = REQUIRED_VIEWS | ({"inputs/existing-code-review.md"} if case_id == 7 else set())
     candidate_ok = evidence.candidate_loaded if require_candidate else not evidence.candidate_loaded
     trace_ok = candidate_ok and required_views.issubset(set(evidence.views))
@@ -137,14 +110,16 @@ def grade(case_id: int, assertions: list[str], outputs: Path, evidence: Evidence
             "All MCP/incident clauses explicitly deny access or describe local-only scope",
         ]
     else:
-        requirement_check = False if no_hosted_claim is False else None if ambiguous else no_hosted_claim
+        # Lexical checks cannot establish that arbitrary requirements are grounded,
+        # even when all their words occur in the fixture.
+        requirement_check = False if no_hosted_claim is False else None
         checks = [structure, review_file in inventory, schema_ok, mapping, requirement_check, only_expected]
         reasons = [
             "Root guidance names src/index.js, test/index.test.js, and npm test",
             "Default review skill exists in repository-relative output",
             "Frontmatter name is code-review and description targets pull request review",
             "Review relates greeting source changes, the specific test, and npm test",
-            "MCP/incident clauses deny access; all prose uses the bounded fixture contract vocabulary",
+            "The broad no-invented-requirements assertion needs independent semantic grading; lexical matches cannot establish it",
             "Exactly AGENTS.md and the code-review SKILL.md were generated",
         ]
     expectations = [
@@ -159,7 +134,7 @@ def grade(case_id: int, assertions: list[str], outputs: Path, evidence: Evidence
         "expectations": expectations,
         "summary": {"passed": passed, "failed": failed, "total": len(assertions), "pass_rate": passed / len(assertions)},
         "execution_checks": {"expected_skill_usage": candidate_ok, "required_fixture_views": trace_ok, "expected_output_writes": writes_ok, "output_scope": only_expected},
-        "limitations": "Conservative lexical contracts, not a general semantic judge. Unknown vocabulary makes the broad no-invented-requirements assertion ungraded. No claim of verified command execution.",
+        "limitations": "Conservative lexical contracts, not a general semantic judge. The broad no-invented-requirements assertion stays ungraded unless a hosted-access contradiction is detected. No claim of verified command execution.",
     }
 
 

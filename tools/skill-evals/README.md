@@ -96,9 +96,12 @@ Omitting `--auth-env` leaves authentication unconfigured. Do not set up new
 credentials merely to make an eval run.
 
 The current task grader uses conservative lexical contracts for the exact
-existing assertions. It rejects unknown assertions. Ambiguous prose remains
-ungraded. It is not a general semantic judge, and the positive fake-CLI tests
-do not establish how often real model prose can be graded. Review the
+existing assertions. It rejects unknown assertions. Case 8's broad
+no-invented-requirements assertion remains ungraded: matching known words cannot
+prove that a requirement is grounded. A demonstrated hosted-access contradiction
+can still fail that assertion, but otherwise the case cannot receive an overall
+pass without independent semantic grading. It is not a general semantic judge,
+and the fake-CLI tests do not establish how often real model prose can be graded. Review the
 `limitations` and `execution_checks` fields in every `grading.json`.
 
 ## Interpret the evidence

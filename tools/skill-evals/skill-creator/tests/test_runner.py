@@ -341,15 +341,18 @@ for e in events: print(json.dumps(e))
         with self.assertRaisesRegex(harnesses.EvidenceError, "forbidden_write_path"):
             harnesses.parse_evidence(jsonl(events), "candidate", "test-model", self.work)
 
-    def test_supported_tasks_grade_independent_content_and_trace(self):
+    def test_supported_tasks_grade_content_without_proving_arbitrary_requirements(self):
         for case_id in (7, 8):
             with self.subTest(case_id=case_id):
                 self.fake_cli(task=True)
                 result = run_harness_eval.run_one(self.task_case(case_id), "with_skill", self.skill, self.work / f"task-{case_id}", self.args)
-                self.assertEqual(result["status"], "passed", result)
+                self.assertEqual(result["status"], "passed" if case_id == 7 else "not_run", result)
                 run_dir = Path(result["run_dir"])
                 persisted = json.loads((run_dir / "grading.json").read_text())
                 self.assertEqual([e["text"] for e in persisted["expectations"]], ASSERTIONS[case_id])
+                if case_id == 8:
+                    self.assertIsNone(persisted["expectations"][4]["passed"])
+                    self.assertTrue(all(item["passed"] is True for index, item in enumerate(persisted["expectations"]) if index != 4))
                 staged = Path(result["snapshot"]) / ".github/skills" / result["candidate"]
                 self.assertFalse((staged / "evals").exists())
                 self.assertTrue((Path(result["snapshot"]) / "inputs/simple-repository/.mcp.json").exists())
@@ -434,6 +437,42 @@ for e in events: print(json.dumps(e))
             self.assertEqual(grade(8, ASSERTIONS[8], out, evidence)["status"], "not_run")
         review.write_text(REVIEW.replace("validate with npm test", "never run npm test"))
         self.assertEqual(grade(8, ASSERTIONS[8], out, evidence)["status"], "failed")
+
+    def test_allowed_words_do_not_prove_requirement_grounding(self):
+        out = self.work / "outputs"
+        (out / ".github/skills/code-review").mkdir(parents=True)
+        (out / "AGENTS.md").write_text(AGENTS)
+        review = out / ".github/skills/code-review/SKILL.md"
+        evidence = harnesses.Evidence(candidate_loaded=True, views=sorted(REQUIRED_VIEWS), writes=["outputs/AGENTS.md", "outputs/.github/skills/code-review/SKILL.md"])
+        for addition in ("Do not add tests.", "Always add files.", "Never update tests."):
+            with self.subTest(addition=addition):
+                review.write_text(REVIEW + "\n" + addition + "\n")
+                result = grade(8, ASSERTIONS[8], out, evidence)
+                self.assertEqual(result["status"], "not_run")
+                self.assertIsNone(result["expectations"][4]["passed"])
+                self.assertEqual(verify_grading(result, ASSERTIONS[8]), "not_run")
+
+    def test_markdown_does_not_hide_contradictory_guidance(self):
+        out = self.work / "outputs"
+        (out / ".github/skills/code-review").mkdir(parents=True)
+        review = out / ".github/skills/code-review/SKILL.md"
+        evidence = harnesses.Evidence(candidate_loaded=True, views=sorted(REQUIRED_VIEWS | {"inputs/existing-code-review.md"}), writes=["outputs/AGENTS.md", "outputs/.github/skills/code-review/SKILL.md"])
+        for command in ("never run `npm test`", "do not **run** **npm test**", "avoid running _npm test_"):
+            for target in ("agents", "review"):
+                with self.subTest(command=command, target=target):
+                    (out / "AGENTS.md").write_text(AGENTS + ("\n" + command if target == "agents" else ""))
+                    review.write_text(REVIEW + ("\n" + command if target == "review" else ""))
+                    result = grade(7, ASSERTIONS[7], out, evidence)
+                    self.assertEqual(result["status"], "failed")
+                    self.assertFalse(result["expectations"][0]["passed"])
+                    self.assertFalse(result["expectations"][3]["passed"])
+        (out / "AGENTS.md").write_text(AGENTS)
+        for replacement in ("never **preserve** the exact", "do not `preserve` the exact", "avoid _preserving_ the exact"):
+            with self.subTest(replacement=replacement):
+                review.write_text(REVIEW.replace("preserve the exact", replacement))
+                result = grade(7, ASSERTIONS[7], out, evidence)
+                self.assertEqual(result["status"], "failed")
+                self.assertFalse(result["expectations"][2]["passed"])
 
     def test_filters_reject_unknown_duplicate_unsupported_cases(self):
         for ids in ([99], [7, 7], [1]):
