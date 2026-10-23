@@ -49,7 +49,8 @@ ScaryPilot changed the integration layer for GitHub Copilot:
   Check delegated action guards without treating temporal specs as actions.
   Stories count reported counterexample states rather than claiming exhaustive
   paths. Record generated files in `summary.json` and refuse nested foreign
-  entries or symlinks before replacing output; older output needs a fresh folder.
+  entries or symlinks before replacing output. Top-level generated-looking files
+  also require inventory membership; older output needs a fresh folder.
   Preserve second-model-only step labels, guards and attribution even when
   their screen endpoints also occur in the current model.
 - Added a short Copilot-owned practical guide with generic task prompts,

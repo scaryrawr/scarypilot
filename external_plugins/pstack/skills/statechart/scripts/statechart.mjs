@@ -752,7 +752,7 @@ function foreign(dir) {
       } else if (
         !entry.isFile() ||
         !OWN.test(entry.name) ||
-        (inventory && entry.name !== ".DS_Store" && !inventory.has(entry.name))
+        (entry.name !== ".DS_Store" && !inventory?.has(entry.name))
       )
         others.push(entry.name);
     }

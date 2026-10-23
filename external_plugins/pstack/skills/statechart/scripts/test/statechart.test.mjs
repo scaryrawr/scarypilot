@@ -1009,7 +1009,7 @@ test("statechart.mjs does not use an output folder that has files that it did no
   assert.equal(notes.status, 2);
   assert.equal(
     notes.stderr,
-    "Pay-statechart has a file that this command did not write: notes.md. A run puts its files in place of the whole output folder, so pass --out with a new folder.\n",
+    "Pay-statechart has 2 files that this command did not write, such as chart.mmd. A run puts its files in place of the whole output folder, so pass --out with a new folder.\n",
   );
   assert.deepEqual(readdirSync(dir).sort(), [
     "Pay-statechart",
@@ -1019,6 +1019,7 @@ test("statechart.mjs does not use an output folder that has files that it did no
   ]);
   assert.deepEqual(readdirSync(out).sort(), [".DS_Store", "chart.mmd", "notes.md", "tlc"]);
   assert.equal(readFileSync(join(out, "chart.mmd"), "utf8"), "kept\n");
+  assert.equal(readFileSync(join(out, "notes.md"), "utf8"), "mine\n");
 });
 
 test("statechart.mjs exits 2 and names a helper script that cannot start", () => {
@@ -3162,6 +3163,20 @@ test("a rerun preserves unlisted nested files even when they have generated-look
   assert.equal(rerun.status, 0, rerun.stderr);
 });
 
+test("generated-looking files without an inventory are preserved before model checking", () => {
+  for (const name of ["chart.mmd", "chart.png", "stories.md"]) {
+    const dir = mkdtempSync(join(tmpdir(), "statechart-"));
+    const out = writeLamp(dir);
+    mkdirSync(out);
+    const file = join(out, name);
+    writeFileSync(file, "mine\n");
+    const r = node("statechart.mjs", ["from-spec", "Lamp.tla"], dir);
+    assert.equal(r.status, 2, r.stderr);
+    assert.ok(r.stderr.includes(`did not write: ${name}`), r.stderr);
+    assert.equal(readFileSync(file, "utf8"), "mine\n");
+  }
+});
+
 test("generated-looking directories and symlinked TLC folders are not owned output", () => {
   const dir = mkdtempSync(join(tmpdir(), "statechart-"));
   const out = writeLamp(dir);
@@ -3195,8 +3210,13 @@ test("generated-looking directories and symlinked TLC folders are not owned outp
 test("a rerun without --png removes the chart.png of an earlier run", needsTlc, () => {
   const dir = mkdtempSync(join(tmpdir(), "statechart-"));
   const out = writeLamp(dir);
-  mkdirSync(out);
+  const first = node("statechart.mjs", ["from-spec", "Lamp.tla"], dir);
+  assert.equal(first.status, 0, first.stderr);
+  const summaryFile = join(out, "summary.json");
+  const previous = JSON.parse(readFileSync(summaryFile, "utf8"));
+  previous.generatedFiles.push("chart.png");
   writeFileSync(join(out, "chart.png"), "");
+  writeFileSync(summaryFile, JSON.stringify(previous));
   const r = node("statechart.mjs", ["from-spec", "Lamp.tla"], dir);
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(
