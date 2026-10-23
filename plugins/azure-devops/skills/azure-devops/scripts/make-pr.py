@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from shared.ado import (
+    PR_PAGE_URL_CONTRACT,
     attribute_ai_text,
     normalize_organization,
     parse_azure_devops_https_url,
@@ -286,7 +287,7 @@ def create_pr(args: argparse.Namespace) -> None:
 
 
 def upload_attachment(args: argparse.Namespace) -> None:
-    """Upload a pull request attachment and print the created metadata."""
+    """Upload an attachment with optional PR-description video markup."""
     print(
         json.dumps(
             upload_pr_attachment(
@@ -296,6 +297,7 @@ def upload_attachment(args: argparse.Namespace) -> None:
                 pull_request_id=args.pull_request_id,
                 file=args.file,
                 file_name=args.file_name,
+                pr_page_url=args.pr_page_url,
             ),
             indent=2,
         )
@@ -329,6 +331,7 @@ def main() -> None:
     upload_parser.add_argument("--pull-request-id", required=True)
     upload_parser.add_argument("--file", required=True)
     upload_parser.add_argument("--file-name", default="")
+    upload_parser.add_argument("--pr-page-url", default=None, help=PR_PAGE_URL_CONTRACT)
     args = parser.parse_args()
 
     if args.command == "preflight":

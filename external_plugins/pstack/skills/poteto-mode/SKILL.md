@@ -33,6 +33,10 @@ Remaining triggers:
 - Broken skill mid-task → fix it in its own PR. Don't block. Don't silently work around it.
 - Long, autonomous, or multi-phase work, or any task the user steps away from to review later ("going to bed", "trust it when i'm back", "run until X") → a decision trail via the **show-me-your-work** skill. Commit it when stakes need an auditable record; keep it local otherwise.
 
+## Shared completion gate
+
+Before a completion claim, read and apply [Prove It Works](../principle-prove-it-works/SKILL.md). Connect the acceptance condition to the smallest adequate direct check, inspect the actual result, and include proportionate proof or the specific partial/blocked gap in the reply without waiting to be asked. Reuse the project verifier and benchmark-checklist where relevant. UI replay is preferred for meaningful interactions only when useful and explicitly authorized; this gate grants no capture or upload permission. Tiny and read-only tasks do not require a new workflow or artifact bundle.
+
 ## Principles
 
 ### Host-shell portability

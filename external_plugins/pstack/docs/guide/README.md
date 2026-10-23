@@ -1,6 +1,9 @@
 # The pstack guide
 
-This guide covers the Copilot adaptation `2.1.0-copilot.1`, with 57 Agent Skills including 24 principles and portable upstream changes through `0.15.29`.
+This guide covers the Copilot adaptation `2.2.0-copilot.1`, with 58 Agent Skills including 24 principles and portable upstream changes through `0.15.30`.
+
+For a shorter route, start with [Use pstack for a focused task](./quick-start.md).
+It has copy/paste prompts, scope-preserving follow-ups, and guidance on agent cost.
 
 pstack works best when you stop micromanaging the agent. You describe what you want and how you'll know it's done. `/poteto-mode` picks the playbook, runs the other skills as the steps need them, and shows you the evidence. This guide teaches that habit with realistic prompts.
 

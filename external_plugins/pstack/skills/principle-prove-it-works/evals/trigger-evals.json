@@ -1,0 +1,26 @@
+[
+  {
+    "query": "Implement JSON output for a tiny local CLI while keeping its text output unchanged. Use only a synthetic dependency-free fixture in this disposable project; no network, installs, captures, publishing or extra agents.",
+    "should_trigger": true
+  },
+  {
+    "query": "Fix the selected tab jumping back when the panel reopens. This disposable project has no app runtime or capture permission. Do not install, record, upload or launch extra agents.",
+    "should_trigger": true
+  },
+  {
+    "query": "Change settings so the chosen tab survives restarting the command. Use a synthetic local Python fixture here, without dependencies, network, publishing, captures or extra agents.",
+    "should_trigger": true
+  },
+  {
+    "query": "Make this local export faster without changing the rows it exports. Use a dependency-free synthetic fixture here; no network, installs, captures, publishing or extra agents.",
+    "should_trigger": true
+  },
+  {
+    "query": "Explain what independent persistence readback means in two sentences. This is a read-only conceptual question; do not create files or run applications.",
+    "should_trigger": false
+  },
+  {
+    "query": "Suggest a clearer sentence for 'This command exports records.' Reply with only the sentence; do not edit files, run commands or start an application.",
+    "should_trigger": false
+  }
+]
