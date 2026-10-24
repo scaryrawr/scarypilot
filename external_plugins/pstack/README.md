@@ -299,10 +299,16 @@ outside/symlink rejection and ancestor-swap confinement on supported platforms.
 No extension bundle, SDK install or live model worker is required.
 
 The existing portable-helper workflow provisions Temurin Java 21 and the
-official TLC `v1.8.0` jar on Linux and macOS. This is the official prerelease
-used for this integration's model-checking coverage. The download is pinned
-by version and SHA-256
-`5bd7b64db99ae4c6c35f290de5e809c0ee41af43f8699cf696099ffb6452b1e2`.
+official stable TLC [`v1.7.4`](https://github.com/tlaplus/tlaplus/releases/tag/v1.7.4)
+jar on Linux and macOS. The download is pinned by version and SHA-256
+`936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`.
+These 2,274,532 bytes (official release asset `184694200`) also match the
+release notes' published SHA-1 `bee4a54f3ee3d4afc347c3240ec2d9e93b075104`;
+CI enforces the stronger SHA-256 above, not SHA-1. GitHub does not expose a
+SHA-256 digest for this older asset. The previous `v1.8.0` URL is a rolling
+prerelease: upstream replaces its assets and moves its tag, so it cannot
+serve as a fixed version pin. Do not refresh a checksum just to accept
+replacement prerelease bytes.
 CI sets `PSTACK_REQUIRE_TLC=1`, so a missing jar or unusable Java fails the
 suite instead of silently skipping model checking. Windows runs the
 dependency-free subset; POSIX process tests are not claimed as Windows coverage.
