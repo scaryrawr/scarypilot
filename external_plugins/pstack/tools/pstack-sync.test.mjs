@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -42,6 +44,81 @@ const policy = {
 
 test("shipped pstack integration satisfies the sync policy", () => {
   assert.deepEqual(checkRepository(), []);
+});
+
+test("portable CI pins stable TLC with a documented SHA-256", () => {
+  const workflow = readFileSync(new URL("../../../.github/workflows/pstack-portable.yml", import.meta.url), "utf8");
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const digest = "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88";
+
+  assert.match(workflow, /https:\/\/github\.com\/tlaplus\/tlaplus\/releases\/download\/v1\.7\.4\/tla2tools\.jar/);
+  assert.ok(workflow.includes(digest));
+  assert.ok(readme.includes(digest));
+  assert.doesNotMatch(workflow, /releases\/download\/(?:v1\.8\.0|rolling)\//);
+});
+
+test("TLC provisioning exports only a successfully verified download", {
+  skip: process.platform === "win32" ? "CI provisions TLC only on POSIX" : false,
+}, (t) => {
+  const workflow = readFileSync(new URL("../../../.github/workflows/pstack-portable.yml", import.meta.url), "utf8");
+
+  const step = workflow.split("      - name: Provision pinned official TLC\n")[1]
+    ?.split("      - name: Check sync policy and portable helpers\n")[0];
+
+  assert.ok(step, "the provisioning step must remain covered");
+
+  const script = step.split("        run: |\n")[1]?.replace(/^ {10}/gm, "");
+
+  assert.ok(script, "the provisioning shell body must remain covered");
+
+  const root = mkdtempSync(join(tmpdir(), "pstack-tlc-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const bin = join(root, "bin");
+  mkdirSync(bin);
+  writeFileSync(join(bin, "curl"), `#!/bin/sh
+if [ "$TLC_TEST_TRANSPORT_FAILURE" = 1 ]; then exit 22; fi
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = --output ]; then
+    printf '%s' 'synthetic TLC fixture' > "$2"
+    exit 0
+  fi
+  shift
+done
+exit 2
+`, { mode: 0o755 });
+
+  const fixtureDigest = createHash("sha256").update("synthetic TLC fixture").digest("hex");
+
+  for (const scenario of ["verified", "checksum-mismatch", "transport-failure"]) {
+    const envFile = join(root, `${scenario}.env`);
+
+    const run = spawnSync("bash", ["--noprofile", "--norc", "-e", "-o", "pipefail", "-c",
+      scenario === "verified"
+        ? script.replace("936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88", fixtureDigest)
+        : script,
+    ], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        RUNNER_TEMP: root,
+        JAVA_HOME: join(root, "java"),
+        GITHUB_ENV: envFile,
+        TLC_TEST_TRANSPORT_FAILURE: scenario === "transport-failure" ? "1" : "0",
+      },
+    });
+
+    assert.equal(run.error, undefined);
+
+    if (scenario === "verified") {
+      assert.equal(run.status, 0, run.stderr);
+      assert.equal(readFileSync(envFile, "utf8"),
+        `TLA2TOOLS=${join(root, "pstack-tlc", "tla2tools-1.7.4.jar")}\nJAVA=${join(root, "java", "bin", "java")}\n`);
+    } else {
+      assert.notEqual(run.status, 0, scenario);
+      assert.ok(!readdirSync(root).includes(`${scenario}.env`), scenario);
+    }
+  }
 });
 
 test("the mapped manifest retains skills and agents without an extension", () => {
