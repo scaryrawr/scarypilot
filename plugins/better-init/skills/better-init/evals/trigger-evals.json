@@ -25,7 +25,8 @@
   },
   {
     "query": "Explain what the existing AGENTS.md says without changing anything.",
-    "should_trigger": false
+    "should_trigger": false,
+    "files": ["evals/files/AGENTS.md"]
   },
   {
     "query": "Write contributor documentation for installing the application.",

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "upstream": "https://github.com/anthropics/skills/tree/main/skills/skill-creator",
+  "upstream_license": "Apache-2.0",
+  "adapted_source": "Locally installed Copilot skill-creator snapshot, captured 2026-10-23 UTC",
+  "source_revision": null,
+  "pinning": "Source SHA-256 pins identify the adapted bytes. No immutable upstream adaptation commit was available; these are not claimed to be upstream file hashes.",
+  "source_sha256": {
+    "LICENSE.txt": "bc6b3af2f331cbc7fb0da1344efb2cbe5877a31498b4d70dbc7000f3405a1362",
+    "NOTICE.md": "3b7f75bd8c2f454890cfbba8e7a57633cea9985c239923b0998475d9e0f47cba",
+    "scripts/utils.py": "ec39bddb45a8d766e98ec3d032aa83ca371f965e35a2b5bf2e1c4881c31d6f51",
+    "scripts/harnesses.py": "039ae916eff3d01ce2632dedae5bf8d7df27da8befb5177b59b1aabbf41e92e1",
+    "scripts/run_eval.py": "c90b60f79ad50aaed38e288bc2b36699e27998db544f404b37dd8777a405f728",
+    "scripts/run_harness_eval.py": "5cb266f8ad77e5177e618a9734c7d93a032d24c86f2371bbeca3eb4c361b2269"
+  },
+  "unchanged_copies": ["LICENSE.txt", "scripts/utils.py"],
+  "adapted_files": ["NOTICE.md", "scripts/harnesses.py", "scripts/run_eval.py", "scripts/run_harness_eval.py"],
+  "new_files": ["scripts/__init__.py", "scripts/grading.py", "tests/test_runner.py"],
+  "omitted": "All non-Copilot harnesses, optimizer loops, unused packaging, aggregate and HTML reviewer dependencies. Existing metadata/grading layout is retained for downstream review.",
+  "changes": [
+    "Removed inherited process configuration, parallel inference, unrestricted permissions and project-root execution.",
+    "Required CLI approval, explicit model, bounded call count and artifact workspace before spawning inference.",
+    "Made candidate description staging minimal and exact candidate tool completion mandatory.",
+    "Retained raw JSONL/stderr, timings, per-run manifests and complete task grading with independent file contracts.",
+    "Added declared read-only Markdown fixtures for natural-language trigger cases using the existing skill-relative files format; queries remain unchanged."
+  ]
+}

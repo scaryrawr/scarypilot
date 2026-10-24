@@ -21,7 +21,8 @@ There is no root build or broad test suite.
 - For extension-defined workflows, also verify registration and one successful worker run through a live extension host; package tests alone do not prove the host can resolve workflow agents. Register restricted workflow-only agents through the same `joinSession({ customAgents, workflows })` call so execution does not depend on separate agent-discovery timing.
 - For `plugins/copilot-autoresearch`, also run `bash plugins/copilot-autoresearch/skills/autoresearch-finalize/tests/finalize-smoke.sh`.
 - npm 12 blocks URL dependencies by default. When an existing extension manifest fails with `EALLOWREMOTE`, install with `npm install --allow-remote=all --no-package-lock`; do not treat the security default as a missing-dependency blocker or change registry configuration.
-- For skill trigger evals, run the skill-creator `scripts/run_eval.py` with `--num-workers 1`; higher concurrency can starve parallel `copilot` processes and report false failures.
+- For skill trigger evals, use the pinned skill-creator helper at `tools/skill-evals/skill-creator/scripts/run_eval.py` with `--num-workers 1`; higher concurrency can starve parallel `copilot` processes and report false failures.
+- During skill-related PR work, run `node tools/skill-evals.mjs select --base <intended-PR-base>` before declaring readiness. Repeat after relevant edits. Review affected suites, shared-rule impact, missing cases, and excluded coverage without waiting for an explicit eval request. Obtain approval for the proposed model, calls, and spending before model-backed execution until a standing policy exists. Report unrun or ungraded behavior as `not_run`, never passed. Commands and safety limits are in `tools/skill-evals/README.md`.
 
 ## Coding Style, Versioning, and Naming
 
