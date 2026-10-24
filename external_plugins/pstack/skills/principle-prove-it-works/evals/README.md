@@ -10,6 +10,8 @@ Use only disposable synthetic projects. The harness invokes Copilot with
 It explicitly injects the skill, so passing these cases measures compliance
 after loading, not implicit activation. Fixtures require only Python's standard
 library. Keep raw transcripts, outputs and grading outside the shipped skill.
+Each case's `expected_output` describes the intended result; it is required
+inventory metadata, not a generated artifact or evidence that the case passed.
 
 Grade expectations against actual tool traces, output contents and final claims.
 Re-run retained CLI tests, verify independent persistence readback, and confirm
