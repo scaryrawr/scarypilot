@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promis
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { coverageReport, inventory, loadPolicy, parseDiff, selectSkills, validatePolicyCoverage } from "./skill-evals.mjs";
 
 const policy = {
@@ -56,6 +57,31 @@ test("inventory validates fixture-backed suites without model access", async (t)
   assert.equal(selected[0].coverage, "cases_available");
   assert.deepEqual(selected[0].runnable, { taskIds: [7], triggerIndexes: [0] });
   assert.equal(selected[0].excludedCases, 0);
+});
+
+test("checked-in skill inventory satisfies coverage contracts without model access", async () => {
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  const skills = await inventory(root);
+
+  assert.ok(skills.length > 0);
+  validatePolicyCoverage(skills, await loadPolicy(root));
+});
+
+test("task expected-output descriptions are required inventory metadata", async (t) => {
+  const root = await fixture(t);
+  const skill = await sample(root);
+  const filename = `${skill}/evals/evals.json`;
+  const suite = JSON.parse(await readFile(path.join(root, filename), "utf8"));
+
+  delete suite.evals[0].expected_output;
+  await put(root, filename, JSON.stringify(suite));
+  await assert.rejects(inventory(root), /Missing expected task output/);
+
+  for (const invalid of ["", null, 7]) {
+    suite.evals[0].expected_output = invalid;
+    await put(root, filename, JSON.stringify(suite));
+    await assert.rejects(inventory(root), /Missing expected task output/);
+  }
 });
 
 test("a missing fixture fails safe validation", async (t) => {
