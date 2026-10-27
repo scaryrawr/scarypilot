@@ -17,7 +17,15 @@ Mechanics first, history second. Each skill's report tells you which sources it 
 /poteto-mode read this thread. restate the underlying issue in your own words, in plain English. don't change any code yet.
 ```
 
-A misreading shows up in the restatement, where it costs one message to correct. Keep your own theory to yourself until the agent has stated its own.
+A misreading shows up in the restatement, where it costs one message to correct. Keep your own theory to yourself until the agent has stated its own. `/in-your-own-words` asks for the restatement alone, with no playbook.
+
+## Sharpen a prompt before you send it
+
+```text
+/sharpen write the onboarding doc for the new billing service.
+```
+
+The agent names what an expert would do that you didn't ask for, the raw material they'd start from, their methods and tools, and an outside check that the result is right. It hands back your prompt rewritten to ask for that and doesn't do the task. Send the rewrite when it reads right.
 
 ## Prototype before you pick
 
@@ -41,7 +49,7 @@ Ask only after the design settles. The plan is the deliverable, and it names the
 ask /arena for a second opinion on this thread and our approach
 ```
 
-Your current design becomes one candidate among several, and the synthesis tells you whether the panel found something better or confirmed what you had. Cheap insurance before a costly commitment.
+Your current design becomes one candidate among several, and the synthesis tells you whether the panel found something better or confirmed what you had. It costs little next to a design that is expensive to reverse.
 
 ## Check independent slices in parallel
 
@@ -58,6 +66,14 @@ Each worker owns one package. The parent waits for every slice and returns one `
 ```
 
 The qualifiers do real work. "don't change anything yet" keeps it read-only, and the nitpick rule pre-filters the noise so `Act on` findings are worth your time.
+
+## Prove a property tests rarely reach
+
+```text
+/create-formal-verification-skill the retry queue. a message must never be delivered twice.
+```
+
+You get one property checked in every case within a stated scope, a counterexample in your code's terms if the code already breaks it, and a project skill the next agent runs on any change to that code. After merges or refactors that skipped the check, use `/maintain-formal-verification-skill` to distinguish verification drift from bugs.
 
 ## Fix a bug through a failing test
 
@@ -99,15 +115,16 @@ The fix belongs in architecture, a type, a lint, or a test, so later runs don't 
 
 You get an answer, a prompt to send, and a source link. The suggested task does not start until you request it.
 
-## Inspect pstack without a model run
+## Run deterministic validation without a model
 
-```text
-/pstack status
-/pstack capabilities
-/pstack resume
+```sh
+node "<schema-skill>/scripts/validate.mjs" plan plan.md basic
 ```
 
-These native commands are deterministic and read-only. They don't spend model tokens or launch workers. `/pstack resume` inspects existing handoff facts; it doesn't execute the next step. Interpreting the output in an agent conversation still uses that agent.
+Resolve the installed [schema skill](../../skills/pstack-schema-validate/SKILL.md)
+path and run from the approved workspace on macOS or Linux. The CLI performs no
+model call and launches no workers. Contract validity is not evidence validity;
+asking an agent to interpret the result still uses that agent.
 
 ## Keep a run honest while you're away
 
@@ -143,6 +160,14 @@ You rarely need more words. You need the right name, and [the principles page](.
 
 That's the whole prompt. [`/bro`](../../skills/bro/SKILL.md) restates the last message like one human talking to another, no jargon, shorter. Use it when a reply is technically thorough and you still don't know what it said.
 
+## Catch up on a chat you left running
+
+```text
+/ketchup
+```
+
+[`/ketchup`](../../skills/ketchup/SKILL.md) tells you in plain words what changed since your last message, then lists every item waiting on you with its recommendation, evidence, and risk. It changes nothing while it reports. The reply grows with the number of waiting items rather than dropping any to meet a word count.
+
 ## The pitfalls
 
 - **Enumerating skills in the prompt.** "use /how then /architect then /arena" reorders steps the playbook already sequences. State the goal and constraints. Name a skill only to override a default.
@@ -150,7 +175,7 @@ That's the whole prompt. [`/bro`](../../skills/bro/SKILL.md) restates the last m
 - **Leading with your theory of the cause.** The agent searches wherever you pointed. Ask it to restate the problem first, then share your hunch.
 - **Taking the first design.** One attempt locks in the first shape the model thought of. Ask for prototypes or `/architect` and pick from evidence.
 - **Polishing an abstract plan.** Settle empirical questions with prototypes before adversarially reviewing what got built.
-- **Parallel agents in one worktree.** They overwrite each other and the diff becomes archaeology. Give writing workers separate worktrees, ports, and build outputs. Cloud sessions are an option only when the current host exposes them.
+- **Parallel agents in one worktree.** They overwrite each other, and nobody can tell which agent changed what. Give writing workers separate worktrees, ports, and build outputs. Cloud sessions are an option only when the current host exposes them.
 - **Looping before you trust the loop.** A loop that can't verify its work only makes unchecked work faster. Get the verification skill working first.
 - **Trusting an unvetted number.** A warm cache or skipped code path can fake a speedup. Run `/benchmark-checklist` before the number goes anywhere.
 - **Correcting the same mistake by hand.** A correction in chat helps one run. `/correct` changes the repo so later runs don't depend on the same correction.

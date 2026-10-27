@@ -5,7 +5,7 @@ Swap in real paths, installed skills, and done checks. Give at most one recipe f
 ## Understand
 
 - `/in-your-own-words <long or messy ask>. don't start the work yet.`
-- `/sharpen <task>. aim for the outcome without prescribing the implementation.`
+- `/sharpen <the prompt you're about to send>.` Returns the rewritten prompt without executing it.
 - `/poteto-mode read <thread>. restate the underlying issue in your own words, in plain english. don't change any code yet.`
 - `/poteto-mode investigate why <symptom>. give me what we know, what data you used, and your best hypotheses. don't change any code yet.`
 - `use /how to understand <subsystem>. then use /why to find out why it broke recently.`
@@ -13,7 +13,9 @@ Swap in real paths, installed skills, and done checks. Give at most one recipe f
 - `/teach me why you implemented it this way and not <other way>. what did you trade off?`
 - `/poteto-mode take over this branch. read the decision log, find what's done, and continue. don't redo finished work.`
 
-For deterministic native inspection, recommend `/pstack status`, `/pstack capabilities`, or `/pstack resume`. These commands make no model calls and launch no workers; resume does not execute a task.
+For pickup, read the supplied handoff and scoped session history explicitly.
+Check current Git facts before relying on the prior report. No automatic
+resume-context injection is provided.
 
 ## Build
 
@@ -39,8 +41,9 @@ Capture needs actual tools and permission. A plan is the deliverable, not permis
 ## Review and ship
 
 - `/interrogate the whole branch, but skeptically. don't change anything yet. no nitpicks unless it's a real bug or regression.` Read the dismissals too.
-- `/swarm check every package under <dir> against its check script. one worker per package. one report.` Confirm host tools and scope; an expensive native workflow needs explicit consent.
+- `/swarm check every package under <dir> against its check script. one worker per package. one report.` Confirm host Task tools, scope and worker budget before launching.
 - `/benchmark-checklist vet this speedup before it goes in the pr description.`
+- `/create-formal-verification-skill prove <property> holds in <module>, even when <steps> interleave or retry.` After merges or refactors in that code: `/maintain-formal-verification-skill`.
 - `/pstack-schema-validate validate this pstack plan at <workspace path>.` Contract validity does not prove the recorded evidence.
 - `/poteto-mode open the pr. small ordered commits, evidence in the description.`
 - `/poteto-mode babysit this pr. get it green.` For status only: `/poteto-mode check on pr <number>. anything outstanding?`
@@ -50,7 +53,7 @@ PR creation and updates prefer matching built-in tools within their actual scope
 
 ## Away and back
 
-- `/ketchup` catches up on this chat since your last message, not other sessions.
+- `/ketchup` catches up on this chat since your last message, not other sessions, and lists every call waiting on you with its evidence and risk.
 - `/poteto-mode im stepping away. <goal> in a fresh worktree off <base>. done means <checks>. keep a decision log. you may commit, but don't push or merge. keep running while the session is active. if truly stuck, stop and write up why.`
 - `/show-me-your-work catch me up on what you did last night.` Read its Attention section first.
 - `/poteto-mode full autopilot on this queue. each item is independent.` Requires agreed external-write permissions and independent verification.

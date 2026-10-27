@@ -1,0 +1,31 @@
+name: Azure DevOps helpers
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/azure-devops.yml"
+      - "plugins/azure-devops/skills/azure-devops/scripts/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/azure-devops.yml"
+      - "plugins/azure-devops/skills/azure-devops/scripts/**"
+
+permissions:
+  contents: read
+
+jobs:
+  platforms:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - name: Check Python request owner
+        run: python -m unittest discover -s plugins/azure-devops/skills/azure-devops/scripts/tests -v

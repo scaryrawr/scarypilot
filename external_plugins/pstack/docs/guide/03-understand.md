@@ -28,9 +28,9 @@ Ask the question you actually have. [`/how`](../../skills/how/SKILL.md) reads th
 /why was the retry limit set to five? does the reason still hold?
 ```
 
-[`/why`](../../skills/why/SKILL.md) works like a detective on a cold case. It starts from source control, then queries whatever evidence categories your MCPs expose, such as the issue tracker, long-form docs, team chat, observability, error tracking, and analytics, all in parallel. The report cites everything, separates direct evidence from inference, and says "appears to" when the record is thin. A null result gets reported too, because "nobody wrote down why" is itself an answer.
+[`/why`](../../skills/why/SKILL.md) starts from source control, then queries whatever evidence categories your MCPs expose, such as the issue tracker, long-form docs, team chat, observability, error tracking, and analytics, all in parallel. The report cites everything, separates direct evidence from inference, and says "appears to" when the record is thin. A null result gets reported too, because "nobody wrote down why" is itself an answer.
 
-The two compose naturally. `do why first then how` is a perfectly good prompt when you suspect the history explains the mess.
+The two compose naturally. `do why first then how` is a good prompt when you suspect the history explains the mess.
 
 ## Actually understand it with `/teach`
 
@@ -38,7 +38,7 @@ The two compose naturally. `do why first then how` is a perfectly good prompt wh
 /teach me how this PR changes retries. convince me it fixes the cause and not the symptom.
 ```
 
-[`/teach`](../../skills/teach/SKILL.md) is for when a summary isn't enough. It runs `/how` and `/why`, for a small change maybe just one of them, and weaves the findings into a plain explanation that builds up diagram by diagram. The "convince me" framing is worth stealing. It turns the explanation into an argument you can poke at instead of a tour.
+[`/teach`](../../skills/teach/SKILL.md) is for when a summary isn't enough. It runs `/how` and `/why`, for a small change maybe just one of them, and weaves the findings into a plain explanation that builds up diagram by diagram. The "convince me" framing is worth reusing. It turns the explanation into an argument you can test instead of a tour.
 
 It works on the agent's own choices too:
 
@@ -72,7 +72,7 @@ When another agent (or you, last week) left a branch mid-flight:
 
 The [Session pickup playbook](../../skills/poteto-mode/playbooks/session-pickup.md) treats the prior trail as authoritative. It reconstructs the branch state and decisions, names the resume point, and verifies inherited claims against the original goal instead of re-deriving everything from scratch.
 
-For deterministic inspection first, `/pstack resume` reads existing handoff and state facts without starting workers or resuming the task itself. The recorded claims still need verification before you act on them.
+Read a supplied handoff or scoped prior session before resuming work. Pstack does not inject that context automatically. Recorded claims still need verification before you act on them.
 
 **Pitfall:** don't skip this page's skills because "the agent will read the code anyway." An agent that starts editing without a traced model tends to fix the symptom at the first plausible spot. `/how` first is cheaper than the second bug.
 

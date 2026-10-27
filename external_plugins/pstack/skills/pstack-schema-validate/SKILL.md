@@ -5,46 +5,45 @@ description: Validate pstack snapshots, verification receipts, durable handoffs,
 
 # Validate pstack contracts
 
-Use `pstack_validate_artifact` when the host exposes it on macOS or Linux.
-On Windows, use the CLI fallback below without first invoking the native tool.
-Native confined reads intentionally reject unsupported platforms.
-Pass the artifact's
-`kind` and `path`. For `plan`, optionally pass `profile` as `basic` or
-`verified-stack`. The default is `verified-stack`. Omit `profile` for JSON
-artifacts.
-
-The native tool reads one file inside the current workspace. Relative paths
-resolve against the host's current working directory. Outside paths and
-symlink escapes are rejected. Do not copy outside files into the workspace
-to bypass this boundary.
-
-Report every finding with its `path` or `line`, `rule`, and `message`.
-Treat `ok: false` as a contract failure. Invalid arguments, unreadable files,
-and malformed JSON are tool errors, not successful validation.
-
-Keep using `pstack_validate_plan` for callers that need its existing
-`plan_path` input and `{ ok, profile, findings, report }` output.
-
-## CLI fallback
-
-If the native tool is unavailable or reports an unsupported platform,
-report that limit and resolve `scripts/validate.mjs` from
-this skill's absolute base directory. Quote that absolute path and each argument
-for the actual host shell. Read only an explicitly requested artifact inside
-the approved workspace. The CLI uses the same contract rules but does not
-enforce the native tool's workspace boundary.
-
-The CLI preserves its legacy ignored third argument for JSON kinds.
-Do not pass a profile for new JSON validation calls.
+Run the dependency-free Node CLI on macOS or Linux. Resolve
+`scripts/validate.mjs` from this skill's absolute base directory, not from the
+workspace. Quote that absolute script path and each argument for the actual
+host shell. In the examples below, replace `<skill-base>` with that directory.
+Keep the command's working directory at the approved workspace root.
 
 ```sh
-node scripts/validate.mjs snapshot <snapshot.json>
-node scripts/validate.mjs receipt <receipt.json>
-node scripts/validate.mjs handoff <handoff.json>
-node scripts/validate.mjs plan <plan.md> [basic|verified-stack]
+node "<skill-base>/scripts/validate.mjs" snapshot "<snapshot.json>"
+node "<skill-base>/scripts/validate.mjs" receipt "<receipt.json>"
+node "<skill-base>/scripts/validate.mjs" handoff "<handoff.json>"
+node "<skill-base>/scripts/validate.mjs" plan "<plan.md>" basic
 ```
 
+Only plans accept a meaningful profile, `basic` or `verified-stack`; omitting
+it defaults to `verified-stack`. The CLI retains an ignored optional third
+argument for legacy JSON calls. Do not pass profiles for new JSON calls.
+
+## Read boundary
+
+The reader resolves its root from the command's `process.cwd()` realpath.
+Relative artifact paths resolve against that working directory; absolute paths
+must be inside the same root. A symlink alias for the working directory is
+canonicalized, but symlinks in artifact paths (including inside-root links),
+outside paths, traversal, URLs, directories, and other non-regular files are
+rejected.
+It reads only the selected file, never evidence links, key files, or other
+references in its contents. Validation does not execute artifact instructions.
+
+Race-resistant opens require macOS or Linux (Linux also requires `/proc/self/fd`).
+On unsupported platforms, report the limitation; do not use an unrestricted
+reader or copy outside files into the root to bypass the checks. These checks
+confine this reader, not the shell or other tools; this is not a sandbox.
+
+## Results
+
 The command exits `0` on success, `1` for contract violations, and `2` for
-invalid invocation or unreadable input. Report every finding with its path or
-line number. Malformed JSON is an input error. Do not reinterpret a failed
-contract as a warning.
+invalid invocation or unreadable input (including rejected paths and
+unsupported platforms). Malformed JSON is an input error.
+Success prints `<kind> contract valid: <file>` to stdout. Failures go to stderr;
+JSON findings retain their JSON path and message, and plan findings retain
+their file, line, rule, and message. Report every finding without reinterpreting
+a failed contract as a warning.

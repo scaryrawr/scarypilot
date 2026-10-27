@@ -31,8 +31,9 @@ Read exactly one capture reference for the current host:
 ## Prepare
 
 1. Get the intended audience, outcome, approximate length, output path, and
-   whether the demo needs microphone audio, captions, narration, or a
-   side-by-side layout.
+   whether the demo needs microphone audio, captions, or narration. For evidence
+   comparisons, plan the layout and source receipts using the
+   [evidence-video standard](references/editing.md#evidence-video-standard).
 2. Write a concise shot list. Prepare and rehearse the application before
    recording. Silence notifications and remove credentials or private data.
 3. Use computer-use tools for application interaction. Do not use shell or
@@ -80,8 +81,11 @@ directory. Do not replace the managed lifecycle with an unmanaged FFmpeg process
 
 Use `references/editing.md` for command options and subtitle/narration formats.
 
-1. Trim setup and dead time into a new file with `trim`.
-2. Use `side-by-side` only when simultaneous comparison adds meaning.
+1. Read the [evidence-video standard](references/editing.md#evidence-video-standard)
+   before editing a comparison. It owns layout, timing, provenance, and frame
+   review decisions.
+2. Trim irrelevant setup and idle time into a new file with `trim`. Preserve
+   meaningful operation intervals, including waits for pending work.
 3. Add supplied or user-approved SRT captions with `subtitles`.
 4. For narration, draft a short script grounded in visible behavior. Generate
    audio with `narrate`, then combine it with `dub`. `narrate` first checks the
@@ -89,9 +93,10 @@ Use `references/editing.md` for command options and subtitle/narration formats.
    macOS, or FFmpeg Flite on Linux. Use `voices` before selecting a non-default
    voice. Never clone a person's voice or imply that synthetic narration is a
    real speaker.
-5. Probe the final file and preview it with `ffplay <file>` when an interactive
-   preview is appropriate. Confirm duration, dimensions, audio presence, and
-   that no sensitive content is visible.
+5. Probe the final file and inspect raw, intermediate, and final frames. Preview
+   with `ffplay <file>` when an interactive preview is appropriate. Follow the
+   reference's review gate for comparisons. Confirm duration, dimensions, audio
+   presence, readability, and that no sensitive content is visible.
 
-Preserve the raw recording, narration text, subtitle source, and final video so
-the edit remains reproducible.
+Preserve the raw recording, previous derivatives, narration text, subtitle
+source, and final video so the edit remains reproducible.

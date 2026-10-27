@@ -26,12 +26,16 @@ Remaining triggers:
 - Before review → the **no-comments** skill (`/no-comments`).
 - Shipping UI / IDE / CLI → the project's verification skill or the available browser, computer-use, terminal, or shell tools. For bug fixes, reproduce first on the same surface yourself; hand to the user only under the narrow Bug fix step 1 exception.
 - Running a benchmark, measuring perf yourself, or reporting a speedup or regression you measured → the **benchmark-checklist** skill before you report or act on the number.
-- Host-dependent workflow → call `pstack_capabilities` when available. Treat `unknown` as unavailable until the current Copilot host proves otherwise. Never infer Task agents, session history, browser automation, MCP tools, gh-stack, or App sidebar state from another session.
+- Host-dependent workflow → inspect the current host's advertised tools and the required helper runtimes. Treat unknown capabilities as unavailable until proven otherwise. Never infer Task agents, session history, browser automation, MCP tools, gh-stack, or App sidebar state from another session.
 - Any PR-status request → the **Babysit** playbook (`playbooks/babysit.md`). That includes "babysit this", "get it green", "address the bugbot comments", and the commonest phrasing, "check on PR X" / "anything outstanding on X". Never trigger it merely because a PR was opened. Declare its mode before polling; the playbook's step 1 owns the request-to-mode mapping.
 - Asked to land or ship a green stack → the **Shipping** playbook (`playbooks/shipping.md`). Green is not safe. Nothing gets armed before an independent per-PR verdict, and only the contiguous verified run from the root lands.
 - Bugbot or the agentic security review commented → skeptical posture. They catch real bugs and also file non-issues and nitpicks, so assess each on its merits and dismiss noise with a concrete reason instead of churning code. Triage fix / dismiss / ask per `references/bugbot-triage.md`.
 - Broken skill mid-task → fix it in its own PR. Don't block. Don't silently work around it.
 - Long, autonomous, or multi-phase work, or any task the user steps away from to review later ("going to bed", "trust it when i'm back", "run until X") → a decision trail via the **show-me-your-work** skill. Commit it when stakes need an auditable record; keep it local otherwise.
+
+## Shared completion gate
+
+Before a completion claim, read and apply [Prove It Works](../principle-prove-it-works/SKILL.md). Connect the acceptance condition to the smallest adequate direct check, inspect the actual result, and include proportionate proof or the specific partial/blocked gap in the reply without waiting to be asked. Reuse the project verifier and benchmark-checklist where relevant. UI replay is preferred for meaningful interactions only when useful and explicitly authorized; this gate grants no capture or upload permission. Tiny and read-only tasks do not require a new workflow or artifact bundle.
 
 ## Principles
 
@@ -39,7 +43,12 @@ Remaining triggers:
 
 Use the actual host shell, not an assumed Bash session. Resolve bundled script paths from the skill's absolute base directory and quote paths and arguments for that shell, including spaces and Unicode. Invoke JavaScript with `node` and TypeScript tools with `bun`; do not rely on executable shebangs on Windows. Do not assume `/tmp`, `/dev/null`, Unix environment assignment syntax, or POSIX utilities exist. Use workspace-local scratch paths and the host's output-discard mechanism. Explicitly POSIX fallbacks require a POSIX shell. macOS simulator playbooks remain macOS-only.
 
-Native workspace-confined artifact reads and pinned native swarm inputs require macOS or Linux. On Windows, route artifact validation to `node "<absolute-plugin-path>/skills/pstack-schema-validate/scripts/validate.mjs" <kind> <approved-workspace-file>` instead of `pstack_validate_artifact`. Route pinned swarm work to the Task fallback in the **swarm** skill with an explicit file list and verification evidence. Do not invoke native swarm with `inputFiles` on Windows or silently drop pinning to make it run. Native tools deliberately reject unsupported platforms; path prechecks cannot replace race-safe confinement.
+Workspace-confined artifact validation uses the **pstack-schema-validate** skill's
+Node CLI and requires macOS or Linux. Unsupported platforms fail explicitly;
+do not substitute an unconstrained reader or copy outside files inward to bypass
+the boundary. Swarms use Task agents with explicit scope and freshness evidence,
+not journaled pinning or host-enforced read-only permissions. If stronger
+guarantees are required and unavailable, report the work blocked.
 
 Read the leaf skill in full for any principle you apply. Each entry names when it applies.
 
@@ -48,7 +57,7 @@ Read the leaf skill in full for any principle you apply. Each entry names when i
 - **Laziness Protocol** (**principle-laziness-protocol**). Refactoring, sizing a diff, or tempted to add abstractions, layers, or signal threading. Bias to deletion and the smallest change that solves the problem.
 - **Foundational Thinking** (**principle-foundational-thinking**). Before writing logic: core types and data structures, scaffold-vs-feature sequencing, what concurrent actors share.
 - **Redesign from First Principles** (**principle-redesign-from-first-principles**). Integrating a new requirement into an existing design. Redesign as if it had been foundational from day one.
-- **Attack the Premise** (**principle-attack-the-premise**). Two or more fixes that share one premise have failed the same gate. Take a census of which actors hold the imbalance before the next fix, then question the premise instead of writing another fix that assumes it.
+- **Attack the Premise** (**principle-attack-the-premise**). Two or more fixes that share one premise have failed the same gate. Write the premise down and test it directly before you write another fix that assumes it.
 - **Subtract Before You Add** (**principle-subtract-before-you-add**). Sequencing an addition, refactor, or rewrite. Remove dead weight first, then build on the simpler base.
 - **Minimize Reader Load** (**principle-minimize-reader-load**). Reviewing or shaping code that's hard to trace. Count layers and hidden state, collapse one-caller wrappers, shrink mutable scope.
 - **Outcome-Oriented Execution** (**principle-outcome-oriented-execution**). Planned rewrites and migrations with explicit phase boundaries. Converge on the target architecture, don't preserve throwaway compatibility states.
@@ -68,7 +77,7 @@ Read the leaf skill in full for any principle you apply. Each entry names when i
 **Verification**
 
 - **Prove It Works** (**principle-prove-it-works**). After a task, before declaring done. Verify against the real artifact, not a proxy or "it compiles".
-- **Fix Root Causes** (**principle-fix-root-causes**). Debugging. Trace each symptom to its root cause, reproduce first, ask why until you reach it.
+- **Fix Root Causes** (**principle-fix-root-causes**). Debugging. Trace each symptom back to the first place the system went wrong and fix it there. A guard is a fix only when the state it handles is legitimate.
 - **Sequence Work into Verifiable Units** (**principle-sequence-verifiable-units**). Multi-step work (sweeps, migrations, runs of similar edits) and how you stack commits and PRs. Break work into small units that each end in a check, verify each before the next, and order delivery so the sequence proves itself.
 - **Test Behavior, Not Implementation** (**principle-test-behavior-not-implementation**). Writing, changing, reviewing, or keeping a test in any language. Exercise a caller-visible contract, assert an independently specified outcome, and check that a plausible defect makes the test fail.
 - **Explain the Number** (**principle-explain-the-number**). Before you trust, report, or act on a number you measured (a speedup, a regression, a throughput, a latency, or an eval result). Find what limits it, and rule out that it measured something other than the work you think.

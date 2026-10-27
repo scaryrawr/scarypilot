@@ -3,12 +3,12 @@
   "upstream": {
     "repository": "https://github.com/cursor/plugins",
     "subtree": "pstack",
-    "reviewedFromCommit": "d0ef80d86795816da932a153458c5dbe192d294e",
-    "integratedCommit": "6ce45c59b9301a638c1fe1a7b8dc2a82b650898f",
-    "contentCommit": "6ce45c59b9301a638c1fe1a7b8dc2a82b650898f",
-    "version": "0.15.25"
+    "reviewedFromCommit": "29fa9382c9c250d134f6a2f1aa86c01c5f63119d",
+    "integratedCommit": "9b93e81fb2921b9263d9463c15bafeabfe3903aa",
+    "contentCommit": "4ec7ffa173eaa70d3d9467a627baf0954645a353",
+    "version": "0.15.30"
   },
-  "localVersion": "1.1.0-copilot.1",
+  "localVersion": "2.2.0-copilot.4",
   "requiredSkills": [
     "how",
     "why",
@@ -22,7 +22,10 @@
     "principle-explain-the-number",
     "ketchup",
     "in-your-own-words",
-    "sharpen"
+    "sharpen",
+    "create-formal-verification-skill",
+    "maintain-formal-verification-skill",
+    "statechart"
   ],
   "forbiddenSkillFrontmatter": [
     "disable-model-invocation"
@@ -70,7 +73,7 @@
       "localPaths": [
         "plugin.json"
       ],
-      "reason": "The upstream Agent Plugins v1 manifest maps to the legacy Copilot manifest; its schema selector must not replace native extension, skill, or agent registration."
+      "reason": "The upstream Agent Plugins v1 manifest maps to Copilot skill and agent registration; the adaptation intentionally has no native extension."
     },
     {
       "path": "agents",
@@ -81,6 +84,14 @@
     }
   ],
   "excludedUpstreamPaths": [
+    {
+      "path": "docs/harness/claude-code.md",
+      "reason": "The Claude Code harness adapter maps Cursor tools, models, paths, and packaging to a different client; this package already adapts those surfaces for Copilot."
+    },
+    {
+      "path": "extensions",
+      "reason": "pstack ships portable skills and scripts, not a native extension runtime."
+    },
     {
       "path": "automations/benny",
       "reason": "Copilot plugins do not expose the Cursor Automations runtime."
@@ -100,7 +111,7 @@
   ],
   "copilotOwnedPaths": [
     "contracts",
-    "extensions",
+    "docs/guide/quick-start.md",
     "skills/deslop",
     "skills/pstack-schema-validate",
     "NOTICE.md",

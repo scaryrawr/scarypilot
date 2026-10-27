@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "execution": "approval-required",
+  "sharedDependencies": [
+    {
+      "source": "external_plugins/pstack/skills/",
+      "consumers": ["external_plugins/pstack/skills/"],
+      "reason": "Pstack skills and playbooks route to sibling skills."
+    }
+  ],
+  "offlineSuites": [
+    {
+      "skill": "plugins/better-init/skills/better-init",
+      "taskIds": [7, 8],
+      "triggerIndexes": [0, 1, 2, 3, 4, 5, 6, 7],
+      "reason": "File-only guidance generation with existing fixtures and independent grading."
+    }
+  ]
+}

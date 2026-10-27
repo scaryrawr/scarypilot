@@ -104,6 +104,13 @@ def object_response(value: Any, label: str) -> dict[str, Any]:
     return value
 
 
+def search_response(value: Any) -> dict[str, Any]:
+    payload = object_response(value, "search")
+    if "infoCode" in payload and (type(payload["infoCode"]) is not int or payload["infoCode"] != 0):
+        raise AdoError("Azure Boards search is unavailable or incomplete; check search indexing and permissions")
+    return payload
+
+
 def result_url(value: Any, org: str, item_id: int) -> str:
     value = string(value, "response URL", 16384)
     owner, normalized = canonical_url(value)
@@ -205,13 +212,11 @@ class BoardsClient:
             filters["System.WorkItemType"] = request["types"]
         if "areas" in request:
             filters["System.AreaPath"] = request["areas"]
-        payload = object_response(self.transport.json(
+        payload = search_response(self.transport.json(
             f"https://almsearch.dev.azure.com/{self.org}/_apis/search/workitemsearchresults?api-version=7.1",
             "POST", json.dumps({"searchText": request["text"], "$top": top, "filters": filters}).encode("utf-8"),
             {"Content-Type": "application/json"}, replay_safe=True,
-        ), "search")
-        if "infoCode" in payload and (type(payload["infoCode"]) is not int or payload["infoCode"] != 0):
-            raise AdoError("Azure Boards search is unavailable or incomplete; check search indexing and permissions")
+        ))
         count = integer(payload.get("count"), "search count", 9007199254740991, 0)
         entries = payload.get("results")
         if not isinstance(entries, list) or len(entries) > top or count < len(entries):

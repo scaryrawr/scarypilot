@@ -3,15 +3,16 @@
 This plugin is adapted from
 [pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan.
 The adaptation originally imported upstream commit
-`46125561306434d8a1d7745d540d8932ab0cd2a2` and had included the compatible
-changes through upstream repository commit
-`6ce45c59b9301a638c1fe1a7b8dc2a82b650898f` (pstack version `0.15.25`). That
-commit also changes the `pstack/` subtree, so it is the content boundary.
+`46125561306434d8a1d7745d540d8932ab0cd2a2` and includes compatible changes
+through upstream repository commit
+`9b93e81fb2921b9263d9463c15bafeabfe3903aa` (pstack version `0.15.30`).
+The latest commit changing the `pstack/` subtree at that boundary is
+`4ec7ffa173eaa70d3d9467a627baf0954645a353`, the content boundary.
 
 The reviewed range starts after
-`d0ef80d86795816da932a153458c5dbe192d294e`, the previous reviewed repository
-boundary (`0.15.15`, with content last changed at
-`df581122cde17e6e27686b5a448bde23e4ad4318`). The machine-readable boundary,
+`29fa9382c9c250d134f6a2f1aa86c01c5f63119d`, the previous reviewed repository
+boundary (`0.15.29`, content `88d47514b82e7c44f00f2b2a72ff6dd12158038c`).
+The machine-readable boundary,
 ownership rules, and exclusions live in [`upstream-sync.json`](./upstream-sync.json).
 
 The `make-bot-ui` feature remains excluded because it depends on Cursor-only
@@ -25,6 +26,84 @@ The original and adapted files are distributed under the MIT License in
 
 ScaryPilot changed the integration layer for GitHub Copilot:
 
+- In `2.2.0-copilot.3`, separated output-folder validation guards to satisfy
+  repository lint without changing their behavior.
+- Ported upstream `0.15.30` in `2.2.0-copilot.1`, including the statechart
+  fixes and helper renames through the content boundary above. Added
+  `statechart`, its portable scripts, output-folder model, and upstream
+  regression tests. The shipped inventory is now 58 skills. Removed its
+  model-invocation guard for Copilot accessibility. Kept the TLA+ and TLC
+  workflow, explicit model limits, and real-code replay requirement.
+  Adapted scratch paths, artifact replacement, executable mapping review,
+  optional image inspection, and permission boundaries. PNG rendering uses
+  `npx --no-install` instead of upstream's automatic package installation.
+  Java and TLC are optional prerequisites for this skill, not the rest of
+  pstack. Repository lint adds mechanical spacing and equivalent collection
+  transformations to imported scripts. The existing portable-helper CI job
+  provisions Java 21 and checksum-pinned official TLC on Linux and macOS.
+  Required model-checking mode fails on missing prerequisites instead of
+  silently skipping them. Windows retains the dependency-free subset.
+  Accept both legacy and named temporal-property violations from TLC.
+  Gate Linux `LD_PRELOAD` fault-injection tests to Linux rather than treating
+  successful compilation as evidence that macOS supports the injection.
+  Reserve generated state-operator names, decode TLC string escapes, reject
+  duplicate parallel captions, and preserve config strings and nested comments.
+  Check delegated action guards without treating temporal specs as actions.
+  Stories count reported counterexample states rather than claiming exhaustive
+  paths. Record generated files in `summary.json` and refuse nested foreign
+  entries or symlinks before replacing output. Top-level generated-looking files
+  also require inventory membership; older output needs a fresh folder.
+  Preserve second-model-only step labels, guards and attribution even when
+  their screen endpoints also occur in the current model.
+- Added a short Copilot-owned practical guide with generic task prompts,
+  scope-preserving follow-ups, and explicit agent-cost tradeoffs. Personal
+  history and source quotations are not part of the shipped guide.
+- Added evidence-by-default guidance in `2.1.1-copilot.1` as an intentional
+  Copilot adaptation, without changing the reviewed upstream boundary.
+  Broadened the existing proof principle's description for ordinary code-change
+  requests and shared its proportionate completion gate with Feature, Bug fix
+  and Refactoring. Added consent-gated runtime replay guidance, independent
+  persistence readback, current-build evidence checks, and focused synthetic
+  discovery/task evals. This adds no enforcement runtime, automatic capture,
+  upload dependency or implicit full poteto-mode workflow.
+- Ported compatible `0.15.26`-`0.15.29` changes in `2.1.0-copilot.1`.
+  Added `create-formal-verification-skill` and
+  `maintain-formal-verification-skill`, wired them into setup, help, recipes,
+  and the guide, and increased the shipped inventory to 57 skills. Generated
+  skills live under `.github/skills/`. Verifier installation and mutation
+  checks respect host approvals and isolated scratch work. Generated-input
+  testing is not described as exhaustive proof; maintenance records dirty
+  covered code separately from its sync commit.
+- Adopted upstream's `/sharpen` prompt-rewrite behavior. It names the expert
+  approach, raw sources, methods, and outside check, then returns a prompt
+  without executing the task. Retained explicit scope and approval limits;
+  unlike upstream, it remains model-callable in Copilot.
+- Ported `/ketchup`'s complete waiting-item inventory with per-item evidence,
+  recommendation, and risk, without a reply-wide word cap. Retained read-only
+  catch-up, scoped history, supported host visuals, and native approval gates.
+- Ported premise-testing, legitimate-state root-cause reasoning, idempotent
+  reconciliation, and portable instruction trims. Kept the existing
+  cross-language test guidance and added the behavior-preserving-refactor
+  check. Branded TypeScript values now narrow through a verifying type guard
+  instead of a cast. Kept Copilot's explicit swarm sizing, isolation, model
+  resolution and evidence acceptance; removed only its redundant report line.
+- Updated compatible guide and help content without copying upstream's
+  Cursor/Claude installation, Custom Mode, or Origin CLI assumptions.
+  Kept stronger local integration and merge-ready verification rather than
+  adopting the guide's reduced post-rebase reviewer requirements.
+  The new `docs/harness/claude-code.md` and upstream repository's generated
+  Claude Code tree are not part of this Copilot package. Existing portable
+  skills/scripts packaging and gh-stack safeguards remain unchanged.
+- Removed the native extension in `2.0.0-copilot.1` in favor of skills and
+  portable scripts. Retired its status/capability tools, receipt/handoff
+  services, command, automatic resume injection and journaled pinned swarm.
+  Swarms use Task agents without claiming equivalent enforcement. Preserved
+  artifact/plan contracts and pure rules, moving the race-resistant confined
+  reader into the schema-validation skill's Node scripts. Existing durable
+  artifacts are not deleted. This is a local breaking integration change,
+  not a new upstream content boundary.
+- The remaining native-extension entries below describe prior releases, not
+  the current shipped runtime.
 - Ported compatible `0.15.16`-`0.15.25` updates in `1.1.0-copilot.1`.
   Added `ketchup`, `in-your-own-words`, and `sharpen`. Ketchup uses supported
   host presentation and existing evidence rather than a companion visualization

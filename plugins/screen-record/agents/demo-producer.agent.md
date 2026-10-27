@@ -18,7 +18,13 @@ available computer-use tools, pause briefly after meaningful state changes, and
 stop recording immediately after the final state. Never hide failed or
 misleading behavior through editing.
 
-Inspect the raw duration, trim setup and dead time, then add side-by-side
-composition, captions, or local narration only when they improve comprehension.
-Preserve the raw recording and write edits to new files. Report the final path,
-duration, dimensions, and any review points.
+For comparisons, follow the skill's
+[evidence-video standard](../skills/screen-record/references/editing.md#evidence-video-standard)
+for layout, timing, provenance, and review. Do not substitute the simple
+side-by-side helper for its full-duration recipe when meaningful events would
+be lost.
+
+Inspect the raw recording before editing. Trim only irrelevant setup and idle
+time. Add captions or local narration when they improve comprehension. Preserve
+the raw recording and previous derivatives. Write edits to new files. Report
+the final path, duration, dimensions, and any review points.
