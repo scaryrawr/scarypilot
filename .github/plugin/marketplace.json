@@ -53,14 +53,6 @@
       "source": "./plugins/copilot-autoresearch"
     },
     {
-      "name": "copilot-local-llm",
-      "description": "Discover and register models from supported local LLM providers in Copilot sessions.",
-      "author": {
-        "name": "Mike Wallio"
-      },
-      "source": "./plugins/copilot-local-llm"
-    },
-    {
       "name": "omlx-media",
       "description": "Generate images and speech, transcribe audio, or turn recordings into grounded written content with local OMLX models.",
       "author": {
