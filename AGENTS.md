@@ -16,7 +16,7 @@ There is no root build or broad test suite.
 - `python3 -m json.tool .github/plugin/marketplace.json >/dev/null` validates marketplace edits.
 - After editing an agentic workflow, run `gh aw compile --strict` without a workflow name. Targeted compilation can leave repository-level generated defaults, such as failure-issue expiry, inconsistent across lock files.
 - After editing `external_plugins/pstack/` skills, metadata, provenance, or sync policy, run `node external_plugins/pstack/tools/pstack-sync.mjs check` and `node --test external_plugins/pstack/tools/pstack-sync.test.mjs`.
-- In a changed extension package, run its `npm test` and typecheck scripts. For `ado-codespaces` and `copilot-local-llm`, also run `npm run lint` and `npm run format:check`.
+- In a changed extension package, run its `npm test` and typecheck scripts. For `ado-codespaces`, also run `npm run lint` and `npm run format:check`.
 - Native extensions ship checked-in `dist/` bundles. After changing extension source or build inputs, run `npm run build` in its extension package and commit `dist/` and `bundle-manifest.json`; run `node tools/check-extension-bundles.mjs check` to catch stale or unbundled runtime imports.
 - For extension-defined workflows, also verify registration and one successful worker run through a live extension host; package tests alone do not prove the host can resolve workflow agents. Register restricted workflow-only agents through the same `joinSession({ customAgents, workflows })` call so execution does not depend on separate agent-discovery timing.
 - For `plugins/copilot-autoresearch`, also run `bash plugins/copilot-autoresearch/skills/autoresearch-finalize/tests/finalize-smoke.sh`.

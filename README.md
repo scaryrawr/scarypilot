@@ -28,7 +28,6 @@ copilot plugin install chrome-devtools@scarypilot
 | **better-init**      | Workflow           | Create concise repository instructions and a code-review skill by default, with additional Copilot guidance and agents when needed.                                   | [📖 Docs](./plugins/better-init/README.md)              |
 | **chrome-devtools** | Browser Automation | Chrome DevTools Protocol integration for automation, debugging, accessibility testing (WCAG), and performance analysis (Core Web Vitals). Includes specialized agents. | [📖 Docs](./external_plugins/chrome-devtools/README.md) |
 | **copilot-autoresearch** | Workflow       | Measurable, resumable experiment loops with Copilot CLI tools, commands, skills, Git integration, and live reporting.                                                  | [📖 Docs](./plugins/copilot-autoresearch/README.md)     |
-| **copilot-local-llm** | AI Models        | Discovers supported local LLM servers and registers their models in Copilot sessions.                                                                                   | [📖 Docs](./plugins/copilot-local-llm/README.md)        |
 | **digivolution**    | Workflow           | Adaptive post-task reflection that triggers only on strong evidence of durable repository learning.                                                                    | [📖 Docs](./plugins/digivolution/README.md)             |
 | **omlx-media**      | Media              | Generate or edit images, synthesize speech, transcribe audio, or turn recordings into grounded written content with local OMLX models.                                | [📖 Docs](./plugins/omlx-media/README.md)               |
 | **omlx-decisions** | AI Models | Use installed oMLX SystemOne decision models for routing, classification, and rubric evaluation. | [📖 Docs](./plugins/omlx-decisions/README.md) |
@@ -42,6 +41,10 @@ copilot plugin install chrome-devtools@scarypilot
 ```sh
 copilot plugin install <plugin-name>@scarypilot
 ```
+
+For local models, Copilot CLI supports Ollama discovery and manually configured
+OpenAI-compatible providers. See [Adding LLM models to GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-llm-models).
+Other local providers and their models must be configured manually.
 
 ## Plugin Architecture
 
@@ -71,7 +74,6 @@ prove that an external service, browser bridge, or capture device is available.
 | `ado-codespaces`, `azure-devops` | Local clients target all three platforms. Codespaces workloads run in their Linux container. Azure DevOps workflows also need their documented CLI and authentication setup. |
 | `anti-slop`, `better-init`, `digivolution` | Target all three platforms with their documented tools. |
 | `copilot-autoresearch` | Targets all three platforms with Bash installed. Experiment commands and repository-specific tools must match the execution host. |
-| `copilot-local-llm` | The client targets all three platforms; individual model providers have their own OS and hardware requirements. |
 | `chrome-devtools`, `playwright-ext`, `smahties` | Require the documented external browser bridge or CLI on the host. These integrations are not bundled implementations of those dependencies. |
 | `screen-record` | Has Windows, macOS, and Linux capture backends. FFmpeg, capture permissions, and backend availability are required; Linux capture currently needs X11. |
 | `omlx-media`, `omlx-decisions` | Local oMLX inference requires macOS on Apple Silicon. HTTP clients may use an explicitly configured remote oMLX server from other platforms, subject to each tool's transmission-consent rules. |
