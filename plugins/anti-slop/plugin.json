@@ -1,8 +1,7 @@
 {
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "anti-slop",
   "description": "Bundled Anti-Slop checks after edits, plus pre-edit guardrails, without repository lint setup.",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "author": {
     "name": "Mike Wallio"
   },
