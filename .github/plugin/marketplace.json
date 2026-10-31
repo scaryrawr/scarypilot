@@ -77,6 +77,14 @@
       "source": "./plugins/screen-record"
     },
     {
+      "name": "uv",
+      "description": "Guide Copilot to run Python and manage Python dependencies with uv.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/uv"
+    },
+    {
       "name": "chrome-devtools",
       "description": "Give your AI coding assistant access to the full power of Chrome DevTools for reliable automation, in-depth debugging, and performance analysis.",
       "author": {
