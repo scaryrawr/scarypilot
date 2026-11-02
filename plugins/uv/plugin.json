@@ -1,0 +1,12 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "uv",
+  "description": "Guide Copilot to run Python and manage Python dependencies with uv.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Mike Wallio"
+  },
+  "license": "MIT",
+  "keywords": ["copilot", "python", "uv"],
+  "hooks": "hooks/hooks.json"
+}

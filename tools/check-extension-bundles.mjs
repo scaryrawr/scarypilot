@@ -10,7 +10,6 @@ const root = path.resolve(import.meta.dirname, "..");
 const extensions = [
   "plugins/ado-codespaces/extensions/ado-codespaces",
   "plugins/copilot-autoresearch/extensions/copilot-autoresearch",
-  "plugins/copilot-local-llm/extensions/copilot-local-llm",
   "plugins/digivolution/extensions/digivolution",
   "plugins/omlx-media/extensions/omlx-media",
   "plugins/screen-record/extensions/screen-record",

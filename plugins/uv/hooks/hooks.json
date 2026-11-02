@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "node hooks/guide.mjs session",
+        "powershell": "node hooks/guide.mjs session",
+        "cwd": "${PLUGIN_ROOT}",
+        "timeoutSec": 10
+      }
+    ],
+    "subagentStart": [
+      {
+        "type": "command",
+        "bash": "node hooks/guide.mjs session",
+        "powershell": "node hooks/guide.mjs session",
+        "cwd": "${PLUGIN_ROOT}",
+        "timeoutSec": 10
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "matcher": "^(?:bash|powershell)$",
+        "bash": "node hooks/guide.mjs shell",
+        "powershell": "node hooks/guide.mjs shell",
+        "cwd": "${PLUGIN_ROOT}",
+        "timeoutSec": 10
+      }
+    ],
+    "postToolUseFailure": [
+      {
+        "type": "command",
+        "bash": "node hooks/guide.mjs failure",
+        "powershell": "node hooks/guide.mjs failure",
+        "cwd": "${PLUGIN_ROOT}",
+        "timeoutSec": 10
+      }
+    ]
+  }
+}

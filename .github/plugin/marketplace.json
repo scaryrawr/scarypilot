@@ -53,14 +53,6 @@
       "source": "./plugins/copilot-autoresearch"
     },
     {
-      "name": "copilot-local-llm",
-      "description": "Discover and register models from supported local LLM providers in Copilot sessions.",
-      "author": {
-        "name": "Mike Wallio"
-      },
-      "source": "./plugins/copilot-local-llm"
-    },
-    {
       "name": "omlx-media",
       "description": "Generate images and speech, transcribe audio, or turn recordings into grounded written content with local OMLX models.",
       "author": {
@@ -83,6 +75,14 @@
         "name": "Mike Wallio"
       },
       "source": "./plugins/screen-record"
+    },
+    {
+      "name": "uv",
+      "description": "Guide Copilot to run Python and manage Python dependencies with uv.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/uv"
     },
     {
       "name": "chrome-devtools",
