@@ -9,11 +9,11 @@ export function configText(sections: ConfigSection[], extra: string[]) {
   return lines.join("\n");
 }
 
-export const boundName = (modules: ReadonlySet<string>) => {
-  let name = "ChartBound";
+export const helperName = (base: string, modules: ReadonlySet<string>) => {
+  let name = base;
   let suffix = 1;
 
-  while (modules.has(name)) name = `ChartBound_${suffix++}`;
+  while (modules.has(name)) name = `${base}_${suffix++}`;
 
   return name;
 };
@@ -28,13 +28,13 @@ export const boundRun = (module: string, name: string) =>
     `====`,
   ].join("\n");
 
-export function chartRun({ module, variables, invariants }: Spec, tag: string) {
+export function chartRun({ module, variables, invariants }: Spec, tag: string, name: string) {
   const every: string[] = [];
 
   for (const name of invariants) every.push(`(IF ~${name} THEN {"${name}"} ELSE {}) \\cup `);
 
   return [
-    `---- MODULE ChartRun ----`,
+    `---- MODULE ${name} ----`,
     `EXTENDS ${module}`,
     `ChartTLC == INSTANCE TLC`,
     `ChartNaturals == INSTANCE Naturals`,

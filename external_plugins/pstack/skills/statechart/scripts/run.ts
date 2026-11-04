@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { inspect } from "node:util";
-import { boundName, boundRun, chartRun, configText } from "./backends/cfg.ts";
+import { boundRun, chartRun, configText, helperName } from "./backends/cfg.ts";
 import { plainText } from "./backends/plain-text.ts";
 import { readConfig } from "./frontends/config.ts";
 import { parseDot } from "./frontends/dot.ts";
@@ -328,7 +328,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
     const sany = readSany(fs.readFileSync(xml.stdout, "utf8"));
     const module = path.basename(specFile, ".tla");
     const spec = { ...readSpec({ module, sany, checks }), folder };
-    const boundedModule = boundName(sany.modules);
+    const boundedModule = helperName("ChartBound", sany.modules);
     const rules = stateRules(spec);
     const all = [...rules];
 
@@ -464,7 +464,8 @@ export async function check(specFile: string, configFile: string): Promise<Check
 
     if (judged.states.distinct <= CHART_STATES) {
       const tag = `chart-${randomBytes(16).toString("hex")}`;
-      fs.writeFileSync(path.join(dir, "ChartRun.tla"), chartRun(spec, tag));
+      const drawingModule = helperName("ChartRun", sany.modules);
+      fs.writeFileSync(path.join(dir, `${drawingModule}.tla`), chartRun(spec, tag, drawingModule));
 
       const drawn = await runJava("ChartRun", "tlc2.TLC", [
         "-tool",
@@ -474,7 +475,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
         "-dump",
         "dot,actionlabels",
         path.join(dir, "graph"),
-        "ChartRun",
+        drawingModule,
       ]);
 
       const file = path.join(dir, "graph.dot");

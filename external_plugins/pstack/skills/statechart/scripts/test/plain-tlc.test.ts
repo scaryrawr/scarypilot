@@ -46,6 +46,34 @@ test("the bounded replay module does not shadow a source module named ChartBound
   assert.deepEqual(v.unchecked, []);
 });
 
+for (const module of ["ChartRun", "Outer"])
+  test(`the drawing module does not shadow ${module === "ChartRun" ? "the input" : "its dependencies"}`, { skip }, () => {
+    const v = agrees(
+      module,
+      {
+        ChartRun: [
+          "---- MODULE ChartRun ----",
+          "EXTENDS Naturals",
+          "VARIABLE x",
+          "Init == x = 0",
+          "Next == x' = (x + 1) % 3",
+          "TypeOK == x \\in 0..2",
+          "====",
+        ],
+        ChartRun_1: ["---- MODULE ChartRun_1 ----", "EXTENDS ChartRun", "===="],
+        Outer: ["---- MODULE Outer ----", "EXTENDS ChartRun_1", "===="],
+      },
+      "INIT Init\nNEXT Next\nINVARIANT TypeOK\n",
+    );
+
+    assert.equal(v.status, 0);
+    assert.deepEqual(v.holds, ["NoDeadlock", "TypeOK"]);
+    assert.deepEqual(v.unchecked, []);
+    assert.match(v.chart, /^stateDiagram-v2/m);
+    assert.match(v.report, /TLC reached 3 states and 3 steps\. The chart draws 3 states and 3 arrows\./);
+    assert.doesNotMatch(v.report, /TLC stopped the drawing run/);
+  });
+
 test(
   "a rule that breaks before another rule fails to evaluate breaks in either order",
   { skip },

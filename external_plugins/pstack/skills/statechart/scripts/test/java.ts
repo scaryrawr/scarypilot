@@ -68,8 +68,10 @@ const file = (ext: string) => path.join(replay, `${name}${ext}`);
 if (dump && fs.existsSync(path.join(replay, "graph.dot")))
   fs.copyFileSync(path.join(replay, "graph.dot"), dump);
 
-const tag = fs.existsSync("ChartRun.tla")
-  ? fs.readFileSync("ChartRun.tla", "utf8").match(TAG)?.[0]
+const moduleFile = `${args.at(-1)}.tla`;
+
+const tag = fs.existsSync(moduleFile)
+  ? fs.readFileSync(moduleFile, "utf8").match(TAG)?.[0]
   : undefined;
 
 const saved = fs.readFileSync(file(".out"), "utf8");
