@@ -180,7 +180,7 @@ That's the whole prompt. [`/bro`](../../skills/bro/SKILL.md) restates the last m
 - **Trusting an unvetted number.** A warm cache or skipped code path can fake a speedup. Run `/benchmark-checklist` before the number goes anywhere.
 - **Correcting the same mistake by hand.** A correction in chat helps one run. `/correct` changes the repo so later runs don't depend on the same correction.
 - **Using `/arena` for coverage.** `/arena` repeats one design or code brief, then picks a base and grafts the best parts. `/swarm` partitions slices or declared race arms and aggregates one report.
-- **Accepting every review comment.** Bots and humans both file real catches and noise in one list. `/interrogate` sorts findings into act-on and dismissed buckets with reasons, and you can override either way.
+- **Accepting every review comment.** Bots and humans both file real catches and noise in one list. `/interrogate` retains findings proven by a run and rerun, and explains what it dropped.
 - **Treating `auto` as a model ID.** `auto` and `inherit-parent` mean "omit the Task model field and let the host choose its default." Neither guarantees the parent's model or a lower cost. [Setup](./01-setup.md) covers the roles.
 - **Reporting success off a green build.** A build proves it compiles. Ask for the real command, flow, stored value, or profile, and expect the evidence in the reply.
 - **Writing a `SKILL.md` freehand.** Route it through the [Authoring or modifying a skill playbook](../../skills/poteto-mode/playbooks/authoring-a-skill.md) so validation and review happen.

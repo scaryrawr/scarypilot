@@ -40,7 +40,7 @@ Capture needs actual tools and permission. A plan is the deliverable, not permis
 
 ## Review and ship
 
-- `/interrogate the whole branch, but skeptically. don't change anything yet. no nitpicks unless it's a real bug or regression.` Read the dismissals too.
+- `/interrogate the whole branch, but skeptically. don't change anything yet. no nitpicks unless it's a real bug or regression.` Read the Dropped list too.
 - `/swarm check every package under <dir> against its check script. one worker per package. one report.` Confirm host Task tools, scope and worker budget before launching.
 - `/benchmark-checklist vet this speedup before it goes in the pr description.`
 - `/create-formal-verification-skill prove <property> holds in <module>, even when <steps> interleave or retry.` After merges or refactors in that code: `/maintain-formal-verification-skill`.
@@ -54,10 +54,11 @@ PR creation and updates prefer matching built-in tools within their actual scope
 ## Away and back
 
 - `/ketchup` catches up on this chat since your last message, not other sessions, and lists every call waiting on you with its evidence and risk.
+- `/ketchup-video` gives the same catch-up as a subtitled slide video from existing evidence, with the waiting calls as text. It needs already available rendering tools.
 - `/poteto-mode im stepping away. <goal> in a fresh worktree off <base>. done means <checks>. keep a decision log. you may commit, but don't push or merge. keep running while the session is active. if truly stuck, stop and write up why.`
 - `/show-me-your-work catch me up on what you did last night.` Read its Attention section first.
 - `/poteto-mode full autopilot on this queue. each item is independent.` Requires agreed external-write permissions and independent verification.
-- `/poteto-mode autopilot these changes but stack them, don't ship. i'll land the stack.`
+- `/poteto-mode autopilot these changes, but don't merge. i'll land them.`
 - `/poteto-mode pause safely. write a durable handoff so i can resume after restarting Copilot.`
 - `/reflect capture what we learned so the next run doesn't repeat it.` Approve only edits that change a future decision.
 - `/bro` restates the last reply in plain words.

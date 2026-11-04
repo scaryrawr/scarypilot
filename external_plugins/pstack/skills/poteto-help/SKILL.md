@@ -74,11 +74,12 @@ Default to `/poteto-mode` for non-trivial work that needs its discipline. Name a
 | Understand a change or subsystem plainly | [`/teach`](../teach/SKILL.md) |
 | Catch up on recent work from available history | [`/recall`](../recall/SKILL.md) |
 | Catch up on this chat since their last message, with every waiting item listed and decidable from the reply alone | [`/ketchup`](../ketchup/SKILL.md) |
+| Catch up with a short subtitled slide video and waiting calls as text | [`/ketchup-video`](../ketchup-video/SKILL.md) |
 | Prove what a small diff could break elsewhere | [`/blast-radius`](../blast-radius/SKILL.md) |
 | Settle types and module boundaries before implementation | [`/architect`](../architect/SKILL.md) |
 | Compare attempts at one brief and graft the best parts | [`/arena`](../arena/SKILL.md) |
 | Cover independent slices or declared race arms | [`/swarm`](../swarm/SKILL.md) |
-| Have different models challenge a diff | [`/interrogate`](../interrogate/SKILL.md) |
+| Have adversaries break a change or design and retain only rerun-proven findings | [`/interrogate`](../interrogate/SKILL.md) |
 | Fix a bug test-first when a cheap local test exists | [`/tdd`](../tdd/SKILL.md) |
 | Apply TypeScript rules | [`/typescript-best-practices`](../typescript-best-practices/SKILL.md) |
 | Remove AI-generated code slop | [`/deslop`](../deslop/SKILL.md) |
@@ -90,7 +91,7 @@ Default to `/poteto-mode` for non-trivial work that needs its discipline. Name a
 | Audit a verification skill and feature map | [`/maintain-verification-skill`](../maintain-verification-skill/SKILL.md) |
 | Formally verify a race, invariant, or other property tests rarely reach | [`/create-formal-verification-skill`](../create-formal-verification-skill/SKILL.md) |
 | Bring formal verification back in line with changed code and distinguish drift from bugs | [`/maintain-formal-verification-skill`](../maintain-formal-verification-skill/SKILL.md) |
-| Show user-visible behavior and numbered bug paths from a TLA+ model, turn an agreed chart into a spec, or audit code against a spec | [`/statechart`](../statechart/SKILL.md) |
+| Check a TLA+ model and show the shortest path to each state that breaks a rule | [`/statechart`](../statechart/SKILL.md) |
 | Vet a measured performance number | [`/benchmark-checklist`](../benchmark-checklist/SKILL.md) |
 | Validate a pstack snapshot, receipt, handoff, or plan contract | [`/pstack-schema-validate`](../pstack-schema-validate/SKILL.md) |
 | Run a large change or work to review after stepping away | [`/figure-it-out`](../figure-it-out/SKILL.md) |
@@ -115,9 +116,10 @@ Close calls:
 
 Both `/deslop` and `/pstack-schema-validate` are bundled in this Copilot pstack adaptation. The validation skill's Node CLI checks one selected workspace artifact without running artifact contents or reading evidence paths. Its confined reader requires macOS or Linux and rejects unsupported platforms rather than falling back to an unconstrained read. Valid structure is not proof of behavior, freshness, or permission to act.
 
-`/statechart` needs Node.js, Java 11 or later, and the TLC jar selected by
-`TLA2TOOLS`. PNGs additionally need an already available Mermaid CLI and browser
-runtime. Missing dependencies do not authorize installation. A model finding
+`/statechart` needs Node.js 22.18 or later, a POSIX host, Java 11 or later,
+and the TLC jar selected by `TLA2TOOLS`. It writes Mermaid and a report to a
+new or empty folder. Images use an already available approved renderer per
+the skill's rendering reference. Missing dependencies do not authorize installation. A model finding
 needs real-code replay. For a short starting workflow, use
 [Use pstack for a focused task](../../docs/guide/quick-start.md).
 
@@ -135,7 +137,7 @@ Playbooks are step lists inside `/poteto-mode`, not slash-command skills:
 - "land the stack" selects Shipping.
 - "take over this branch" selects Session pickup.
 - "pause safely" selects Pause safely.
-- "full autopilot on this queue" selects Autopilot-full. "stack them, don't ship" selects Autopilot-stack.
+- "full autopilot on this queue" selects Autopilot-full. "autopilot, don't merge" selects Autopilot-stack; only genuinely dependent PRs stack.
 - "run the eval playbook" selects Eval.
 
 Read the Playbooks section of [`poteto-mode`](../poteto-mode/SKILL.md) for the full map. [Guide page 6](../../docs/guide/06-verify-and-ship.md) covers PR work. There is no standalone pstack `/orchestrate` skill; another installed plugin may provide one.

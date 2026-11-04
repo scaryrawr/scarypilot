@@ -2320,7 +2320,8 @@ var StatementTypes = {
     ])
   )
 };
-function createPaddingLineRule(options) {
+function createPaddingLineRule(options, statementTypes) {
+  const customStatementTypes = statementTypes ?? {};
   return {
     meta: {
       type: "layout",
@@ -2437,7 +2438,7 @@ function createPaddingLineRule(options) {
             return !isSingleLine(innerStatementNode);
           return true;
         } else {
-          const statementType = StatementTypes[type];
+          const statementType = customStatementTypes[type] ?? StatementTypes[type];
           if (statementType === void 0)
             throw new Error(`Padding rule invariant: unsupported statement type ${type}`);
           return statementType.test(innerStatementNode, sourceCode);
@@ -2538,35 +2539,58 @@ function createPaddingLineRule(options) {
 }
 
 // tools/oxlint/anti-slop/rules/require-readable-spacing.ts
-var paddingRule = createPaddingLineRule([
-  { blankLine: "always", prev: "import", next: "*" },
-  { blankLine: "always", prev: "*", next: { selector: "Program > :not(ImportDeclaration)" } },
-  { blankLine: "always", prev: { selector: "Program > :not(ImportDeclaration)" }, next: "*" },
-  { blankLine: "always", prev: "*", next: ["function", "class", "interface", "type"] },
-  { blankLine: "always", prev: ["function", "class", "interface", "type"], next: "*" },
-  {
-    blankLine: "always",
-    prev: "*",
-    next: ["multiline-const", "multiline-let", "multiline-var", "multiline-using"]
-  },
-  {
-    blankLine: "always",
-    prev: ["multiline-const", "multiline-let", "multiline-var", "multiline-using"],
-    next: "*"
-  },
-  { blankLine: "always", prev: "*", next: ["return", "if", "switch", "try", "for", "while", "do"] },
-  { blankLine: "always", prev: "block-like", next: "*" },
-  { blankLine: "any", prev: "import", next: "import" },
-  {
-    blankLine: "any",
-    prev: {
-      selector: ':matches(TSDeclareFunction, ExportNamedDeclaration[declaration.type="TSDeclareFunction"])'
+function isSinglelineBinding(node) {
+  const declaration = node.type === "ExportNamedDeclaration" ? node.declaration : node;
+  return declaration?.type === "VariableDeclaration" && node.loc.start.line === node.loc.end.line;
+}
+function hasLeadingComment(node, sourceCode) {
+  const previousLine = sourceCode.getTokenBefore(node)?.loc.end.line;
+  return sourceCode.getCommentsBefore(node).some((comment) => comment.loc.start.line !== previousLine);
+}
+var singlelineBinding = {
+  test: (node) => isSinglelineBinding(node)
+};
+var undocumentedSinglelineBinding = {
+  test: (node, sourceCode) => isSinglelineBinding(node) && !hasLeadingComment(node, sourceCode)
+};
+var paddingRule = createPaddingLineRule(
+  [
+    { blankLine: "always", prev: "import", next: "*" },
+    { blankLine: "always", prev: "*", next: { selector: "Program > :not(ImportDeclaration)" } },
+    { blankLine: "always", prev: { selector: "Program > :not(ImportDeclaration)" }, next: "*" },
+    { blankLine: "always", prev: "*", next: ["function", "class", "interface", "type"] },
+    { blankLine: "always", prev: ["function", "class", "interface", "type"], next: "*" },
+    {
+      blankLine: "always",
+      prev: "*",
+      next: ["multiline-const", "multiline-let", "multiline-var", "multiline-using"]
     },
-    next: {
-      selector: ':matches(TSDeclareFunction, FunctionDeclaration, ExportNamedDeclaration[declaration.type="TSDeclareFunction"], ExportNamedDeclaration[declaration.type="FunctionDeclaration"])'
+    {
+      blankLine: "always",
+      prev: ["multiline-const", "multiline-let", "multiline-var", "multiline-using"],
+      next: "*"
+    },
+    { blankLine: "always", prev: "*", next: ["return", "if", "switch", "try", "for", "while", "do"] },
+    { blankLine: "always", prev: "block-like", next: "*" },
+    { blankLine: "any", prev: "import", next: "import" },
+    // Consecutive single-line bindings form one group at any scope, including
+    // module scope. A binding with its own leading comment starts a new group.
+    { blankLine: "any", prev: "singleline-binding", next: "undocumented-singleline-binding" },
+    {
+      blankLine: "any",
+      prev: {
+        selector: ':matches(TSDeclareFunction, ExportNamedDeclaration[declaration.type="TSDeclareFunction"])'
+      },
+      next: {
+        selector: ':matches(TSDeclareFunction, FunctionDeclaration, ExportNamedDeclaration[declaration.type="TSDeclareFunction"], ExportNamedDeclaration[declaration.type="FunctionDeclaration"])'
+      }
     }
+  ],
+  {
+    "singleline-binding": singlelineBinding,
+    "undocumented-singleline-binding": undocumentedSinglelineBinding
   }
-]);
+);
 var requireReadableSpacingRule = {
   ...paddingRule,
   meta: {

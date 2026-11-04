@@ -349,6 +349,49 @@ describe("anti-slop postToolUse advisory", () => {
     assert.match(result.additionalContext, /src\/chain\.ts:5 anti-slop\(no-array-filter-map\)/);
   });
 
+  it("keeps single-line bindings grouped in the shipped bundle at every scope", async () => {
+    const cwd = await workspace();
+    const file = path.join(cwd, "src", "bindings.ts");
+
+    for (const text of [
+      "const a = 1;\nconst b = 2;",
+      "export const a = 1;\nexport const b = 2;",
+      "const a = 1;\nlet b = 2;\nvar c = 3;",
+      "function f() {\nconst a = 1;\nusing b = open();\n\nreturn a;\n}",
+      "const a = 1; // trailing\nconst b = 2;",
+      "/** Heads a group. */\nconst a = 1;\nconst b = 2;",
+      "import { a } from 'a';\n\nconst b = a;\nexport const c = b;",
+      "const a = 1;\nconst b = 2;\n\nconst c = 3;",
+    ]) {
+      await source(cwd, "src/bindings.ts", text);
+
+      const findings = await lintFile(file, cwd, { executable: localOxlint });
+      assert.deepEqual(findings.filter((finding) =>
+        finding.code === "anti-slop(require-readable-spacing)"
+      ), [], text);
+    }
+  });
+
+  it("preserves spacing around documented and multiline bindings in the shipped bundle", async () => {
+    const cwd = await workspace();
+    const file = path.join(cwd, "src", "bindings.ts");
+
+    for (const [text, expected] of [
+      ["const a = 1;\n/** B docs. */\nconst b = 2;", 1],
+      ["const a = 1;\n// b\nconst b = 2;", 1],
+      ["const a = 1; // trailing\n// leading\nconst b = 2;", 1],
+      ["const a = 1;\nconst b = {\n};\nconst c = 3;", 2],
+      ["const a = 1;\nfoo(a);", 1],
+    ]) {
+      await source(cwd, "src/bindings.ts", text);
+
+      const findings = await lintFile(file, cwd, { executable: localOxlint });
+      assert.equal(findings.filter((finding) =>
+        finding.code === "anti-slop(require-readable-spacing)"
+      ).length, expected, text);
+    }
+  });
+
   it("reports native and Effect-specific findings only when enabled", async () => {
     const cwd = await workspace();
     const file = path.join(cwd, "src", "effect.ts");

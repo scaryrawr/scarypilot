@@ -39,6 +39,8 @@ Present the synthesizer's full Accepted / Rejected / Backlog output and wait for
 
 File Backlog items to the team's devex tracker only within existing external-write authorization; otherwise leave them as proposals. Include `- Generated with AI 🤖` once at the end of agent-authored text submitted to an external system.
 
+Never edit an installed plugin cache. Before approval, show the proposed writable destination under the project's `.github/skills/<skill>/` or the user's Copilot home `skills/<skill>/`. After approval, copy the skill folder there and edit the copy, preserving its license and attribution. Do not open a PR or push as part of this reflection.
+
 Follow each approved row's Routing exactly:
 
 - Trivial existing-skill edit (a one-line bullet, a tightened sentence, a stale fact corrected): the parent does it directly.

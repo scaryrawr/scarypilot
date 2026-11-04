@@ -13,6 +13,7 @@ The Principles section below grounds every trigger. In your reply, name each pri
 
 Remaining triggers:
 
+- Your first message on a task tells the user, in your own words, their goal, the problem they are solving, and the smallest change you expect to meet it. Do not wait for confirmation. If the evidence rules out the requested change, show it and stop. Preserve that goal in each subagent brief, each PR's Why section, and the final report, except after a fully specified one-line edit.
 - Nontrivial change, architecture decision, or "are we sure?" → the **how** skill.
 - About to `ask_user` on a "which approach", "how should I", or "what should this do" fork → classify it before you ask. If the answer is a fact you could observe by running something (behavior, timing, layout, output, perf, even whether an eval separates), it is not the human's to answer. Sketch it via the Prototype playbook (`playbooks/prototype.md`) and let the result decide. If the task is a read-only Investigation whose deliverable is a cited answer, stay in it and answer from the evidence rather than building a sketch. Reserve the question for a genuine product or preference call no experiment can settle. Under an autonomy grant, decide only calls the grant covers and report the choice. Named operator gates and the Always-pause list still need the operator. Use the host's question tool for a user-owned call, never an invented reply token or an approval question in ordinary prose.
 - Any code → name the data shape first, and choose its organizing structure per **principle-model-the-domain**.
@@ -80,7 +81,7 @@ Read the leaf skill in full for any principle you apply. Each entry names when i
 - **Fix Root Causes** (**principle-fix-root-causes**). Debugging. Trace each symptom back to the first place the system went wrong and fix it there. A guard is a fix only when the state it handles is legitimate.
 - **Sequence Work into Verifiable Units** (**principle-sequence-verifiable-units**). Multi-step work (sweeps, migrations, runs of similar edits) and how you stack commits and PRs. Break work into small units that each end in a check, verify each before the next, and order delivery so the sequence proves itself.
 - **Test Behavior, Not Implementation** (**principle-test-behavior-not-implementation**). Writing, changing, reviewing, or keeping a test in any language. Exercise a caller-visible contract, assert an independently specified outcome, and check that a plausible defect makes the test fail.
-- **Explain the Number** (**principle-explain-the-number**). Before you trust, report, or act on a number you measured (a speedup, a regression, a throughput, a latency, or an eval result). Find what limits it, and rule out that it measured something other than the work you think.
+- **Explain the Number** (**principle-explain-the-number**). Apply before you measure, and before you trust, report, or act on a number you measured (a speedup, a regression, a throughput, a latency, or an eval result). Find what limits it, and rule out that it measured something other than the work you think.
 
 **Delegation**
 
@@ -108,6 +109,8 @@ Read the leaf skill in full for any principle you apply. Each entry names when i
 **Defaults for every `Task` call.** Use `mode: "background"` only when the parent has independent work to do; otherwise prefer `mode: "sync"`. Pass file pointers instead of large inlined context. Model choices are configurable through `/setup-pstack`; omit `model` when a configured value is `inherit-parent` or `auto`. If no configuration exists, use the Task tool's default model rather than assuming every Copilot account exposes the same model catalog. Use `agent_type: "explore"` for read-only codebase exploration, `agent_type: "code-review"` for an existing diff, and `agent_type: "general-purpose"` for implementation or synthesis.
 
 **Match effort to the job without overriding configuration.** A difficult design, subtle algorithm, or concurrency change needs stronger reasoning than a mechanical edit. Use only model and reasoning settings the host supports and the user's explicit configuration authorizes. Preserve pinned settings and panel diversity. Do not derive fast or effort variants by changing model-ID strings. An unconfigured role or model alias stays on the host default without explicit overrides.
+
+If Task rejects a configured concrete slug before starting, never retry that slug. Follow the calling skill's authorized fallback. With no fallback, omit `model` and report the host-default fallback. Do not replay a worker that may have written, and do not treat unrelated tool errors as model rejections.
 
 You own every subagent's work. Review the diff and write your own summary, don't pass through what it said. A second opinion is the same prompt against a different model. Agreement is high-signal.
 
@@ -154,7 +157,7 @@ A large or cross-cutting effort (a migration across many call sites, an ambitiou
 - **Autonomous run.** A long task to drive to completion without stopping ("run until done", "keep going until X"). `playbooks/autonomous-run.md`.
 - **Orchestrate.** A standing project handed to one coordinator chat: multi-day, many stacked PRs, dozens to hundreds of subagents, minimal human turns ("run this whole project", "own this migration until it lands"). Distinct from Autonomous run, which drives one task to a predicate; work one agent could finish inside the session's budget routes there, not here, however program-shaped the phrasing sounds. `playbooks/orchestrate.md`.
 - **Autopilot-full.** A queue of independent PRs run to merged with full autonomy: one owner per PR carries build through merge, and the root swarm-verifies each merge-ready head before its owner merges ("autopilot this queue", "full autopilot", one-owner-per-PR programs). `playbooks/autopilot-full.md`.
-- **Autopilot-stack.** A queue of changes built and verified with full autonomy, delivered as one linear reviewed GitHub base-branch stack the operator lands ("autopilot-stack", "stack them, don't ship", "build the stack, I'll land it"). `playbooks/autopilot-stack.md`.
+- **Autopilot-stack.** Autopilot-full without the merge. A queue of PRs built and verified, then handed to the operator to land. A PR stacks only on a PR it builds on ("autopilot-stack", "autopilot, don't merge", "stack them, don't ship", "build the stack, I'll land it"). `playbooks/autopilot-stack.md`.
 - **Session pickup.** Resuming or taking over a prior agent's in-flight work from a Copilot session, session URL, or pushed branch. `playbooks/session-pickup.md`.
 - **Pause safely.** Suspending in-flight work cleanly so it can be resumed, on an explicit pause, going offline, a Copilot session restart, or imminent context compaction. The complement to Session pickup. Full steps: `playbooks/pause-safely.md`.
 - **Multi-phase or multi-PR plan.** Work that spans phases or stacked PRs. `playbooks/multi-phase-plan.md`.

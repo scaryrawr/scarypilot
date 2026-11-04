@@ -23,6 +23,8 @@ Show every role with its current value. Mark unavailable IDs. Also list each lin
 
 Panel values are comma-separated lists. One subagent runs per entry, so the list length sets panel size. Recommend models from different families for judgment panels only when those models are available.
 
+The `arena cross-judge pool` is an ordered list of candidates for one judge, not a panel. Arena tries only concrete authorized IDs from a known family other than the parent's. Aliases never judge. If the parent family is unknown or no eligible candidate runs, Arena skips the judge and reports the missing independent judgment.
+
 ### 4. Validate
 
 Every non-alias model ID must appear in the detected set. Stop before writing if any value is invalid.

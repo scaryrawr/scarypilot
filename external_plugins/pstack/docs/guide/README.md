@@ -1,6 +1,6 @@
 # The pstack guide
 
-This guide covers the Copilot adaptation `2.2.0-copilot.1`, with 58 Agent Skills including 24 principles and portable upstream changes through `0.15.30`.
+This guide covers the Copilot adaptation `3.0.0-copilot.1`, with 59 Agent Skills including 24 principles and compatible upstream changes through `0.15.36`.
 
 For a shorter route, start with [Use pstack for a focused task](./quick-start.md).
 It has copy/paste prompts, scope-preserving follow-ups, and guidance on agent cost.

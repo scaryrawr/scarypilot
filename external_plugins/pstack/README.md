@@ -7,7 +7,7 @@ planning, delegation, review, and verification.
 
 ## What this plugin provides
 
-- 58 Agent Skills, including `poteto-mode`, `poteto-help`, `ketchup`,
+- 59 Agent Skills, including `poteto-mode`, `poteto-help`, `ketchup`, `ketchup-video`,
   `in-your-own-words`, `sharpen`, `how`, `why`,
   `architect`, `arena`, `swarm`, `interrogate`, `correct`, `benchmark-checklist`,
   `tdd`, `deslop`, `unslop`, `create-formal-verification-skill`,
@@ -15,10 +15,10 @@ planning, delegation, review, and verification.
 - The `poteto-agent` and `comment-sicko` custom agents.
 - Portable artifact and plan validation using deterministic contract rules and
   workspace-confined file reads.
-- PR watching, orchestration, decision-log, and worktree-audit helpers used by
+- PR watching, decision-log, and worktree-audit helpers used by
   advanced playbooks.
 - Verified multi-phase planning with an executable checklist checker.
-- Compatible upstream changes through pstack 0.15.30, with client-specific
+- Compatible upstream changes through pstack 0.15.36, with client-specific
   Cursor and Claude Code features intentionally excluded.
 - User-level model configuration through `/setup-pstack`.
 
@@ -33,14 +33,15 @@ a workflow. It answers the question without starting the suggested task.
 
 - GitHub Copilot CLI with plugin and Agent Skills support.
 - Git and GitHub CLI for GitHub and PR workflows.
-- Bun only for the legacy `poteto-mode` PR watcher and orchestration CLIs.
+- Bun only for the `poteto-mode` PR watcher CLI.
 - Node.js for the decision-log and validation helpers. Confined artifact
   validation requires macOS or Linux and fails explicitly on other platforms.
-- For `/statechart` model checking only, Java 11 or later and `tla2tools.jar`
-  configured through `JAVA` and `TLA2TOOLS`. Optional PNG rendering needs an
-  already available Mermaid CLI and its browser runtime. It does not install
-  missing packages. The bundled PNG launcher requires a POSIX `npx` executable;
-  Windows users can keep Mermaid sources or use a separately approved renderer.
+- For `/statechart` only, Node.js 22.18 or later on macOS or Linux, Java 11 or
+  later, and `tla2tools.jar` configured through `JAVA` and `TLA2TOOLS`. The CLI
+  uses POSIX process supervision and fails explicitly on Windows. Portable
+  parser/compiler tests still run there. Optional images use the separate
+  Pele rendering reference and already available approved tools. The skill
+  does not install missing tools or packages.
 - GitHub CLI with the separately installed [`github/gh-stack`](https://github.com/github/gh-stack)
   extension for stacked-PR playbooks, using the public v0.2.1 JSON contract or
   a compatible release. Capability detection runs `gh stack --version`;
@@ -89,7 +90,43 @@ Use the full workflow style:
 /poteto-mode implement this feature and prove it works
 ```
 
-### Upstream refresh in `2.2.0-copilot.1`
+### Breaking upstream refresh in `3.0.0-copilot.1`
+
+This refresh adopts compatible pstack `0.15.31`-`0.15.36` changes. It adds
+[`/ketchup-video`](./skills/ketchup-video/SKILL.md), a short subtitled slide
+catch-up from existing evidence, with every waiting call still listed as text.
+Rendering uses approved scratch storage and existing tools, not screen capture
+or automatic uploads.
+
+Statechart now uses a compiler-style CLI:
+
+```sh
+node "<statechart-skill>/scripts/statechart.ts" "/scratch/Flow.tla" \
+  --config "/scratch/Flow.cfg" --view "/scratch/view.mjs" --out "/scratch/flow-chart"
+```
+
+Resolve the installed skill's absolute path and use approved scratch paths.
+Review view modules before executing them. Outputs are `report.md`, `chart.mmd`
+when within the chart budget or bugs exist, and TLC output files. The report
+gives shortest bug paths; models above 500 states show bug paths only. The
+destination must be new or empty, and is never replaced with a generated-file
+inventory. The old `from-spec`, `from-chart`, `--against`, `--fixed`, and `--png`
+interfaces, chart-to-spec generation, and `summary.json` are removed.
+
+The `orch` CLI and its store implementation are removed. Orchestrate uses
+advertised host tools and durable project or session artifacts. Existing
+ledgers remain untouched; read them as historical evidence, not live state.
+Autopilot-stack means Autopilot-full without merging; independent PRs no longer
+become an artificial linear chain, and each PR owner is its only branch writer.
+Base movement still requires fresh integration evidence.
+
+Interrogate now keeps only findings proven by a run and a lead rerun. Arena's
+cross-judge must come from a known different model family; when Auto hides
+the parent family or no eligible configured model can run, the coordinator
+chooses alone and reports that gap. Reflection copies installed skills to an
+approved writable location instead of editing the plugin cache.
+
+### Earlier refresh in `2.2.0-copilot.1`
 
 [`/statechart`](./skills/statechart/SKILL.md) turns a TLA+ model into Mermaid
 charts with numbered bug paths. It can also turn an agreed chart into a TLA+
@@ -130,8 +167,9 @@ replacement of those services.
 Skills, custom agents, contract schemas and useful scripts remain. Existing
 receipts, handoffs and orchestration state are not deleted or rewritten.
 Read a supplied handoff or scoped session history explicitly during pickup.
-The pause playbook writes its existing Markdown resume note; orchestration uses
-its existing Bun ledger. Neither recreates the removed native services.
+The pause playbook writes its existing Markdown resume note. Orchestration now
+uses approved host/project artifacts rather than the removed Bun ledger CLI.
+Neither recreates the removed native services.
 
 Swarms use Task agents. Read-only instructions and before/after evidence do not
 provide tool-level write prevention, journaled replay or pinned inputs. If a task
@@ -158,15 +196,10 @@ block CI. Legacy POSIX worktree auditing accepts
 `--base <local-ref>` or detects the locally recorded default branch without
 fetching. Inspection still never grants deletion permission.
 
-`orch frontier set --repo <dir> [--prs <complete-bottom-to-top-pin>]` reads
-`gh stack view --json`, checks every branch's identity and lifecycle with
-`gh pr view`, and resolves local Git head SHAs. It preserves terminal PRs and
-the existing frontier shape, including the singular branch stored in `branches`.
-The first OPEN PR is the frontier, not proof of merge readiness. Acquisition can
-refresh gh-stack's local cache but never installs, adopts, rewrites branches,
-creates PRs, or merges. There is no cross-system transaction; failed acquisition
-leaves the previous frontier intact, and a retry reacquires the complete result.
-Run the Bun CLI through its absolute skill path as described in Poteto mode.
+The watcher distinguishes fork heads from same-named local branches during
+stack discovery, and polling sleeps cannot exceed the configured deadline.
+The shared plan validator recognizes matching multi-backtick inline code
+without hiding punctuation in adjacent prose.
 
 Stack adoption and publication require the user's relevant scope and approval.
 Supported host PR-creation tools remain authoritative; `gh stack submit` is not
@@ -281,7 +314,7 @@ node external_plugins/pstack/tools/pstack-sync.mjs check
 node external_plugins/pstack/tools/pstack-sync.mjs plan --upstream /path/to/cursor-plugins
 node --test external_plugins/pstack/tools/pstack-sync.test.mjs external_plugins/pstack/tools/pstack-plan.test.mjs
 node --test external_plugins/pstack/skills/pstack-schema-validate/tests/validation.test.mjs external_plugins/pstack/skills/pstack-schema-validate/tests/workspace-reader.test.mjs
-node --test external_plugins/pstack/skills/statechart/scripts/test/statechart.test.mjs
+npm --prefix external_plugins/pstack/skills/statechart/scripts test
 ```
 
 On a POSIX host, also run
@@ -310,16 +343,18 @@ prerelease: upstream replaces its assets and moves its tag, so it cannot
 serve as a fixed version pin. Do not refresh a checksum just to accept
 replacement prerelease bytes.
 CI sets `PSTACK_REQUIRE_TLC=1`, so a missing jar or unusable Java fails the
-suite instead of silently skipping model checking. Windows runs the
-dependency-free subset; POSIX process tests are not claimed as Windows coverage.
+suite instead of silently skipping model checking. Windows runs the portable
+compiler subset; POSIX process tests are not claimed as Windows coverage.
 
 For the same required local check, set `TLA2TOOLS` and `JAVA` to approved local
 installations and set `PSTACK_REQUIRE_TLC=1` in the host shell before running
 the statechart test command. Without that flag, missing TLC produces explicit
-skips so Java is not a global requirement for pstack. The suite also has
-Linux-only filesystem and namespace checks. Missing platform facilities are
-reported as skips. PNG tests use a fake renderer, not a real browser-rendering
-check. A skipped model run is not proof that model checking works on that host.
+skips so Java is not a global requirement for pstack. Install the statechart
+package's declared development dependencies before running its tests. Saved
+TLC corpus replay exercises compiler behavior without a live model checker;
+it is not a substitute for the TLC-backed differential checks. Rendering tests
+are not proof of a real visual inspection. A skipped model run is not proof
+that model checking works on that host.
 
 ## License and resources
 

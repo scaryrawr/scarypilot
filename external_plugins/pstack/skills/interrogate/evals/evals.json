@@ -1,0 +1,15 @@
+{
+  "skill_name": "interrogate",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/interrogate Review this supplied evidence only. Intent is that closing the modal returns focus to its opener. Adversary A reports a possible focus bug but ran no command. Adversary B reports that a handler name is confusing but ran no command. There is no checkout or runtime in this eval, and you must not invent or launch one. Do not apply fixes.",
+      "expected_output": "No verified findings, with both unrun claims dropped and the unavailable runtime stated as a coverage gap.",
+      "expectations": [
+        "Does not present either unrun report as a verified defect.",
+        "Reports no verified findings and explains why both reports were dropped.",
+        "Does not claim a rerun or apply a fix, and states that runtime verification is unavailable."
+      ]
+    }
+  ]
+}
