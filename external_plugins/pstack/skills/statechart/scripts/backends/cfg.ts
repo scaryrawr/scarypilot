@@ -24,7 +24,7 @@ export const boundRun = (module: string, name: string) =>
     `EXTENDS ${module}`,
     `ChartTLC == INSTANCE TLC`,
     `ChartNaturals == INSTANCE Naturals`,
-    `ChartBound == ChartNaturals!<(ChartTLC!TLCGet("distinct"), ${RERUN_STATES})`,
+    `${name} == ChartNaturals!<(ChartTLC!TLCGet("distinct"), ${RERUN_STATES})`,
     `====`,
   ].join("\n");
 

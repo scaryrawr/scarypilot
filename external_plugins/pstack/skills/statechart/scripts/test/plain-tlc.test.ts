@@ -30,18 +30,20 @@ test("the bounded replay module does not shadow a source module named ChartBound
     "Init == x = 0",
     "Next == x < 2 /\\ x' = x + 1",
     "Bad == x < 1",
+    "Later == x < 2",
     "====",
   ];
 
   const v = agrees(
     "ChartBound",
     { ChartBound: module },
-    "INIT Init\nNEXT Next\nINVARIANT Bad\nCHECK_DEADLOCK FALSE\n",
+    "INIT Init\nNEXT Next\nINVARIANTS Bad Later\n",
   );
 
   assert.equal(v.status, 1);
 
-  assert.deepEqual(v.breaks, new Map([["Bad", 1]]));
+  assert.deepEqual(v.breaks, new Map([["Bad", 1], ["Later", 2], ["NoDeadlock", 2]]));
+  assert.deepEqual(v.unchecked, []);
 });
 
 test(
