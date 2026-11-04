@@ -79,7 +79,7 @@ function commonFindings(lines) {
     if (line.code) continue;
 
     const prose = line.text
-      .replace(/`[^`]*`/g, "`")
+      .replace(/(?<!`)(`+)(?!`)(.*?)(?<!`)\1(?!`)/g, "`")
       .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
       .replace(/\]\([^)]*\)/g, "]");
 

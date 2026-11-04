@@ -40,12 +40,15 @@ jobs:
       - name: Install CLI test and typecheck dependencies
         working-directory: external_plugins/pstack/skills/poteto-mode/scripts
         run: bun install --ignore-scripts
-      - name: Check orchestration and watcher scripts
+      - name: Check watcher scripts
         working-directory: external_plugins/pstack/skills/poteto-mode/scripts
         run: bun test
       - name: Check CLI types
         working-directory: external_plugins/pstack/skills/poteto-mode/scripts
         run: bun run typecheck
+      - name: Install declared statechart test dependencies
+        working-directory: external_plugins/pstack/skills/statechart/scripts
+        run: npm install --ignore-scripts --no-package-lock --no-audit --no-fund
       - name: Set up Java for statechart model checking
         if: runner.os != 'Windows'
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
@@ -74,7 +77,14 @@ jobs:
           external_plugins/pstack/tools/pstack-sync.test.mjs
           external_plugins/pstack/tools/pstack-plan.test.mjs
           external_plugins/pstack/tools/log.test.mjs
-          external_plugins/pstack/skills/statechart/scripts/test/statechart.test.mjs
+      - name: Check statechart compiler and POSIX TLC integration
+        working-directory: external_plugins/pstack/skills/statechart/scripts
+        env:
+          PSTACK_REQUIRE_TLC: ${{ runner.os != 'Windows' && '1' || '0' }}
+        run: npm test
+      - name: Check statechart compiler types
+        working-directory: external_plugins/pstack/skills/statechart/scripts
+        run: npm run typecheck
       - name: Check the legacy POSIX worktree audit
         if: runner.os != 'Windows'
         working-directory: .

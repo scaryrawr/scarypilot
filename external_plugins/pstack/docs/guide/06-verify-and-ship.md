@@ -129,17 +129,20 @@ When someone needs to judge behavior without reading a formal spec, use:
 /statechart show what the user sees when an upload retries. do not change product code.
 ```
 
-[`/statechart`](../../skills/statechart/SKILL.md) draws Mermaid charts from a
-TLA+ model, with numbered paths for bugs TLC finds. It can also turn an agreed
-chart into a TLA+ skeleton or compare a code model against an unchanged spec.
+[`/statechart`](../../skills/statechart/SKILL.md) checks a TLA+ model and draws
+flat, hierarchical, or parallel-region Mermaid charts. Its report gives the
+shortest path to each state that breaks a rule. Above the chart's 500-state
+budget it draws only bug paths, and no chart when no rule breaks.
 Replay each reported bug against real code. A model counterexample alone
 does not establish a product bug, and a passing model does not prove the whole app.
 
-Model checking requires Java 11 or later and `tla2tools.jar` selected through
-`TLA2TOOLS`. PNGs additionally require an already available Mermaid CLI and its
-browser runtime. Missing dependencies or image-reading tools are reported
+The CLI needs Node.js 22.18 or later and a POSIX host. Model checking requires
+Java 11 or later and `tla2tools.jar` selected through `TLA2TOOLS`. Optional images
+use the skill's separate rendering reference and existing approved tools.
+Missing dependencies or image-reading tools are reported
 explicitly. They are not installed automatically. Keep original specs unchanged
-and use fresh approved scratch outputs.
+and use fresh approved scratch outputs. Generated TLA+ verification skills
+refer to `/statechart` by name rather than hard-coding its changing CLI.
 
 ## Open the PR
 

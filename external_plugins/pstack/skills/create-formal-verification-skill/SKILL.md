@@ -37,6 +37,8 @@ If covered code has uncommitted changes, record their paths and evidence separat
 
 ## Prove it before you hand off
 
+If the check is a TLA+ model, tell the next agent to read every result with the pstack [`/statechart`](../statechart/SKILL.md) skill. It shows each invariant violation as its shortest path in plain words and draws the checked state graph within its chart budget. Refer to the skill by name, not copied commands, options, or installed paths, which can change across releases.
+
 Follow the generated skill once, as the next agent would, on a scratch change that breaks the property in the real code. Use an approved isolated workspace so the mutation cannot overwrite existing user work. It must catch the break. Then remove only your scratch change and confirm that the check is back where it started: passing, or failing only on the findings you will report. Do not reset or discard unrelated changes. A verify skill that was never run is a draft. If the skill misses the break or a step does not run, fix the skill or the verification, not the scratch change.
 
 ## Hand off

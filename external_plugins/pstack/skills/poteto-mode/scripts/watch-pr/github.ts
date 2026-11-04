@@ -608,13 +608,17 @@ export class GhGitHubReader implements T.GitHubReader {
       "--limit",
       "300",
       "--json",
-      "number,headRefName,baseRefName",
+      "number,headRefName,baseRefName,isCrossRepository",
     ]);
 
     return list(value, "open PRs").map((item, index) => {
       const object = record(item, `open PRs[${index}]`);
 
+      if (typeof object.isCrossRepository !== "boolean")
+        missing(`open PRs[${index}].isCrossRepository`, object.isCrossRepository);
+
       return {
+        isCrossRepository: object.isCrossRepository,
         number: parsePrNumber(object.number, `open PRs[${index}].number`),
         headRefName: string(
           object.headRefName,
@@ -822,7 +826,12 @@ export function orderStack(
   open: readonly T.OpenPullRequest[]
 ): T.NonEmpty<T.PrContext> {
   const byNumber = new Map(open.map((pr) => [pr.number, pr]));
-  const byHead = new Map(open.map((pr) => [pr.headRefName, pr]));
+
+  // Base refs belong to this repository, not a fork with the same branch name.
+  const byHead = new Map(open.flatMap((pr) =>
+    pr.isCrossRepository ? [] : [[pr.headRefName, pr] as const]
+  ));
+
   const children = new Map<string, T.OpenPullRequest[]>();
 
   for (const pr of open)
@@ -852,6 +861,8 @@ export function orderStack(
   const up: T.OpenPullRequest[] = [];
 
   const visit = (parent: T.OpenPullRequest): void => {
+    if (parent.isCrossRepository) return;
+
     for (const child of children.get(parent.headRefName) ?? []) {
       if (seen.has(child.number)) continue;
       seen.add(child.number);

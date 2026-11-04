@@ -22,6 +22,24 @@ function planTemplate(text) {
 
 const template = planTemplate(playbook);
 
+test("inline code uses matching backtick runs without hiding adjacent prose", () => {
+  for (const code of [
+    "`value: string`",
+    "```value`: string```",
+    "`` `name` \u2014 result ``",
+  ]) {
+    assert.deepEqual(validatePlanText(`# Plan\n\n- [ ] ${code}\n`, "basic").findings, []);
+  }
+
+  for (const prose of [
+    "``value` \u2014 not code",
+    "``value`` \u2014 prose",
+    "`value``: still prose",
+  ]) {
+    assert.ok(validatePlanText(`# Plan\n\n- [ ] ${prose}\n`, "basic").findings.length > 0);
+  }
+});
+
 const fencedCadences = [
   "```text\nhourly audit tick\n```",
   "   ```text\nhourly audit tick\n   ```",

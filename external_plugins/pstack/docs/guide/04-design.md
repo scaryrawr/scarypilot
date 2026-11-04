@@ -42,7 +42,7 @@ flowchart LR
     H --> I[Verify]
 ```
 
-The panel comes from your [`/setup-pstack`](../../skills/setup-pstack/SKILL.md) configuration, and you can adjust it per task. Ask for more candidates when the decision matters, fewer when it doesn't:
+The panel comes from your [`/setup-pstack`](../../skills/setup-pstack/SKILL.md) configuration, and you can adjust it per task. The judge must use a concrete authorized model from a known family other than the parent's. If no such model can run, including when Auto hides the parent's family, the coordinator picks alone and reports that gap. Ask for more candidates when the decision matters, fewer when it doesn't:
 
 ```text
 /arena this, 5 candidates. the cache key format is expensive to change later.
@@ -66,9 +66,9 @@ Swarms use the current host's Task agents for coverage and races. Give read-only
 /interrogate the whole branch, but skeptically. no nitpicks unless it's an actual bug or regression.
 ```
 
-[`/interrogate`](../../skills/interrogate/SKILL.md) sends the same diff, intent, and rubric to reviewers on different model families. Model diversity is the point. Different models have different blind spots, so a finding two models raise independently is high-confidence signal. The lead sorts everything into `Act on`, `Consider`, `Noted`, and `Dismissed`, with a reason for each dismissal, and applies nothing automatically.
+[`/interrogate`](../../skills/interrogate/SKILL.md) gives adversaries the change and its intent in isolated worktrees. Each finding needs a failing run against the real code. The lead reruns the command and keeps the finding only when it demonstrates a break in intent. A design or plan needs a prototype or current-tree probe, not a theoretical risk. No fixes are applied automatically.
 
-Read the dismissals too. The lead is a pragmatic senior engineer, not an oracle, and you can override it.
+Read the `Dropped` list too. Findings without reproducible evidence do not survive, and unavailable prerequisites remain explicit gaps.
 
 ## Prototype instead of debating
 
