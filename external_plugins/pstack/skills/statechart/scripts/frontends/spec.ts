@@ -89,6 +89,11 @@ export function readSany(xml: string): Sany {
   const variables: { uid: number; name: string }[] = [];
 
   for (const ref of module?.children ?? []) {
+    if (ref.tag === "InstanceNode") {
+      definitions.set(textOf(ref, "uniquename"), ref);
+      continue;
+    }
+
     if (ref.tag !== "OpDeclNodeRef" && ref.tag !== "UserDefinedOpKindRef") continue;
     const uid = textOf(ref, "UID");
     const node = symbols.get(uid);

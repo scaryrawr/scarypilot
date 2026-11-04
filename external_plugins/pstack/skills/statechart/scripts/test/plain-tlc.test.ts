@@ -74,6 +74,43 @@ for (const module of ["ChartRun", "Outer"])
     assert.doesNotMatch(v.report, /TLC stopped the drawing run/);
   });
 
+for (const replay of [false, true])
+  test(`generated operators avoid inherited definitions during ${replay ? "replay" : "drawing"}`, { skip }, () => {
+    const v = agrees(
+      "Names",
+      {
+        Names: [
+          "---- MODULE Names ----",
+          "EXTENDS Naturals",
+          "ChartTLC == INSTANCE TLC",
+          "ChartNaturals == INSTANCE Naturals",
+          "VARIABLE x",
+          "Init == x = 0",
+          "Next == x < 2 /\\ x' = x + 1",
+          "ChartBound == TRUE",
+          "ChartBudget == x <= 2",
+          "ChartBudget_1 == TRUE",
+          "ChartBroken == FALSE",
+          "ChartMark == TRUE",
+          "TypeOK == x \\in 0..2",
+          "Bad == x < 1",
+          "Later == x < 2",
+          "====",
+        ],
+      },
+      `INIT Init\nNEXT Next\nCONSTRAINT ChartBudget\n${replay ? "INVARIANTS Bad Later" : "INVARIANT TypeOK\nCHECK_DEADLOCK FALSE"}\n`,
+    );
+
+    assert.equal(v.status, replay ? 1 : 0);
+    assert.deepEqual(v.unchecked, []);
+    assert.match(v.report, /TLC reached 3 states and 2 steps\. The chart draws 3 states and 2 arrows\./);
+    assert.doesNotMatch(v.report, /TLC stopped the drawing run/);
+
+    if (replay)
+      assert.deepEqual(v.breaks, new Map([["Bad", 1], ["Later", 2], ["NoDeadlock", 2]]));
+    else assert.deepEqual(v.holds, ["TypeOK"]);
+  });
+
 test(
   "a rule that breaks before another rule fails to evaluate breaks in either order",
   { skip },

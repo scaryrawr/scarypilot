@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { inspect } from "node:util";
-import { boundRun, chartRun, configText, helperName } from "./backends/cfg.ts";
+import { boundRun, chartRun, configText, helperName, helperOperators } from "./backends/cfg.ts";
 import { plainText } from "./backends/plain-text.ts";
 import { readConfig } from "./frontends/config.ts";
 import { parseDot } from "./frontends/dot.ts";
@@ -329,6 +329,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
     const module = path.basename(specFile, ".tla");
     const spec = { ...readSpec({ module, sany, checks }), folder };
     const boundedModule = helperName("ChartBound", sany.modules);
+    const ops = helperOperators(sany.definitions.keys());
     const rules = stateRules(spec);
     const all = [...rules];
 
@@ -364,7 +365,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
         if (properties.length) extra.push(`PROPERTY ${properties.join(" ")}`);
         const bounded = first !== undefined && !states.complete;
 
-        if (bounded) extra.push(`CONSTRAINT ${boundedModule}`);
+        if (bounded) extra.push(`CONSTRAINT ${ops.bound}`);
 
         const r = await runJava(name, "tlc2.TLC", [
           "-tool",
@@ -422,7 +423,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
 
     fs.writeFileSync(
       path.join(dir, `${boundedModule}.tla`),
-      boundRun(spec.module, boundedModule),
+      boundRun(spec.module, boundedModule, ops),
     );
     const judged = await judge();
     const exit = exitClass(judged.first.status);
@@ -465,13 +466,13 @@ export async function check(specFile: string, configFile: string): Promise<Check
     if (judged.states.distinct <= CHART_STATES) {
       const tag = `chart-${randomBytes(16).toString("hex")}`;
       const drawingModule = helperName("ChartRun", sany.modules);
-      fs.writeFileSync(path.join(dir, `${drawingModule}.tla`), chartRun(spec, tag, drawingModule));
+      fs.writeFileSync(path.join(dir, `${drawingModule}.tla`), chartRun(spec, tag, drawingModule, ops));
 
       const drawn = await runJava("ChartRun", "tlc2.TLC", [
         "-tool",
         ...PINNED_FLAGS,
         "-deadlock",
-        ...config("ChartRun", spec.written, ["INVARIANT ChartMark", "CONSTRAINT ChartBudget"]),
+        ...config("ChartRun", spec.written, [`INVARIANT ${ops.mark}`, `CONSTRAINT ${ops.budget}`]),
         "-dump",
         "dot,actionlabels",
         path.join(dir, "graph"),
