@@ -122,20 +122,34 @@ const launcherTools = () => {
   return bin;
 };
 
-const linkedLauncher = () => {
-  const links = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-links-"));
+const linkedLauncher = (tmpdir = os.tmpdir()) => {
+  const links = fs.mkdtempSync(path.join(tmpdir, "statechart-links-"));
   const [first, second] = [path.join(links, "a"), path.join(links, "b")];
   fs.mkdirSync(first);
   fs.mkdirSync(second);
-  fs.symlinkSync(path.relative(second, launcher), path.join(second, "statechart"));
+  fs.symlinkSync(
+    path.relative(fs.realpathSync(second), fs.realpathSync(launcher)),
+    path.join(second, "statechart"),
+  );
   fs.symlinkSync(path.join(second, "statechart"), path.join(first, "statechart"));
 
   return path.join(first, "statechart");
 };
 
+const aliasedLauncher = () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-alias-"));
+  const physical = path.join(root, "nested", "tmp");
+  const alias = path.join(root, "alias");
+  fs.mkdirSync(physical, { recursive: true });
+  fs.symlinkSync(physical, alias);
+
+  return linkedLauncher(alias);
+};
+
 for (const [how, command] of [
   ["by its own path", () => launcher],
-  ["through an absolute and a relative symlink", linkedLauncher],
+  ["through an absolute and a relative symlink", () => linkedLauncher()],
+  ["through a symlinked temporary directory", aliasedLauncher],
 ] satisfies [string, () => string][]) {
   test(`the launcher reached ${how} writes the committed chart on this Node`, () => {
     const dir = path.join(corpus, "MediaPlayer");
