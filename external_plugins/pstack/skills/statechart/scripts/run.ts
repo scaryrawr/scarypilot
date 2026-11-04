@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { inspect } from "node:util";
-import { boundRun, chartRun, configText } from "./backends/cfg.ts";
+import { boundName, boundRun, chartRun, configText } from "./backends/cfg.ts";
 import { plainText } from "./backends/plain-text.ts";
 import { readConfig } from "./frontends/config.ts";
 import { parseDot } from "./frontends/dot.ts";
@@ -60,11 +60,14 @@ export function* fileLines(file: string) {
         continue;
       }
 
-      yield* buf.toString("utf8", 0, cut).split("\n");
+      yield* buf.toString("utf8", 0, cut).split("\n").map((line) =>
+        line.endsWith("\r") ? line.slice(0, -1) : line,
+      );
       kept = buf.copy(buf, 0, cut + 1, end);
     }
 
-    yield buf.toString("utf8", 0, kept);
+    const last = buf.toString("utf8", 0, kept);
+    yield last.endsWith("\r") ? last.slice(0, -1) : last;
   } finally {
     fs.closeSync(fd);
   }
@@ -325,6 +328,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
     const sany = readSany(fs.readFileSync(xml.stdout, "utf8"));
     const module = path.basename(specFile, ".tla");
     const spec = { ...readSpec({ module, sany, checks }), folder };
+    const boundedModule = boundName(sany.modules);
     const rules = stateRules(spec);
     const all = [...rules];
 
@@ -360,14 +364,14 @@ export async function check(specFile: string, configFile: string): Promise<Check
         if (properties.length) extra.push(`PROPERTY ${properties.join(" ")}`);
         const bounded = first !== undefined && !states.complete;
 
-        if (bounded) extra.push("CONSTRAINT ChartBound");
+        if (bounded) extra.push(`CONSTRAINT ${boundedModule}`);
 
         const r = await runJava(name, "tlc2.TLC", [
           "-tool",
           ...PINNED_FLAGS,
           ...(names(group, "deadlock").length ? [] : ["-deadlock"]),
           ...config(name, spec.written, extra),
-          bounded ? "ChartBound" : spec.module,
+          bounded ? boundedModule : spec.module,
         ]);
 
         first ??= r;
@@ -416,7 +420,10 @@ export async function check(specFile: string, configFile: string): Promise<Check
       return { first: first!, stop, states };
     };
 
-    fs.writeFileSync(path.join(dir, "ChartBound.tla"), boundRun(spec.module));
+    fs.writeFileSync(
+      path.join(dir, `${boundedModule}.tla`),
+      boundRun(spec.module, boundedModule),
+    );
     const judged = await judge();
     const exit = exitClass(judged.first.status);
 

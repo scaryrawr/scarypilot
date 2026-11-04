@@ -22,6 +22,28 @@ const late = [
 const lateCfg = (mode: string, rules: string) =>
   `CONSTANT Mode = "${mode}"\nINIT Init\nNEXT Next\nINVARIANTS ${rules}\n`;
 
+test("the bounded replay module does not shadow a source module named ChartBound", { skip }, () => {
+  const module = [
+    "---- MODULE ChartBound ----",
+    "EXTENDS Naturals",
+    "VARIABLE x",
+    "Init == x = 0",
+    "Next == x < 2 /\\ x' = x + 1",
+    "Bad == x < 1",
+    "====",
+  ];
+
+  const v = agrees(
+    "ChartBound",
+    { ChartBound: module },
+    "INIT Init\nNEXT Next\nINVARIANT Bad\nCHECK_DEADLOCK FALSE\n",
+  );
+
+  assert.equal(v.status, 1);
+
+  assert.deepEqual(v.breaks, new Map([["Bad", 1]]));
+});
+
 test(
   "a rule that breaks before another rule fails to evaluate breaks in either order",
   { skip },

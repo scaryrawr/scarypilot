@@ -4,10 +4,22 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { check, requirePosix } from "../run.ts";
+import { check, fileLines, requirePosix } from "../run.ts";
 
 const cli = path.join(import.meta.dirname, "../statechart.ts");
 const login = path.join(import.meta.dirname, "corpus/Login/Login.tla");
+
+test("the file line reader strips LF and CRLF terminators", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-lines-"));
+  const file = path.join(dir, "lines.txt");
+
+  try {
+    fs.writeFileSync(file, "one\r\ntwo\r\nthree");
+    assert.deepEqual([...fileLines(file)], ["one", "two", "three"]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 test("the compiler explicitly rejects Windows process supervision", () => {
   assert.throws(() => requirePosix("win32"), /POSIX.*Windows is not supported/);

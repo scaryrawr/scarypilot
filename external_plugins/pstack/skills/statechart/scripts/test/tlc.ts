@@ -151,7 +151,7 @@ export function agrees(module: string, files: { [name: string]: string[] }, cfg:
 
       if (said) assert.equal(Number(said), stepsIn(text), rule);
 
-      if (/^Semantic processing of module ChartBound$/m.test(text)) bounded.add(rule);
+      if (/^Semantic processing of module ChartBound(?:_\d+)?$/m.test(text)) bounded.add(rule);
       breaks.set(rule, stepsIn(text));
     }
 

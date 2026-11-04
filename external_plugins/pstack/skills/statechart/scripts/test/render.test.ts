@@ -16,7 +16,7 @@ for (const d of fs.readdirSync(path.join(here, "corpus")))
   charts.push(path.join(here, "corpus", d, "chart.mmd"));
 
 const guide = fs.readFileSync(path.join(here, "../../references/render.md"), "utf8");
-const css = guide.match(/```css\n([\s\S]*?)```/);
+const css = guide.match(/```css\r?\n([\s\S]*?)```/);
 
 assert.ok(css, "references/render.md has no css block");
 

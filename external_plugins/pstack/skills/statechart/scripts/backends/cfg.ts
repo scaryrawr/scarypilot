@@ -9,9 +9,18 @@ export function configText(sections: ConfigSection[], extra: string[]) {
   return lines.join("\n");
 }
 
-export const boundRun = (module: string) =>
+export const boundName = (modules: ReadonlySet<string>) => {
+  let name = "ChartBound";
+  let suffix = 1;
+
+  while (modules.has(name)) name = `ChartBound_${suffix++}`;
+
+  return name;
+};
+
+export const boundRun = (module: string, name: string) =>
   [
-    `---- MODULE ChartBound ----`,
+    `---- MODULE ${name} ----`,
     `EXTENDS ${module}`,
     `ChartTLC == INSTANCE TLC`,
     `ChartNaturals == INSTANCE Naturals`,
