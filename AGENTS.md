@@ -14,7 +14,6 @@ There is no root build or broad test suite.
 
 - `npm run lint` runs the repository-wide Oxlint configuration, including the vendored anti-slop rules.
 - `python3 -m json.tool .github/plugin/marketplace.json >/dev/null` validates marketplace edits.
-- After editing an agentic workflow, run `gh aw compile --strict` without a workflow name. Targeted compilation can leave repository-level generated defaults, such as failure-issue expiry, inconsistent across lock files.
 - After editing `external_plugins/pstack/` skills, metadata, provenance, or sync policy, run `node external_plugins/pstack/tools/pstack-sync.mjs check` and `node --test external_plugins/pstack/tools/pstack-sync.test.mjs`.
 - In a changed extension package, run its `npm test` and typecheck scripts. For `ado-codespaces`, also run `npm run lint` and `npm run format:check`.
 - Native extensions ship checked-in `dist/` bundles. After changing extension source or build inputs, run `npm run build` in its extension package and commit `dist/` and `bundle-manifest.json`; run `node tools/check-extension-bundles.mjs check` to catch stale or unbundled runtime imports.
