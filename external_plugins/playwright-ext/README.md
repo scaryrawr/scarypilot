@@ -2,6 +2,8 @@
 
 Browser automation for GitHub Copilot using Microsoft's Playwright. Enables web scraping, testing, and form automation by connecting to your existing browser with logged-in sessions.
 
+The plugin manifest registers `.mcp.json` using Copilot's legacy component layout.
+
 ## What This Plugin Does
 
 Automate browser interactions using [Playwright](https://playwright.dev/):
@@ -56,3 +58,9 @@ Automate browser interactions using [Playwright](https://playwright.dev/):
 
 - [Playwright MCP Repository](https://github.com/microsoft/playwright-mcp)
 - [Playwright Documentation](https://playwright.dev/)
+
+## Attribution and license
+
+This repository's plugin configuration is MIT-licensed. It launches Microsoft's
+[Playwright MCP](https://github.com/microsoft/playwright-mcp), which is distributed
+separately under [Apache-2.0](https://github.com/microsoft/playwright-mcp/blob/main/LICENSE).

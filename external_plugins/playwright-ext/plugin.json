@@ -1,0 +1,12 @@
+{
+  "name": "playwright-ext",
+  "description": "Browser automation through Microsoft's Playwright MCP extension bridge.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Microsoft"
+  },
+  "homepage": "https://github.com/microsoft/playwright-mcp",
+  "repository": "https://github.com/scaryrawr/scarypilot",
+  "license": "MIT",
+  "mcpServers": ".mcp.json"
+}
