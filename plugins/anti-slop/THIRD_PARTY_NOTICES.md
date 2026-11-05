@@ -3,7 +3,7 @@
 The Anti-Slop skill and bundled Oxlint rules are adapted from:
 
 - Project: [dmmulroy/anti-slop](https://github.com/dmmulroy/anti-slop)
-- Revision: `c44ef22ca116d0ba62a3ff663a0bd13a3f3fa40b`
+- Revision: `13909c9e07590f5a85d93c62712259fe14a883f7`
 - Copyright: Copyright (c) 2026 Dillon Mulroy
 - License: MIT
 

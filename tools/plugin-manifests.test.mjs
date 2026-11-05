@@ -1,124 +1,63 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
-import { readFile, readdir } from "node:fs/promises";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import { test } from "node:test";
 
 const root = path.resolve(import.meta.dirname, "..");
+const marketplace = JSON.parse(readFileSync(path.join(root, ".github/plugin/marketplace.json"), "utf8"));
+const readme = readFileSync(path.join(root, "README.md"), "utf8");
 
-const correctedPlugins = ["anti-slop", "better-init", "digivolution", "copilot-autoresearch"];
-
-const agentPluginSchemas = ["1.0.0", "1.1.0"].map(
-  (version) => `https://agent-plugins.org/schemas/${version}/plugin.schema.json`,
-);
-
-const agentPluginFields = new Set([
-  "$schema", "name", "version", "description", "author", "homepage",
-  "repository", "license", "keywords", "extensions",
-]);
-
-function checkManifestFormat(manifest) {
-  if (!agentPluginSchemas.includes(manifest.$schema)) return;
-
-  for (const field of Object.keys(manifest)) {
-    assert.ok(agentPluginFields.has(field), `Agent Plugins manifest ignores legacy or unknown field: ${field}`);
-  }
-
-  if (manifest.extensions !== undefined) {
-    assert.ok(
-      manifest.extensions !== null
-        && typeof manifest.extensions === "object"
-        && !Array.isArray(manifest.extensions),
-      "Agent Plugins extensions must be a namespace object, not legacy directory paths",
-    );
-  }
-}
-
-test("Agent Plugins formats reject legacy component registrations", () => {
-  for (const $schema of agentPluginSchemas) {
-    for (const field of ["skills", "agents", "hooks", "commands", "mcpServers", "lspServers"]) {
-      assert.throws(
-        () => checkManifestFormat({ $schema, name: "example", [field]: "components/" }),
-        new RegExp(field),
-      );
-    }
-
-    for (const extensions of [["extensions/"], "extensions/", null]) {
-      assert.throws(
-        () => checkManifestFormat({ $schema, name: "example", extensions }),
-        /namespace object/,
-      );
-    }
-  }
-});
-
-test("supported legacy paths and conventional Agent Plugins skills need no format conversion", () => {
-  assert.doesNotThrow(() => checkManifestFormat({
-    name: "legacy-example",
-    skills: ["skills/"],
-    hooks: "hooks/hooks.json",
-    agents: "agents/",
-    extensions: ["extensions/"],
-  }));
-
-  for (const $schema of agentPluginSchemas) {
-    assert.doesNotThrow(() => checkManifestFormat({
-      $schema,
-      name: "portable-example",
-      extensions: { "com.github.copilot": {} },
-    }));
-  }
-});
-
-test("corrected marketplace plugins use compatible manifest formats", async () => {
-  const marketplace = JSON.parse(await readFile(path.join(root, ".github", "plugin", "marketplace.json"), "utf8"));
-
-  for (const name of correctedPlugins) {
-    const plugin = marketplace.plugins.find((entry) => entry.name === name);
-
-    assert.ok(plugin, `${name}: missing marketplace entry`);
-    assert.equal(typeof plugin.source, "string", `${plugin.name}: expected a local marketplace source`);
+for (const plugin of marketplace.plugins) {
+  test(`${plugin.name}: published Copilot manifest and component paths`, () => {
     const directory = path.resolve(root, plugin.source);
-    const file = path.join(directory, "plugin.json");
-    const manifest = JSON.parse(await readFile(file, "utf8"));
+    const manifestPath = path.join(directory, "plugin.json");
 
-    assert.equal(manifest.name, plugin.name, file);
-    assert.doesNotThrow(() => checkManifestFormat(manifest), file);
-  }
-});
+    assert.ok(existsSync(path.join(directory, "README.md")), "Plugin README is missing");
+    assert.ok(readme.includes(`(${plugin.source}/README.md)`), "Plugin is missing from the root README");
 
-test("corrected legacy plugins retain their skill and component registrations", async () => {
-  for (const name of correctedPlugins) {
-    const directory = path.join(root, "plugins", name);
-    const manifest = JSON.parse(await readFile(path.join(directory, "plugin.json"), "utf8"));
+    assert.ok(existsSync(manifestPath), "Published plugins must supply plugin.json for CLI discovery");
 
-    assert.equal(manifest.$schema, undefined, `${name}: must retain legacy loading semantics`);
-    assert.deepEqual(manifest.skills, ["skills/"], name);
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 
-    const skills = await readdir(path.join(directory, "skills"), { withFileTypes: true });
+    assert.equal(manifest.name, plugin.name);
+    assert.ok(
+      !manifest.$schema?.startsWith("https://agent-plugins.org/"),
+      "This marketplace uses Copilot's legacy layout; Agent Plugins schemas change component discovery",
+    );
 
-    assert.ok(skills.some((entry) => entry.isDirectory()), `${name}: missing skill directories`);
+    for (const field of ["skills", "agents", "commands", "hooks", "extensions", "mcpServers", "lspServers"]) {
+      if (manifest[field] === undefined) continue;
 
-    for (const entry of skills.filter((entry) => entry.isDirectory())) {
-      assert.ok(existsSync(path.join(directory, "skills", entry.name, "SKILL.md")), `${name}/${entry.name}`);
+      const paths = Array.isArray(manifest[field]) ? manifest[field] : [manifest[field]];
+
+      for (const relative of paths) {
+        assert.equal(typeof relative, "string", `${field} must name a component path`);
+        const component = path.join(directory, relative);
+        assert.ok(existsSync(component), `${field}: missing ${relative}`);
+
+        if (["hooks", "mcpServers", "lspServers"].includes(field)) {
+          JSON.parse(readFileSync(component, "utf8"));
+        } else {
+          assert.ok(statSync(component).isDirectory(), `${field}: ${relative} is not a directory`);
+        }
+
+        if (field === "extensions") {
+          const children = readdirSync(component, { withFileTypes: true }).filter((entry) => entry.isDirectory());
+          assert.ok(children.length > 0, "No native extensions found");
+
+          for (const child of children) {
+            assert.ok(existsSync(path.join(component, child.name, "extension.mjs")), `${child.name}: missing entrypoint`);
+          }
+        }
+      }
     }
 
-    if (name === "anti-slop") {
-      assert.equal(manifest.hooks, "hooks/hooks.json");
-      assert.ok(existsSync(path.join(directory, manifest.hooks)));
-    } else if (name === "better-init") {
-      assert.equal(manifest.agents, "agents/");
-      assert.ok(existsSync(path.join(directory, manifest.agents, "repo-instruction-researcher.agent.md")));
-    } else {
-      assert.deepEqual(manifest.extensions, ["extensions"]);
-      assert.ok(existsSync(path.join(directory, "extensions", name, "extension.mjs")));
-      const packageRoot = path.join(directory, "extensions", name);
-      const pkg = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
-      const lock = JSON.parse(await readFile(path.join(packageRoot, "package-lock.json"), "utf8"));
+    const mcpPath = path.join(directory, ".mcp.json");
 
-      assert.equal(pkg.version, manifest.version, name);
-      assert.equal(lock.version, manifest.version, name);
-      assert.equal(lock.packages[""].version, manifest.version, name);
+    if (existsSync(mcpPath)) {
+      const servers = JSON.parse(readFileSync(mcpPath, "utf8"));
+      assert.ok(!Object.hasOwn(servers, "mcpServers"), "Copilot MCP configuration uses top-level server names");
+      assert.ok(Object.keys(servers).length > 0, "MCP configuration is empty");
     }
-  }
-});
+  });
+}

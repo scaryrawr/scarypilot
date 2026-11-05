@@ -5,13 +5,13 @@ This plugin is adapted from
 The adaptation originally imported upstream commit
 `46125561306434d8a1d7745d540d8932ab0cd2a2` and includes compatible changes
 through upstream repository commit
-`9b93e81fb2921b9263d9463c15bafeabfe3903aa` (pstack version `0.15.30`).
+`bb68f2365eceafa0cb2d253112f675acf5f144cc` (pstack version `0.15.36`).
 The latest commit changing the `pstack/` subtree at that boundary is
-`4ec7ffa173eaa70d3d9467a627baf0954645a353`, the content boundary.
+`c742dd61706fbacc1b95f1a20b7b988cf096ce6c`, the content boundary.
 
 The reviewed range starts after
-`29fa9382c9c250d134f6a2f1aa86c01c5f63119d`, the previous reviewed repository
-boundary (`0.15.29`, content `88d47514b82e7c44f00f2b2a72ff6dd12158038c`).
+`9b93e81fb2921b9263d9463c15bafeabfe3903aa`, the previous reviewed repository
+boundary (`0.15.30`, content `4ec7ffa173eaa70d3d9467a627baf0954645a353`).
 The machine-readable boundary,
 ownership rules, and exclusions live in [`upstream-sync.json`](./upstream-sync.json).
 
@@ -26,6 +26,43 @@ The original and adapted files are distributed under the MIT License in
 
 ScaryPilot changed the integration layer for GitHub Copilot:
 
+- Ported compatible upstream `0.15.31`-`0.15.36` in `3.0.0-copilot.1`.
+  This is a breaking release. The statechart compiler replaces the old
+  `from-spec`/`from-chart` interface with a TLA+ spec, optional view module,
+  fresh output directory, Mermaid chart, and report. The old chart-to-spec,
+  comparison, PNG flag, and `summary.json` interfaces are removed. Java and
+  TLC must already be configured; upstream's automatic mise installation is
+  not carried over. POSIX process supervision is explicit, while portable
+  compiler/parser tests remain usable on Windows. The separate Pele rendering
+  guidance requires existing approved tools, not automatic installation.
+  Mechanical spacing follows repository lint. Scoped lint exceptions retain
+  upstream's chart-geometry `Shape` names and dynamic decoder lookup tables;
+  other compiler rules remain enabled.
+- Removed the retired `orch` CLI and its store tests. Orchestrate now uses
+  advertised host tools and durable project or session artifacts. Existing
+  ledgers are not deleted or rewritten. Retained single-writer isolation,
+  verified downstream facts instead of raw report forwarding, explicit
+  external-write authority, and current-base integration evidence.
+- Added `ketchup-video`, bringing the inventory to 59 skills. Rendering is
+  confined to approved scratch storage and does not authorize capture or upload.
+  Adopted executable adversarial findings in Interrogate, cross-family-only
+  Arena judging with an explicit skip when diversity cannot be established,
+  and safe runner fallback. Copilot still supplies default models; no Cursor
+  model slugs or host placement fields are assumed.
+- Autopilot-stack now means Autopilot-full without merging; only dependent
+  PRs stack, and each PR owner remains its only branch writer. Ported proven
+  blocking findings, proportionate reverification, goal restatements,
+  pre-measurement decision criteria, cache-safe reflection edits, and
+  generated TLA+ verification skills' statechart routing.
+- Ported fork-aware watcher discovery, deadline-capped polling sleeps, and
+  matching inline backtick delimiters in the shared plan validator. The GNU
+  transcript-mtime fix does not apply because this adaptation deliberately
+  never scans transcripts in its read-only worktree audit. The intermediate
+  active-PR orchestration-store fix is superseded by removing that CLI.
+- Retained Copilot-owned shell portability, approval gates, current-base CI
+  and live/perf receipts, existing contract schemas, and attribution. Did not
+  adopt upstream shortcuts that reuse stale integration evidence after base
+  movement or assume a cloud runtime, Project store, or Cursor-only tools.
 - In `2.2.0-copilot.3`, separated output-folder validation guards to satisfy
   repository lint without changing their behavior.
 - Ported upstream `0.15.30` in `2.2.0-copilot.1`, including the statechart

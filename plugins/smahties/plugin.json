@@ -1,0 +1,12 @@
+{
+  "name": "smahties",
+  "description": "Local semantic code search using the smahties MCP server from smahtutils.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Mike Wallio"
+  },
+  "repository": "https://github.com/scaryrawr/scarypilot",
+  "license": "MIT",
+  "mcpServers": ".mcp.json",
+  "skills": ["skills/"]
+}

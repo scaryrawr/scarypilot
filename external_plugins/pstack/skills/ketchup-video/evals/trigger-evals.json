@@ -1,0 +1,14 @@
+[
+  {
+    "query": "Catch me up with a short subtitled video of what changed in this chat, and leave the decisions waiting on me as text below it.",
+    "should_trigger": true
+  },
+  {
+    "query": "Explain what changed since my last message in plain text. Don't create a video.",
+    "should_trigger": false
+  },
+  {
+    "query": "Record a demo of the new settings screen while clicking through it.",
+    "should_trigger": false
+  }
+]

@@ -116,6 +116,11 @@ builds both the generic and optional Effect rule sets. The runtime installs
 only the platform-appropriate native Oxlint package; it does not run a
 repository build or install packages in a user's project.
 
+Readable spacing keeps consecutive single-line `const`, `let`, `var`, and
+`using` bindings grouped at any scope, including exported bindings. A binding
+with its own leading comment starts a new group. Multiline declarations and
+other statement boundaries still require structural blank lines.
+
 ## Validating agent behavior
 
 The hook tests check detection and feedback delivery. The paired behavioral
@@ -128,7 +133,7 @@ positive rewrites, and changes in task completion.
 
 This guidance is adapted from the rule set and remediation philosophy in
 [dmmulroy/anti-slop](https://github.com/dmmulroy/anti-slop), reviewed at commit
-`c44ef22ca116d0ba62a3ff663a0bd13a3f3fa40b`. The upstream project is Copyright
+`13909c9e07590f5a85d93c62712259fe14a883f7`. The upstream project is Copyright
 (c) 2026 Dillon Mulroy and licensed under the MIT License. See
 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 

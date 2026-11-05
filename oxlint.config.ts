@@ -48,6 +48,14 @@ export default defineConfig({
   },
   overrides: [
     {
+      files: ["external_plugins/pstack/skills/statechart/scripts/**/*.{ts,mjs}"],
+      rules: {
+        // Upstream Shape models chart geometry; decoder tables intentionally accept dynamic keys.
+        "anti-slop/no-shape-in-symbol-names": "off",
+        "anti-slop/no-known-value-widening": "off",
+      },
+    },
+    {
       files: [
         "**/*client.{ts,tsx,js,mjs,cjs}",
         "**/*loader.{ts,tsx,js,mjs,cjs}",

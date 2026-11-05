@@ -5,7 +5,7 @@
 1. When the change is one or two files with an obvious approach, skip the plan. Say so and stop.
 2. Settle open questions by prototype before you write. For a question about layout, timing, behavior, or whether an API works, run `playbooks/prototype.md`. Keep the branch, the SHA, and the artifacts for Appendix A. Ask the operator only about a product or preference call that no run can settle. Give options (the **never-block-on-the-human** principle skill).
 3. Explore in subagents with `agent_type: "general-purpose"` and the `poteto-agent` custom agent when available (the **guard-the-context-window** principle skill). Each returns file pointers, conventions, test commands, and entry points. No inlined dumps.
-4. Copy the skeleton below into the plan file and fill every placeholder. Unless the operator names a path, write the file under the session artifact directory. Keep every heading and every sub-block in the order shown. One section per PR. One PR is one change with its own evidence (the **sequence-verifiable-units** principle skill). Name the execution playbook in **How to read this**. Pick between `playbooks/autopilot-full.md` and `playbooks/autopilot-stack.md` per the rule at the end of `playbooks/autopilot-stack.md`. A standing program takes `playbooks/orchestrate.md`.
+4. Copy the skeleton below into the plan file and fill every placeholder. Unless the operator names a path, write the file under the session artifact directory. Keep every heading and every sub-block in the order shown. One section per PR. One PR is one change with its own evidence (the **sequence-verifiable-units** principle skill). Name the execution playbook in **How to read this**. Pick `playbooks/autopilot-full.md` only when merge authority is granted. Pick `playbooks/autopilot-stack.md` when the operator lands the PRs. A standing program takes `playbooks/orchestrate.md`.
 5. Write under `/technical-writing` in full, then `/unslop`. The body is one Diataxis mode, how-to. Appendices hold explanation and reference. Two rules apply verbatim. "i dont want any abstract metaphors" and "write like hemingway". Each heading states the task or the finding. No long dashes. No mid-sentence colons.
 6. Run `node <installed-pstack>/skills/poteto-mode/scripts/check-plan.mjs <plan.md>` and fix every line it prints (the **encode-lessons-in-structure** principle skill). It enforces the skeleton's shape, the verification rule in every verification block, and the punctuation rules.
 7. Hand back. Post the plan path and the script's output, then stop. Execution starts on the operator's explicit go, under the execution playbook the plan names.
@@ -58,15 +58,15 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 - [ ] Run the repo's lint and typecheck once before the PR-facing push. Push with hooks on.
 - [ ] Run `/deslop` before each commit and `/no-comments` before review.
 - [ ] Triage every Bugbot and security-reviewer comment per `../references/bugbot-triage.md`.
-- [ ] Rebase onto current trunk before the code-ready report and babysit. Keep that merge base in fix rounds. Rebase again only at merge prep, on a merge conflict with trunk, or on a CI failure that comes from a change on trunk.
+- [ ] Rebase onto current trunk, or the intended parent branch for a dependent PR, before the code-ready report and babysit. Keep that merge base in fix rounds. Rebase again only at merge prep, on a merge conflict, on a CI failure from a base change, or when a known concurrent change lands in the same files.
 
 ### Verdict and merge, for every PR
 
-- [ ] At the code-ready head SHA and at each later push that changes the patch, run the swarm per `pstack/skills/swarm/SKILL.md`. Include gate lanes, the live lanes from the PR's **Verify, live** block, the perf lane from its **Verify, perf** block, and one early audit lane that reads only the diff and distrusts the PR body. Keep these results provisional until the final receipt audit passes.
-- [ ] After the owner reports merge-ready, or STACK-READY in stack mode, the root separately audits that report and its final self-proof, CI, and babysit receipts against the reported head SHA and required pass predicates. Missing, stale, or failed evidence blocks acceptance. Repeat this audit for every updated ready report after a rewritten head.
-- [ ] Clean only when every required lane is `PASS` and the root's final receipt audit passes. Findings go back to the owner. A new head gets a fresh swarm and a fresh receipt audit, except for lane results that stay valid under the patch-id rule in `playbooks/shipping.md`.
+- [ ] Run a full swarm once at the code-ready head per `pstack/skills/swarm/SKILL.md`. Repeat it for new behavior, a redesign, or a large new diff. A rebase, conflict resolution, or minor fix gets a single verifier at the new head. A wording-only edit with no changed behavior or executable guidance gets no extra verifier. Include required gate, live, perf, and diff-audit lanes, and keep results provisional until the final receipt audit passes.
+- [ ] After the owner reports merge-ready, the root separately audits that report and its final self-proof, CI, and babysit receipts against the reported head SHA and required pass predicates. Missing, stale, or failed evidence blocks acceptance. Repeat this audit for every updated ready report after a rewritten head.
+- [ ] Judge every finding by the execution playbook's blocking rule. Clean means every required lane is PASS and the final receipt audit passes, with no demonstrated blocking defect. Record existing base failures separately unless the PR copies or newly reaches them. Park nonblocking follow-ups. A new head needs current evidence under `playbooks/shipping.md`.
 - [ ] Record the tested base and head SHAs. Any trunk or intended-parent movement requires fresh CI and required live/perf evidence on the combined new base and head per the base-freshness rule in `playbooks/shipping.md`. A clean merge or unchanged patch-id cannot preserve stale integration receipts.
-- [ ] <The merge or append rule from the execution playbook, with the patch-id rule from `playbooks/shipping.md`.>
+- [ ] <The merge or handoff rule from the execution playbook, with the patch-id rule from `playbooks/shipping.md`.>
 
 ### Boot recipe, for every live lane
 
@@ -119,7 +119,7 @@ Each live lane runs in an isolated worktree or session at the PR head. Drive thr
 **Merge.**
 
 - [ ] Root's clean verdict at the exact head SHA.
-- [ ] Root's audit of the final merge-ready or STACK-READY receipts passes for that head.
+- [ ] Root's audit of the final merge-ready receipts passes for that head.
 - [ ] Bugbot triage done.
 - [ ] Rebased onto the current trunk or intended stack parent per the execution playbook. Revalidate lane results under `playbooks/shipping.md` step 3, rerun invalidated lanes, and refresh mergeability, CI, and the final receipt audit before accepting the verdict for the rewritten head.
 - [ ] <The owner merges its own PR, or the root appends the PR to the stack and the operator lands it.>
