@@ -2,8 +2,8 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "f5fac73e0d348827c3757f7b4780bf90fb5e306d28be08400022a3054dc577eb",
-    "package-lock.json": "77ae61b80662ee8627b266517a8fa16f3d27816b660534877f510ccae3d146e6",
-    "package.json": "a0a6042a8d7e4310794a9ecf82deabfc44c8442342ca1b1bdb608325c350ba33",
+    "package-lock.json": "6e68857b8c4cc4471ada3c068c7f7903e494fe265e4cf48384bffc72205f85d5",
+    "package.json": "e1532e4a6e47a6085682081677f49c6b9d3db6745a9615924ca893157454f7cc",
     "src/agent-event-inbox.ts": "cf9a64a9569c4bff28c786e1adbff45df4ec02b4e18275921e21b0034d325712",
     "src/extension.ts": "553ad9063c96164e8dae58e8b7e13f19028dc494abfa19bff599519c657318fc",
     "src/supervisor-client.ts": "069aece503cff7efed2814683bef38d95161930dae006112761d7909744df5e9",

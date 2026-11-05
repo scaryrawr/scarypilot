@@ -6,6 +6,8 @@ ScaryPilot is a GitHub Copilot plugin marketplace. Treat `.github/plugin/marketp
 
 Prefer the repository's declarative plugin patterns: skills in `skills/*/SKILL.md`, MCP configuration in `.mcp.json`, agents in `agents/*.md`, native extensions in `extensions/<name>/extension.mjs`, and optional `lsp.json`. MCP files use top-level server names, not an `mcpServers` envelope. A plugin exposing native extensions must list `extensions/` in `plugin.json`; each immediate child is a separate extension.
 
+These layouts use Copilot's legacy manifest format: omit the Agent Plugins `$schema` declaration. Declaring `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json` or its 1.1.0 equivalent changes component discovery, ignores legacy path fields such as `hooks` and `agents`, and gives `extensions` a different meaning. See the [CLI plugin reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference).
+
 Plugin hook `matcher` values are regular expressions, not exact tool names. Anchor supported tool-name alternatives and test that unrelated tools with overlapping names do not match.
 
 ## Build, Test, and Development Commands
@@ -13,6 +15,7 @@ Plugin hook `matcher` values are regular expressions, not exact tool names. Anch
 There is no root build or broad test suite.
 
 - `npm run lint` runs the repository-wide Oxlint configuration, including the vendored anti-slop rules.
+- `node --test tools/plugin-manifests.test.mjs` checks every published plugin's manifest format and component paths, including MCP-only plugins.
 - `python3 -m json.tool .github/plugin/marketplace.json >/dev/null` validates marketplace edits.
 - After editing `external_plugins/pstack/` skills, metadata, provenance, or sync policy, run `node external_plugins/pstack/tools/pstack-sync.mjs check` and `node --test external_plugins/pstack/tools/pstack-sync.test.mjs`.
 - In a changed extension package, run its `npm test` and typecheck scripts. For `ado-codespaces`, also run `npm run lint` and `npm run format:check`.

@@ -62,6 +62,13 @@ Native extensions target `@github/copilot-sdk` 1.0.16 for development.
 Copilot supplies its own SDK at runtime. Pstack is skill-based and does not
 require native extension support.
 
+These plugins use Copilot's legacy component layout, without an Agent Plugins
+`$schema` declaration. The Agent Plugins format has different discovery rules:
+legacy fields such as `hooks` and `agents` are ignored, and `extensions` is not a
+list of native extension paths. See the [CLI plugin reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference).
+Check published manifests and component paths with
+`node --test tools/plugin-manifests.test.mjs`.
+
 ## Platform support
 
 Shared plugins target Windows, macOS, and Linux with their documented prerequisites.

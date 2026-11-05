@@ -13,6 +13,7 @@ Local semantic code search for GitHub Copilot using the `smahties` MCP stdio ser
 
 The plugin includes:
 
+- `plugin.json` to register the MCP server and skill with Copilot CLI
 - `.mcp.json` to start the local `smahties` MCP stdio server
 - `skills/smahties/SKILL.md` with agent guidance for using the server effectively
 

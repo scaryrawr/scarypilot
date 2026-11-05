@@ -2,6 +2,9 @@
 
 Browser automation, debugging, accessibility testing, and performance analysis using Chrome DevTools Protocol.
 
+The plugin manifest registers `.mcp.json` and the bundled `agents/` directory
+using Copilot's legacy component layout.
+
 ## What This Plugin Does
 
 Enables Claude to control Chrome/Chromium browsers for:
@@ -94,3 +97,9 @@ Invoke with: `Use the web-performance agent to analyze this page`
 
 - [Chrome DevTools MCP Repository](https://github.com/ChromeDevTools/chrome-devtools-mcp/)
 - [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/)
+
+## Attribution and license
+
+This repository's plugin configuration is MIT-licensed. It launches Google's
+[Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp/),
+which is distributed separately under [Apache-2.0](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/LICENSE).
