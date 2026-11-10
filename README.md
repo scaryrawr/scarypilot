@@ -29,6 +29,7 @@ copilot plugin install chrome-devtools@scarypilot
 | **chrome-devtools** | Browser Automation | Chrome DevTools Protocol integration for automation, debugging, accessibility testing (WCAG), and performance analysis (Core Web Vitals). Includes specialized agents. | [📖 Docs](./external_plugins/chrome-devtools/README.md) |
 | **copilot-autoresearch** | Workflow       | Measurable, resumable experiment loops with Copilot CLI tools, commands, skills, Git integration, and live reporting.                                                  | [📖 Docs](./plugins/copilot-autoresearch/README.md)     |
 | **digivolution**    | Workflow           | Adaptive post-task reflection that triggers only on strong evidence of durable repository learning.                                                                    | [📖 Docs](./plugins/digivolution/README.md)             |
+| **kokoro**         | Media              | Local Kokoro ONNX speech synthesis and WAV narration, with setup and Windows ARM64 CPU/accelerator evidence boundaries. | [📖 Docs](./plugins/kokoro/README.md) |
 | **omlx-media**      | Media              | Generate or edit images, synthesize speech, transcribe audio, or turn recordings into grounded written content with local OMLX models.                                | [📖 Docs](./plugins/omlx-media/README.md)               |
 | **omlx-decisions** | AI Models | Use installed oMLX SystemOne decision models for routing, classification, and rubric evaluation. | [📖 Docs](./plugins/omlx-decisions/README.md) |
 | **playwright-ext**  | Browser Automation | Browser automation using Playwright with extension bridge. Testing, web scraping, form automation with logged-in sessions.                                             | [📖 Docs](./external_plugins/playwright-ext/README.md)  |
@@ -82,6 +83,7 @@ prove that an external service, browser bridge, or capture device is available.
 | `ado-codespaces`, `azure-devops` | Local clients target all three platforms. Codespaces workloads run in their Linux container. Azure DevOps workflows also need their documented CLI and authentication setup. |
 | `anti-slop`, `better-init`, `digivolution` | Target all three platforms with their documented tools. |
 | `uv` | Requires Node.js and uv on the Copilot CLI host. |
+| `kokoro` | Requires uv, compatible Python/native speech dependencies, and local model/voice assets. Windows ARM64 CPU synthesis has succeeded locally; GPU/NPU acceleration is unverified. |
 | `copilot-autoresearch` | Targets all three platforms with Bash installed. Experiment commands and repository-specific tools must match the execution host. |
 | `chrome-devtools`, `playwright-ext`, `smahties` | Require the documented external browser bridge or CLI on the host. These integrations are not bundled implementations of those dependencies. |
 | `screen-record` | Has Windows, macOS, and Linux capture backends. FFmpeg, capture permissions, and backend availability are required; Linux capture currently needs X11. |

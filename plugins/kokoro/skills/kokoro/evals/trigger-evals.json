@@ -1,0 +1,9 @@
+[
+  {"query": "Set up Kokoro locally on my Windows ARM64 laptop and explain what will run on CPU versus NPU.", "should_trigger": true},
+  {"query": "Generate a Kokoro voiceover WAV from my approved demo script without using cloud speech.", "should_trigger": true},
+  {"query": "Diagnose my kokoro-onnx missing phonemizer dependency.", "should_trigger": true},
+  {"query": "Transcribe this meeting recording into a summary.", "should_trigger": false},
+  {"query": "Deploy a general ONNX image classifier to an Azure endpoint.", "should_trigger": false},
+  {"query": "Record my desktop without narration.", "should_trigger": false},
+  {"query": "Clone my colleague's voice from this recording.", "should_trigger": false}
+]

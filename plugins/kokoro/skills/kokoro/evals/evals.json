@@ -1,0 +1,45 @@
+{
+  "skill_name": "kokoro",
+  "evals": [
+    {
+      "id": 1,
+      "name": "windows-arm64-evidence-boundary",
+      "prompt": "Use the kokoro skill to give me a Windows ARM64 setup plan without running commands or downloading anything. Native ARM64 Python is installed. Does an NPU in my laptop mean Kokoro will use it? Include a diagnostic command and a first-clip command with placeholder absolute Windows paths.",
+      "expected_output": "A uv-based setup plan with paired upstream assets, safe paths, and an explicit distinction between CPU evidence and unverified acceleration.",
+      "files": [],
+      "expectations": [
+        "Checks uv --version before relying on uv and does not install packages or download assets.",
+        "Uses uv run --no-project with temporary kokoro-onnx and espeakng-loader dependencies for standalone commands.",
+        "References the bundled helper and paired kokoro-v1.0.onnx and voices-v1.0.bin assets.",
+        "Distinguishes available providers from session configuration and execution coverage; does not claim GPU or NPU acceleration.",
+        "Attributes documented Windows ARM64 CPU evidence accurately rather than claiming fresh validation."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "safe-project-narration",
+      "prompt": "Use kokoro to describe, but do not execute, the command for a new narration WAV in my existing uv project. The project already declares the speech dependencies. My approved UTF-8 script is at C:\\demo\\narration.txt and trusted paired assets are in C:\\models. C:\\demo\\narration.wav already exists. Preserve it and don't change dependencies, record my screen, or upload anything.",
+      "expected_output": "A project-environment command using text-file input, an absolute installed helper placeholder, and a distinct new WAV path.",
+      "files": [],
+      "expectations": [
+        "Uses uv run python rather than --no-project, uvx, bare pip, or uv add for the existing project.",
+        "Uses --text-file and a new output filename rather than overwriting narration.wav.",
+        "Resolves the helper from the installed skill directory rather than copying it into the target project.",
+        "Does not execute commands, record, upload, or claim generated audio."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "network-failure-no-hidden-mirror",
+      "prompt": "Use the kokoro skill to explain what to do when uv fails with a TLS handshake error fetching kokoro-onnx. Do not execute anything. I have not approved a different package index, disabled certificate verification, cloud speech, or changes to my existing pipx installations.",
+      "expected_output": "An explicit blocker and approved certificate/proxy troubleshooting, not an unapproved network or runtime fallback.",
+      "files": [],
+      "expectations": [
+        "Surfaces the TLS failure and recommends approved certificate or proxy configuration.",
+        "Does not prescribe disabling TLS verification or silently switching package indexes.",
+        "Does not replace pipx installations or switch to cloud inference.",
+        "Does not claim setup or synthesis succeeded."
+      ]
+    }
+  ]
+}
