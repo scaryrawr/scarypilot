@@ -1,6 +1,8 @@
 import argparse
 from array import array
 import importlib.util
+import io
+import json
 from pathlib import Path
 import struct
 import tempfile
@@ -17,6 +19,52 @@ SPEC.loader.exec_module(helper)
 
 
 class KokoroTests(unittest.TestCase):
+    def test_doctor_preserves_diagnostics_when_package_metadata_is_missing(self):
+        def version(name):
+            if name == "kokoro-onnx":
+                raise helper.importlib.metadata.PackageNotFoundError(name)
+            return "1.0"
+
+        with patch.object(helper.importlib.metadata, "version", side_effect=version), patch.dict(
+            "sys.modules", {
+                "onnxruntime": types.SimpleNamespace(
+                    get_available_providers=lambda: ["CPUExecutionProvider"]
+                )
+            }
+        ):
+            result = helper.doctor()
+        self.assertTrue(result["machine"])
+        self.assertIsNone(result["packages"]["kokoro-onnx"])
+        self.assertEqual(result["packages"]["numpy"], "1.0")
+        self.assertIn("kokoro-onnx", result["errors"])
+        self.assertEqual(result["available_providers"], ["CPUExecutionProvider"])
+
+    def test_doctor_cli_reports_runtime_import_errors_and_exits_nonzero(self):
+        original_import = __import__
+
+        for failure in (ImportError("DLL load failed"), OSError("native library missing")):
+            def runtime_import(name, *args, **kwargs):
+                if name == "onnxruntime":
+                    raise failure
+                return original_import(name, *args, **kwargs)
+
+            with self.subTest(failure=failure), patch(
+                "builtins.__import__", side_effect=runtime_import
+            ), patch.object(
+                helper.importlib.metadata, "version", return_value="1.0"
+            ), patch("sys.stdout", new_callable=io.StringIO) as stdout, patch(
+                "sys.stderr", new_callable=io.StringIO
+            ) as stderr:
+                with self.assertRaises(SystemExit) as error:
+                    helper.main(["doctor"])
+                self.assertEqual(error.exception.code, 1)
+                report = json.loads(stdout.getvalue())
+                self.assertTrue(report["executable"])
+                self.assertEqual(report["packages"]["onnxruntime"], "1.0")
+                self.assertIsNone(report["available_providers"])
+                self.assertIn(str(failure), report["errors"]["onnxruntime_import"])
+                self.assertIn("dependency errors", stderr.getvalue())
+
     def test_wav_clips_samples_and_uses_returned_rate(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "clip.wav"

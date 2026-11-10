@@ -52,20 +52,29 @@ def write_wav(output, samples, sample_rate):
 
 
 def doctor():
-    import onnxruntime
-
-    return {
+    report = {
         "python": platform.python_version(),
         "executable": sys.executable,
         "machine": platform.machine(),
         "platform": platform.platform(),
-        "packages": {
-            name: importlib.metadata.version(name)
-            for name in ("kokoro-onnx", "numpy", "onnxruntime", "espeakng-loader")
-        },
-        "available_providers": onnxruntime.get_available_providers(),
+        "packages": {},
+        "available_providers": None,
+        "errors": {},
         "provider_evidence": "Availability only; no model session or acceleration verified.",
     }
+    for name in ("kokoro-onnx", "numpy", "onnxruntime", "espeakng-loader"):
+        try:
+            report["packages"][name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError as error:
+            report["packages"][name] = None
+            report["errors"][name] = str(error)
+    try:
+        import onnxruntime
+    except (ImportError, OSError) as error:
+        report["errors"]["onnxruntime_import"] = f"{type(error).__name__}: {error}"
+    else:
+        report["available_providers"] = onnxruntime.get_available_providers()
+    return report
 
 
 def synthesize(args):
@@ -116,6 +125,8 @@ def main(argv=None):
     except (OSError, ValueError, ImportError, importlib.metadata.PackageNotFoundError) as error:
         parser.exit(1, f"kokoro: {error}\n")
     print(json.dumps(result, indent=2))
+    if args.command == "doctor" and result["errors"]:
+        parser.exit(1, "kokoro: dependency errors found; see the diagnostic report\n")
 
 
 if __name__ == "__main__":

@@ -36,7 +36,9 @@ uv run --no-project --with kokoro-onnx --with espeakng-loader python "C:\path\to
 
 The helper does not download assets, create output directories, play audio,
 upload content, or overwrite existing files. `doctor` reports interpreter and
-installed runtime information. Available providers do not prove which provider
+installed runtime information. It preserves those diagnostics when dependencies
+are broken, includes missing package and runtime import errors in the JSON
+report, and exits nonzero. Available providers do not prove which provider
 ran a model. Synthesis selects `CPUExecutionProvider` and passes the session to
 Kokoro. The helper does not use an accelerator.
 Success prints the output path, sample rate, frame count, duration, and session
