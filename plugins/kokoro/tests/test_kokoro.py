@@ -1,4 +1,5 @@
 import argparse
+from array import array
 import importlib.util
 from pathlib import Path
 import struct
@@ -24,10 +25,23 @@ class KokoroTests(unittest.TestCase):
                 self.assertEqual((audio.getnchannels(), audio.getsampwidth()), (1, 2))
                 self.assertEqual((audio.getframerate(), audio.getnframes()), (24000, 5))
                 self.assertEqual(
-                    struct.unpack("<5h", audio.readframes(5)),
+                    struct.unpack("=5h", audio.readframes(5)),
                     (-32767, -16384, 0, 16384, 32767),
                 )
             self.assertEqual(result["duration_seconds"], 5 / 24000)
+
+    def test_big_endian_samples_are_converted_once_by_wave(self):
+        class BigEndianArray(array):
+            def tobytes(self):
+                return struct.pack(f">{len(self)}h", *self)
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "clip.wav"
+            with patch.object(helper, "array", BigEndianArray), patch.object(
+                helper.sys, "byteorder", "big"
+            ):
+                helper.write_wav(output, [0.25, -0.5], 24000)
+            self.assertEqual(output.read_bytes()[-4:], struct.pack("<2h", 8192, -16384))
 
     def test_exclusive_write_preserves_existing_output(self):
         with tempfile.TemporaryDirectory() as directory:

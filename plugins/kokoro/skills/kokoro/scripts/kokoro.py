@@ -27,8 +27,6 @@ def pcm16(samples):
         frames.append(round(max(-1.0, min(1.0, value)) * 32767))
     if not frames:
         raise ValueError("model returned no audio samples")
-    if sys.byteorder != "little":
-        frames.byteswap()
     return frames.tobytes()
 
 

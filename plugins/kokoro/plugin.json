@@ -1,7 +1,7 @@
 {
   "name": "kokoro",
   "description": "Set up local Kokoro ONNX text-to-speech and generate WAV narration, with Windows ARM64 guidance.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "Mike Wallio"
   },
