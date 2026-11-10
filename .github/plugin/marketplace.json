@@ -77,6 +77,14 @@
       "source": "./plugins/screen-record"
     },
     {
+      "name": "kokoro",
+      "description": "Set up local Kokoro ONNX text-to-speech and generate WAV narration, with Windows ARM64 guidance.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./plugins/kokoro"
+    },
+    {
       "name": "uv",
       "description": "Guide Copilot to run Python and manage Python dependencies with uv.",
       "author": {

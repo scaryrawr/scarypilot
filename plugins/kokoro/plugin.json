@@ -1,0 +1,11 @@
+{
+  "name": "kokoro",
+  "description": "Set up local Kokoro ONNX text-to-speech and generate WAV narration, with Windows ARM64 guidance.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Mike Wallio"
+  },
+  "repository": "https://github.com/scaryrawr/scarypilot",
+  "keywords": ["copilot", "kokoro", "onnx", "text-to-speech", "narration", "windows-arm64"],
+  "skills": ["skills/"]
+}
