@@ -1,11 +1,12 @@
 {
   "name": "copilot-autoresearch",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "private": true,
   "description": "copilot version of https://github.com/davebcn87/pi-autoresearch",
   "type": "module",
   "scripts": {
-    "build": "node native/assemble.mjs --prepare && tsdown && node native/assemble.mjs && node ../../../../tools/check-extension-bundles.mjs write plugins/copilot-autoresearch/extensions/copilot-autoresearch",
+    "build": "node native/assemble.mjs --prepare && tsdown && node native/assemble.mjs && node src/bundle-manifest.mjs",
+    "cli": "node dist/cli.mjs",
     "typecheck": "tsgo -p tsconfig.json",
     "test": "vitest run",
     "native:harness:build": "node native/build-harness.mjs",

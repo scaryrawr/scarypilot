@@ -41,7 +41,7 @@ Capture needs actual tools and permission. A plan is the deliverable, not permis
 ## Review and ship
 
 - `/interrogate the whole branch, but skeptically. don't change anything yet. no nitpicks unless it's a real bug or regression.` Read the Dropped list too.
-- `/swarm check every package under <dir> against its check script. one worker per package. one report.` Confirm host Task tools, scope and worker budget before launching.
+- `/swarm check every package under <dir> against its check script. one worker per package. one report.` Confirm host worker-launch actions, scope and worker budget before launching.
 - `/benchmark-checklist vet this speedup before it goes in the pr description.`
 - `/create-formal-verification-skill prove <property> holds in <module>, even when <steps> interleave or retry.` After merges or refactors in that code: `/maintain-formal-verification-skill`.
 - `/pstack-schema-validate validate this pstack plan at <workspace path>.` Contract validity does not prove the recorded evidence.
@@ -59,7 +59,7 @@ PR creation and updates prefer matching built-in tools within their actual scope
 - `/show-me-your-work catch me up on what you did last night.` Read its Attention section first.
 - `/poteto-mode full autopilot on this queue. each item is independent.` Requires agreed external-write permissions and independent verification.
 - `/poteto-mode autopilot these changes, but don't merge. i'll land them.`
-- `/poteto-mode pause safely. write a durable handoff so i can resume after restarting Copilot.`
+- `/poteto-mode pause safely. write a durable handoff so i can resume after restarting the host.`
 - `/reflect capture what we learned so the next run doesn't repeat it.` Approve only edits that change a future decision.
 - `/bro` restates the last reply in plain words.
 

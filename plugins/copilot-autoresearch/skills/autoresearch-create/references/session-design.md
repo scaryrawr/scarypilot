@@ -8,10 +8,12 @@ Create new sessions under `.auto/`:
 | --- | --- |
 | `.auto/prompt.md` | Durable experiment playbook |
 | `.auto/measure.sh` | Benchmark that emits structured metrics |
-| `.auto/log.jsonl` | Append-only result log written by the tools |
+| `.auto/log.jsonl` | Append-only result log shared by native tools and the CLI |
 | `.auto/ideas.md` | Optional backlog of deferred hypotheses |
 | `.auto/checks.sh` | Optional correctness gate |
 | `.auto/config.json` | Optional working directory and iteration limits |
+| `.auto/cli.json` | Explicit CLI mode, Git policy, and durable run receipt |
+| `.auto/runtime/<session-id>.json` | Native Copilot session mode and run/checks gates |
 
 Legacy flat `autoresearch.*` files remain readable, but never create new ones.
 
@@ -68,7 +70,7 @@ multiplied across many runs.
 
 The benchmark can evolve as understanding improves, but never change it in a
 way that makes old and new primary metrics incomparable without starting a new
-segment through `init_experiment`.
+segment through the selected interface's initialization action.
 
 ## Correctness checks
 
@@ -92,13 +94,14 @@ included in the primary metric.
 }
 ```
 
-`workingDir` must resolve within the Copilot session workspace. The
+`workingDir` must resolve within the active workspace. For the CLI, this is the
+explicit `--workspace` directory. The
 config remains in the session directory; all other autoresearch artifacts,
 commands, and Git operations use the resolved working directory.
 
 ## Actionable side information
 
-Use `log_experiment.asi` for information that must survive context loss and
+Use the result logging action's `asi` object for information that must survive context loss and
 reverts. Do not duplicate the description or raw command output.
 
 Useful fields include:

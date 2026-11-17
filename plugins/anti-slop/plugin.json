@@ -1,7 +1,7 @@
 {
   "name": "anti-slop",
   "description": "Bundled Anti-Slop checks after edits, plus pre-edit guardrails, without repository lint setup.",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "author": {
     "name": "Mike Wallio"
   },
@@ -16,5 +16,5 @@
   "skills": [
     "skills/"
   ],
-  "hooks": "hooks/hooks.json"
+  "hooks": "hooks/copilot.json"
 }

@@ -9,7 +9,7 @@ const policyPath = "tools/skill-evals/policy.json";
 
 const roots = ["plugins", "external_plugins"];
 
-const globalInputs = ["AGENTS.md", "CLAUDE.md", ".github/copilot-instructions.md", ".github/plugin/marketplace.json"];
+const globalInputs = ["AGENTS.md", "CLAUDE.md", ".github/copilot-instructions.md", ".github/plugin/marketplace.json", ".agents/plugins/marketplace.json"];
 
 const globalPrefixes = [".github/instructions/", "tools/skill-evals/", ".github/workflows/skill-evals.yml"];
 

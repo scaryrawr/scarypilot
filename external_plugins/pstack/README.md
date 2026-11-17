@@ -1,6 +1,6 @@
-# pstack for GitHub Copilot
+# pstack for Copilot and Codex
 
-This is a GitHub Copilot adaptation of
+This is a shared Copilot and Codex adaptation of
 [pstack](https://github.com/cursor/plugins/tree/main/pstack), Lauren Tan's
 workflow toolkit for writing less, higher-quality code through deliberate
 planning, delegation, review, and verification.
@@ -12,7 +12,8 @@ planning, delegation, review, and verification.
   `architect`, `arena`, `swarm`, `interrogate`, `correct`, `benchmark-checklist`,
   `tdd`, `deslop`, `unslop`, `create-formal-verification-skill`,
   `maintain-formal-verification-skill`, `statechart`, and 24 pstack principles.
-- The `poteto-agent` and `comment-sicko` custom agents.
+- The `poteto-agent` and `comment-sicko` custom agents for Copilot, with the
+  same agent bodies available as prompt references on hosts without registration.
 - Portable artifact and plan validation using deterministic contract rules and
   workspace-confined file reads.
 - PR watching, decision-log, and worktree-audit helpers used by
@@ -31,10 +32,11 @@ a workflow. It answers the question without starting the suggested task.
 
 ## Prerequisites
 
-- GitHub Copilot CLI with plugin and Agent Skills support.
+- GitHub Copilot CLI or Codex with native plugin and Agent Skills support.
 - Git and GitHub CLI for GitHub and PR workflows.
-- Bun only for the `poteto-mode` PR watcher CLI.
-- Node.js for the decision-log and validation helpers. Confined artifact
+- Bun only for development tests of the PR watcher and orchestration sources.
+- Node.js 22.18 or later for the bundled watcher, orchestration, statechart, decision-log,
+  and validation helpers. Installed users need no npm dependencies. Confined artifact
   validation requires macOS or Linux and fails explicitly on other platforms.
 - For `/statechart` only, Node.js 22.18 or later on macOS or Linux, Java 11 or
   later, and `tla2tools.jar` configured through `JAVA` and `TLA2TOOLS`. The CLI
@@ -49,6 +51,11 @@ a workflow. It answers the question without starting the suggested task.
 
 The plugin has no native extension or SDK dependency. Core skills use the
 current host's advertised tools; optional capabilities are not assumed.
+Read [runtime actions](./docs/runtime-actions.md) for capability discovery,
+worker identity, model defaults, scoped history, and permission boundaries.
+Action descriptions are search keywords, not tool invocation syntax.
+The [optional helper guide](./docs/optional-helpers.md) covers the retained
+orchestration ledger, bundled current watcher and compiler, and legacy conversions.
 
 On macOS, install Java for statechart with `brew install openjdk@21`. The
 Homebrew Java path is `$(brew --prefix openjdk@21)/bin/java`; using that path
@@ -60,10 +67,25 @@ property-based tests for a TLC model-checking result.
 
 ## Installation
 
+For Copilot:
+
 ```sh
 copilot plugin marketplace add scaryrawr/scarypilot
 copilot plugin install pstack@scarypilot
 ```
+
+For Codex clients with Git marketplace support:
+
+```sh
+codex plugin marketplace add scaryrawr/scarypilot
+codex plugin add pstack@scarypilot
+```
+
+Use the native plugin controls if your client does not expose these CLI commands.
+The Copilot `plugin.json` and Codex `.codex-plugin/plugin.json` point to the same
+`skills/` directory. Codex does not register Copilot's `.agent.md` files.
+[`/setup-pstack`](./skills/setup-pstack/SKILL.md) documents each host's configuration
+format. Writing a Copilot instruction file does not configure Codex.
 
 ## Usage
 
@@ -90,6 +112,17 @@ Use the full workflow style:
 /poteto-mode implement this feature and prove it works
 ```
 
+### Shared runtime adaptation in `3.1.0-copilot.1`
+
+The Codex entrypoint has its own version, `0.15.36-codex.5`. Both hosts use the
+newer Copilot-derived skill and helper tree for overlapping functionality.
+The Codex-only orchestration ledger and legacy conversion commands remain
+optional shared helpers. Watcher and compiler bundles are rebuilt from current
+sources, not copied from the older port. Workflows describe actions and discover the current tool schema
+before invocation. Independent review, explicit permissions, isolated writers,
+scoped history, model-alias omission, and current-base evidence remain required.
+Static checks validate packaging and prose contracts, not model behavior.
+
 ### Breaking upstream refresh in `3.0.0-copilot.1`
 
 This refresh adopts compatible pstack `0.15.31`-`0.15.36` changes. It adds
@@ -101,7 +134,7 @@ or automatic uploads.
 Statechart now uses a compiler-style CLI:
 
 ```sh
-node "<statechart-skill>/scripts/statechart.ts" "/scratch/Flow.tla" \
+node "<statechart-skill>/scripts/statechart.mjs" "/scratch/Flow.tla" \
   --config "/scratch/Flow.cfg" --view "/scratch/view.mjs" --out "/scratch/flow-chart"
 ```
 
@@ -111,11 +144,14 @@ when within the chart budget or bugs exist, and TLC output files. The report
 gives shortest bug paths; models above 500 states show bug paths only. The
 destination must be new or empty, and is never replaced with a generated-file
 inventory. The old `from-spec`, `from-chart`, `--against`, `--fixed`, and `--png`
-interfaces, chart-to-spec generation, and `summary.json` are removed.
+interfaces, chart-to-spec generation, and `summary.json` were removed from the
+default compiler interface. Optional legacy conversion commands are now retained
+under `scripts/legacy/`, as described in the helper guide.
 
-The `orch` CLI and its store implementation are removed. Orchestrate uses
-advertised host tools and durable project or session artifacts. Existing
-ledgers remain untouched; read them as historical evidence, not live state.
+The `3.0.0` refresh removed the `orch` CLI. The shared adaptation restores the
+Codex ledger as optional bookkeeping without changing Orchestrate's host-action
+contract. Existing ledgers remain untouched until explicitly selected and
+reconciled. A stored claim is not current verification evidence.
 Autopilot-stack means Autopilot-full without merging; independent PRs no longer
 become an artificial linear chain, and each PR owner is its only branch writer.
 Base movement still requires fresh integration evidence.
@@ -143,7 +179,8 @@ entry points and follow-up phrases without requiring the full workflow catalog.
 The refresh adds formal-verification creation and maintenance skills.
 [`/create-formal-verification-skill`](./skills/create-formal-verification-skill/SKILL.md)
 chooses one costly, hard-to-test property, verifies it with suitable tooling,
-and generates `.github/skills/verify-<area>/SKILL.md` for repeatable checks.
+and generates `verify-<area>/SKILL.md` under the current host's confirmed
+project-skills directory for repeatable checks.
 [`/maintain-formal-verification-skill`](./skills/maintain-formal-verification-skill/SKILL.md)
 keeps those checks aligned with changed code and separates verification drift
 from product bugs. Bounds, assumptions, mutation checks, and sync commits make
@@ -167,11 +204,12 @@ replacement of those services.
 Skills, custom agents, contract schemas and useful scripts remain. Existing
 receipts, handoffs and orchestration state are not deleted or rewritten.
 Read a supplied handoff or scoped session history explicitly during pickup.
-The pause playbook writes its existing Markdown resume note. Orchestration now
-uses approved host/project artifacts rather than the removed Bun ledger CLI.
-Neither recreates the removed native services.
+The pause playbook writes its existing Markdown resume note. That release used
+approved host/project artifacts rather than the removed Bun ledger CLI.
+The current release also offers the preserved optional Node ledger described
+above; neither approach recreates the removed native services.
 
-Swarms use Task agents. Read-only instructions and before/after evidence do not
+Swarms use supported independent workers. Read-only instructions and before/after evidence do not
 provide tool-level write prevention, journaled replay or pinned inputs. If a task
 requires those guarantees and the current host cannot enforce them, report it
 blocked. Writing workers still require isolated workspaces.
@@ -242,16 +280,15 @@ The standalone [`check-plan.mjs`](./skills/poteto-mode/scripts/check-plan.mjs)
 keeps its existing human-readable checklist diagnostics. Both entrypoints share
 the same pure plan rules.
 
-Configure Task models across Copilot projects:
+Configure worker models for the current host:
 
 ```text
 /setup-pstack
 ```
 
-The setup skill writes `instructions/pstack-models.instructions.md` in
-`$COPILOT_HOME`, defaulting to `$HOME/.copilot`. Copilot loads this user
-instruction across repositories. Without it, pstack lets Copilot select each
-Task agent's default model.
+The [setup skill](./skills/setup-pstack/SKILL.md) documents the distinct native
+configuration locations and preserves unrelated instructions. Without a loaded
+role mapping, pstack omits explicit model selection and uses the host's default.
 
 ## Copilot adaptation
 
@@ -262,15 +299,14 @@ See the [CLI plugin reference](https://docs.github.com/en/copilot/reference/copi
 
 The upstream skills use the Agent Skills format, but their orchestration layer
 assumes Cursor-specific model IDs, cloud-agent parameters, transcript paths,
-commands, and companion plugins. This adaptation maps those assumptions to
-Copilot Task agents, scoped session history, background completion
-notifications, `.github/skills/`, and available browser, computer-use,
-terminal, and project verification tools.
+commands, and companion plugins. The shared adaptation replaces those
+assumptions with [runtime action descriptions](./docs/runtime-actions.md),
+supported-schema discovery, scoped history, and confirmed native skill paths.
 
-Host-controlled surfaces such as Task agents, dynamic workflows, session history,
+Host-controlled surfaces such as independent workers, dynamic workflows, session history,
 browser automation, MCP tools, and App sidebar state remain conditional until
 the host proves they are available.
-The swarm skill uses Task agents directly and accepts evidence explicitly.
+The swarm skill uses supported independent workers and accepts evidence explicitly.
 Artifact validation retains the shared
 [`artifact-rules.mjs`](./skills/pstack-schema-validate/scripts/artifact-rules.mjs)
 and plan rules without a native adapter. Orch, watch-pr, setup and recall keep

@@ -5,13 +5,15 @@ description: "Reconstruct your recent working context from your own chat history
 
 # Recall
 
+For host-dependent actions and paths, read [runtime actions](../../docs/runtime-actions.md) first.
+
 **Before you start or resume work, you rebuild the user's recent working context and hand back a tight capsule of where things stand now and what to do next.**
 
 Keep it tight and on-topic. Read only what the in-scope threads need, then stop.
 
 Your context lives in two records. Your own chat history holds what you did and decided. The shared record holds everything that happened around the same code under other names: the symptoms users keep reporting, the fixes that shipped and got reverted, the errors still firing in prod. That second record is what the **why** skill searches, across source control, the issue tracker, chat and issue channels, long-form docs, and error tracking. A feature with a long bug tail keeps most of its story there, so don't reconstruct it from your transcripts alone.
 
-Use Copilot's session history tools when they are available. Prefer `session_store_sql` because it searches prior sessions without reading private transcript files directly. Always constrain queries by time, repository or session ID, and topic. If no history tool is available, use the visible conversation plus live repository state and state that historical coverage is limited.
+Use supported scoped-history search rather than reading private transcript files directly. Always constrain queries by time, repository or a supplied session reference, and topic. If history search is unavailable, use the visible conversation plus live repository state and state that historical coverage is limited.
 
 1. Classify, then route. One specific prior chat to resume is the `session-pickup` playbook, not this. Turning habits into a durable skill is `automate-me`. A human-readable summary of your work is a different task. Recall loads working context across recent chats before you act. If the user already gave you a full state capsule (paths, branch, the change), use it and skip the mining.
 2. Lock the scope before searching. Pin the window ("recent" is a real range, default the last 7 days), the topic if named, and the workspace (default the active one; never read another project's transcripts without being asked). State the scope back. Never quietly turn "all" into "recent N".

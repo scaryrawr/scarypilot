@@ -1,0 +1,37 @@
+{
+  "skill_name": "swarm",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/swarm Audit three independent areas. This evaluation host exposes file reads and a shell but no independent-worker launch capability. Explain the outcome only. Do not execute commands, install anything, or simulate independent reviews in this conversation.",
+      "expected_output": "A blocked swarm outcome that identifies missing independent workers and does not claim coverage.",
+      "expectations": [
+        "Reports the missing independent-worker launch capability as a blocking gap.",
+        "Does not substitute self-review or a lexical check for independent coverage.",
+        "Does not invent a tool name, launch a process, install dependencies, or claim reviews ran."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/swarm Explain a dry-run dispatch plan only, without launching or writing anything. This host has an independent-worker capability but its schema has not been discovered. The supplied swarm workers mapping is auto. I need two read-only slices in the current repository and terminal results tied to their original workers.",
+      "expected_output": "A plan to discover the supported launch schema, omit explicit model selection for auto, and retain returned worker identities for terminal results.",
+      "expectations": [
+        "Requires current capability and schema discovery instead of prescribing another host's tool names or argument fields.",
+        "Omits explicit model selection for auto instead of forwarding it as a model ID or promising parent-model inheritance.",
+        "Keeps explicit read-only scopes and retained returned worker identities for result collection.",
+        "Does not launch, write, or claim that independent coverage has already happened."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/swarm Continue only from this supplied state. Worker A may already have written in its isolated checkout and its launch returned a retained worker reference. No completion event has arrived. Worker B finished its separate slice. Do not use any tools in this eval. State the next safe coordination action, without inventing tool names or claiming new results.",
+      "expected_output": "Wait for or inspect the original worker A using its retained reference when supported, never replay its writing work.",
+      "expectations": [
+        "Retains worker A's identity and does not spawn a replacement or replay work that may have written.",
+        "Does not treat worker B's result as proof that worker A finished.",
+        "Labels the aggregate partial or still waiting rather than claiming completion.",
+        "Does not fabricate tool calls, worker results, or automatic resume guarantees."
+      ]
+    }
+  ]
+}

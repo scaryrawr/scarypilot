@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, it } from "node:test";
-import hooks from "./hooks.json" with { type: "json" };
+import hooks from "./copilot.json" with { type: "json" };
 import genericBundle from "../dist/anti-slop.mjs";
 import effectBundle from "../dist/anti-slop-effect.mjs";
 import genericConfig from "../oxlint.config.mjs";

@@ -1,5 +1,6 @@
 import { joinSession } from "@github/copilot-sdk/extension";
-import { DecisionClient, createDecisionTools } from "./decisions.ts";
+import { DecisionClient } from "./decisions.ts";
+import { createDecisionTools } from "./tools.ts";
 
 const session = await joinSession({
   requestedEnvironmentVariables: ["OMLX_BASE_URL", "OMLX_API_KEY"],

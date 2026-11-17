@@ -5,6 +5,8 @@ description: "Use for 'why does X work this way', 'why we picked Y', design rati
 
 # Why
 
+For host-dependent actions and paths, read [runtime actions](../../docs/runtime-actions.md) first.
+
 Investigate the motivation and intent behind code. The companion `how` skill answers what the code does and how it works. `why` answers what forces led to its shape.
 
 ## Operating Posture
@@ -43,13 +45,13 @@ Use git and `gh` for source control when available, and name any missing access.
 
 Aim for a complete **coverage map**, not a minimal one. Document the null, don't skip the search.
 
-Each spawn below names a role line in the `pstack-models.instructions.md` configuration (Copilot home `instructions/`) and its default. Use that line's value. If the configuration or the line is missing, omit `model`. Omit `model` when the value is `auto` or `inherit-parent`. If the Task tool rejects a slug, omit `model` and say so.
+Each spawn below names a role line in the pstack model configuration available to this session and its default. Use that line's value. If the configuration or the line is missing, omit explicit model selection. Omit explicit model selection when the value is `auto` or `inherit-parent`. If the worker-launch action rejects a slug, omit explicit model selection and say so.
 
 Launch all matching investigators in a single message so they run concurrently. Don't ask one agent to cover multiple MCPs.
 
 Subagent config (each):
-- `agent_type`: `general-purpose`
-- `model`: your configured why-investigators model; omit it when unconfigured or set to `auto`
+- Worker role: implementation or synthesis
+- explicit model selection: your configured why-investigators model; omit it when unconfigured or set to `auto`
 - Prompt: read-only; investigators may use available integrations but must not edit files
 
 Each investigator's prompt is `references/investigator-prompt.md` filled in, plus:
@@ -88,8 +90,8 @@ For a direct investigation, synthesize inline using `references/synthesizer-prom
 
 Spawn one synthesizer subagent:
 
-- `agent_type`: `general-purpose`
-- `model`: your configured why-synthesizer model; omit it when unconfigured or set to `auto`
+- Worker role: implementation or synthesis
+- explicit model selection: your configured why-synthesizer model; omit it when unconfigured or set to `auto`
 - Prompt: read-only; the synthesizer may use available integrations to verify citations but must not edit files
 
 The synthesizer gets:

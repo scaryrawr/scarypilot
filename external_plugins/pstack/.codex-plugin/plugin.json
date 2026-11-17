@@ -1,0 +1,17 @@
+{
+  "name": "pstack",
+  "version": "0.15.36-codex.6",
+  "description": "Rigorous planning, review, delegation, and verification workflows shared with Copilot.",
+  "author": {
+    "name": "Lauren Tan"
+  },
+  "repository": "https://github.com/scaryrawr/scarypilot",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "pstack",
+    "shortDescription": "Planning, review, delegation, and verification workflows.",
+    "developerName": "ScaryPilot",
+    "category": "Developer Tools"
+  },
+  "license": "MIT"
+}

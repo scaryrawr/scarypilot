@@ -1,0 +1,21 @@
+import{i as e,n as t,r as n,s as r,t as i}from"./decisions-DaTXZXUQ.mjs";import{readFile as a}from"node:fs/promises";import{parseArgs as o}from"node:util";function s(i,a){let o;try{o=JSON.parse(i)}catch{throw new t(`Input must be valid JSON.`)}if(!r(e,o))throw new t(`Invalid CLI input. Supply state (text, an object, or an array) or images, named questions with 2–26 choice/score criteria, and optional boolean truncate. Images accept only supplied padded base64 or data:image/...;base64,... strings, never file paths or path objects.`);if((o.state===void 0||typeof o.state==`string`&&!o.state.trim())&&!o.images?.length)throw new t(`Input must contain state (text, an object, or an array) or images.`);for(let[e,n]of Object.entries(o.questions)){if(n.type===`noul`)continue;let r=n.type===`choice`?Object.keys(n.criteria).length:n.criteria.length;if(r<2||r>26||n.type===`score`&&n.criteria.some(e=>!e.trim()))throw new t(`Question ${JSON.stringify(e)} requires 2–26 nonempty criteria.`)}let s={...o,model:a,state:o.state??``,truncate:o.truncate??!1};return n(s,`cli`),s}async function c(e=process.argv.slice(2)){let[n,...r]=e;if(n===void 0||[`help`,`--help`,`-h`].includes(n)){if(r.length)throw new t(`Help does not accept arguments.`);console.log(`Usage: node scripts/decide.mjs <command> [options]
+
+Commands:
+  models                           List installed models and decision model metadata
+  run --model <id-or-alias> --input <file>   Send JSON {state, images?, questions, truncate?} to /v1/systemone
+  help                             Show this help
+
+Question types: choice, noul (yes/no probability), score (weighted zero-based level).
+Use an exact installed model ID or an explicitly supplied unambiguous decision-model alias.
+Exact IDs take precedence. Ambiguous aliases fail before inference.
+Native tools require exact IDs. No automatic model choice, downloads, retries, or redirects.
+Native text state must be nonblank, even with images.
+Choice and score require 2–26 criteria. State may be omitted only with images.
+Images accept supplied padded base64 or data:image/...;base64,... strings only.
+Local file paths and path objects are rejected. There is no CLI approval override.
+Native file uploads require the host's real per-call confirmation dialog.
+Output preserves full SystemOne JSON, including answers, probabilities and usage.
+truncate defaults to false. OpenJev never truncates; its vision models accept one image.
+OMLX_BASE_URL defaults to http://localhost:8000. OMLX_API_KEY is optional.
+Authenticated remote endpoints require HTTPS. Node 22.18.0 or later is required.`);return}if(n!==`run`&&n!==`models`)throw new t(`Unknown command: ${n}`);if(n===`models`&&r.length)throw new t(`Models does not accept arguments.`);let{values:c}=o({args:r,options:{model:{type:`string`},input:{type:`string`}},strict:!0,allowPositionals:!1}),l=new i({metadataTimeoutMs:1e4,inferenceTimeoutMs:3e5,serverErrors:`messages`,boundary:`cli`});if(n===`models`){let e=await l.listInstalled();if(!e.length){console.log(`No models found on OMLX endpoint. Install a decision model separately, then retry.`);return}console.log(`DECISION MODELS (server-reported model_type=decision or engine_type=decision):`);let t=e.filter(e=>e.model_type===`decision`||e.engine_type===`decision`);for(let e of t)console.log(`  - ${e.id}${e.model_alias?` (alias: ${e.model_alias})`:``}${e.unavailable_reason?` (unavailable: ${e.unavailable_reason})`:``}`);t.length||console.log(`  None available. Install a decision model separately, then retry.`),console.log(`
+ALL MODELS:`);for(let t of e)console.log(`  - ${t.id} (${t.model_type}${t.loaded===void 0?``:t.loaded?`, loaded`:`, not loaded`})`);return}let{model:u,input:d}=c;if(!u?.trim())throw new t(`Provide --model with a non-empty value.`);if(!d?.trim())throw new t(`Provide --input with a non-empty value.`);let f;try{f=await a(d,`utf8`)}catch{throw new t(`Input file could not be read.`)}let p=s(f,u);console.log(JSON.stringify(await l.decide(p),null,2))}try{await c()}catch(e){console.error(`decide: ${e instanceof Error?e.message:`Decision command failed.`}`),process.exitCode=1}export{};

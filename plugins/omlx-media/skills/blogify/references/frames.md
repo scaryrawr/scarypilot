@@ -5,8 +5,9 @@ classification, and cropping.
 
 ## Native frame preparation
 
-Prefer `omlx_prepare_frames` with an absolute video `input` and a fresh
-`output_dir`. The tool does not use OMLX or send frames to a service.
+Use the frame preparation action from the
+[shared media actions](../../../references/actions.md) with an absolute video
+`input` and a fresh `output_dir`. The action does not use OMLX or send frames to a service.
 Read its returned `manifest.json` for timestamps and file paths.
 
 Default sampling produces a bounded candidate set across the recording.

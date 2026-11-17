@@ -1,0 +1,21 @@
+{
+  "skill_name": "highlight-reel",
+  "evals": [
+    {
+      "id": 1,
+      "name": "portable-highlight-plan",
+      "prompt": "Plan a highlight reel from /workspace/talk.mp4. The host advertises no native media tools. Keep everything local and preserve the original. Do not actually process it.",
+      "files": [],
+      "expected_output": "A plan using the installed plugin's shared media CLI, deterministic quote and timestamp verification, and fresh clip outputs.",
+      "expectations": [
+        "Resolve bundled helpers from the installed skill path rather than assuming a checkout or host cache directory.",
+        "Use the shared CLI for recording and frame preparation instead of inventing native tool names.",
+        "Do not claim word timestamps or speaker attribution from chunk boundaries.",
+        "Verify quotes against the transcript and review the recording before presenting them as accurate speech.",
+        "Use a working copy for metadata fixes and a fresh output directory for clips.",
+        "Do not probe models, send content to hosted agents, or publish artifacts without the corresponding permission.",
+        "Do not claim that any recording was processed."
+      ]
+    }
+  ]
+}

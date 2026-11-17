@@ -5,6 +5,8 @@ description: "Check a TLA+ model of a system that moves between states, such as 
 
 # Statechart
 
+For host-dependent actions and paths, read [runtime actions](../../docs/runtime-actions.md) first.
+
 The chart shows how a system moves between states, in the words of the person who reads it. That person, the reader, decides whether the behavior is right.
 
 ## Run
@@ -12,14 +14,18 @@ The chart shows how a system moves between states, in the words of the person wh
 Work in a user-approved scratch folder outside the repo. Write a TLA+ spec and its config there; never edit the original spec or config. Then run on POSIX:
 
 ```sh
-node <skill dir>/scripts/statechart.ts SPEC.tla [--config FILE] [--view FILE] [--out DIR]
+node <skill dir>/scripts/statechart.mjs SPEC.tla [--config FILE] [--view FILE] [--out DIR]
 ```
 
-`scripts/statechart.ts` is TypeScript: use Node 22.18 to 22.x, Node 23.6 or later, or Bun 1.1.5 or later. The optional `scripts/statechart` POSIX launcher selects an existing supported runtime. The CLI requires `/bin/sh` and POSIX process groups; Windows is unsupported, although pure parser/compiler tests run there. Use an approved POSIX environment for model checking.
+`scripts/statechart.mjs` and its adjacent `worker.mjs` are checked-in bundles of the current TypeScript compiler. Installed users need Node 22.18 or later, not npm dependencies or Bun. The TypeScript source and optional POSIX launcher remain available for development. The CLI requires `/bin/sh` and POSIX process groups; Windows is unsupported, although pure parser/compiler tests run there. Use an approved POSIX environment for model checking.
 
 Set `TLA2TOOLS` to an existing `tla2tools.jar` (official stable TLC 1.7.4 recommended), and optionally set `JAVA` to an existing Java 11+ binary; otherwise `java` must be on PATH. Nothing is installed automatically. If the runtime, Java, TLC, or renderer is missing, report the prerequisite and obtain approval before any download or installation. Do not silently install dependencies or invoke mise to provision tools.
 
 Use a new or empty `--out` folder. Never delete existing output to make room; choose a fresh folder instead. This release replaces `from-spec`, `from-chart`, and `summary.json` with this compiler interface and `report.md`, `chart.mmd`, and `tlc.out` (plus per-rule TLC output when needed).
+
+Optional earlier conversion commands remain under `scripts/legacy/`.
+Read the [helper guide](../../docs/optional-helpers.md#use-retained-conversion-commands)
+before using them. They do not change this compiler's output or safety contract.
 
 ## Write the spec
 

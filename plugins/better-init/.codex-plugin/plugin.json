@@ -1,0 +1,9 @@
+{
+  "name": "better-init",
+  "version": "0.4.0",
+  "description": "Create concise repository guidance, project skills, and review instructions for the target client.",
+  "author": { "name": "Mike Wallio" },
+  "repository": "https://github.com/scaryrawr/scarypilot",
+  "skills": "./skills/",
+  "license": "MIT"
+}

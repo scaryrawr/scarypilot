@@ -8,6 +8,16 @@ description: Turn a completed autoresearch session into clean, independently rev
 Read `.auto/log.jsonl` (legacy: `autoresearch.jsonl`) and `.auto/prompt.md`.
 Consider only experiments whose status is `keep`.
 
+If the host advertises experiment status or journal-reading actions, discover
+them by description and read their schemas before use. Otherwise read the
+workspace files directly or use `node <plugin-root>/scripts/autoresearch.mjs
+status --workspace <absolute-workspace>`. Resolve the plugin root from this
+skill's location. Do not assume a tool name from another host.
+
+With the CLI's manual Git policy, a kept result is a journal decision, not an
+automatic commit. Verify that every kept SHA identifies the intended change
+before finalizing. Never create branches from placeholder SHAs.
+
 ## Analyze
 
 1. Expand every kept short SHA with `git rev-parse`.

@@ -1,0 +1,17 @@
+{
+  "name": "omlx-media",
+  "version": "0.6.0",
+  "description": "Generate images and speech, transcribe audio, mine highlight reels (clips, key frames, verbatim-verified takeaways), and turn recordings into grounded documents using local OMLX models.",
+  "author": {
+    "name": "Mike Wallio"
+  },
+  "repository": "https://github.com/scaryrawr/scarypilot",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "omlx-media",
+    "shortDescription": "Generate images and speech, transcribe audio, cut highlight reels, and author documents with local OMLX models.",
+    "developerName": "ScaryPilot",
+    "category": "Developer Tools"
+  },
+  "license": "MIT"
+}

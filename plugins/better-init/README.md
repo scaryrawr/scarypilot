@@ -1,7 +1,7 @@
 # Better Init Plugin
 
-Better Init runs through GitHub Copilot CLI to create or refresh repository
-guidance, including skills consumed by GitHub Copilot code review. It keeps
+Better Init runs in Copilot or Codex to create or refresh repository
+guidance for the requested client, including skills consumed by Copilot code review. It keeps
 portable repository facts in `AGENTS.md` while moving Copilot-only behavior,
 path-specific rules, reusable workflows, review procedures, and specialist
 roles to their native locations.
@@ -29,6 +29,13 @@ from an uninitialized repository.
 copilot plugin marketplace add scaryrawr/scarypilot
 copilot plugin install better-init@scarypilot
 ```
+
+For Codex, use `codex plugin marketplace add scaryrawr/scarypilot` and
+`codex plugin add better-init@scarypilot`. Both clients load the same skill.
+Codex project skills use `.agents/skills`; existing review ownership takes
+precedence over creating a second review skill. Copilot review keeps
+`.github/skills/code-review/SKILL.md`. Codex does not register the Copilot agent
+manifest. It can supply the research prompt to an available worker instead.
 
 ## Usage
 

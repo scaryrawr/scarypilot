@@ -5,7 +5,9 @@ description: "Fan out N parallel workers, drain them, and return one report. Use
 
 # Swarm
 
-Fan out N Task workers and consolidate their evidence. Writing workers need
+For host-dependent actions and paths, read [runtime actions](../../docs/runtime-actions.md) first.
+
+Fan out N independent workers and consolidate their evidence. Writing workers need
 isolated workspaces. Read-only briefs constrain intent, not the host's tool
 permissions; do not claim enforced read-only execution or journaled input pinning.
 
@@ -22,8 +24,8 @@ Open a todolist with one entry per phase before launching anything.
 
 1. State the done predicate and the artifact or report the swarm must return.
 2. Choose the shape. Partition into slices, race N workers on identical briefs, or mix both. For a race or mixed shape, declare `first pass`, `rank all`, or `best-of` before spawning.
-3. Set N from the user or derive it from the shape. N is total workers, not the Task concurrency limit.
-4. Resolve each worker's model from the `swarm workers` line in `instructions/pstack-models.instructions.md` in Copilot home (`$COPILOT_HOME`, or `$HOME/.copilot` when unset). Missing configuration, a missing role line, `auto`, and `inherit-parent` all resolve to no explicit model. Only a concrete configured slug resolves to an explicit model. Use this resolved choice at every dispatch and retry; never copy a raw alias into `model`. No explicit model lets Copilot choose the agent's default, not necessarily the parent model. If the host rejects a concrete slug before that worker starts, resolve it to no explicit model and report the fallback. Do not retry a writing worker that may already have changed files. For a model race, name each arm's concrete model up front.
+3. Set N from the user or derive it from the shape. N is total workers, not the worker concurrency limit.
+4. Resolve each worker's model from the `swarm workers` line in the pstack model configuration available to this session. Missing configuration, a missing role line, `auto`, and `inherit-parent` all resolve to no explicit model. Only a concrete configured slug resolves to an explicit model. Use this resolved choice at every dispatch and retry; never copy a raw alias into explicit model selection. No explicit model lets the host choose the agent's default, not necessarily the parent model. If the host rejects a concrete slug before that worker starts, resolve it to no explicit model and report the fallback. Do not retry a writing worker that may already have changed files. For a model race, name each arm's concrete model up front.
 5. Give every writing worker an isolated workspace: a distinct worktree and
    branch for repository changes, or a worker-specific directory under the
    session artifact directory for scratch output. Separate filenames inside
@@ -35,14 +37,14 @@ Open a todolist with one entry per phase before launching anything.
 
 ## Phase B: Fan out
 
-Use the current host's Task tool. Spawn independent workers together with
-`agent_type: "general-purpose"` and `mode: "background"` when that mode is
-supported. Otherwise use the supported synchronous Task interface and disclose
-that execution is serial. If Task agents are unavailable, report the swarm
+Use the current host's worker-launch action. Spawn independent workers together with
+an implementation-capable worker role and background execution when that mode is
+supported. Otherwise use the supported synchronous worker-launch action and disclose
+that execution is serial. If independent workers are unavailable, report the swarm
 blocked instead of claiming independent coverage.
 
 Pass the resolved model from Phase A only when it is an explicit concrete slug;
-otherwise omit `model`, including for both aliases. Never replay or automatically
+otherwise omit explicit model selection, including for both aliases. Never replay or automatically
 fall back after a writing worker may have changed files.
 
 Read-only briefs explicitly prohibit edits, commits, external writes and nested
@@ -70,7 +72,7 @@ SHAs nor a method need no such records.
 
 Drop a result that omits or contradicts the required evidence. For a read-only
 worker, retry that slice once with a fresh agent, the same brief and Phase A's
-resolved model choice. Omit `model` for either alias, missing configuration or
+resolved model choice. Omit explicit model selection for either alias, missing configuration or
 a rejected slug. Apply the same evidence check to the retry. Never replay a
 writing worker; record its missing evidence as a gap. Changed inputs invalidate
 the affected result rather than authorizing a retry against different bytes.

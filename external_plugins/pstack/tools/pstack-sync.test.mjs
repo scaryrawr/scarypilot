@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -130,6 +130,73 @@ test("the mapped manifest retains skills and agents without an extension", () =>
   assert.deepEqual(plugin.skills, ["skills/"]);
   assert.equal(plugin.agents, "agents/");
   assert.equal(Object.hasOwn(plugin, "extensions"), false);
+});
+
+test("native entrypoints discover the same physical skills tree", () => {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const copilot = JSON.parse(readFileSync(join(root, "plugin.json"), "utf8"));
+  const codex = JSON.parse(readFileSync(join(root, ".codex-plugin/plugin.json"), "utf8"));
+  const sync = JSON.parse(readFileSync(join(root, "upstream-sync.json"), "utf8"));
+
+  assert.equal(codex.name, copilot.name);
+  assert.equal(codex.repository, copilot.repository);
+  assert.equal(codex.version, sync.hostAdaptation.codexVersion);
+  assert.equal(copilot.version, sync.localVersion);
+  assert.equal(realpathSync(join(root, codex.skills)), realpathSync(join(root, copilot.skills[0])));
+  assert.equal(codex.agents, undefined);
+  assert.equal(codex.extensions, undefined);
+});
+
+test("sync check rejects split skills, missing native entrypoints, and unsupported registration", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "pstack-dual-host-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  cpSync(fileURLToPath(new URL("../", import.meta.url)), root, {
+    recursive: true,
+    filter: (path) => !path.split(/[\\/]/).includes("node_modules"),
+  });
+  const manifestPath = join(root, ".codex-plugin/plugin.json");
+  const original = readFileSync(manifestPath, "utf8");
+  const manifest = JSON.parse(original);
+  assert.deepEqual(checkRepository(root), []);
+
+  for (const [change, code] of [
+    [{ skills: "../other-skills/" }, "shared-skills-drift"],
+    [{ version: "wrong-version" }, "codex-version-mismatch"],
+    [{ agents: "agents/" }, "unsupported-codex-registration"],
+  ]) {
+    writeFileSync(manifestPath, JSON.stringify({ ...manifest, ...change }));
+    assert.deepEqual(checkRepository(root).map((item) => item.code), [code]);
+  }
+
+  rmSync(manifestPath);
+  assert.deepEqual(checkRepository(root).map((item) => item.code), ["missing-codex-manifest"]);
+  writeFileSync(manifestPath, original);
+  assert.deepEqual(checkRepository(root), []);
+});
+
+test("shared skill prose does not prescribe a host tool protocol", () => {
+  const protocol = /\bagent_type\b|\bsession_store_sql\b|\b(?:write_agent|read_agent|ask_user)\b|`Task`|\bTask (?:tool|agents?|workers?|calls?|default|schema|prompt)\b|`(?:mode|model):|`model`/;
+
+  function checkDocs(root) {
+    for (const entry of readdirSync(root, { withFileTypes: true })) {
+      if (["node_modules", ".git", "evals"].includes(entry.name)) continue;
+      const path = join(root, entry.name);
+
+      if (entry.isDirectory()) checkDocs(path);
+      else if (entry.isFile() && entry.name.endsWith(".md")) {
+        const text = readFileSync(path, "utf8");
+        assert.doesNotMatch(text, protocol, path);
+
+        if (!path.endsWith(join("setup-pstack", "SKILL.md"))) {
+          assert.doesNotMatch(text, /COPILOT_HOME|\.copilot\/|Copilot home/, path);
+        }
+      }
+    }
+  }
+
+  checkDocs(fileURLToPath(new URL("../skills", import.meta.url)));
+  checkDocs(fileURLToPath(new URL("../docs/guide", import.meta.url)));
+  checkDocs(fileURLToPath(new URL("../agents", import.meta.url)));
 });
 
 test("rejects native extension registration, including an empty registration", (t) => {

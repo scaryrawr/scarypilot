@@ -24,8 +24,27 @@ filters guarded skills from its model-facing skill tool.
 The original and adapted files are distributed under the MIT License in
 [`LICENSE`](./LICENSE).
 
-ScaryPilot changed the integration layer for GitHub Copilot:
+ScaryPilot changed the integration layer for Copilot and Codex:
 
+- Added the native Codex manifest in `0.15.36-codex.5` and shared runtime
+  adaptation in `3.1.0-copilot.1`. Both manifests discover one `skills/` tree.
+  The current Copilot-derived skills and overlapping helpers remain canonical.
+  Preserved the Codex-only orchestration store, ledger, and fork-aware frontier
+  from scaryrawr/scarydex pstack `0.15.36-codex.4` as optional bookkeeping.
+  Preserved its legacy statechart conversions under a separate optional
+  `skills/statechart/scripts/legacy/` directory, with regression tests and
+  mapping-input fingerprints. Neither optional helper replaces the current
+  workflow or compiler. Current watcher and compiler sources produce the
+  dependency-free Node bundles through the plugin-local build and hash manifest.
+  Bundled Commander's license is in `THIRD_PARTY_NOTICES.md`.
+  Shared prose describes actions and requires current tool-schema discovery.
+  Native model configuration stays host-specific. Agent bodies remain prompt
+  references on Codex, not unsupported agent registrations.
+  Preserved permission and independent-review gates, isolated writers,
+  retained worker identity, scoped history privacy, model-alias omission,
+  freshness evidence, and explicit capability gaps. The plan validator accepts
+  portable live-worker wording and saved Copilot plans under the same evidence
+  rules. This is a local adaptation, not a new upstream provenance boundary.
 - Ported compatible upstream `0.15.31`-`0.15.36` in `3.0.0-copilot.1`.
   This is a breaking release. The statechart compiler replaces the old
   `from-spec`/`from-chart` interface with a TLA+ spec, optional view module,

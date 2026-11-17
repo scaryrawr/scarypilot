@@ -5,6 +5,8 @@ description: Validate pstack snapshots, verification receipts, durable handoffs,
 
 # Validate pstack contracts
 
+For host-dependent actions and paths, read [runtime actions](../../docs/runtime-actions.md) first.
+
 Run the dependency-free Node CLI on macOS or Linux. Resolve
 `scripts/validate.mjs` from this skill's absolute base directory, not from the
 workspace. Quote that absolute script path and each argument for the actual

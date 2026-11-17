@@ -2,7 +2,7 @@
 
 Invoked at the end of every other playbook.
 
-**Worktree.** Work from a git worktree off main. Parallel writers use separate worktrees or disjoint file scopes. Never assume Task agents receive isolated worktrees automatically. Preserve dirty work and create a fresh worktree instead of resetting it.
+**Worktree.** Work from a git worktree off main. Parallel writers use separate worktrees or disjoint file scopes. Never assume independent workers receive isolated worktrees automatically. Preserve dirty work and create a fresh worktree instead of resetting it.
 
 **Commits.** Commit liberally. Rebase into small, ordered commits before opening PRs when authorized. Each commit is a future PR: landable, ordered to tell the story. A commit body does not restate its subject. Amend only when the user authorizes it; otherwise make a new commit.
 

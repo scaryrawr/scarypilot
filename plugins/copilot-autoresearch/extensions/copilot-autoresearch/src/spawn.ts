@@ -108,14 +108,15 @@ export interface StreamingRunResult extends SpawnResult {
 }
 
 export function runShellStreaming(
-  command: string,
+  command: string | { script: string },
   opts: StreamingRunOptions,
 ): Promise<StreamingRunResult> {
+  const args = typeof command === "string" ? ["-c", command] : [command.script];
   const t0 = Date.now();
 
   return new Promise((resolve, reject) => {
     const input = opts.stdinJson !== undefined ? JSON.stringify(opts.stdinJson) : undefined;
-    const child = startBash(["-c", command], { ...opts, startedAt: t0 }, opts.stdinJson !== undefined ? "pipe" : "ignore");
+    const child = startBash(args, { ...opts, startedAt: t0 }, opts.stdinJson !== undefined ? "pipe" : "ignore");
 
     const chunks: Buffer[] = [];
     let totalBytes = 0;

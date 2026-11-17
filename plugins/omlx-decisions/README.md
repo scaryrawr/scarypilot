@@ -1,8 +1,9 @@
 # oMLX decisions
 
-Use installed oMLX decision models, including Clef Flash, for routing, classification,
-and rubric evaluation through **SystemOne**. This standalone native extension registers
-two agent tools; it does not add decision models to Copilot's chat-model picker.
+Use installed oMLX decision models, including Clef and OpenJev, for routing,
+classification, and rubric evaluation through **SystemOne**. One shared client
+powers two native tools and a bundled Node CLI. It does not add decision models
+to Copilot's chat-model picker.
 Answers are data. Probabilities and confidence are advisory, never permission to act.
 
 ## Prerequisites and installation
@@ -32,6 +33,63 @@ No legacy tool names, environment variables, or backend compatibility layer are 
 Copilot supplies the SDK at runtime; the checked-in bundle includes TypeBox.
 Plugin users do not run npm install.
 
+### Codex and CLI installation
+
+Both publications use this plugin root and the same `decide` skill.
+Copilot keeps its native publication name `omlx-decisions`.
+Codex keeps publication name `decide` and skill invocation `$decide:decide`.
+This publication-name aliasing does not rename native tools.
+The shared skill discovers advertised capabilities and inspects their schemas
+instead of assuming tool names or host protocols.
+
+```sh
+codex plugin marketplace add scaryrawr/scarypilot
+codex plugin add decide@scarypilot
+```
+
+Codex and standalone CLI users need only Node.js 22.18.0 or later.
+The shipped CLI loads neither the Copilot SDK nor npm dependencies.
+Resolve paths from the installed plugin, even when the workspace has spaces:
+
+```sh
+node "/absolute/installed/plugin/skills/decide/scripts/decide.mjs" models
+node "/absolute/installed/plugin/skills/decide/scripts/decide.mjs" run \
+	--model "<installed-id-or-alias>" --input "/absolute/workspace/decision.json"
+```
+
+`models` preserves the old decision and all-model sections, aliases, and
+unavailability messages. CLI inference accepts an exact installed ID or an
+explicitly supplied alias for one installed decision model.
+Exact IDs take precedence, even when the same string is another model's alias.
+Ambiguous aliases fail before inference. The client sends the resolved exact ID
+and validates the response against that ID, without choosing a model or retrying.
+Native inference keeps exact-ID semantics and does not resolve aliases.
+Both clients verify the model through metadata before every request.
+The CLI accepts older metadata that omits `engine_type` or `loaded`.
+Omitted loaded status stays unknown rather than becoming false.
+The CLI preserves additional top-level response fields, including `error: null`,
+along with all answers and usage. Native responses accept only `model`, `answers`,
+and `usage`.
+
+### Breaking change for former Codex decide users
+
+Codex `decide` is now version 1.0.0. CLI `images` no longer accepts local paths.
+It accepts only supplied padded base64 or inline image data URIs.
+Path strings and `{"path": "..."}` objects fail before image-file I/O or HTTP.
+There is no approval flag, environment boolean, stdin confirmation, or conversion
+helper. Do not convert a local file to bypass missing or denied native consent.
+Native file uploads still require the real host callback for every resolved path
+and destination on every call.
+
+The CLI keeps `models` and `run --model ... --input ...`, text and JSON state,
+image-only supplied data, and the 2 to 26 choice and score criterion contract.
+Unknown input fields now fail instead of being discarded.
+Truncation now defaults to false instead of inheriting the server's trimming
+default. Set `truncate: true` only when dropping context is intended.
+OpenJev never truncates and its vision checkpoints accept at most one image.
+Confidence remains model-specific, not necessarily the largest probability.
+Redirects fail and authenticated remote HTTP is rejected, matching native safety.
+
 ## Configuration
 
 | Variable | Default | Meaning |
@@ -42,15 +100,17 @@ Plugin users do not run npm install.
 Set variables before starting Copilot. The host's environment permission flow grants
 configured variables before tools read them. Authenticated remote endpoints require
 HTTPS; HTTP authentication is allowed only for exact hosts `localhost`, `127.0.0.1`,
-and `[::1]`. Redirects are rejected. State, image contents, keys, and server error
-bodies are not echoed in failures.
+and `[::1]`. Redirects are rejected.
+Native failures omit state, image contents, keys, and server error bodies.
 
-Discovery/model verification has a 15-second deadline; inference has a separate
+Native discovery/model verification has a 15-second deadline; inference has a separate
 120-second deadline, including image approval and reading. Host cancellation aborts
 requests and response-body reads. JSON responses are capped at 4 MiB.
 The client limits complete UTF-8 request JSON to **64 KiB text-only** or **32 MiB
 with nonempty images**, including data-URI and JSON overhead. These are client safety
 limits, not claims about server limits. Inputs are not truncated locally.
+The CLI retains 10-second metadata and 300-second inference deadlines.
+Both clients enforce the same byte and response limits.
 
 ## Tools and usage
 
@@ -65,6 +125,9 @@ Eligibility comes from `model_type: "decision"` or `engine_type: "decision"`,
 not model-name guesses or capability strings. Empty capabilities are normal.
 Discovery does not expose local server paths. Malformed metadata and duplicate IDs
 fail explicitly instead of producing incomplete discovery.
+Native metadata requires both `engine_type` and boolean `loaded` for every model.
+Native validation ignores unrelated metadata, including alias and unavailability
+fields. The CLI validates those fields when supplied.
 
 `omlx_decide` requires an exact installed `model`, non-null `state`, and nonempty
 named `questions`. No tag aliases, substitutions, automatic selection, downloads,
@@ -97,6 +160,8 @@ oMLX loads it on demand and manages retention/eviction itself.
 ```
 
 `state` accepts a nonblank string, boolean, finite number, JSON object, or JSON array.
+Native text state must remain nonblank even when images are supplied.
+An empty string is also accepted when nonempty images supply the context.
 Each question requires nonblank string `instructions`.
 `choice` requires a nonempty object of nonblank option keys to string/null descriptions.
 `noul` optionally accepts only `true` and `false` string descriptions.
@@ -158,22 +223,30 @@ finite probability/confidence bounds, score range and weighted arithmetic, and u
 Clef rounds numbers independently to four decimals; sum and weighted-score checks
 allow only the resulting cardinality-dependent rounding error, without renormalizing.
 HTTP errors, context overflow, late error envelopes, malformed JSON/UTF-8, invalid
-metadata, oversized bodies, timeouts, and cancellation return explicit redacted failures.
+metadata, oversized bodies, timeouts, and cancellation return explicit failures.
+Native failures keep server bodies redacted. The CLI preserves server error
+messages, including late keepalive errors and FastAPI validation `msg` strings,
+but does not include validation input fields.
+Server messages can contain server-authored details. Treat CLI stderr accordingly.
 
 ## Development and verification
 
 From `extensions/omlx-decisions`:
 
 ```sh
-npm ci
 npm run build
 npm run typecheck
 npm test
+npm run bundle:check
 ```
 
 Tests use synthetic local fixtures and exercise both source and shipped registration.
 Run repository lint and `node tools/check-extension-bundles.mjs check` from the root.
-Keep source, lockfile, `dist/extension.mjs`, and `bundle-manifest.json` together.
+Restore locked development dependencies with `npm ci` if they are missing.
+Keep source, lockfile, all `dist/` entries, and `bundle-manifest.json` together.
+The local build records the same input and output hashes as the root bundle checker.
+Tests execute a source-free, SDK-free installed CLI copy in paths with spaces.
+Native registration tests exercise the host confirmation callback in source and bundle.
 
 The optional live smoke requires an exact already-installed decision model:
 
@@ -187,6 +260,9 @@ models or alter server retention settings. Check live extension-host registratio
 
 ## Resources
 
+- [Shared decision skill](skills/decide/SKILL.md).
+- [CLI and SystemOne reference](skills/decide/references/decision-model-api.md).
+- [Attribution and historical provenance](ATTRIBUTION.md).
 - [oMLX integration source](https://github.com/scaryrawr/omlx).
 - [SystemOne request contract](https://github.com/scaryrawr/omlx/blob/main/omlx/api/systemone_models.py).
 - [Decision engine](https://github.com/scaryrawr/omlx/blob/main/omlx/engine/decision.py).

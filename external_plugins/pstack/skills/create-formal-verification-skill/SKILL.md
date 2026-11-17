@@ -5,6 +5,8 @@ description: "Generate a project-local skill that formally verifies the code whe
 
 # Create a formal verification skill
 
+For host-dependent actions and paths, read [runtime actions](../../docs/runtime-actions.md) first.
+
 A test checks the cases that someone thought to write. Formal verification checks every case in a stated scope: every order of steps in a model, every input up to a bound, or every input. This skill finds the part of the repo where that matters most, verifies one property of it, and leaves a project-local skill that lets the next agent check a change against that property. Write that skill for an agent who reads it cold, mid-change, and has never seen your work. The user must be able to trust the result and act on it without learning the verification language.
 
 ## Choose the target from the code
@@ -31,7 +33,7 @@ Use the project's existing tooling when possible. Follow the host's installation
 
 ## Generate the verify skill
 
-Write a project-local skill at `.github/skills/verify-<area>/SKILL.md` with frontmatter whose `name` matches the directory and whose description says when to use it. Without frontmatter, the skill never registers. From the skill alone, the next agent must be able to tell whether a change touches the verified code, run the check, tell a real bug from a modeling error, and update the verification when a change is intended. Put the coverage record and the sync commit in the skill, and tell the next agent to move the sync commit forward only after it confirms that the verification describes the code at the new commit. Use this repo's real commands, paths, and nouns, and leave no placeholders.
+Write a project-local skill at `<project-skills>/verify-<area>/SKILL.md` with frontmatter whose `name` matches the directory and whose description says when to use it. Without frontmatter, the skill never registers. From the skill alone, the next agent must be able to tell whether a change touches the verified code, run the check, tell a real bug from a modeling error, and update the verification when a change is intended. Put the coverage record and the sync commit in the skill, and tell the next agent to move the sync commit forward only after it confirms that the verification describes the code at the new commit. Use this repo's real commands, paths, and nouns, and leave no placeholders.
 
 If covered code has uncommitted changes, record their paths and evidence separately. Do not claim that the sync commit alone describes dirty code.
 

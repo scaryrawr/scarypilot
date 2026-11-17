@@ -1,0 +1,14 @@
+{
+  "name": "@scarypilot/pstack-build",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "check:bundles": "node build.mjs --check",
+    "test:workers": "bun test skills/poteto-mode/scripts/watch-pr skills/poteto-mode/scripts/orch"
+  },
+  "devDependencies": {
+    "commander": "14.0.0",
+    "esbuild": "0.28.2"
+  }
+}

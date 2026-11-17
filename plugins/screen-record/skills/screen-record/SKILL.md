@@ -17,10 +17,29 @@ cannot be verified. Use the installed pre-upgrade recorder and retained identity
 for graceful stop; do not remove state or kill capture processes as a workaround.
 
 Keep source recordings and edited outputs in the user's workspace. Never
-overwrite a source recording. Prefer the native `screen_record_*` tools for
-capture. Run `screen_record_doctor` before the first capture in a session.
-If native tools are unavailable, use the bundled CLI from this skill's
-directory. Editing and narration remain bundled CLI commands.
+overwrite a source recording. Discover advertised capabilities by action
+description, not by an assumed tool name. Keywords identify intent, never
+availability or permission. Read a discovered capability's schema before
+calling it. Prefer native recording capabilities when advertised.
+Otherwise use the bundled CLI. Editing and narration remain CLI commands.
+
+Resolve `scripts/screen-record.mjs` and every reference from this installed
+skill's absolute directory. Do not assume the current directory or a host's
+plugin cache layout. The same recorder CLI serves both hosts and requires
+Node 22.18 or newer, FFmpeg, and FFprobe. Codex needs no Copilot SDK, npm, or Bun.
+
+| Action keywords | CLI command when no native capability is advertised |
+| --- | --- |
+| Check recording dependencies and backends | `doctor --capture-only` |
+| List capture devices | `devices` |
+| List visible Windows capture windows | `windows` |
+| Start screen recording | `start` |
+| Inspect retained recording state | `status` |
+| Stop a retained recording gracefully | `stop` |
+
+Run diagnostics before the first capture. Invoke the helper as
+`node "<installed-skill>/scripts/screen-record.mjs" <command> ...`.
+Do not use the CLI to bypass a native validation, consent, or identity error.
 
 Read exactly one capture reference for the current host:
 
@@ -41,23 +60,24 @@ Read exactly one capture reference for the current host:
 
 ## Capture
 
-1. Discover inputs with `screen_record_devices` when needed. Device discovery
+1. Discover capture inputs when needed. Device discovery
    can list audio/video inputs and may trigger an OS permission prompt. Never
    grant permissions or bypass OS privacy controls without user approval. On
-   Windows, use `screen_record_windows` to choose a visible, non-minimized
+   Windows, discover visible capture windows to choose a non-minimized
    window when the user requests window capture. Pass its `windowId` to
-   `screen_record_start`; titles may contain private document names. Window
+   the start action; titles may contain private document names. Window
    discovery does not capture or verify permissions.
-2. Start with `screen_record_start` only after the user's explicit capture
-   request. Set `output` and `captureApproved: true`. Set `audioDevice` and
-   `audioApproved: true` only if the user requests audio. Use `videoInput`,
+2. Start recording only after the user's explicit capture
+   request. Set the native action's `output` and `captureApproved: true` when
+   its schema requires them. Set `audioDevice` and
+   `audioApproved: true` only with separate audio approval. Use `videoInput`,
    `fps`, `region`, or the Windows-only `windowId` only as documented in the
    current host's reference. Keep the returned `recordingId`.
 3. Drive the rehearsed shot list. Leave a short pause before the first action,
    after meaningful state changes, and before stopping.
-4. Stop gracefully with `screen_record_stop`, passing `output` and
+4. Stop gracefully with the stop-recording action, passing `output` and
    `recordingId`. After cancellation, timeout, or extension/session restart,
-   run `screen_record_status` with the same output and retained `recordingId`
+   inspect recording state with the same output and retained `recordingId`
    before retrying. Do not adopt a replacement recording's ID. Detached
    recordings intentionally outlive tool calls and session exit. Stale state
    or interrupted startup requires inspection and user-approved recovery.
@@ -93,6 +113,9 @@ Use `references/editing.md` for command options and subtitle/narration formats.
    macOS, or FFmpeg Flite on Linux. Use `voices` before selecting a non-default
    voice. Never clone a person's voice or imply that synthetic narration is a
    real speaker.
+   Check `OMLX_BASE_URL` before narration. Require explicit permission before
+   sending narration text to a nonlocal endpoint. For strictly offline work,
+   select an installed OS engine explicitly instead of probing OMLX.
 5. Probe the final file and inspect raw, intermediate, and final frames. Preview
    with `ffplay <file>` when an interactive preview is appropriate. Follow the
    reference's review gate for comparisons. Confirm duration, dimensions, audio

@@ -1,9 +1,9 @@
 import * as path from "node:path";
 import { OmlxToolError } from "./domain.ts";
-import { type FramesArgs, type PreparedFrame } from "./media-domain.ts";
+import { type FramesArgs, type FramesResult, type PreparedFrame } from "./media-domain.ts";
 import {
   abortError, boundedOperation, freshDirectory, probeFrame, probeMedia, probeStreamDuration, publishManifest, reserveDirectory,
-  retainedArtifacts, runMediaProcess, sourceFile,
+  retainFailure, runMediaProcess, sourceFile,
   type MediaDependencies,
 } from "./media-io.ts";
 
@@ -11,7 +11,7 @@ export async function prepareFrames(
   args: FramesArgs,
   dependencies: MediaDependencies = {},
   invocationSignal?: AbortSignal,
-): Promise<{ directory: string; manifest: string; frames: number }> {
+): Promise<FramesResult> {
   return boundedOperation(args.timeout_seconds, invocationSignal, async (signal) => {
     if (args.seconds && (args.start !== undefined || args.end !== undefined || args.max_frames !== undefined)) {
       throw new OmlxToolError("INVALID_INPUT", "seconds is mutually exclusive with start, end and max_frames");
@@ -63,9 +63,9 @@ export async function prepareFrames(
     await runner("ffmpeg", ["-version"], signal);
     signal.throwIfAborted();
     const directory = await reserveDirectory(requested);
+    const frames: PreparedFrame[] = [];
 
     try {
-      const frames: PreparedFrame[] = [];
       const format = args.format ?? "png";
 
       const filters = [
@@ -110,12 +110,23 @@ export async function prepareFrames(
         crop, format, frames,
       }, null, 2), signal);
 
-      return { directory, manifest, frames: frames.length };
+      const result: FramesResult = {
+        kind: "frames",
+        directory, manifest, frames: frames.length, format,
+        timing: "Timestamps are requested source times; selects the covering frame, including the final frame interval, not measured frame PTS.",
+        classification_script_compatible: format === "jpeg",
+      };
+
+      if (format === "png") {
+        result.compatibility_note = "PNG output is not discovered by classify_frames.py, which requires .jpg files.";
+      }
+
+      return result;
     } catch (error) {
       const failure = signal.aborted ? abortError(signal) : error instanceof OmlxToolError ? error
         : new OmlxToolError("MEDIA_PREPARATION_FAILED", error instanceof Error ? error.message : String(error));
 
-      throw retainedArtifacts(failure, directory);
+      throw await retainFailure(failure, directory, { kind: "frames", source, frames });
     }
   });
 }

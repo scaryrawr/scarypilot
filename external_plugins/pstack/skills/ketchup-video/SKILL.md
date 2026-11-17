@@ -5,6 +5,8 @@ description: "Catch the user up like /ketchup, with a short subtitled video of s
 
 # Ketchup video
 
+For host-dependent actions and paths, read [runtime actions](../../docs/runtime-actions.md) first.
+
 Follow [`/ketchup`](../ketchup/SKILL.md), but show what happened in a short subtitled video instead of its summary and visuals. Its window starts at the last message the user wrote before `/ketchup-video`, not before any earlier `/ketchup`. Writing and rendering the video, outside the repo, is the one exception to its read-only rule. The reply is ketchup's opening sentence, the embedded video, one line naming any work left that you can do yourself, and the action items. When the video shows a call's options, call each option by the name the video gives it. If the render fails, say so in one line and give only the calls.
 
 Use the approved session artifact directory and already available rendering tools. Do not install software, capture a screen, upload media, or post externally without the relevant approval. Use host attachments only when the host supports them; otherwise give the local video path. Missing rendering or image-inspection tools are an explicit blocker, not proof that the video passed its checks.

@@ -5,13 +5,15 @@ description: "Find mistakes agents keep repeating in this repo and make each one
 
 # Correct
 
+For host-dependent actions and paths, read [runtime actions](../../docs/runtime-actions.md) first.
+
 The operator keeps correcting agents in this repo for the same mistakes. Change the repo so the next agent can't make them.
 
 Assume every contributor is an agent that sees only the files it opened, copies the nearest example, and takes the shortest path that compiles. Design the repo so a change that looks right from one file is right for the whole repo.
 
 ## Find the mistake classes
 
-First, read recent commits, reverts, review comments, agent instruction files, and comments that explain workarounds. Group the mistakes into classes. A class counts once it has happened twice. Read review comments through the available forge tools and use scoped Copilot session history when it adds evidence. Distinguish observed repetitions from guesses.
+First, read recent commits, reverts, review comments, agent instruction files, and comments that explain workarounds. Group the mistakes into classes. A class counts once it has happened twice. Read review comments through the available forge tools and use scoped session history when it adds evidence. Distinguish observed repetitions from guesses.
 
 ## Fix each class at the highest level that works
 

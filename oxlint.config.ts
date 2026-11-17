@@ -17,6 +17,10 @@ export default defineConfig({
     "**/coverage/**",
     "**/dist/**",
     "**/out/**",
+    "external_plugins/pstack/skills/poteto-mode/scripts/orch/orch.mjs",
+    "external_plugins/pstack/skills/poteto-mode/scripts/watch-pr/watch-pr.mjs",
+    "external_plugins/pstack/skills/statechart/scripts/statechart.mjs",
+    "external_plugins/pstack/skills/statechart/scripts/worker.mjs",
     "tools/oxlint/anti-slop/**",
   ],
   jsPlugins: [

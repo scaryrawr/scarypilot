@@ -8,9 +8,9 @@
       "expected_output": "A generated PNG image is saved in the eval output directory and the final answer identifies the output path and model used.",
       "files": [],
       "expectations": [
-        "The agent uses the image-gen skill and invokes omlx_image when the native plugin tool is available, otherwise it uses the bundled script instead of inventing a custom image API workflow.",
+        "The agent uses image-gen and discovers an advertised image-generation action. When unavailable, it uses the shared bundled media CLI instead of inventing a custom image API workflow.",
         "The native tool discovers a capable model internally, or the legacy fallback selects an available image generation model from $OMLX_BASE_URL/v1/models/status.",
-        "The agent calls omlx_image with a finished prompt, size, and explicit output path, or invokes uv run scripts/generate.py with equivalent arguments when the tool is unavailable.",
+        "The agent supplies a finished prompt, size, and explicit output path to the discovered native action or the bundled media CLI image operation. It resolves helper paths from the installed plugin.",
         "The run creates generated-red-robot.png in the eval outputs directory or clearly named equivalent PNG image artifact under that directory.",
         "The created artifact is a non-empty valid PNG image, verified with a tool such as file, python, or equivalent.",
         "The final answer reports the generated image path and the model used, without leaving generated images in the image-gen skill directory."
@@ -27,7 +27,7 @@
       "expectations": [
         "The agent uses the copied eval input image as the source image for the edit, not a newly generated replacement image.",
         "The native tool discovers a capable edit model internally, or the legacy fallback selects an available image edit model from $OMLX_BASE_URL/v1/models/status.",
-        "The agent calls omlx_image with the copied source, a preservation-aware prompt, and explicit output path, or invokes uv run scripts/edit.py with equivalent arguments when the tool is unavailable.",
+        "The agent passes the copied source, a preservation-aware prompt, and explicit output path to an advertised image-editing action or the shared media CLI image operation.",
         "The run creates edited-red-apple.png in the eval outputs directory or clearly named equivalent PNG image artifact under that directory.",
         "The created artifact is a non-empty valid PNG image, verified with a tool such as file, python, or equivalent.",
         "The final answer reports the edited image path and the model used, without leaving edited images in the image-gen skill directory."

@@ -219,7 +219,7 @@ function run(name, commandArgs, { capture = false } = {}) {
 function ensureNewOutput(path) {
   const output = resolve(path);
 
-  if (existsSync(output)) {
+  if (lstatSync(output, { throwIfNoEntry: false })) {
     fail(`output already exists: ${output}`);
   }
 
@@ -295,17 +295,41 @@ function recordingPaths(output) {
   };
 }
 
-function readState(path) {
-  if (!existsSync(path)) {
-    return null;
+function readStateFile(path) {
+  if (statSync(path).size > 65536) {
+    throw new Error("state exceeds 64 KiB");
   }
 
-  try {
-    if (statSync(path).size > 65536) {
-      throw new Error("state exceeds 64 KiB");
-    }
+  return JSON.parse(readFileSync(path, "utf8"));
+}
 
-    const state = JSON.parse(readFileSync(path, "utf8"));
+function readState(path) {
+  try {
+    let state = readStateFile(path);
+
+    if (state?.kind === "recording-reference") {
+      const recordingId = state.recordingId;
+
+      if (Object.keys(state).length !== 2 || typeof recordingId !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(recordingId)) {
+        throw new Error("unsupported recording reference");
+      }
+
+      const generation = `${path}.${recordingId}.json`;
+
+      try {
+        state = readStateFile(generation);
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+
+        if (existsSync(path.replace(/\.json$/, ".lock"))) return null;
+        throw new Error(`referenced recording state is missing: ${generation}`);
+      }
+
+      if (state?.recordingId !== recordingId || state.statePath !== generation) {
+        throw new Error("recording reference identity does not match its state");
+      }
+    }
 
     if (
       !state ||
@@ -334,6 +358,7 @@ function readState(path) {
 
     return state;
   } catch (error) {
+    if (error.code === "ENOENT") return null;
     fail(`invalid recording state ${path}: ${error.message}`);
   }
 }
@@ -1022,6 +1047,8 @@ async function start() {
     fail("--fps must be an integer from 1 to 120");
   }
 
+  const recordingId = randomUUID();
+
   const config = {
     output,
     fps,
@@ -1031,7 +1058,8 @@ async function start() {
     videoInput:
       typeof options["video-input"] === "string" ? options["video-input"] : null,
     ...paths,
-    recordingId: randomUUID(),
+    state: `${paths.state}.${recordingId}.json`,
+    recordingId,
   };
 
   let windowTarget;
@@ -1089,6 +1117,7 @@ async function start() {
     rmSync(paths.state, { force: true });
     rmSync(paths.stop, { force: true });
     rmSync(paths.log, { force: true });
+    writeState(paths.state, { kind: "recording-reference", recordingId });
     const encoded = Buffer.from(JSON.stringify(config), "utf8").toString("base64url");
 
     worker = await new Promise((accept, reject) => {
@@ -1107,6 +1136,19 @@ async function start() {
     });
   } catch (error) {
     const cleanupErrors = [];
+
+    try {
+      if (startupLockMatches(paths.lock, lockIdentity, config.recordingId)) {
+        const reference = readStateFile(paths.state);
+
+        if (reference?.kind === "recording-reference" &&
+          reference.recordingId === config.recordingId && Object.keys(reference).length === 2) {
+          rmSync(paths.state);
+        }
+      }
+    } catch (cleanupError) {
+      if (cleanupError.code !== "ENOENT") cleanupErrors.push(`reference cleanup failed: ${cleanupError.message}`);
+    }
 
     try {
       releaseStartupLock(paths.lock, lockIdentity, config.recordingId);
@@ -1288,6 +1330,10 @@ async function captureWorker() {
 
   const persistState = () => {
     try {
+      if (!startupLockMatches(config.lock, lockIdentity, config.recordingId)) {
+        throw new Error("recording ownership changed; replacement state was preserved");
+      }
+
       writeState(config.state, state);
     } catch (error) {
       recordFailure(error, "state persistence");
@@ -1347,7 +1393,9 @@ async function captureWorker() {
     }
 
     try {
-      rmSync(config.stop, { force: true });
+      if (existsSync(config.stop) && readFileSync(config.stop, "utf8").trim() === config.recordingId) {
+        rmSync(config.stop);
+      }
     } catch (cleanupError) {
       recordFailure(cleanupError, "stop-file cleanup");
     }
@@ -1415,7 +1463,7 @@ function status() {
   if (recordingKey(state.output) !== recordingKey(output)) fail(`recording state output does not match ${output}`);
 
   if (options["recording-id"] && options["recording-id"] !== state.recordingId) {
-    fail("recording identity does not match; run status and use the current recordingId");
+    fail("recording identity does not match; inspect status without an ID, but do not adopt a replacement recordingId");
   }
 
   console.log(
@@ -1485,18 +1533,34 @@ function stop() {
 
   const deadline = Date.now() + timeout * 1000;
 
-  let final = readState(paths.state);
+  const intendedState = () => {
+    const current = readState(paths.state);
+
+    if (!current && !state.recordingId && !existsSync(paths.lock)) return null;
+
+    if (!current || current.recordingId !== state.recordingId ||
+      recordingKey(current.output) !== recordingKey(output) ||
+      (!state.recordingId && (current.workerPid !== state.workerPid ||
+        current.ffmpegPid !== state.ffmpegPid || current.startedAt !== state.startedAt))) {
+      fail("recording identity changed during stop; replacement state was preserved. Inspect status without adopting its ID.");
+    }
+
+    return current;
+  };
+
+  let final = intendedState();
 
   const finalizationPending = () =>
     (final && ["recording", "stopping"].includes(final.status)) ||
+    (!state.recordingId && (pidRunning(state.workerPid) || pidRunning(state.ffmpegPid))) ||
     ownsLock();
 
   while (Date.now() < deadline && finalizationPending() && pidRunning(state.workerPid)) {
     sleep(200);
-    final = readState(paths.state);
+    final = intendedState();
   }
 
-  final = readState(paths.state);
+  final = intendedState();
 
   if (finalizationPending()) {
     if (pidRunning(state.workerPid)) {

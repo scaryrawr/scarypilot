@@ -58,7 +58,7 @@ The panel comes from your [`/setup-pstack`](../../skills/setup-pstack/SKILL.md) 
 
 Reach for it when parallelism buys coverage or lets independent checks race. `/arena` gives every worker the same design or code brief, then picks a base and grafts the best parts. `/swarm` covers slices or runs a race with a selection rule declared up front. It does not use the base-selection and grafting ceremony.
 
-Swarms use the current host's Task agents for coverage and races. Give read-only workers explicit file lists, prohibited actions and freshness checks; these instructions do not enforce tool permissions or pin inputs. If stronger guarantees are required and the host cannot provide them, report the work blocked. Writing workers need separate worktrees. Read the [swarm skill](../../skills/swarm/SKILL.md) before choosing a run.
+Swarms use the current host's independent workers for coverage and races. Give read-only workers explicit file lists, prohibited actions and freshness checks; these instructions do not enforce tool permissions or pin inputs. If stronger guarantees are required and the host cannot provide them, report the work blocked. Writing workers need separate worktrees. Read the [swarm skill](../../skills/swarm/SKILL.md) before choosing a run.
 
 ## Break it with `/interrogate`
 

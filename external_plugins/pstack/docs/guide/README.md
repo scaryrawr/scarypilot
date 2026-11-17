@@ -1,6 +1,6 @@
 # The pstack guide
 
-This guide covers the Copilot adaptation `3.0.0-copilot.1`, with 59 Agent Skills including 24 principles and compatible upstream changes through `0.15.36`.
+This guide covers the shared Copilot and Codex adaptation, with 59 Agent Skills including 24 principles and compatible upstream changes through `0.15.36`. Native versions are recorded in each host's manifest. [Runtime actions](../runtime-actions.md) define capability discovery and shared permission limits.
 
 For a shorter route, start with [Use pstack for a focused task](./quick-start.md).
 It has copy/paste prompts, scope-preserving follow-ups, and guidance on agent cost.
@@ -28,7 +28,7 @@ When you're stuck, or can't tell which skill fits, ask [`/poteto-help`](../../sk
 /poteto-help which skill should i use to review this branch?
 ```
 
-It answers, gives you a prompt to send, and links the skill or guide page the answer came from. It doesn't start the suggested work. A pstack run spends real tokens, so send the prompt when you're ready. Copilot also supports natural-language pstack help questions.
+It answers, gives you a prompt to send, and links the skill or guide page the answer came from. It doesn't start the suggested work. A pstack run spends real tokens, so send the prompt when you're ready. The host may also support natural-language pstack help questions.
 
 ## If you only remember one thing
 

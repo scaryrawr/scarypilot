@@ -26,10 +26,28 @@
   {
     "query": "Explain what the existing AGENTS.md says without changing anything.",
     "should_trigger": false,
-    "files": ["evals/files/AGENTS.md"]
+    "files": [
+      "evals/files/AGENTS.md"
+    ]
   },
   {
     "query": "Write contributor documentation for installing the application.",
     "should_trigger": false
+  },
+  {
+    "query": "Initialize this repository for Codex with concise, accurate instructions.",
+    "should_trigger": true
+  },
+  {
+    "query": "Create AGENTS.md and decide whether we need nested Codex instructions.",
+    "should_trigger": true
+  },
+  {
+    "query": "Refresh our stale repository agent guidance and remove duplication between AGENTS.md and nested AGENTS.md.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add repository-specific guidance for Codex review workflows.",
+    "should_trigger": true
   }
 ]

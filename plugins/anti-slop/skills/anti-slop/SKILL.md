@@ -5,6 +5,9 @@ description: Use when writing, reviewing, refactoring, or repairing TypeScript o
 
 # Anti-Slop
 
+Resolve bundled script paths relative to this installed skill directory, not
+the target workspace. Keep generated outputs outside the installed plugin.
+
 Write code that preserves evidence about its values instead of discarding that
 evidence and reconstructing it later with assertions, reflection, or runtime
 guessing.

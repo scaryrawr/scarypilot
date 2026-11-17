@@ -5,6 +5,8 @@ description: "Use when implementing a feature, fixing a bug, changing behavior, 
 
 # Prove It Works
 
+For host-dependent actions and paths, read [runtime actions](../../docs/runtime-actions.md) first.
+
 ## Completion gate
 
 1. Recover the original acceptance condition. Name what a caller or user must observe, including behavior that must stay unchanged.

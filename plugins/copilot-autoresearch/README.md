@@ -10,9 +10,14 @@ it to.
 
 ## Prerequisites
 
+The same plugin root also supplies the Codex `autoresearch` skills and a
+[bundled Node experiment CLI](docs/cli.md). The CLI and native tools call one
+maintained execution implementation. Native Copilot UI and automation remain
+native-only. The Copilot plugin name remains `copilot-autoresearch`.
+
 - A current [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli)
   release with plugin extension support.
-- Git, Node.js, and Bash available in the repository where experiments run.
+- Git, Node.js 22 or later, and Bash available in the repository where experiments run.
   On Windows, install Git for Windows and put its Bash on `PATH`; experiments
   and `.sh` check scripts still run with Bash, not PowerShell or WSL.
   Windows requires Windows 10 / Windows Server 2016 version 1709 or later
@@ -132,6 +137,8 @@ artifact is introduced, the current layout consistently takes precedence.
 | `.auto/ideas.md` | Optional ideas backlog for promising deferred optimizations. |
 | `.auto/config.json` | Optional workspace-contained `workingDir` and `maxIterations` configuration. |
 | `.auto/runtime/<session-id>.json` | Internal per-session sidecar preserving the run/checks boundary and explicit mode state without leaking activation across sessions. |
+| `.auto/cli.json` | Durable CLI activation, explicit Git policy, run/check gates, and pending receipt. Not a host session. |
+| `.auto/cli.lock` | Exclusive cross-process CLI writer lock. |
 
 ## Confidence scoring
 
@@ -224,6 +231,12 @@ extension. The package dependency pins the SDK version used for local
 development and tests. The committed `dist/` bundle includes other runtime
 dependencies; plugin users do not need to run `npm install` or build. Build in
 a source checkout after changes and commit the bundle and manifest.
+
+`npm run build` also bundles `dist/cli.mjs` and its shared chunks, then writes
+the repository-compatible bundle manifest locally. The package can build
+without the rest of the marketplace checkout. `npm test` includes installed-copy
+CLI cases that copy only the launcher and `dist/` into a path with spaces.
+Build before running those tests after source changes.
 
 ## Resources
 

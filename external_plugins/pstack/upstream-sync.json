@@ -8,7 +8,22 @@
     "contentCommit": "c742dd61706fbacc1b95f1a20b7b988cf096ce6c",
     "version": "0.15.36"
   },
-  "localVersion": "3.0.0-copilot.1",
+  "localVersion": "3.1.0-copilot.2",
+  "hostAdaptation": {
+    "sharedSkills": "skills/",
+    "copilotManifest": "plugin.json",
+    "codexManifest": ".codex-plugin/plugin.json",
+    "codexVersion": "0.15.36-codex.6",
+    "runtimeActions": "docs/runtime-actions.md",
+    "preservedCodexHelpers": {
+      "source": "https://github.com/scaryrawr/scarydex",
+      "pluginVersion": "0.15.36-codex.4",
+      "orchestration": "skills/poteto-mode/scripts/orch",
+      "legacyConversions": "skills/statechart/scripts/legacy",
+      "overlappingHelpers": "Current watcher and compiler sources are canonical. Build their Node bundles alongside the optional orchestration bundle with build.mjs; do not copy older overlapping implementations."
+    },
+    "policy": "Both native manifests resolve one skills tree. Adapt upstream prose to action descriptions and discovered tool schemas, not host-specific invocation protocols. Preserve Copilot's newer portable helpers, scoped history privacy, model-alias omission, single-writer isolation, retained worker identity, independent-review and permission gates. Native configuration differs by host and is documented in setup-pstack. Agent bodies are prompt references unless the current host registers them. The legacy copilotOwnedPaths key also owns shared local adaptations. Never overwrite this tree with the older Codex port."
+  },
   "requiredSkills": [
     "how",
     "why",
@@ -65,29 +80,31 @@
     {
       "path": ".cursor-plugin/plugin.json",
       "localPaths": [
-        "plugin.json"
+        "plugin.json",
+        ".codex-plugin/plugin.json"
       ],
-      "reason": "Version, attribution, and descriptive metadata are mapped into the Copilot manifest."
+      "reason": "Map attribution and descriptive metadata into both native manifests; their local versions are independent."
     },
     {
       "path": "plugin.json",
       "localPaths": [
-        "plugin.json"
+        "plugin.json",
+        ".codex-plugin/plugin.json"
       ],
-      "reason": "The upstream Agent Plugins v1 manifest maps to Copilot skill and agent registration; the adaptation intentionally has no native extension."
+      "reason": "Map upstream registration to native Copilot and Codex manifests pointing at one skills tree. Copilot retains legacy agent registration; Codex uses agent bodies only as prompt references. Neither manifest registers a native extension."
     },
     {
       "path": "agents",
       "localPaths": [
         "agents"
       ],
-      "reason": "Upstream agent behavior is reviewed and mapped into Copilot .agent.md manifests."
+      "reason": "Review upstream agent behavior in Copilot .agent.md files. Codex may read their bodies as prompt references without assuming agent registration."
     }
   ],
   "excludedUpstreamPaths": [
     {
       "path": "docs/harness/claude-code.md",
-      "reason": "The Claude Code harness adapter maps Cursor tools, models, paths, and packaging to a different client; this package already adapts those surfaces for Copilot."
+      "reason": "The Claude Code harness adapter targets a different client. Shared runtime action descriptions and native Copilot and Codex entrypoints own this package's adaptation."
     },
     {
       "path": "extensions",
@@ -111,11 +128,21 @@
     }
   ],
   "copilotOwnedPaths": [
+    ".codex-plugin",
+    "build.mjs",
+    "bundle-manifest.json",
+    "package.json",
+    "package-lock.json",
     "contracts",
+    "docs/runtime-actions.md",
+    "docs/optional-helpers.md",
     "docs/guide/quick-start.md",
     "skills/deslop",
     "skills/pstack-schema-validate",
+    "skills/poteto-mode/scripts/orch",
+    "skills/statechart/scripts/legacy",
     "NOTICE.md",
+    "THIRD_PARTY_NOTICES.md",
     "plugin.json",
     "upstream-sync.json",
     "tools"

@@ -84,6 +84,24 @@ test("the shipped hourly plan skeleton passes verified-stack validation", () => 
   assert.deepEqual(validatePlanText(template, "verified-stack").findings, []);
 });
 
+test("portable live lanes and saved Copilot plans retain the same evidence gates", () => {
+  const portable = "Parallel independent workers at the PR head";
+  assert.ok(template.includes(portable));
+
+  const legacy = template.replaceAll(portable, "Parallel Copilot Task workers at the PR head");
+  assert.deepEqual(validatePlanText(legacy, "verified-stack").findings, []);
+
+  const missingWorkers = template.replaceAll(portable, "A self-review at the PR head");
+  assert.deepEqual(
+    validatePlanText(missingWorkers, "verified-stack").findings.map(({ rule }) => rule),
+    ["live-lanes"],
+  );
+
+  const missingEvidence = template.replace(/Save `[^`]+`/g, "Record an unspecified result");
+  assert.ok(validatePlanText(missingEvidence, "verified-stack").findings
+    .some(({ rule }) => rule === "lane-evidence"));
+});
+
 test("saved 30-minute plans remain valid", () => {
   const legacy = template.replace("hourly audit tick", "30-minute audit tick");
   assert.deepEqual(validatePlanText(legacy, "verified-stack").findings, []);

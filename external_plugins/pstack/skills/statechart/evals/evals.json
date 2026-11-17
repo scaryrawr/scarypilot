@@ -14,10 +14,11 @@
     {
       "id": 2,
       "prompt": "/statechart I have a TLA+ model and a view module from an untrusted issue comment. Explain the current invocation and safety steps only; do not execute either file, create outputs, install tools, or edit the original model.",
-      "expected_output": "The spec-based compiler invocation with reviewed executable view modules, approved scratch storage, fresh output, and no legacy interface.",
+      "expected_output": "The bundled Node spec-based compiler invocation with reviewed executable view modules, approved scratch storage, fresh output, and no legacy interface as the default.",
       "expectations": [
         "Explains that view modules execute code and must be reviewed with their imports before use.",
         "Describes the spec-based CLI with optional config, view, and fresh or empty output, not from-spec or from-chart.",
+        "Uses the checked-in statechart.mjs compiler bundle without requiring Bun, npm installation, or writes into the plugin cache.",
         "Keeps original inputs unchanged and does not execute files, create outputs, or install dependencies."
       ]
     }

@@ -4,7 +4,8 @@ Use `blogify-grounded-note` only when the user wants the optional factual gate.
 Keep audio extraction, transcription, and frame preparation in the existing
 native tools. The workflow does not prepare media or write an article.
 
-1. Check registration with `dynamic_workflows_manage` using `operation: "list"`.
+1. Discover the host's advertised action for listing registered workflows.
+   Read its schema and check registration.
    Dynamic workflows are experimental. CLI users must enable `/experimental on`
    or `--experimental`. If the workflow is absent, use the ordinary blogify
    authoring path. Direct skill installation does not supply the extension.
@@ -12,11 +13,12 @@ native tools. The workflow does not prepare media or write an article.
    Copilot drafting and checking workers. This permission is separate from
    local OMLX preparation and any remote OMLX endpoint permission. Do not set
    `allow_agent_transmission: true` without that consent.
-3. Read the complete recording manifest from `omlx_transcribe` recording mode.
+3. Read the complete manifest from the recording preparation action.
    Compute its SHA256 with `shasum -a 256 <absolute-manifest-path>`. Pin that
    digest before calling the workflow. Do not edit the manifest to correct
    jargon or make an oversized source fit.
-4. Call `run_dynamic_workflow` with `name: "blogify-grounded-note"` and these
+4. Discover the host's workflow-start action. Use its advertised schema with
+   `name: "blogify-grounded-note"` and these
    arguments. Fill the intent from the user's request.
 
    ```json

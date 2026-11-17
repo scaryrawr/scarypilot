@@ -5,7 +5,7 @@ import {
   type OmlxSpeechArgs,
 } from "./domain.ts";
 import { executeSpeech, executeTranscription } from "./execute-audio.ts";
-import { TranscriptionParametersSchema, TranscriptionSchema, type RecordingResult } from "./media-domain.ts";
+import { TranscriptionParametersSchema, TranscriptionSchema } from "./media-domain.ts";
 import { type MediaDependencies } from "./media-io.ts";
 import { prepareRecording } from "./prepare-recording.ts";
 
@@ -56,15 +56,9 @@ export function createOmlxTranscriptionTool(dependencies: MediaDependencies = {}
         if ("output_dir" in args) {
           const result = await prepareRecording(args, dependencies, invocation?.signal);
 
-          const response: RecordingResult = {
-            kind: "recording",
-            ...result,
-            timing: "Timestamps are chunk boundaries, not word or speaker timestamps.",
-          };
-
           return {
             resultType: "success",
-            textResultForLlm: JSON.stringify(response),
+            textResultForLlm: JSON.stringify(result),
           } satisfies ToolResultObject;
         }
 

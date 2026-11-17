@@ -35,7 +35,7 @@ Walk through what each line buys you:
 
 Because you'll review this work after stepping away, `/poteto-mode` routes it through [`/figure-it-out`](../../skills/figure-it-out/SKILL.md), which designs the run's phases before any code and wires in the decision log.
 
-To stop a run on purpose, ask it to pause safely before going offline or restarting Copilot. The [Pause safely playbook](../../skills/poteto-mode/playbooks/pause-safely.md) finishes or backs out of the current step, makes a permitted work-in-progress checkpoint, and writes a durable resume note. Session pickup must read that note explicitly; no automatic resume hook is provided. Saying "keep going" never triggers a pause.
+To stop a run on purpose, ask it to pause safely before going offline or restarting the host. The [Pause safely playbook](../../skills/poteto-mode/playbooks/pause-safely.md) finishes or backs out of the current step, makes a permitted work-in-progress checkpoint, and writes a durable resume note. Session pickup must read that note explicitly; no automatic resume hook is provided. Saying "keep going" never triggers a pause.
 
 ## What the loop does all night
 
@@ -85,7 +85,7 @@ The contract above drives one task to one finish condition. Some nights hold mor
 /poteto-mode autopilot these five changes, but don't merge. i'll land them in the morning.
 ```
 
-[Orchestrate](../../skills/poteto-mode/playbooks/orchestrate.md) is for a program that outlives any single agent: multi-day, many PRs, fleets of subagents under one standing coordinator. It uses advertised Task/session tools and durable project or session artifacts, not the retired `orch` CLI. One owner is the only writer of each PR branch; the coordinator authors briefs and checks artifacts without writing code. Event subscriptions are optional host capabilities, not a plugin promise. If one agent could finish the work in a session, use the overnight contract above:
+[Orchestrate](../../skills/poteto-mode/playbooks/orchestrate.md) is for a program that outlives any single agent: multi-day, many PRs, fleets of subagents under one standing coordinator. It uses advertised worker and session actions and durable project or session artifacts. The [optional orchestration ledger](../optional-helpers.md#keep-an-orchestration-ledger) records bookkeeping without launching workers or granting authority. One owner is the only writer of each PR branch; the coordinator authors briefs and checks artifacts without writing code. Event subscriptions are optional host capabilities, not a plugin promise. If one agent could finish the work in a session, use the overnight contract above:
 
 ```text
 /poteto-mode orchestrate the store migration. own it until every package is converted and merged. i'll check in twice a day.
@@ -93,7 +93,7 @@ The contract above drives one task to one finish condition. Some nights hold mor
 
 ## Coordinate several bodies of work
 
-If the current Copilot host exposes persistent sessions, messaging, and isolated child workspaces, a standing coordinator can direct owners instead of writing their code. Otherwise use bounded Task agents and durable handoffs, or keep the program supervised. Inspect the actual host's advertised tools and treat unknown capabilities as unavailable until proven otherwise.
+If the current host exposes persistent sessions, messaging, and isolated child workspaces, a standing coordinator can direct owners instead of writing their code. Otherwise use bounded independent workers and durable handoffs, or keep the program supervised. Inspect the actual host's advertised tools and treat unknown capabilities as unavailable until proven otherwise.
 
 A few habits help:
 

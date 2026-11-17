@@ -45,7 +45,7 @@ name collisions.
 
 ## Obtain model execution approval
 
-The initial policy admits only better-init's existing fixture-backed task cases
+The Copilot policy admits only better-init's existing fixture-backed task cases
 7 and 8 and its trigger cases. Other suites need a reviewed execution policy and,
 where necessary, an independent grader. This is a restricted pilot, not coverage
 for all skills. Anti-Slop's hook-feedback experiment remains its existing
@@ -104,6 +104,96 @@ pass without independent semantic grading. It is not a general semantic judge,
 and the fake-CLI tests do not establish how often real model prose can be graded. Review the
 `limitations` and `execution_checks` fields in every `grading.json`.
 
+## Run the separate Codex and oMLX pilot
+
+`run_codex_omlx.py` admits Better-init discovery indexes 8 and 6, followed by
+native task cases 108 and 109. It uses the installed `omlx launch codex`
+integration with the explicit model `Qwen3.6-35B-A3B-oQ6e-mtp` at
+`http://127.0.0.1:8000`. It does not use or change the server's default model.
+The model must already be loaded. The runner does not install software, download
+models, copy account credentials, or fall back to a hosted provider.
+
+This pilot has a separate, opt-in native sandbox policy. It is not the Copilot
+runner's exclusive file-tool policy. Review both policies before approval.
+The supported client is `codex-cli 0.169.0` on macOS. Other versions and platforms
+need another policy review.
+
+The named native profile allows normal Codex shell and file tools.
+The fixture tree is read-only, and only its `outputs/` subtree is writable.
+An explicit `outputs/.agents` grant overrides Codex's default protection of that
+directory inside writable roots. It does not expose the staged input skill.
+Command IP networking is disabled, including connections to the local model.
+Explicit rules deny global scratch roots and Applications. The required
+`:minimal` platform profile still permits system/runtime reads and some native
+IPC. The trusted client remains outside the command sandbox to reach oMLX.
+Do not describe this as fixture-only reads, zero IPC, or client-wide network
+containment.
+
+Each invocation uses fresh `HOME` and `CODEX_HOME`, a scrubbed environment,
+disabled plugins, hooks, subagents, search, and telemetry, and no configured
+MCP servers. Native system-skill descriptions remain visible.
+The runner checks native discovery, the exact selected model/provider, and the
+acknowledged named permission profile before starting a model turn.
+Before each client starts, eight model-free sandbox controls verify actual
+candidate reads, all expected guidance destinations, denied input and outside
+writes, denied private reads, symlink escapes, and blocked loopback networking.
+The controls write both native review-owner paths, not just an ordinary output file.
+It preserves native RPC messages rather than manufacturing Copilot events.
+
+First run the model-free preflight in a new private artifact directory.
+
+```sh
+uv run --offline --no-project --python 3.12 python tools/skill-evals/run_codex_omlx.py \
+  --workspace <new-private-artifact-directory> \
+  --model Qwen3.6-35B-A3B-oQ6e-mtp --preflight-only
+```
+
+After approval of both the model budget and the native sandbox policy, run
+the four cases serially. Use another new artifact directory.
+
+```sh
+uv run --offline --no-project --python 3.12 python tools/skill-evals/run_codex_omlx.py \
+  --workspace <another-new-private-artifact-directory> \
+  --model Qwen3.6-35B-A3B-oQ6e-mtp \
+  --approved --native-sandbox-approved --max-calls 4 --timeout 300
+```
+
+There is one repetition, no baseline, and no retry of a failed case.
+An infrastructure error stops the remaining cases. Each model turn has a
+300-second maximum invocation deadline, including startup.
+The launcher can also make model-free native-instruction probes and metadata
+requests. These are not extra evaluation turns.
+An invocation can make multiple inference requests.
+If both task cases remain unstarted after an infrastructure failure, the
+separately approved task scope uses `--tasks-only --max-calls 2`.
+Track the combined budget across reports. This option does not approve more calls
+or retry failed discovery cases.
+
+Inspect `results.json`, each case's `result.json`, retained native traces,
+launcher diagnostics, input hashes, configuration, and output snapshot.
+`invocations_started` counts submitted turns conservatively, including errors.
+Native acknowledgement proves client-selected model identity, not independent
+server-side served-model attribution.
+An oMLX warning about fallback coding instructions is retained in `launcher_notes`.
+That warning limits comparisons with ordinary Codex base instructions.
+
+Discovery cases stage the candidate description and a minimal body.
+Positive load evidence requires a completed successful native `cat` of the
+exact staged skill, directly or through a native shell wrapper.
+Other read shapes remain ungraded.
+Absence of that read never becomes a passing negative.
+Task cases submit a native explicit skill input. Their generated-file contracts
+and path mappings receive lexical checks. Semantic expectations remain
+`not_run` until separately reviewed, even when those checks pass.
+Model self-report, process completion, and file existence do not prove semantic
+grounding or actual fixture inspection.
+
+The coverage selector and `policy.json` still describe the Copilot pilot.
+Their proposed call totals do not include this separately approved native
+pilot. Do not count unrun native cases as Copilot coverage.
+Credential-free native adapter tests run through the existing Python test command
+below and make no inference calls.
+
 ## Interpret the evidence
 
 Trigger cases use natural requests and test whether the candidate skill is
@@ -147,7 +237,7 @@ under their basenames, without changing the query or adding a skill-load hint.
 Fixtures are checked before any inference, hashed, retained, and read-only.
 Missing fixtures or failed reads remain execution errors, not passing negatives.
 
-## Keep execution restricted
+## Keep Copilot execution restricted
 
 These are trusted, offline file-oriented runs. A disposable directory is not a
 credential or network sandbox. `--allow-all` is not containment.

@@ -5,6 +5,8 @@ description: "Spawn N parallel candidates at the same task, pick a base, graft t
 
 # Arena
 
+For host-dependent actions and paths, read [runtime actions](../../docs/runtime-actions.md) first.
+
 Open a todolist with one entry per phase (Frame, Fan out, Cross-judge, Pick, Graft, Verify) before launching anything.
 
 ## Phase A: Frame
@@ -13,18 +15,18 @@ Every candidate gets the same prompt, so the prompt is the contract.
 
 1. State the artifact each candidate is producing.
 2. Derive the rubric. State what success looks like for *this* task, then turn it into 3-6 concrete gradeable criteria. Concrete: `Adds a --dry-run flag that skips writes`. Vague: `code is correct`. The rubric is the picker's tool in Phase D; candidates only see the task.
-3. Pick the runners. Use the `arena runners` line in `instructions/pstack-models.instructions.md` in Copilot home (`$COPILOT_HOME`, or `$HOME/.copilot` when unset). If the configuration or that line is missing, spawn three runners and omit `model`. An `auto` or `inherit-parent` entry means to omit `model` and let Copilot choose the agent's default, not a promise to use the parent model. If the Task tool rejects a configured entry before starting, omit `model` for that seat and say so. Never retry a rejected slug or replay a runner that may have written. Drop an unavailable seat and report it. If that leaves fewer than two runners, add default-model runners until there are two, or one when the configured list has one entry. Report replacements and any remaining gap. Spawn more when the arena covers multiple design directions. Same model N times when the work is generation-bound rather than judgment-sensitive.
+3. Pick the runners. Use the `arena runners` line in the pstack model configuration available to this session. If the configuration or that line is missing, spawn three runners and omit explicit model selection. An `auto` or `inherit-parent` entry means to omit explicit model selection and let the host choose the agent's default, not a promise to use the parent model. If the worker-launch action rejects a configured entry before starting, omit explicit model selection for that seat and say so. Never retry a rejected slug or replay a runner that may have written. Drop an unavailable seat and report it. If that leaves fewer than two runners, add default-model runners until there are two, or one when the configured list has one entry. Report replacements and any remaining gap. Spawn more when the arena covers multiple design directions. Same model N times when the work is generation-bound rather than judgment-sensitive.
 4. Assign output paths. Each candidate writes to its own location, preferably a git worktree or a candidate-specific directory under the session artifact directory. N candidates writing to the same path is shared mutable state and fails the **separate-before-serializing-shared-state** principle skill test.
 
 ## Phase B: Fan out
 
-Spawn all N subagents together using the current host's supported Task mechanism, each with the task, the path to the shared grounding, its own output path, and instructions to produce the artifact and a short rationale naming the alternatives it considered and what it rejected. Use background execution only if the host exposes it.
+Spawn all N subagents together using the current host's supported worker-launch action, each with the task, the path to the shared grounding, its own output path, and instructions to produce the artifact and a short rationale naming the alternatives it considered and what it rejected. Use background execution only if the host exposes it.
 
 If a candidate produces no output, proceed with N-1 and note the dropout.
 
 ## Phase C: Cross-judge
 
-After all Phase B candidates complete, read the `arena cross-judge pool` line in the Copilot home `instructions/pstack-models.instructions.md`. Try its concrete, authorized model IDs from a different family than the parent's, in pool order. Aliases never judge, because the host default does not establish a different family. Use only families the host identifies; never infer the parent model in Auto mode. A rejected slug is not retried. Move to the next eligible entry only after a pre-start model rejection, and surface other errors. If the parent family is unknown or no eligible model runs, skip the judge, pick the base alone in Phase D, and report the missing independent judgment. Do not invent a default model pool.
+After all Phase B candidates complete, read the `arena cross-judge pool` line in the pstack model configuration available to this session. Try its concrete, authorized model IDs from a different family than the parent's, in pool order. Aliases never judge, because the host default does not establish a different family. Use only families the host identifies; never infer the parent model in Auto mode. A rejected slug is not retried. Move to the next eligible entry only after a pre-start model rejection, and surface other errors. If the parent family is unknown or no eligible model runs, skip the judge, pick the base alone in Phase D, and report the missing independent judgment. Do not invent a default model pool.
 
 Spawn one general-purpose judge with an explicitly read-only prompt. It sees the rubric and the candidates by path label, scores each criterion, and recommends a base with rationale. Run it alongside the parent's reading in Phase D only when the host supports that. Never spawn it while candidates are still writing.
 

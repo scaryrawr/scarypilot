@@ -1,5 +1,5 @@
 export default {
-  entry: ["src/extension.ts"],
+  entry: ["src/extension.ts", "src/media.ts"],
   clean: true,
   deps: {
     alwaysBundle: [/^@sinclair\/typebox(?:\/|$)/],

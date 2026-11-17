@@ -2,7 +2,14 @@
 
 **You run the program, never the code. Decide which agent does each piece of work, then check what each one produces.** For a standing project handed to one coordinator chat: multi-day, many stacked PRs, dozens to hundreds of subagents, few human turns. One task driven to a predicate is Autonomous run. One ambitious run that needs a bespoke workflow is figure-it-out. Work that one agent could finish inside the session's budget is not a program.
 
-Run it with the current host's advertised Task and session tools. Keep state in its durable project tracker and store when available, otherwise in an explicitly approved session artifact directory with one writer per artifact. Record units, owners, branches, exact base/head SHAs, verification receipts, open gates, and decisions there. Watch PRs with event subscriptions only when the host exposes them; otherwise use explicit status reads at completion and handoff boundaries, and report that unattended event monitoring is unavailable. Do not recreate the retired `orch` CLI, add a polling loop, or relay status between agents.
+Run it with the current host's advertised worker and session actions. Keep state in its durable project tracker and store when available, otherwise in an explicitly approved session artifact directory with one writer per artifact. Record units, owners, branches, exact base/head SHAs, verification receipts, open gates, and decisions there. Watch PRs with event subscriptions only when the host exposes them; otherwise use explicit status reads at completion and handoff boundaries, and report that unattended event monitoring is unavailable. Do not add a polling loop or relay status between agents.
+
+The retained `scripts/orch/orch.mjs` is optional bookkeeping, not a worker
+launcher or shipping authority. Read the
+[helper guide](../../../docs/optional-helpers.md#keep-an-orchestration-ledger)
+and its CLI help before explicitly selecting an approved store. Reconcile
+existing rows and keep one writer. Ledger verdicts never replace independent
+verification or the current-base and gh-stack gates below.
 
 #### Topology
 

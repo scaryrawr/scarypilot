@@ -233,6 +233,34 @@ export function checkRepository(pluginRoot = DEFAULT_PLUGIN_ROOT) {
     );
   }
 
+  if (policy.hostAdaptation) {
+    const codexPath = policy.hostAdaptation.codexManifest;
+
+    if (!existsSync(join(pluginRoot, codexPath))) {
+      findings.push(finding("missing-codex-manifest", "Codex native manifest is required", codexPath));
+    } else {
+      const codex = readJson(join(pluginRoot, codexPath));
+      const sharedSkills = resolve(pluginRoot, policy.hostAdaptation.sharedSkills);
+
+      if (typeof codex.skills !== "string" ||
+          resolve(pluginRoot, codex.skills) !== sharedSkills ||
+          !Array.isArray(plugin.skills) || plugin.skills.length !== 1 ||
+          typeof plugin.skills[0] !== "string" ||
+          resolve(pluginRoot, plugin.skills[0]) !== sharedSkills ||
+          sharedSkills !== resolve(skillsRoot)) {
+        findings.push(finding("shared-skills-drift", "Both native manifests must resolve the shared skills root", codexPath));
+      }
+
+      if (codex.version !== policy.hostAdaptation.codexVersion) {
+        findings.push(finding("codex-version-mismatch", "Codex version must match its independent sync policy version", codexPath));
+      }
+
+      if (Object.hasOwn(codex, "agents") || Object.hasOwn(codex, "extensions")) {
+        findings.push(finding("unsupported-codex-registration", "Codex uses shared skills and agent prompt references without agent or extension registration", codexPath));
+      }
+    }
+  }
+
   const notice = readFileSync(join(pluginRoot, "NOTICE.md"), "utf8");
 
   for (const expected of [

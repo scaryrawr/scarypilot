@@ -12,9 +12,9 @@ const Recognition = {
 const Timeout = Type.Optional(Type.Integer({ minimum: 1, maximum: 1800, description: "Total operation deadline in seconds. Default 600; maximum 1800." }));
 
 export const LegacyTranscriptionSchema = Type.Object({
-  input: Type.String(),
-  output: Type.String(),
-  model: Type.Optional(Type.String()),
+  input: Type.String({ minLength: 1 }),
+  output: Type.String({ minLength: 1 }),
+  model: Type.Optional(Type.String({ minLength: 1 })),
   language: Type.Optional(Type.String()),
   prompt: Type.Optional(Type.String()),
 }, { additionalProperties: false });

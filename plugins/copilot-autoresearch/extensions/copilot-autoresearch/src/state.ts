@@ -13,20 +13,24 @@ import {
   sessionFileCandidates,
 } from "./paths.ts";
 
-/** State shared between init/run/log within a session, persisted as a sidecar. */
-export interface RuntimeState {
+/** Experiment gates shared by native adapters and the standalone CLI. */
+export interface ExperimentRuntime {
   /** True when the user has activated autoresearch or a session log implies it. */
   autoresearchMode: boolean;
   /** Last `run_experiment` checks result (null = no checks ran). */
   lastRunChecks: { pass: boolean; output: string; durationSeconds: number } | null;
   /** Last `run_experiment` wall-clock duration, used for log_experiment context. */
   lastRunDurationSeconds: number | null;
+  /** Temporary overflow output retained for the current run. */
+  lastOutputPath: string | null;
+}
+
+/** Native session automation never enters the standalone CLI's persisted state. */
+export interface RuntimeState extends ExperimentRuntime {
   /** Run number after which auto-resume last sent. Used to gate further resumes. */
   lastResumeAtRunNumber: number;
   /** Number of auto-resume turns already used this session (cap defends against runaways). */
   autoResumeTurns: number;
-  /** Temporary overflow output retained for the current run. */
-  lastOutputPath: string | null;
 }
 
 export function defaultRuntimeState(): RuntimeState {
