@@ -33,21 +33,26 @@ with runnable fixtures and adds trigger cases.
 Local helper corrections:
 
 - `eval-viewer/generate_review.py`: escape embedded JSON, display nested output
-  paths, and choose a free port without terminating existing listeners.
+  paths, find eval-directory metadata, and choose a free port without
+  terminating existing listeners.
 - `eval-viewer/viewer.html`: preserve completed feedback on dialog dismissal
   and cancel pending autosaves on submission, handle failed HTTP writes, and
-  escape quotes in grading evidence attributes.
+  escape benchmark labels and grading evidence attributes. Load current
+  feedback independently of embedded previous-iteration context.
 - `scripts/aggregate_benchmark.py`: recover token counts independently of duration.
 - `scripts/run_loop.py`: reject holdout splits without training queries.
 - `scripts/generate_report.py`: accept null test results with holdout disabled.
 - `scripts/package_skill.py`: exclude the destination archive.
 - `scripts/quick_validate.py` and `scripts/utils.py`: reject empty required
-  values and invalid or unsupported frontmatter syntax.
+  values, non-string required plain scalars, incomplete closing delimiters,
+  and invalid or unsupported frontmatter syntax.
 - `scripts/harnesses.py`, `scripts/run_eval.py`, and
   `scripts/run_harness_eval.py`: isolate invocation working copies, count only
   the staged candidate as trigger evidence, and abort trigger scoring on
   execution failures. Refuse existing task iteration/run directories so stale
-  outputs and grades cannot be reused.
+  outputs and grades cannot be reused. Terminate managed subprocess trees on
+  timeout, cancel pending trigger queries after failure, preserve same-name
+  fixtures, and recognize both usage token key spellings.
 - `references/workflows.md`: include shortening retries in optimization budgets.
 
 Model-free regression tests are added under the plugin's `tests/` directory.

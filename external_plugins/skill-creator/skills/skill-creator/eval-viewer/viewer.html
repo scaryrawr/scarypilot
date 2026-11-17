@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- ScaryPilot modifications: preserve completed feedback, report failed saves, and escape attribute quotes. -->
+<!-- ScaryPilot modifications: preserve current/completed feedback, report failed saves, and escape benchmark text. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -657,21 +657,13 @@
 
     // ---- Init ----
     async function init() {
-      // Load saved feedback from server — but only if this isn't a fresh
-      // iteration (indicated by previous_feedback being present). When
-      // previous feedback exists, the feedback.json on disk is stale from
-      // the prior iteration and should not pre-fill the textareas.
-      const hasPrevious = Object.keys(EMBEDDED_DATA.previous_feedback || {}).length > 0
-        || Object.keys(EMBEDDED_DATA.previous_outputs || {}).length > 0;
-      if (!hasPrevious) {
-        try {
-          const resp = await fetch("/api/feedback");
-          const data = await resp.json();
-          if (data.reviews) {
-            for (const r of data.reviews) feedbackMap[r.run_id] = r.feedback;
-          }
-        } catch { /* first run, no feedback yet */ }
-      }
+      try {
+        const resp = await fetch("/api/feedback");
+        const data = await resp.json();
+        if (data.reviews) {
+          for (const r of data.reviews) feedbackMap[r.run_id] = r.feedback;
+        }
+      } catch { /* first run or static mode, no feedback yet */ }
 
       document.getElementById("skill-name").textContent = EMBEDDED_DATA.skill_name;
       showRun(0);
@@ -1221,7 +1213,7 @@
             if (configRuns.length === 0) continue;
 
             const rowClass = ci === 0 ? "benchmark-row-with" : "benchmark-row-without";
-            const configLabel = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+            const configLabel = escapeHtml(config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()));
 
             for (const run of configRuns) {
               const r = run.result || {};

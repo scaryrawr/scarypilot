@@ -12,6 +12,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import Mock, patch
 import zipfile
@@ -61,6 +62,27 @@ class HelperTests(unittest.TestCase):
             with self.subTest(description=description):
                 (self.skill / "SKILL.md").write_text(f"---\nname: sample\ndescription: {description}\n---\n")
                 self.assertTrue(quick_validate.validate_skill(self.skill)[0])
+
+    def test_validation_requires_a_complete_closing_delimiter(self):
+        for closing in ("---not-a-delimiter", "--- # not a delimiter"):
+            with self.subTest(closing=closing):
+                (self.skill / "SKILL.md").write_text(
+                    f"---\nname: sample\ndescription: A workflow\n{closing}\nBody\n"
+                )
+                self.assertFalse(quick_validate.validate_skill(self.skill)[0])
+        (self.skill / "SKILL.md").write_text("---\nname: sample\ndescription: A workflow\n---")
+        self.assertTrue(quick_validate.validate_skill(self.skill)[0])
+
+    def test_required_values_reject_plain_non_string_yaml_scalars(self):
+        for value in ("null", "Null", "~", "true", "FALSE", "123", "1.5", "1e3", "0x10", ".NaN"):
+            with self.subTest(value=value):
+                (self.skill / "SKILL.md").write_text(f"---\nname: sample\ndescription: {value}\n---\n")
+                self.assertFalse(quick_validate.validate_skill(self.skill)[0])
+                (self.skill / "SKILL.md").write_text(f"---\nname: sample\ndescription: '{value}'\n---\n")
+                self.assertTrue(quick_validate.validate_skill(self.skill)[0])
+        for value, expected in (("123", False), ('"123"', True)):
+            (self.skill / "SKILL.md").write_text(f"---\nname: {value}\ndescription: A workflow\n---\n")
+            self.assertEqual(quick_validate.validate_skill(self.skill)[0], expected)
 
     def test_packaging_does_not_include_its_destination(self):
         for destination in (self.skill, self.skill / "dist"):
@@ -132,6 +154,44 @@ class HelperTests(unittest.TestCase):
         self.assertNotIn("<", embedded)
         self.assertEqual(json.loads(embedded)["runs"], runs)
 
+    def test_viewer_loads_metadata_from_the_task_eval_directory(self):
+        run = self.root / "eval-7-example/copilot_with_skill/run-1"
+        (run / "outputs").mkdir(parents=True)
+        prompt = "Create a document.\n\n## Required section\n\nKeep this heading."
+        (run.parent.parent / "eval_metadata.json").write_text(json.dumps({
+            "eval_id": 7, "prompt": prompt,
+        }))
+        (run / "transcript.md").write_text("## Eval Prompt\n\n" + prompt + "\n\n## STDOUT\n\nDone")
+        data = viewer.build_run(self.root, run)
+        self.assertEqual(data["eval_id"], 7)
+        self.assertEqual(data["prompt"], prompt)
+
+    def test_timeout_stops_spawned_tools_before_they_write_later(self):
+        marker = self.root / "late-write.txt"
+        child = "import time,sys; from pathlib import Path; time.sleep(1); Path(sys.argv[1]).write_text('late')"
+        parent = (
+            "import subprocess,sys,time; "
+            f"subprocess.Popen([sys.executable, '-c', {child!r}, {str(marker)!r}]); "
+            "print('child started', flush=True); time.sleep(30)"
+        )
+        code, stdout, stderr, _ = harnesses.run_command(
+            [sys.executable, "-c", parent], self.root, timeout=0.5,
+        )
+        self.assertEqual(code, 124)
+        self.assertIn("child started", stdout)
+        self.assertIn("Timed out", stderr)
+        time.sleep(1.2)
+        self.assertFalse(marker.exists(), "A spawned tool survived the eval timeout")
+
+    def test_command_capture_preserves_stdin_environment_and_failure_details(self):
+        code, stdout, stderr, _ = harnesses.run_command(
+            [sys.executable, "-c",
+             "import os,sys; print(sys.stdin.read() + os.environ['HELPER_CASE']); "
+             "print('Failure detail', file=sys.stderr); sys.exit(3)"],
+            self.root, timeout=5, stdin="Input: ", env={**os.environ, "HELPER_CASE": "value"},
+        )
+        self.assertEqual((code, stdout, stderr), (3, "Input: value\n", "Failure detail\n"))
+
     def test_viewer_occupied_port_does_not_terminate_processes(self):
         (self.root / "outputs").mkdir()
         server = Mock()
@@ -163,8 +223,10 @@ const timers = new Map();
 const elements = new Map();
 const downloads = [];
 let responseStatus = 200;
+let serverFeedback = { reviews: [] };
 const document = {
   addEventListener() {},
+  querySelector() { return { scrollTop: 0 }; },
   createElement() {
     return {
       textContent: "",
@@ -175,7 +237,9 @@ const document = {
     };
   },
   getElementById(id) {
-    if (!elements.has(id)) elements.set(id, { value: "", style: {}, classList: { add() {}, remove() {} } });
+    if (!elements.has(id)) elements.set(id, {
+      value: "", style: {}, classList: { add() {}, remove() {} }, addEventListener() {},
+    });
     return elements.get(id);
   },
 };
@@ -184,6 +248,7 @@ const context = vm.createContext({
   Blob,
   URL: { createObjectURL(blob) { downloads.push(blob); return "blob:test"; }, revokeObjectURL() {} },
   fetch: async (url, options) => {
+    if (!options) return { ok: true, json: async () => serverFeedback };
     requests.push(JSON.parse(options.body));
     return { ok: responseStatus < 400, status: responseStatus };
   },
@@ -234,6 +299,49 @@ vm.runInContext(source, context);
 })();
 """)
 
+    def test_current_feedback_is_loaded_when_previous_feedback_is_embedded(self):
+        self.run_viewer_script("""
+(async () => {
+  serverFeedback = { reviews: [
+    { run_id: "one", feedback: "Current first review" },
+    { run_id: "two", feedback: "Current second review" },
+  ] };
+  vm.runInContext('EMBEDDED_DATA.previous_feedback = { one: "Old iteration review" }', context);
+  await vm.runInContext("init()", context);
+  assert.equal(document.getElementById("feedback").value, "Current first review");
+  vm.runInContext("navigate(1)", context);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(document.getElementById("feedback").value, "Current second review");
+  assert.equal(requests[0].reviews.length, 2);
+  assert.equal(requests[0].reviews[1].feedback, "Current second review");
+})();
+""")
+
+    def test_benchmark_configuration_labels_are_text_not_markup(self):
+        output = self.run_viewer_script("""
+vm.runInContext(`EMBEDDED_DATA.benchmark = {
+  runs: [{ eval_id: 1, configuration: "copilot_<img src=x onerror=unexpected()>", run_number: 1 }]
+}; renderBenchmark();`, context);
+console.log(JSON.stringify(document.getElementById("benchmark-content").innerHTML));
+""")
+
+        class Markup(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.tags = []
+                self.text = []
+
+            def handle_starttag(self, tag, attrs):
+                self.tags.append(tag)
+
+            def handle_data(self, data):
+                self.text.append(data)
+
+        parsed = Markup()
+        parsed.feed(json.loads(output))
+        self.assertNotIn("img", parsed.tags)
+        self.assertEqual(parsed.text.count("Copilot <Img Src=X Onerror=Unexpected()>"), 2)
+
     def test_benchmark_evidence_remains_a_single_title_attribute(self):
         evidence = '" onmouseover="unexpected()" data-note="<unsafe>&'
         output = self.run_viewer_script("""
@@ -276,13 +384,15 @@ class EvalTests(unittest.TestCase):
         self.log = self.root / "calls.jsonl"
         executable = self.root / "copilot"
         executable.write_text(f"""#!{sys.executable}
-import json, os, pathlib, sys
+import json, os, pathlib, sys, time
 root = pathlib.Path.cwd()
 prompt = sys.argv[sys.argv.index('-p') + 1]
 skills = sorted(p.name for p in (root / '.github/skills').glob('*'))
 with open(os.environ['SKILL_CREATOR_TEST_LOG'], 'a') as log:
-    log.write(json.dumps({{'root': str(root), 'skills': skills, 'dirty': (root / 'changed.txt').exists(), 'seed': (root / 'seed.txt').exists()}}) + '\\n')
+    log.write(json.dumps({{'root': str(root), 'skills': skills, 'query': prompt, 'dirty': (root / 'changed.txt').exists(), 'seed': (root / 'seed.txt').exists()}}) + '\\n')
 (root / 'changed.txt').write_text('Agent mutation')
+if prompt.startswith('slow-'):
+    time.sleep(0.15)
 if prompt in ('failure', 'timeout'):
     print('Synthetic execution failure', file=sys.stderr)
     sys.exit(124 if prompt == 'timeout' else 1)
@@ -293,6 +403,7 @@ else:
 if candidate and prompt != 'negative':
     print(json.dumps({{'type': 'tool.execution_start', 'data': {{'toolName': 'skill', 'arguments': {{'skill': candidate}}}}}}))
 print(json.dumps({{'type': 'assistant.message', 'data': {{'content': 'Done'}}}}))
+print(json.dumps({{'usage': {{os.environ.get('SKILL_CREATOR_TOKEN_KEY', 'totalTokens'): 789}}}}))
 """)
         executable.chmod(0o755)
         env = patch.dict(os.environ, {
@@ -345,6 +456,35 @@ print(json.dumps({{'type': 'assistant.message', 'data': {{'content': 'Done'}}}})
         for query in ("failure", "timeout"):
             with self.subTest(query=query), self.assertRaises(RuntimeError):
                 self.evaluate([(query, False)])
+
+    def test_trigger_batch_cancels_queued_queries_on_failure(self):
+        queries = [("failure", False)] + [(f"slow-{index}", True) for index in range(8)]
+        with self.assertRaises(RuntimeError):
+            self.evaluate(queries)
+        calls = self.calls()
+        self.assertLess(len(calls), len(queries))
+        self.assertNotIn("slow-7", [call["query"] for call in calls])
+
+    def test_task_usage_accepts_camel_and_snake_case_token_events(self):
+        for key in ("totalTokens", "total_tokens"):
+            with self.subTest(key=key), patch.dict(os.environ, {"SKILL_CREATOR_TOKEN_KEY": key}):
+                run_dir = self.root / key
+                run_harness_eval.run_one(
+                    "copilot", {"prompt": "Do the task"}, "with_skill", self.skill,
+                    self.project, run_dir, None, 5,
+                )
+                self.assertEqual(json.loads((run_dir / "timing.json").read_text())["total_tokens"], 789)
+
+    def test_same_name_fixtures_keep_distinct_contents_and_basenames(self):
+        references = ["evals/files/before/data.csv", "evals/files/after/data.csv"]
+        for reference, contents in zip(references, ("before", "after")):
+            path = self.skill / reference
+            path.parent.mkdir(parents=True)
+            path.write_text(contents)
+        copied = run_harness_eval.copy_input_files(references, self.skill, self.root / "run")
+        self.assertEqual([Path(path).read_text() for path in copied], ["before", "after"])
+        self.assertEqual([Path(path).name for path in copied], ["data.csv", "data.csv"])
+        self.assertEqual(len(set(copied)), 2)
 
     def test_staging_failure_aborts_instead_of_passing_negative_case(self):
         missing = self.root / "missing"

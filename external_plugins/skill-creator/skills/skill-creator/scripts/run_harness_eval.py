@@ -9,6 +9,7 @@ Apache-2.0 license are retained in ../LICENSE.txt.
 
 ScaryPilot modifications: isolate candidate staging and mutations per task run,
 and refuse existing iteration/run directories to prevent stale artifact reuse.
+Keep same-name fixtures distinct and recognize both usage token key spellings.
 """
 
 from __future__ import annotations
@@ -50,18 +51,16 @@ def load_evals(path: Path) -> tuple[str | None, list[dict]]:
 def copy_input_files(files: list[str], skill_path: Path, run_dir: Path) -> list[str]:
     copied: list[str] = []
     inputs_dir = run_dir / "inputs"
-    for file_ref in files or []:
+    for index, file_ref in enumerate(files or []):
         src = Path(file_ref)
         if not src.is_absolute():
             src = (skill_path / src).resolve()
         if not src.exists():
             copied.append(f"MISSING: {src}")
             continue
-        inputs_dir.mkdir(parents=True, exist_ok=True)
-        dest = inputs_dir / src.name
+        dest = inputs_dir / str(index) / src.name
+        dest.parent.mkdir(parents=True, exist_ok=True)
         if src.is_dir():
-            if dest.exists():
-                shutil.rmtree(dest)
             shutil.copytree(src, dest)
         else:
             shutil.copy2(src, dest)
@@ -142,7 +141,7 @@ def run_one(
         except json.JSONDecodeError:
             continue
         blob = json.dumps(event)
-        if "totalTokens" in blob:
+        if "totalTokens" in blob or "total_tokens" in blob:
             def walk(obj):
                 nonlocal total_tokens
                 if isinstance(obj, dict):

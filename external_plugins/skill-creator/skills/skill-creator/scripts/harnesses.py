@@ -6,7 +6,8 @@ Copilot CLI as the primary eval harness. Legacy helpers for pi, Claude Code,
 and Codex remain available for explicit historical comparisons. Original
 project copyright and Apache-2.0 license are retained in ../LICENSE.txt.
 
-ScaryPilot modification: give each eval invocation a fresh working copy.
+ScaryPilot modifications: give each eval invocation a fresh working copy and
+stop spawned tools on timeout using a POSIX process group or Windows task tree.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import signal
 import subprocess
 import tempfile
 import time
@@ -285,25 +287,37 @@ def staged_claude_command(skill_name: str, description: str, project_root: Path)
             pass
 
 
-def run_command(args: list[str], cwd: Path, timeout: int, stdin: str | None = None, env: dict[str, str] | None = None) -> tuple[int, str, str, float]:
+def run_command(args: list[str], cwd: Path, timeout: float, stdin: str | None = None, env: dict[str, str] | None = None) -> tuple[int, str, str, float]:
     start = time.time()
-    try:
-        result = subprocess.run(
-            args,
-            input=stdin,
-            capture_output=True,
-            text=True,
-            cwd=str(cwd),
-            env=env,
-            timeout=timeout,
-        )
-        elapsed = time.time() - start
-        return result.returncode, result.stdout, result.stderr, elapsed
-    except subprocess.TimeoutExpired as e:
-        elapsed = time.time() - start
-        stdout = e.stdout.decode("utf-8", errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
-        stderr = e.stderr.decode("utf-8", errors="replace") if isinstance(e.stderr, bytes) else (e.stderr or "")
-        return 124, stdout, stderr + f"\nTimed out after {timeout}s", elapsed
+    with subprocess.Popen(
+        args,
+        stdin=subprocess.PIPE if stdin is not None else None,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=str(cwd),
+        env=env,
+        start_new_session=os.name != "nt",
+    ) as process:
+        try:
+            stdout, stderr = process.communicate(input=stdin, timeout=timeout)
+            return process.returncode, stdout, stderr, time.time() - start
+        except subprocess.TimeoutExpired:
+            if os.name == "nt":
+                try:
+                    subprocess.run(
+                        ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                        check=True, capture_output=True, timeout=10,
+                    )
+                finally:
+                    process.kill()
+            else:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            stdout, stderr = process.communicate(timeout=10)
+            return 124, stdout, stderr + f"\nTimed out after {timeout}s", time.time() - start
 
 
 def copilot_command(prompt: str, model: str | None = None) -> list[str]:

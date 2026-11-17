@@ -4,7 +4,8 @@ Modified from Anthropic's skill-creator distribution with stdlib-only YAML
 frontmatter parsing helpers and slug utilities. Original project copyright and
 Apache-2.0 license are retained in ../LICENSE.txt.
 
-ScaryPilot modification: reject invalid or unsupported frontmatter syntax.
+ScaryPilot modifications: reject invalid or unsupported frontmatter syntax
+and non-string plain scalars for required string fields.
 """
 
 from __future__ import annotations
@@ -55,6 +56,16 @@ def parse_frontmatter_text(frontmatter_text: str) -> dict:
         elif value:
             if value[0] in "-?:,[]{}#&*!|>'\"%@`" or re.search(r":(?:\s|$)|\s#", value):
                 raise ValueError(f"Quote this scalar or use a block scalar: {value!r}")
+            if key in {"name", "description"} and (
+                value.lower() in {"null", "~", "true", "false", "yes", "no", "on", "off", ".nan", ".inf", "+.inf", "-.inf"}
+                or re.fullmatch(
+                    r"[+]?(?:0[xX][0-9a-fA-F_]+|0[oO][0-7_]+|0[bB][01_]+|"
+                    r"[0-9][0-9_]*(?:\.[0-9_]*)?(?:[eE][+-]?[0-9_]+)?|"
+                    r"\.[0-9_]+(?:[eE][+-]?[0-9_]+)?)",
+                    value,
+                )
+            ):
+                raise ValueError(f"{key} must be a string; quote the scalar {value!r}")
         result[key] = value
         i += 1
     return result

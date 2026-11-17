@@ -6,7 +6,8 @@ dependency; it validates the frontmatter subset used by agent skills with the
 Python standard library. Original project copyright and Apache-2.0 license are
 retained in ../LICENSE.txt.
 
-ScaryPilot modification: reject empty required frontmatter values.
+ScaryPilot modifications: reject empty required values and require a complete
+closing frontmatter delimiter.
 """
 
 from __future__ import annotations
@@ -33,7 +34,7 @@ def validate_skill(skill_path):
     if not content.startswith("---"):
         return False, "No YAML frontmatter found"
 
-    match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
+    match = re.match(r"^---\n(.*?)\n---[ \t]*(?:\n|$)", content, re.DOTALL)
     if not match:
         return False, "Invalid frontmatter format"
 

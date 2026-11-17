@@ -8,6 +8,7 @@ Apache-2.0 license are retained in ../LICENSE.txt.
 
 ScaryPilot modifications: isolate invocation roots, require the staged candidate,
 and abort on execution failures instead of scoring them as negative results.
+Cancel queued queries when a worker fails.
 """
 
 from __future__ import annotations
@@ -123,12 +124,17 @@ def run_eval(
 
             query_triggers: dict[str, list[bool]] = {}
             query_items: dict[str, dict] = {}
-            for future in as_completed(future_to_info):
-                item, _ = future_to_info[future]
-                query = item["query"]
-                query_items[query] = item
-                query_triggers.setdefault(query, [])
-                query_triggers[query].append(future.result())
+            try:
+                for future in as_completed(future_to_info):
+                    item, _ = future_to_info[future]
+                    query = item["query"]
+                    query_items[query] = item
+                    query_triggers.setdefault(query, [])
+                    query_triggers[query].append(future.result())
+            except BaseException:
+                for pending in future_to_info:
+                    pending.cancel()
+                raise
 
         for query, triggers in query_triggers.items():
             item = query_items[query]

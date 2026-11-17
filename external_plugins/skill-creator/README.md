@@ -42,7 +42,8 @@ Packaging excludes root `evals/`, `__pycache__`, `node_modules`, `.DS_Store`,
 and `*.pyc`, and never includes the archive currently being written.
 Validation supports top-level scalar frontmatter, including quoted strings
 and `|`/`>` blocks; unsupported YAML structures are rejected rather than
-silently accepted.
+silently accepted. Required `name` and `description` values must be strings;
+quote scalar values that would otherwise be YAML nulls, booleans, or numbers.
 
 ## Evaluation safety
 
@@ -57,6 +58,9 @@ directory. `--project-root` supplies seed context copied without `.git`;
 it is not the directory the agent modifies. Dependencies are retained and
 symlinks are copied as their target contents rather than shared writable links.
 Failed trigger executions abort the batch instead of counting as non-triggers.
+Queued queries are cancelled after a worker failure; active queries finish
+before the error is returned. Timeout cleanup targets the agent's POSIX process
+group or Windows task tree, not processes that escape that managed tree.
 Only the uniquely staged candidate counts as trigger evidence.
 Task outputs require a new iteration directory: reruns must increment
 `--iteration` or choose a new workspace rather than reuse old outputs or grades.
