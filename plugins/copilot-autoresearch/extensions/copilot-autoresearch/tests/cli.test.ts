@@ -96,7 +96,8 @@ esac
   };
 }
 
-describe("installed experiment CLI", () => {
+// Each case starts several native processes; benchmark and check deadlines remain independent.
+describe("installed experiment CLI", { timeout: 30_000 }, () => {
   it("initializes automatic mode with real Git and ignored, untracked control files", () => {
     const f = fixture();
 

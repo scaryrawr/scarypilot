@@ -1,7 +1,7 @@
 {
   "name": "pstack",
   "description": "Rigorous planning, review, delegation, and verification workflows shared with Codex.",
-  "version": "3.1.0-copilot.1",
+  "version": "3.1.0-copilot.2",
   "author": {
     "name": "Lauren Tan"
   },

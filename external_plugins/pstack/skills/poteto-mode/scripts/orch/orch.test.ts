@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
+import { createHash } from "node:crypto";
 import {
-  chmod,
+  link,
   mkdir,
   mkdtemp,
   readFile,
@@ -22,6 +23,23 @@ import {
 } from "./store.ts";
 
 const SCRIPT = join(import.meta.dir, "orch.mjs");
+const fixtureBuildRoot = await mkdtemp(join(tmpdir(), "orch-forge-build-"));
+const fixtureProgram = join(fixtureBuildRoot, process.platform === "win32" ? "forge.exe" : "forge");
+
+beforeAll(() => {
+  const result = Bun.spawnSync([
+    process.execPath, "build", join(import.meta.dir, "forge-fixture.mjs"),
+    "--compile", "--outfile", fixtureProgram,
+  ], { timeout: 25_000 });
+
+  if (result.exitCode !== 0) {
+    throw new Error(`Forge fixture compilation failed: ${result.stderr.toString()}`);
+  }
+}, 30_000);
+
+afterAll(async () => {
+  await rm(fixtureBuildRoot, { recursive: true, force: true });
+});
 
 const directories: string[] = [];
 
@@ -188,105 +206,74 @@ async function withFakeForge<T>({
   hostname?: string;
 }): Promise<T> {
   const bin = join(directory, "bin");
-  const outputPath = join(directory, "forge-output.txt").replaceAll("\\", "/");
+  const responsesRoot = join(directory, "responses");
   await mkdir(bin, { recursive: true });
-  await writeFile(
-    outputPath,
-    `${
-      currentRows ??
-      forgeRows(forge, [
-        {
-          number: 11,
-          state: "open",
-          head: "stack/open",
-          base: "stack/closed",
-        },
-      ])
-    }\n`
-  );
+  await mkdir(responsesRoot);
+  await writeFile(join(directory, "repository"), realpathSync(join(directory, "repo")));
+  await writeFile(join(directory, "hostname"), hostname);
   const { fields } = FORGE_FIXTURES[forge];
 
   const list = (filter: string, branch: string, repository = "example/project"): string =>
     `pr list ${filter} ${branch} --state all --limit 1000 --json ${fields} --repo ${hostname}/${repository}`;
 
-  const fake = join(bin, forge);
-  const ssh = join(bin, "ssh");
-  const nativeSsh = Bun.which("ssh");
+  const executableSuffix = process.platform === "win32" ? ".exe" : "";
+  const fake = join(bin, `${forge}${executableSuffix}`);
+  await link(fixtureProgram, fake);
+  await link(fixtureProgram, join(bin, `ssh${executableSuffix}`));
 
-  if (sshConfig && !nativeSsh) throw new Error("SSH alias regression requires OpenSSH");
-  await writeFile(ssh, sshConfig ? `#!/usr/bin/env bash
-exec "${nativeSsh.replaceAll("\\", "/")}" -F "${sshConfig.replaceAll("\\", "/")}" "$@"
-` : `#!/usr/bin/env bash
-set -euo pipefail
-case "$*" in
-  "-G -- git@github.com"|"-G -- git@github-work"|"-G -p 2222 -- git@github-work")
-    printf 'host github-work\\nhostname github.com\\nuser git\\n'
-    ;;
-  *)
-    printf 'unexpected ssh arguments: %s\\n' "$*" >&2
-    exit 2
-    ;;
-esac
-`);
-  await chmod(ssh, 0o755);
-  await writeFile(
-    fake,
-    `#!/usr/bin/env bash
-set -euo pipefail
-if [ ! "." -ef "${realpathSync(join(directory, "repo")).replaceAll("\\", "/")}" ]; then
-  printf '${forge} ran outside the fixture repo: %s\\n' "$(pwd -P)" >&2
-  exit 2
-fi
-case "$*" in
-  ${queries.map(query => `"${list(query.filter, query.branch, query.repository)}")
-    printf '%s\\n' '${query.rows}'
-    ;;`).join("\n  ")}
-  "repo view --json url --jq .url")
-    printf 'https://${hostname}/example/project\\n'
-    ;;
-  "repo view https://${hostname}/example/project.git --json url --jq .url")
-    printf 'https://${hostname}/example/project\\n'
-    ;;
-  "repo view https://${hostname}/contributor/project.git --json url --jq .url")
-    printf 'https://${hostname}/contributor/project\\n'
-    ;;
-  "${list("--head", "stack/open")}")
-    cat "${outputPath}"
-    ;;
-  "${list("--head", "stack/closed")}")
-    printf '%s\\n' '${forgeRows(forge, [{ number: 13, state: "closed", head: "stack/closed", base: "stack/merged" }])}'
-    ;;
-  "${list("--head", "stack/merged")}")
-    printf '%s\\n' '${forgeRows(forge, [{ number: 10, state: "merged", head: "stack/merged", base: "main" }])}'
-    ;;
-  "${list("--base", "stack/open")}")
-    printf '%s\\n' '${childRows ?? forgeRows(forge, [
+  if (sshConfig) {
+    const nativeSsh = Bun.which("ssh", { PATH: process.env.PATH });
+
+    if (!nativeSsh) throw new Error("SSH alias regression requires OpenSSH");
+    await writeFile(join(directory, "ssh-native"), nativeSsh);
+    await writeFile(join(directory, "ssh-config"), sshConfig);
+  }
+
+  const responses = new Map<string, string>([
+    ["repo view --json url --jq .url", `https://${hostname}/example/project`],
+    [`repo view https://${hostname}/example/project.git --json url --jq .url`, `https://${hostname}/example/project`],
+    [`repo view https://${hostname}/contributor/project.git --json url --jq .url`, `https://${hostname}/contributor/project`],
+    [list("--head", "stack/open"), currentRows ?? forgeRows(forge, [
+      { number: 11, state: "open", head: "stack/open", base: "stack/closed" },
+    ])],
+    [list("--head", "stack/closed"), forgeRows(forge, [
+      { number: 13, state: "closed", head: "stack/closed", base: "stack/merged" },
+    ])],
+    [list("--head", "stack/merged"), forgeRows(forge, [
+      { number: 10, state: "merged", head: "stack/merged", base: "main" },
+    ])],
+    [list("--base", "stack/open"), childRows ?? forgeRows(forge, [
       { number: 14, state: "draft", head: "stack/draft", base: "stack/open" },
-      {
-        number: 15,
-        state: "closed",
-        head: "stack/abandoned",
-        base: "stack/open",
-      },
-    ])}'
-    ;;
-  "${list("--base", "stack/draft")}")
-    printf '[]\\n'
-    ;;
-  pr\\ list\\ *\\ --repo\\ ${hostname}/contributor/project)
-    printf '[]\\n'
-    ;;
-  *)
-    printf 'unexpected ${forge} arguments: %s\\n' "$*" >&2
-    exit 2
-    ;;
-esac
-`
-  );
-  await chmod(fake, 0o755);
+      { number: 15, state: "closed", head: "stack/abandoned", base: "stack/open" },
+    ])],
+    [list("--base", "stack/draft"), "[]"],
+  ]);
 
-  const originalPath = process.env.PATH;
-  process.env.PATH = `${bin}${delimiter}${originalPath ?? ""}`;
+  for (const query of queries.toReversed()) {
+    responses.set(list(query.filter, query.branch, query.repository), query.rows);
+  }
+
+  async function writeResponse(tool: string, command: string, response: string): Promise<void> {
+    const key = createHash("sha256").update(`${tool}\0${command}`).digest("hex");
+
+    await writeFile(join(responsesRoot, key), `${response}\n`);
+  }
+
+  for (const [command, response] of responses) {
+    await writeResponse(forge, command, response);
+  }
+
+  for (const command of ["-G -- git@github.com", "-G -- git@github-work", "-G -p 2222 -- git@github-work"]) {
+    await writeResponse("ssh", command, "host github-work\nhostname github.com\nuser git");
+  }
+
+  const originalEnv = {
+    PATH: process.env.PATH,
+    PSTACK_FORGE_FIXTURE_DIR: process.env.PSTACK_FORGE_FIXTURE_DIR,
+  };
+
+  process.env.PATH = `${bin}${delimiter}${originalEnv.PATH ?? ""}`;
+  process.env.PSTACK_FORGE_FIXTURE_DIR = directory;
 
   try {
     const resolvedForge = Bun.which(forge, { PATH: process.env.PATH });
@@ -297,10 +284,12 @@ esac
 
     return await operation();
   } finally {
-    if (originalPath === undefined) {
-      delete process.env.PATH;
-    } else {
-      process.env.PATH = originalPath;
+    for (const [name, value] of Object.entries(originalEnv)) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
     }
   }
 }
