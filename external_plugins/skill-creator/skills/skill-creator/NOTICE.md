@@ -35,7 +35,10 @@ Local helper corrections:
 - `eval-viewer/generate_review.py`: escape embedded JSON, display nested output
   paths, and choose a free port without terminating existing listeners.
 - `eval-viewer/viewer.html`: preserve completed feedback on dialog dismissal
-  and cancel pending autosaves on submission.
+  and cancel pending autosaves on submission, handle failed HTTP writes, and
+  escape quotes in grading evidence attributes.
+- `scripts/aggregate_benchmark.py`: recover token counts independently of duration.
+- `scripts/run_loop.py`: reject holdout splits without training queries.
 - `scripts/generate_report.py`: accept null test results with holdout disabled.
 - `scripts/package_skill.py`: exclude the destination archive.
 - `scripts/quick_validate.py` and `scripts/utils.py`: reject empty required
@@ -43,7 +46,9 @@ Local helper corrections:
 - `scripts/harnesses.py`, `scripts/run_eval.py`, and
   `scripts/run_harness_eval.py`: isolate invocation working copies, count only
   the staged candidate as trigger evidence, and abort trigger scoring on
-  execution failures.
+  execution failures. Refuse existing task iteration/run directories so stale
+  outputs and grades cannot be reused.
+- `references/workflows.md`: include shortening retries in optimization budgets.
 
 Model-free regression tests are added under the plugin's `tests/` directory.
 All other imported helpers and assets remain unchanged from that revision.

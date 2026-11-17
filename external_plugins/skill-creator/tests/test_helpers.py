@@ -4,6 +4,7 @@ import contextlib
 from concurrent.futures import ThreadPoolExecutor
 import importlib.util
 import io
+from html.parser import HTMLParser
 import json
 import os
 from pathlib import Path
@@ -18,7 +19,7 @@ import zipfile
 SKILL = Path(__file__).resolve().parents[1] / "skills/skill-creator"
 sys.path.insert(0, str(SKILL))
 
-from scripts import generate_report, harnesses, package_skill, quick_validate, run_eval, run_harness_eval
+from scripts import aggregate_benchmark, generate_report, harnesses, package_skill, quick_validate, run_eval, run_harness_eval, run_loop
 
 spec = importlib.util.spec_from_file_location("review_viewer", SKILL / "eval-viewer/generate_review.py")
 viewer = importlib.util.module_from_spec(spec)
@@ -83,6 +84,33 @@ class HelperTests(unittest.TestCase):
         })
         self.assertIn("Create a skill", page)
 
+    def test_benchmark_reads_tokens_independently_of_duration(self):
+        run = self.root / "eval-1/copilot_with_skill/run-1"
+        run.mkdir(parents=True)
+        for grading_timing, sibling_timing, expected_time, expected_tokens in (
+            ({"total_duration_seconds": 2}, {"total_duration_seconds": 3, "total_tokens": 123}, 2, 123),
+            ({"total_duration_seconds": 2, "total_tokens": 456}, {}, 2, 456),
+            ({"total_tokens": 789}, {"total_duration_seconds": 3, "total_tokens": 123}, 3, 789),
+            ({"total_duration_seconds": 2, "total_tokens": 0}, {"total_tokens": 123}, 2, 0),
+        ):
+            with self.subTest(grading_timing=grading_timing):
+                (run / "grading.json").write_text(json.dumps({
+                    "timing": grading_timing, "execution_metrics": {"output_chars": 9999},
+                }))
+                (run / "timing.json").write_text(json.dumps(sibling_timing))
+                result = aggregate_benchmark.load_run_results(self.root)["copilot_with_skill"][0]
+                self.assertEqual(result["time_seconds"], expected_time)
+                self.assertEqual(result["tokens"], expected_tokens)
+
+    def test_holdout_rejects_empty_training_sets(self):
+        minimal = [{"query": "yes", "should_trigger": True}, {"query": "no", "should_trigger": False}]
+        with self.assertRaisesRegex(ValueError, "training"):
+            run_loop.split_eval_set(minimal, 0.4)
+        self.assertEqual(run_loop.split_eval_set(minimal, 0), (minimal, []))
+        training, held_out = run_loop.split_eval_set(minimal * 2, 0.4)
+        self.assertEqual(len(training), 2)
+        self.assertEqual(len(held_out), 2)
+
     def test_viewer_embeds_nested_outputs_with_relative_names(self):
         run = self.root / "run-1"
         outputs = run / "outputs"
@@ -122,7 +150,7 @@ class HelperTests(unittest.TestCase):
         kill.assert_not_called()
         self.assertEqual(bind.call_args_list[1].args[0], ("127.0.0.1", 0))
 
-    def test_dismissing_completion_preserves_submitted_reviews(self):
+    def run_viewer_script(self, assertions):
         script = """
 const fs = require("node:fs");
 const vm = require("node:vm");
@@ -133,20 +161,46 @@ const source = template.split("<script>")[1].split("// ---- Start ----")[0]
 const requests = [];
 const timers = new Map();
 const elements = new Map();
+const downloads = [];
+let responseStatus = 200;
 const document = {
   addEventListener() {},
+  createElement() {
+    return {
+      textContent: "",
+      get innerHTML() {
+        return this.textContent.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+      },
+      click() {},
+    };
+  },
   getElementById(id) {
-    if (!elements.has(id)) elements.set(id, { value: "", classList: { add() {}, remove() {} } });
+    if (!elements.has(id)) elements.set(id, { value: "", style: {}, classList: { add() {}, remove() {} } });
     return elements.get(id);
   },
 };
 const context = vm.createContext({
   document, Date, console,
-  fetch: async (url, options) => { requests.push(JSON.parse(options.body)); },
+  Blob,
+  URL: { createObjectURL(blob) { downloads.push(blob); return "blob:test"; }, revokeObjectURL() {} },
+  fetch: async (url, options) => {
+    requests.push(JSON.parse(options.body));
+    return { ok: responseStatus < 400, status: responseStatus };
+  },
   setTimeout: (callback) => { const id = timers.size + 1; timers.set(id, callback); return id; },
   clearTimeout: (id) => timers.delete(id),
 });
 vm.runInContext(source, context);
+""" + assertions
+        result = subprocess.run(
+            ["node", "-e", script, str(SKILL / "eval-viewer/viewer.html")],
+            capture_output=True, text=True, timeout=15,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout
+
+    def test_dismissing_completion_preserves_submitted_reviews(self):
+        self.run_viewer_script("""
 (async () => {
   vm.runInContext("showDoneDialog()", context);
   await new Promise(resolve => setImmediate(resolve));
@@ -160,12 +214,52 @@ vm.runInContext(source, context);
   assert.equal(timers.size, 0);
   assert.equal(requests.at(-1).status, "complete");
 })();
-"""
-        result = subprocess.run(
-            ["node", "-e", script, str(SKILL / "eval-viewer/viewer.html")],
-            capture_output=True, text=True, timeout=15,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
+""")
+
+    def test_failed_feedback_writes_download_instead_of_claiming_success(self):
+        self.run_viewer_script("""
+(async () => {
+  for (const status of [405, 500]) {
+    responseStatus = status;
+    vm.runInContext("saveCurrentFeedback()", context);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(document.getElementById("feedback-status").textContent, "Will download on submit");
+    vm.runInContext("showDoneDialog()", context);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(downloads.length, status === 405 ? 1 : 2);
+    const saved = JSON.parse(await downloads.at(-1).text());
+    assert.equal(saved.status, "complete");
+    assert.equal(saved.reviews.length, 2);
+  }
+})();
+""")
+
+    def test_benchmark_evidence_remains_a_single_title_attribute(self):
+        evidence = '" onmouseover="unexpected()" data-note="<unsafe>&'
+        output = self.run_viewer_script("""
+context.evidence = '" onmouseover="unexpected()" data-note="<unsafe>&';
+vm.runInContext(`EMBEDDED_DATA.benchmark = {
+  runs: [{ eval_id: 1, configuration: "with_skill", run_number: 1,
+    expectations: [{ text: "A check", passed: true, evidence }] }]
+}; renderBenchmark();`, context);
+console.log(JSON.stringify(document.getElementById("benchmark-content").innerHTML));
+""")
+
+        class Attributes(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.spans = []
+
+            def handle_starttag(self, tag, attrs):
+                if tag == "span":
+                    self.spans.append(dict(attrs))
+
+        parsed = Attributes()
+        parsed.feed(json.loads(output))
+        titles = [attrs for attrs in parsed.spans if "title" in attrs]
+        self.assertEqual(len(titles), 1)
+        self.assertEqual(titles[0]["title"], "Run 1: " + evidence)
+        self.assertNotIn("onmouseover", titles[0])
 
 
 class EvalTests(unittest.TestCase):
@@ -238,6 +332,15 @@ print(json.dumps({{'type': 'assistant.message', 'data': {{'content': 'Done'}}}})
         self.assertEqual(report["results"][0]["triggers"], 0)
         self.assertFalse(report["results"][0]["pass"])
 
+    def test_empty_training_split_is_rejected_before_agent_execution(self):
+        minimal = [{"query": "yes", "should_trigger": True}, {"query": "no", "should_trigger": False}]
+        for eval_set, holdout in ((minimal, 0.4), ([], 0)):
+            with self.subTest(holdout=holdout), self.assertRaisesRegex(ValueError, "training"):
+                run_loop.run_loop(
+                    eval_set, self.skill, None, 1, 5, 1, 1, 0.5, holdout, None, "copilot", False,
+                )
+        self.assertFalse(self.log.exists())
+
     def test_infrastructure_failures_abort_instead_of_passing_negative_cases(self):
         for query in ("failure", "timeout"):
             with self.subTest(query=query), self.assertRaises(RuntimeError):
@@ -277,6 +380,37 @@ print(json.dumps({{'type': 'assistant.message', 'data': {{'content': 'Done'}}}})
         self.assertEqual(sorted(len(call["skills"]) for call in calls), [0, 0, 1, 1])
         self.assertTrue(all(not call["dirty"] and call["seed"] for call in calls))
         self.assertFalse((self.project / "changed.txt").exists())
+
+    def test_task_run_refuses_existing_artifacts_and_grades(self):
+        run_dir = self.root / "existing-run"
+        (run_dir / "outputs").mkdir(parents=True)
+        (run_dir / "outputs/old.txt").write_text("Old result")
+        (run_dir / "grading.json").write_text('{"summary":{"pass_rate":1}}')
+        with self.assertRaises(FileExistsError):
+            run_harness_eval.run_one(
+                "copilot", {"prompt": "Do the task"}, "with_skill", self.skill,
+                self.project, run_dir, None, 5,
+            )
+        self.assertFalse(self.log.exists())
+        self.assertEqual((run_dir / "outputs/old.txt").read_text(), "Old result")
+
+    def test_task_cli_refuses_existing_iteration_before_agent_execution(self):
+        workspace = self.root / "workspace"
+        iteration = workspace / "iteration-1"
+        iteration.mkdir(parents=True)
+        metadata = iteration / "eval_metadata.json"
+        metadata.write_text("Old metadata")
+        evals = self.root / "evals.json"
+        evals.write_text(json.dumps({"evals": [{"id": 1, "prompt": "Do the task"}]}))
+        result = subprocess.run(
+            [sys.executable, str(SKILL / "scripts/run_harness_eval.py"),
+             "--evals", str(evals), "--skill-path", str(self.skill), "--workspace", str(workspace)],
+            capture_output=True, text=True, timeout=15,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("FileExistsError", result.stderr)
+        self.assertFalse(self.log.exists())
+        self.assertEqual(metadata.read_text(), "Old metadata")
 
 
 if __name__ == "__main__":

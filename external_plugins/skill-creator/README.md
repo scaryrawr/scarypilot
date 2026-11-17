@@ -58,6 +58,8 @@ it is not the directory the agent modifies. Dependencies are retained and
 symlinks are copied as their target contents rather than shared writable links.
 Failed trigger executions abort the batch instead of counting as non-triggers.
 Only the uniquely staged candidate counts as trigger evidence.
+Task outputs require a new iteration directory: reruns must increment
+`--iteration` or choose a new workspace rather than reuse old outputs or grades.
 
 Obtain explicit approval for prompts, fixtures, model/provider, calls,
 repetitions, baselines, timeouts, spending, and broad tool access before
@@ -88,8 +90,9 @@ The complete [license](skills/skill-creator/LICENSE.txt) and
 ScaryPilot adds plugin registration, uv invocation guidance, explicit evaluation
 approval and isolation requirements, and runnable evaluation fixtures. Local
 helper fixes cover invocation isolation, trigger scoring, validation,
-packaging, and viewer data safety and feedback preservation; see the notice
-and provenance manifest for modified files.
+packaging, benchmark accounting, optimizer inputs and budgets, and viewer data
+safety and feedback preservation; see the notice and provenance manifest for
+modified files.
 
 Model-free regression checks use the repository's unittest flow:
 

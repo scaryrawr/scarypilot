@@ -11,12 +11,14 @@
     "skills/skill-creator/evals/evals.json",
     "skills/skill-creator/eval-viewer/generate_review.py",
     "skills/skill-creator/eval-viewer/viewer.html",
+    "skills/skill-creator/scripts/aggregate_benchmark.py",
     "skills/skill-creator/scripts/generate_report.py",
     "skills/skill-creator/scripts/harnesses.py",
     "skills/skill-creator/scripts/package_skill.py",
     "skills/skill-creator/scripts/quick_validate.py",
     "skills/skill-creator/scripts/run_eval.py",
     "skills/skill-creator/scripts/run_harness_eval.py",
+    "skills/skill-creator/scripts/run_loop.py",
     "skills/skill-creator/scripts/utils.py"
   ],
   "changes": [
@@ -27,6 +29,7 @@
     "Fixed viewer script-data escaping, nested artifact discovery, listener preservation, and feedback completion.",
     "Fixed null holdout reports, self-including archives, and invalid or empty frontmatter.",
     "Isolated each eval invocation's working copy, required exact staged trigger evidence, and aborted trigger batches on execution errors.",
-    "Added model-free unittest regression coverage using fake agent processes."
+    "Added model-free unittest regression coverage using fake agent processes.",
+    "Escaped grading-evidence attribute quotes, handled failed feedback HTTP writes, preserved available token counts, rejected stale task outputs and empty training splits, and corrected the optimizer retry budget."
   ]
 }

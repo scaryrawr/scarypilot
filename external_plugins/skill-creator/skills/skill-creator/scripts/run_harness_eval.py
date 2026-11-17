@@ -7,7 +7,8 @@ the bundled viewer and aggregation scripts. Legacy non-Copilot harnesses remain
 available only when explicitly selected. Original project copyright and
 Apache-2.0 license are retained in ../LICENSE.txt.
 
-ScaryPilot modification: isolate candidate staging and mutations per task run.
+ScaryPilot modifications: isolate candidate staging and mutations per task run,
+and refuse existing iteration/run directories to prevent stale artifact reuse.
 """
 
 from __future__ import annotations
@@ -78,7 +79,7 @@ def run_one(
     model: str | None,
     timeout: int,
 ) -> dict:
-    run_dir.mkdir(parents=True, exist_ok=True)
+    run_dir.mkdir(parents=True, exist_ok=False)
     outputs_dir = run_dir / "outputs"
     outputs_dir.mkdir(parents=True, exist_ok=True)
     input_files = copy_input_files(eval_item.get("files", []), skill_path, run_dir)
@@ -208,6 +209,7 @@ def main() -> None:
     harnesses = choose_harness(args.harness, trigger_only=False)
     workspace = Path(args.workspace or f"{name}-workspace").resolve()
     iteration_dir = workspace / f"iteration-{args.iteration}"
+    iteration_dir.mkdir(parents=True, exist_ok=False)
 
     with resolve_eval_root(args.project_root) as project_root:
         futures = []

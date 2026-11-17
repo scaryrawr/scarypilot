@@ -65,6 +65,8 @@ The default includes a with-skill and a baseline run for each case. With one
 repetition and one harness, budget `2 * case count` CLI invocations, or
 `case count` with `--no-baseline`. Each invocation may make multiple model calls.
 Baseline results do not prove that personal skills were disabled.
+Iteration and run directories must be new: reruns must choose a new workspace
+or increment `--iteration`, rather than retaining stale artifacts or grades.
 
 The script writes:
 
@@ -133,9 +135,16 @@ uv run --no-project python "<skill-creator-dir>/scripts/run_loop.py" \
 
 The loop splits train/test, evaluates current and proposed descriptions, writes a live HTML report, and prints JSON containing `best_description`.
 Budget up to `max-iterations * query count * runs-per-query` evaluation
-invocations plus up to `max-iterations - 1` description-improvement invocations
-for one harness. Improvement calls use their own 300-second timeout, not the
+invocations plus up to `2 * (max-iterations - 1)` description-improvement
+invocations for one harness. Each improvement can make a second call to shorten
+an over-limit description, so the five-iteration example allows up to eight
+improvement invocations. Each uses its own 300-second timeout, not the
 trigger `--timeout`. Do not apply a proposed description without checking its
 accuracy. Repository contributors must use the separately hardened
 `tools/skill-evals` pilot and its approval policy instead of these upstream
 model-backed commands.
+
+The default holdout requires enough cases to leave training queries after the
+stratified split. With the minimal one-positive/one-negative example, use
+`--holdout 0` or add examples; an empty training split is rejected before
+inference.

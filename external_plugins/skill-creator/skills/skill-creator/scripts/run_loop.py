@@ -5,6 +5,8 @@ Modified from Anthropic's skill-creator distribution to evaluate and improve
 skill descriptions with Copilot CLI by default. Legacy non-Copilot harnesses
 remain available when explicitly selected. Original project copyright and
 Apache-2.0 license are retained in ../LICENSE.txt.
+
+ScaryPilot modification: reject empty training sets before model execution.
 """
 
 import argparse
@@ -30,6 +32,10 @@ from scripts.utils import parse_skill_md
 
 def split_eval_set(eval_set: list[dict], holdout: float, seed: int = 42) -> tuple[list[dict], list[dict]]:
     """Split eval set into train and test sets, stratified by should_trigger."""
+    if not 0 <= holdout < 1:
+        raise ValueError("holdout must be at least 0 and less than 1")
+    if holdout == 0:
+        return list(eval_set), []
     random.seed(seed)
 
     # Separate by should_trigger
@@ -47,6 +53,8 @@ def split_eval_set(eval_set: list[dict], holdout: float, seed: int = 42) -> tupl
     # Split
     test_set = trigger[:n_trigger_test] + no_trigger[:n_no_trigger_test]
     train_set = trigger[n_trigger_test:] + no_trigger[n_no_trigger_test:]
+    if not train_set:
+        raise ValueError("Holdout leaves no training queries; add examples or use --holdout 0")
 
     return train_set, test_set
 
@@ -68,21 +76,18 @@ def run_loop(
     log_dir: Path | None = None,
 ) -> dict:
     """Run the eval + improvement loop."""
-    # Eval subprocesses run with --allow-all and can mutate their working
-    # directory's git repo; use a disposable sandbox instead of a real repo.
-    project_root = create_sandbox_project_root()
-    atexit.register(shutil.rmtree, str(project_root), ignore_errors=True)
     name, original_description, content = parse_skill_md(skill_path)
     current_description = description_override or original_description
 
     # Split into train/test if holdout > 0
-    if holdout > 0:
-        train_set, test_set = split_eval_set(eval_set, holdout)
-        if verbose:
-            print(f"Split: {len(train_set)} train, {len(test_set)} test (holdout={holdout})", file=sys.stderr)
-    else:
-        train_set = eval_set
-        test_set = []
+    train_set, test_set = split_eval_set(eval_set, holdout)
+    if not train_set:
+        raise ValueError("At least one training query is required")
+    if verbose and holdout > 0:
+        print(f"Split: {len(train_set)} train, {len(test_set)} test (holdout={holdout})", file=sys.stderr)
+
+    project_root = create_sandbox_project_root()
+    atexit.register(shutil.rmtree, str(project_root), ignore_errors=True)
 
     history = []
     exit_reason = "unknown"

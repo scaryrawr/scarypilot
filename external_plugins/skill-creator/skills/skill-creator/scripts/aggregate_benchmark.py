@@ -6,6 +6,7 @@ Modified from Anthropic's skill-creator distribution to preserve eval names
 from eval_metadata.json and better support multi-harness configuration names.
 Original project copyright and Apache-2.0 license are retained in ../LICENSE.txt.
 
+ScaryPilot modification: recover token usage independently of duration.
 
 Reads grading.json files from run directories and produces:
 - run_summary with mean, stddev, min, max for each metric
@@ -145,20 +146,23 @@ def load_run_results(benchmark_dir: Path) -> dict:
                 # Extract timing — check grading.json first, then sibling timing.json
                 timing = grading.get("timing", {})
                 result["time_seconds"] = timing.get("total_duration_seconds", 0.0)
+                result["tokens"] = timing.get("total_tokens")
                 timing_file = run_dir / "timing.json"
-                if result["time_seconds"] == 0.0 and timing_file.exists():
+                if (not result["time_seconds"] or result["tokens"] is None) and timing_file.exists():
                     try:
                         with open(timing_file) as tf:
                             timing_data = json.load(tf)
-                        result["time_seconds"] = timing_data.get("total_duration_seconds", 0.0)
-                        result["tokens"] = timing_data.get("total_tokens", 0)
+                        if not result["time_seconds"]:
+                            result["time_seconds"] = timing_data.get("total_duration_seconds", 0.0)
+                        if result["tokens"] is None:
+                            result["tokens"] = timing_data.get("total_tokens")
                     except json.JSONDecodeError:
                         pass
 
                 # Extract metrics if available
                 metrics = grading.get("execution_metrics", {})
                 result["tool_calls"] = metrics.get("total_tool_calls", 0)
-                if not result.get("tokens"):
+                if result["tokens"] is None:
                     result["tokens"] = metrics.get("output_chars", 0)
                 result["errors"] = metrics.get("errors_encountered", 0)
 
