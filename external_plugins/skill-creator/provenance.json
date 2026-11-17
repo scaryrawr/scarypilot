@@ -1,0 +1,19 @@
+{
+  "source": "https://github.com/scaryrawr/agentic",
+  "revision": "40bf12f0c206d31423733e3fcc54fd8220b69078",
+  "path": "skills/skill-creator",
+  "upstream": "https://github.com/anthropics/skills/tree/main/skills/skill-creator",
+  "license": "Apache-2.0",
+  "modified": [
+    "skills/skill-creator/SKILL.md",
+    "skills/skill-creator/NOTICE.md",
+    "skills/skill-creator/references/workflows.md",
+    "skills/skill-creator/evals/evals.json"
+  ],
+  "changes": [
+    "Added Copilot marketplace packaging and provenance.",
+    "Documented uv-based, installed-path helper execution without automatic tool approvals.",
+    "Required explicit model spending and broad-permission approval; corrected temporary-directory containment claims.",
+    "Added task fixtures and trigger-description cases."
+  ]
+}

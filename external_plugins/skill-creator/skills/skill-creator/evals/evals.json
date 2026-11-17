@@ -1,0 +1,48 @@
+{
+  "skill_name": "skill-creator",
+  "modification_notice": "ScaryPilot adds runnable fixtures to the adapted agentic eval suite.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "new-skill-with-evals",
+      "prompt": "Create a reusable skill named csv-normalizer for converting messy CSV exports into normalized UTF-8 CSV files. Include concise SKILL.md instructions, narrowly scoped script guidance if deterministic cleanup is useful, and objective evals for at least two realistic CSV cleanup cases. Keep long details out of SKILL.md unless they are needed after the skill loads.",
+      "expected_output": "A compliant csv-normalizer skill directory is created with lean SKILL.md instructions and evals/evals.json covering objective CSV normalization behavior.",
+      "files": [],
+      "expectations": [
+        "Creates csv-normalizer/SKILL.md with name and description frontmatter, and the name matches the directory",
+        "Keeps the SKILL.md body focused on workflow and constraints instead of repeating the frontmatter description",
+        "Adds evals/evals.json with at least two realistic objective eval cases",
+        "Uses references/ or scripts/ for long details or deterministic helpers when needed",
+        "Does not add broad tool approvals or machine-specific paths"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "revise-redundant-skill",
+      "prompt": "Copy the provided redundant-skill.md fixture to redundant-skill/SKILL.md under your output directory, then revise it. It repeats the description in the opening paragraph, has overlapping sections named 'When to use', 'Use this for', and 'Trigger examples', and has no evals. Remove repeated body content while preserving its CSV normalization workflow and constraints. Add objective task evals and a separate trigger-evals.json containing at least one near-miss trigger case. Do not execute model-backed helpers.",
+      "expected_output": "The revised skill has a lean SKILL.md without overlapping sections and includes evals that guard the main behavior and trigger boundaries.",
+      "files": ["evals/files/redundant-skill.md"],
+      "expectations": [
+        "Removes or merges overlapping usage sections instead of preserving duplicated headings",
+        "Does not copy the description frontmatter into the skill body",
+        "Preserves the practical workflow and constraints needed after the skill loads",
+        "Adds evals/evals.json with objective success criteria",
+        "Includes at least one expectation that would catch accidental trigger-boundary regression"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "package-and-validate-skill",
+      "prompt": "Copy the provided package-skill.md fixture to package-skill/SKILL.md under your output directory. Add a small instruction update to SKILL.md and placeholder files at evals/evals.json, __pycache__/example.pyc, node_modules/example/index.js, .DS_Store, and stray.pyc. Validate it and package it into a dist directory under your output directory using the bundled helpers through uv. Inspect the archive to confirm the placeholder files are excluded, then explain where the archive was written. Do not run model-backed helpers.",
+      "expected_output": "The skill is validated, packaged into a .skill archive, and the final answer reports the archive path without including evals or cache files.",
+      "files": ["evals/files/package-skill.md"],
+      "expectations": [
+        "Runs quick_validate.py against the skill directory",
+        "Runs package_skill.py with an explicit output directory",
+        "Creates a .skill archive in the requested or temporary distribution directory",
+        "Confirms root evals, __pycache__, node_modules, .DS_Store, and .pyc files are excluded",
+        "Reports the archive path concisely"
+      ]
+    }
+  ]
+}

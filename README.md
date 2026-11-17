@@ -60,6 +60,7 @@ for provenance, runtime differences, and validation.
 | **playwright-ext**  | Browser Automation | Browser automation using Playwright with extension bridge. Testing, web scraping, form automation with logged-in sessions.                                             | [📖 Docs](./external_plugins/playwright-ext/README.md)  |
 | **pstack**          | Workflow           | Skill-based workflows, prompt rewriting, read-only catch-up, formal verification, model-checked statecharts, benchmark checks, and portable validation helpers.                | [📖 Docs](./external_plugins/pstack/README.md)          |
 | **screen-record**   | Media              | Record agent-driven demos and edit them with trimming, side-by-side layouts, captions, and local narration.                                                              | [📖 Docs](./plugins/screen-record/README.md)            |
+| **skill-creator** | Workflow | Create, revise, validate, package, and evaluate reusable Copilot skills. | [📖 Docs](./external_plugins/skill-creator/README.md) |
 | **smahties**        | Code Search        | Local semantic code-search MCP server from smahtutils with indexing, embeddings, and keyword/hybrid query support. Requires the `smahties` CLI first.                  | [📖 Docs](./plugins/smahties/README.md)                 |
 | **uv**              | Python             | Guide Copilot to run Python and manage Python dependencies with uv.                                                                                                   | [📖 Docs](./plugins/uv/README.md)                       |
 
@@ -120,6 +121,7 @@ prove that an external service, browser bridge, or capture device is available.
 | `ado-codespaces`, `azure-devops` | Local clients target all three platforms. Codespaces workloads run in their Linux container. Azure DevOps workflows also need their documented CLI and authentication setup. |
 | `anti-slop`, `better-init`, `digivolution` | Target all three platforms with their documented tools. |
 | `uv` | Requires Node.js and uv on the Copilot CLI host. |
+| `skill-creator` | Requires uv and Python 3.10+. Optional model-backed evals require Copilot CLI, Git, explicit approval, and an externally isolated disposable environment. |
 | `kokoro` | Requires uv, compatible Python/native speech dependencies, and local model/voice assets. Windows ARM64 CPU synthesis has succeeded locally; GPU/NPU acceleration is unverified. |
 | `copilot-autoresearch` | Targets all three platforms with Bash installed. Experiment commands and repository-specific tools must match the execution host. |
 | `chrome-devtools`, `playwright-ext`, `smahties` | Require the documented external browser bridge or CLI on the host. These integrations are not bundled implementations of those dependencies. |

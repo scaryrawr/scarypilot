@@ -1,0 +1,26 @@
+[
+  {
+    "query": "Create a reusable Copilot skill for normalizing CSV exports, with objective eval cases.",
+    "should_trigger": true
+  },
+  {
+    "query": "Revise my SKILL.md to remove repetitive instructions while preserving its workflow.",
+    "should_trigger": true
+  },
+  {
+    "query": "Validate and package this agent skill into a .skill archive, excluding caches and evals.",
+    "should_trigger": true
+  },
+  {
+    "query": "Prepare trigger-description evals and propose an optimization budget for my Copilot skill. Do not run inference.",
+    "should_trigger": true
+  },
+  {
+    "query": "Normalize the headers in this CSV file and save a UTF-8 copy. Do not create reusable instructions.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain what a Python virtual environment is.",
+    "should_trigger": false
+  }
+]
