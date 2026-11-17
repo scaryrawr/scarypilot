@@ -4,8 +4,9 @@ Native recording preparation and the optional `scripts/transcribe.py` fallback.
 
 ## Native recording preparation
 
-Prefer `omlx_transcribe` with `input` and a fresh `output_dir` when the plugin
-is installed. The same tool's `output` mode preserves standalone audio-to-text
+Use the recording transcription action from the
+[shared media actions](../../../references/actions.md) with `input` and a fresh
+`output_dir`. The same action's `output` mode preserves standalone audio-to-text
 behavior. `output` and `output_dir` are mutually exclusive.
 
 The recording mode extracts mono 16 kHz WAV chunks and transcribes them
@@ -52,8 +53,10 @@ There is no automatic cloud fallback.
 
 ## Legacy silence-aware pipeline
 
-If native tools are unavailable, run `uv run scripts/transcribe.py --input
-<absolute-recording> --output-dir <fresh-absolute-dir>`. This script needs `uv`,
+Use the shared Node CLI when native tools are unavailable. For optional
+silence-aware chunking, resolve `scripts/transcribe.py` from the installed
+blogify directory and invoke it with `--input <absolute-recording>
+--output-dir <fresh-absolute-dir>`. This script needs `uv`,
 Python, `ffmpeg`, and `ffprobe`. Unlike native recording preparation, the script
 does not enforce fresh directories, bounded work, or a loopback-only endpoint.
 Check its destination and `OMLX_BASE_URL` before running it.

@@ -1,10 +1,10 @@
 import * as path from "node:path";
 import { stat } from "node:fs/promises";
 import { OmlxToolError } from "./domain.ts";
-import { type AudioChunk, type RecordingArgs } from "./media-domain.ts";
+import { type AudioChunk, type RecordingArgs, type RecordingResult } from "./media-domain.ts";
 import {
   abortError, boundedOperation, freshDirectory, probeStreamDuration, probeMedia, publishManifest, reserveDirectory,
-  retainedArtifacts, runMediaProcess, sourceFile, writeArtifact,
+  retainFailure, runMediaProcess, sourceFile, writeArtifact,
   type MediaDependencies,
 } from "./media-io.ts";
 import { OmlxClient } from "./omlx-client.ts";
@@ -13,7 +13,7 @@ export async function prepareRecording(
   args: RecordingArgs,
   dependencies: MediaDependencies = {},
   invocationSignal?: AbortSignal,
-): Promise<{ directory: string; manifest: string; transcript: string; model: string; chunks: number }> {
+): Promise<RecordingResult> {
   return boundedOperation(args.timeout_seconds, invocationSignal, async (signal) => {
     const source = await sourceFile(args.input);
     const requested = await freshDirectory(args.output_dir);
@@ -45,9 +45,9 @@ export async function prepareRecording(
     const model = await api.selectAudioModel("transcription", args.model);
     signal.throwIfAborted();
     const directory = await reserveDirectory(requested);
+    const chunks: AudioChunk[] = [];
 
     try {
-      const chunks: AudioChunk[] = [];
       let transcriptBytes = 0;
 
       for (let index = 0; index < count; index++) {
@@ -107,12 +107,15 @@ export async function prepareRecording(
         chunks,
       }, null, 2), signal);
 
-      return { directory, manifest, transcript, model, chunks: chunks.length };
+      return {
+        kind: "recording", directory, manifest, transcript, model, chunks: chunks.length,
+        timing: "Timestamps are chunk boundaries, not word or speaker timestamps.",
+      };
     } catch (error) {
       const failure = signal.aborted ? abortError(signal) : error instanceof OmlxToolError ? error
         : new OmlxToolError("MEDIA_PREPARATION_FAILED", error instanceof Error ? error.message : String(error));
 
-      throw retainedArtifacts(failure, directory);
+      throw await retainFailure(failure, directory, { kind: "recording", source, chunks });
     }
   });
 }

@@ -5,9 +5,11 @@ description: "Answer explicitly typed /poteto-help requests or help questions ab
 
 # Poteto help
 
+For host-dependent actions and paths, read [runtime actions](../../docs/runtime-actions.md) first.
+
 Answer the user's pstack question, give them a prompt they can send, and link the source. Do not start the suggested work. Help is not consent to spend tokens on a panel or workflow.
 
-If `/poteto-help` carries an implementation request, explain which prompt would start it, then stop. Do not delegate, install or configure anything, mutate files or external systems, schedule work, or invoke an execution workflow. Read relevant skill files as documentation with available read/search tools, not by running their steps. Respect the host's built-in skill and Task tooling; do not substitute another client's tool names or assume unavailable capabilities.
+If `/poteto-help` carries an implementation request, explain which prompt would start it, then stop. Do not delegate, install or configure anything, mutate files or external systems, schedule work, or invoke an execution workflow. Read relevant skill files as documentation with available read/search tools, not by running their steps. Respect the host's built-in skill and worker tooling; do not substitute another client's tool names or assume unavailable capabilities.
 
 This map routes to files that own the details. Read the relevant file before recommending or quoting it, and prefer its actual instructions over this summary. For user-facing source links, use `https://github.com/scaryrawr/scarypilot/blob/main/external_plugins/pstack/` followed by the path relative to the plugin root. Link the adapted file you read, not upstream client-specific docs. If its public availability is unconfirmed, say so rather than inventing a link.
 
@@ -25,27 +27,22 @@ In a non-interactive host, state the likely interpretation and answer it without
 
 Inspect state only when it changes the answer:
 
-- Resolve Copilot home from `$COPILOT_HOME`, defaulting to `$HOME/.copilot`. If `instructions/pstack-models.instructions.md` or a role line is absent, omit the Task `model` argument and let the host select its default. A missing file does not prove setup never ran.
+- Read only the current host's model mapping as described in setup. If it or a role line is absent, omit explicit model selection and let the host select its default. A missing file does not prove setup never ran.
 - For questions about proving app behavior, look for a skill or equivalent runtime harness that launches or connects to the real app, drives user-facing behavior, and checks the result. Read its launch/drive instructions or harness commands rather than trusting a `verify-*` name. A formal-only model-checking, proof, or code-verification skill does not satisfy this runtime check. If that runtime capability is missing, suggest `/create-verification-skill`.
 - If no project skill checks a formal property, mention `/create-formal-verification-skill` for a race, invariant, or other case tests rarely reach. If one exists and its covered code changed after its recorded sync commit, mention `/maintain-formal-verification-skill` when the question touches that code. A runtime harness alone is not a formal verification skill.
 - Use the current host's advertised tools and the required helper runtimes as authoritative. Unknown is not permission to assume support.
 
 ## Get set up
 
-Give the Copilot installation commands as instructions, not actions to execute during help:
+Read the [installation instructions](../../README.md#installation) for the current host. Give instructions, not actions to execute during help. Both native entrypoints use the same skills tree.
 
-```sh
-copilot plugin marketplace add scaryrawr/scarypilot
-copilot plugin install pstack@scarypilot
-```
+Then recommend [`/setup-pstack`](../setup-pstack/SKILL.md) to configure available worker model roles, followed by a small `/poteto-mode` task with a pass/fail check. Setup owns native configuration paths and loading behavior. It configures role models, then offers once each to generate a runtime verification skill and a formal verification skill unless the project already has the corresponding check. Each offer is optional and requires acceptance before starting.
 
-Then recommend [`/setup-pstack`](../setup-pstack/SKILL.md) to configure available Task model roles, followed by a small `/poteto-mode` task with a pass/fail check. Setup writes `instructions/pstack-models.instructions.md` in Copilot home, normally `~/.copilot`, for new or resumed sessions. It configures role models, then offers once each to generate a runtime verification skill and a formal verification skill unless the project already has the corresponding check. Each offer is optional and requires acceptance before starting.
-
-Copilot supports natural-language skill triggers as well as typed skill names. Setup is not the only naturally invokable skill, and installation is not authorization to execute every workflow. The [README](../../README.md) and [guide page 1](../../docs/guide/01-setup.md) own installation and capability details.
+The host may support natural-language skill triggers as well as typed skill names. Setup is not the only naturally invokable skill, and installation is not authorization to execute every workflow. The [README](../../README.md) and [guide page 1](../../docs/guide/01-setup.md) own installation and capability details.
 
 For inventory or version questions, read the current README and [`plugin.json`](../../plugin.json) instead of treating this routing table as the complete inventory.
 
-For cost questions, explain that Task agents and panels add model work. Choose lower-cost available models only where they meet the quality bar, reduce panel entries, and reserve heavy playbooks for work that needs them. `auto` and `inherit-parent` both omit `model`; the host selects its default. Neither guarantees the parent model, fewer tokens, or a cheaper run.
+For cost questions, explain that independent workers and panels add model work. Choose lower-cost available models only where they meet the quality bar, reduce panel entries, and reserve heavy playbooks for work that needs them. `auto` and `inherit-parent` both omit explicit model selection; the host selects its default. Neither guarantees the parent model, fewer tokens, or a cheaper run.
 
 The plugin supplies skills and scripts, not a native command, automatic resume
 hook or status service. Read a supplied handoff or scoped session history
@@ -58,7 +55,7 @@ asking an agent to interpret its output still uses the agent.
 
 Follow-ups can be short while the conversation holds the task and playbook. Do not promise a sticky Custom Mode or a keyboard shortcut. Start each new task with `/poteto-mode`; say "new task" when changing subjects, and invoke the skill again if the workflow drifts.
 
-The playbooks use the `poteto-agent` custom agent only when the current Task tool advertises it. Select the exact advertised `agent_type`, which may be plugin-qualified. Otherwise follow the skill's documented built-in Task fallback. Do not invent a model ID, agent name, background mode, or cloud parameter the host schema does not support.
+The playbooks use the `poteto-agent` custom agent only when the current worker-launch action advertises it. Select the exact advertised worker role, which may be plugin-qualified. Otherwise follow the skill's documented supported worker fallback. Do not invent a model ID, agent name, background mode, or cloud parameter the host schema does not support.
 
 ## Pick a skill
 
@@ -96,7 +93,7 @@ Default to `/poteto-mode` for non-trivial work that needs its discipline. Name a
 | Validate a pstack snapshot, receipt, handoff, or plan contract | [`/pstack-schema-validate`](../pstack-schema-validate/SKILL.md) |
 | Run a large change or work to review after stepping away | [`/figure-it-out`](../figure-it-out/SKILL.md) |
 | Keep and audit a decision trail | [`/show-me-your-work`](../show-me-your-work/SKILL.md) |
-| Configure models per Task role | [`/setup-pstack`](../setup-pstack/SKILL.md) |
+| Configure models per worker role | [`/setup-pstack`](../setup-pstack/SKILL.md) |
 | Capture personal working habits in a mode skill | [`/automate-me`](../automate-me/SKILL.md) |
 | Turn session lessons into approved skill edits | [`/reflect`](../reflect/SKILL.md) |
 | Prevent repeated repository mistakes | [`/correct`](../correct/SKILL.md) |
@@ -114,7 +111,7 @@ Close calls:
 - `/in-your-own-words` checks understanding without starting work. `/sharpen` returns a rewritten prompt with an expert approach, raw sources, methods and an outside check; neither executes the task or authorizes implementation.
 - `/figure-it-out` designs one rigorous run. Orchestrate is a multi-day program; Autonomous run drives one task to a finish condition.
 
-Both `/deslop` and `/pstack-schema-validate` are bundled in this Copilot pstack adaptation. The validation skill's Node CLI checks one selected workspace artifact without running artifact contents or reading evidence paths. Its confined reader requires macOS or Linux and rejects unsupported platforms rather than falling back to an unconstrained read. Valid structure is not proof of behavior, freshness, or permission to act.
+Both `/deslop` and `/pstack-schema-validate` are bundled in this shared pstack adaptation. The validation skill's Node CLI checks one selected workspace artifact without running artifact contents or reading evidence paths. Its confined reader requires macOS or Linux and rejects unsupported platforms rather than falling back to an unconstrained read. Valid structure is not proof of behavior, freshness, or permission to act.
 
 `/statechart` needs Node.js 22.18 or later, a POSIX host, Java 11 or later,
 and the TLC jar selected by `TLA2TOOLS`. It writes Mermaid and a report to a
@@ -123,7 +120,7 @@ the skill's rendering reference. Missing dependencies do not authorize installat
 needs real-code replay. For a short starting workflow, use
 [Use pstack for a focused task](../../docs/guide/quick-start.md).
 
-Swarms use the current host's Task agents, with explicit scope and evidence
+Swarms use the current host's independent workers, with explicit scope and evidence
 checks. Writing workers need separate worktrees. Read-only briefs do not enforce
 tool permissions or provide journaled input pinning. If those guarantees are
 required and unavailable, report the limit instead of claiming equivalence.
@@ -156,9 +153,9 @@ Principles are one-rule skills. `/poteto-mode` reads and cites those it applies.
 |---|---|
 | The style stopped applying | Invoke `/poteto-mode` again with the goal and constraints. Don't promise sticky mode support. |
 | A question became the last task's next step | Say "new task" and "don't change any code yet". |
-| A model choice had no effect | Check the Copilot home instruction and current Task model catalog. Start a new or resumed session that loads it. |
+| A model choice had no effect | Check the current host's loaded mapping and supported worker model catalog. Follow setup's native loading instructions. |
 | Runs cost more than expected | Reduce panels and review role models. Aliases alone don't guarantee savings. |
-| A skill didn't load | Invoke it explicitly, and check its installed frontmatter. Copilot also supports natural-language triggers; loading is not guaranteed by a path alone. |
+| A skill didn't load | Invoke it explicitly, and check its installed frontmatter. The host may also support natural-language triggers; loading is not guaranteed by a path alone. |
 | Parallel agents overwrote each other | Give writing workers separate worktrees, ports, and outputs. Use cloud sessions only if this host exposes them. |
 | An overnight run moved but finished nothing | Give it a pass/fail predicate, working verification, and an authorized wake mechanism if the host has one. |
 | The reply claims success from a green build | Ask for the real command, flow, stored value, or profile. |

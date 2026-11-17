@@ -1,0 +1,18 @@
+[
+  {
+    "query": "Find the best moments in this podcast recording and export short highlight clips with exact quotes.",
+    "should_trigger": true
+  },
+  {
+    "query": "Make a reel of key moments from this livestream and keep a timestamped clip manifest.",
+    "should_trigger": true
+  },
+  {
+    "query": "Write a tutorial from this demo recording with screenshots and supporting transcript.",
+    "should_trigger": false
+  },
+  {
+    "query": "Record my desktop while I demonstrate this feature.",
+    "should_trigger": false
+  }
+]

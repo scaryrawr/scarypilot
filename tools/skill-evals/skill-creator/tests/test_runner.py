@@ -368,6 +368,7 @@ for e in events: print(json.dumps(e))
             event("model.call_final_result"),
             event("session.custom_agents_updated"),
             event("session.tools_updated"),
+            event("instruction.update", content="Updated session guidance", authority="system"),
             event("session.usage_checkpoint"),
             event("assistant.idle"),
             {"type": "result", "exitCode": 0, "usage": {"premiumRequests": 1}},

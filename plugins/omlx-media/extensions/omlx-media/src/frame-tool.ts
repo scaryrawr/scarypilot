@@ -1,7 +1,7 @@
 import type { Tool, ToolResultObject } from "@github/copilot-sdk";
 import { Value } from "@sinclair/typebox/value";
 import { OmlxToolError } from "./domain.ts";
-import { FramesSchema, type FramesResult } from "./media-domain.ts";
+import { FramesSchema } from "./media-domain.ts";
 import { type MediaDependencies } from "./media-io.ts";
 import { prepareFrames } from "./prepare-frames.ts";
 
@@ -18,21 +18,9 @@ export function createOmlxPrepareFramesTool(dependencies: MediaDependencies = {}
 
         const result = await prepareFrames(args, dependencies, invocation?.signal);
 
-        const response: FramesResult = {
-          kind: "frames",
-          ...result,
-          format: args.format ?? "png",
-          timing: "Timestamps are requested source times; selects the covering frame, including the final frame interval, not measured frame PTS.",
-          classification_script_compatible: args.format === "jpeg",
-        };
-
-        if (response.format === "png") {
-          response.compatibility_note = "PNG output is not discovered by classify_frames.py, which requires .jpg files.";
-        }
-
         return {
           resultType: "success",
-          textResultForLlm: JSON.stringify(response),
+          textResultForLlm: JSON.stringify(result),
         } satisfies ToolResultObject;
       } catch (error) {
         const failure = error instanceof OmlxToolError ? error

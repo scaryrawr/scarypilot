@@ -58,7 +58,7 @@ The UI bullet above hides a real requirement. The agent needs a scripted way to 
 
 [`/create-verification-skill`](../../skills/create-verification-skill/SKILL.md) interviews the repository, not you. It works out what a user touches, how the app launches locally, what can drive it (an existing harness first, otherwise browser and CDP, a PTY, or plain HTTP), what evidence proves behavior, and whether two instances can run side by side. It asks you only what the code can't answer.
 
-It writes `.github/skills/verify-<app>/`, agent-facing instructions with exact Launch, Doctor, Drive, Evidence, and Cleanup sections, a Helpers section for any script it ships, plus a feature map under `features/` that indexes what the app does and what result proves each feature works. The skill ships a [worked feature-map example](../../skills/create-verification-skill/references/feature-map-example/) with a README index and one file per feature using the four required H2s. Before handing it over, the generator proves the skill once end to end: launch, doctor check, drive one feature, capture evidence, clean up, then confirm the evidence survived cleanup. If that proof fails, don't use the output.
+It writes `<project-skills>/verify-<app>/`, agent-facing instructions with exact Launch, Doctor, Drive, Evidence, and Cleanup sections, a Helpers section for any script it ships, plus a feature map under `features/` that indexes what the app does and what result proves each feature works. The skill ships a [worked feature-map example](../../skills/create-verification-skill/references/feature-map-example/) with a README index and one file per feature using the four required H2s. Before handing it over, the generator proves the skill once end to end: launch, doctor check, drive one feature, capture evidence, clean up, then confirm the evidence survived cleanup. If that proof fails, don't use the output.
 
 From then on, "verify it in the app" is repeatable in this repo with the required host tools and permissions. Name the skill when you want proof in a specific form:
 
@@ -72,7 +72,7 @@ From then on, "verify it in the app" is repeatable in this repo with the require
 
 Once the verify skill works, a [`/swarm`](../../skills/swarm/SKILL.md) can split a full pass by feature-map entry and aggregate the results.
 
-Verification workers need the actual driving tools, isolated app instances, and evidence acceptance, not just a `PASS`. Use Task agents for lanes that drive or write to the app. They can gather a larger perf sample with a declared measurement method or exercise regression scenarios before shipping. Avoid competing loads that distort the measurements. A read-only source review cannot replace those lanes.
+Verification workers need the actual driving tools, isolated app instances, and evidence acceptance, not just a `PASS`. Use independent workers for lanes that drive or write to the app. They can gather a larger perf sample with a declared measurement method or exercise regression scenarios before shipping. Avoid competing loads that distort the measurements. A read-only source review cannot replace those lanes.
 
 Treat the verification skill as infrastructure. Commit it when you're ready to share it, so the team drives the app the same way. Then [build the lever](../../skills/principle-build-the-lever/SKILL.md). When agents keep writing throwaway scripts to click through the app, ask for a small control CLI that the skill calls instead. Every run becomes repeatable. A useful control CLI has:
 
@@ -95,7 +95,7 @@ Apps change, and feature maps go out of date. Audit actively changing apps regul
 /maintain-verification-skill
 ```
 
-If your Copilot host exposes scheduling and you approve it, schedule the audit with the permissions and scope it needs. pstack does not supply a scheduler or an automation pack. Without that capability, run it manually.
+If your host exposes scheduling and you approve it, schedule the audit with the permissions and scope it needs. pstack does not supply a scheduler or an automation pack. Without that capability, run it manually.
 
 [`/maintain-verification-skill`](../../skills/maintain-verification-skill/SKILL.md) audits the generated skill: one read-only source reader per feature in parallel, then one live pass that drives every mapped feature. It ends in exactly one of three outcomes. `clean` means full coverage and nothing to ship. `changed` means one PR of proven corrections, confined to the verification skill's own directory. `blocked` names the blocker. It never edits product code. If the live pass catches a product regression, it reports the regression instead of hiding it with a doc edit.
 
@@ -117,7 +117,7 @@ The question picks the tool. Whether events can happen in a bad order suits a mo
 
 It verifies one property and shows that property failing on a broken variant of the code in an isolated scratch workspace. When the current code already breaks the property, you get the counterexample as a short sequence of steps in your code's terms. The property stays as stated, so the finding stays a finding. Product code doesn't change unless you ask.
 
-It writes `.github/skills/verify-<area>/SKILL.md`, a project-local skill that tells the next agent whether a change touches the verified code, how to run the check with one command, and how to tell a real bug from a modeling error. Before handing it over, the generator follows that skill once on a scratch change that breaks the property, and the check must catch it. The handoff says what was verified, with which tool and bounds, what the check found, and what it doesn't cover. A pass covers the model or the bound, not the whole system.
+It writes `<project-skills>/verify-<area>/SKILL.md`, a project-local skill that tells the next agent whether a change touches the verified code, how to run the check with one command, and how to tell a real bug from a modeling error. Before handing it over, the generator follows that skill once on a scratch change that breaks the property, and the check must catch it. The handoff says what was verified, with which tool and bounds, what the check found, and what it doesn't cover. A pass covers the model or the bound, not the whole system.
 
 The skill also records which code each check covers and the commit where the check last matched it. Merges and refactors that skip the skill can leave the check passing on a description of code that's gone. After them, run [`/maintain-formal-verification-skill`](../../skills/maintain-formal-verification-skill/SKILL.md). It updates the verification from the code, reruns it, shows that each updated check can still fail, and tells you whether each failure is drift in the verification or a bug in the code. It reports `in sync`, `updated`, `bug`, or `blocked` for each check without weakening a property just to make it pass.
 

@@ -5,6 +5,8 @@ description: "Keep a reviewable decision trail for long-running or unattended wo
 
 # Show me your work
 
+For host-dependent actions and paths, read [runtime actions](../../docs/runtime-actions.md) first.
+
 Keep one canonical log.
 
 ## The format
@@ -54,7 +56,7 @@ Commit it only when the work is ambitious enough that a reviewer needs the trail
 
 ## Audit the log against the transcript
 
-At the end of the run, before handing back, check the log told the truth. Use the active conversation, or query only the current session with `session_store_sql` when available. Never search unrelated sessions. Walk this run's rows against what actually happened. A stretch of them begins at one of this run's `start` rows, or at the first row if this run created the log, and ends at the next `start` row of another run:
+At the end of the run, before handing back, check the log told the truth. Use the active conversation, or query only the current session with the supported scoped-history search action when available. Never search unrelated sessions. Walk this run's rows against what actually happened. A stretch of them begins at one of this run's `start` rows, or at the first row if this run created the log, and ends at the next `start` row of another run:
 
 - Every row maps to a real action. Cut invented or aspirational entries.
 - Each row's evidence resolves and shows what the row claims.
@@ -65,7 +67,7 @@ Correct the log, not the story. The audit never edits or removes a row, even an 
 
 ## Cross-model review of the trail
 
-Before handing back, spawn a subagent on a different configured model family when the current Task schema proves one is available. Otherwise omit `model` and record that model diversity was unavailable. Self-review is not a substitute. The subagent reads the audit trail and the current session evidence, then flags what the user should pay attention to. This is a scan for risk, not a redo of the work.
+Before handing back, spawn a subagent on a different configured model family when the current worker-launch schema proves one is available. Otherwise omit explicit model selection and record that model diversity was unavailable. Self-review is not a substitute. The subagent reads the audit trail and the current session evidence, then flags what the user should pay attention to. This is a scan for risk, not a redo of the work.
 
 - Decisions logged with weak or absent evidence.
 - Verification steps skipped or claimed without proof in the transcript.

@@ -2,14 +2,19 @@
   "version": 1,
   "inputs": {
     "extension.mjs": "b04787e1d048dfec3b7dcffd97839d4ecce7607cff83eb18b2ac5ea70d4578fa",
-    "package-lock.json": "a6d954a558b4a0b346153bbdcd0e8344eac9a84ba791279cd6f50307d72eafb0",
-    "package.json": "13d0a66005893d46bdf63f3299c7574162917cf56c7443ec3067e2f463922f8e",
-    "src/decisions.ts": "8cc660891f79637f20f85d208128dbc561c6f2f1cc2ec2d8a30f8b6f7b5dd4ee",
-    "src/extension.ts": "47ae57ee78e6dbe0c5a98cd6a94261f73313e5a5e86c0c69b2598af3ed1d1667",
-    "src/schemas.ts": "ed4df9f99340bd67d8c1b2054290caee96b940b83c46d6e2ad98e0e44db129db",
-    "tsdown.config.mjs": "a44c5d47e261163227db70cf4cb3c4bca2c5aa2747b88a79cfd6754bb376d1d5"
+    "package-lock.json": "c81aa1c09a7a82974813fd82fed93e48b17f6be1925761ecb9c26c84efc3812c",
+    "package.json": "5bc440aba474532f552fcabc743606f40805261ea9633305d74b396e0024409b",
+    "src/cli.ts": "35dc1776cd2faa7a12bfbaed3e6d8cf07428ad3715da8b5b07607087311e48bf",
+    "src/decisions.ts": "0b5ef3ccd4b45e8ebbc668a0c05d70d18df77fead42993fcedeb119236c0313e",
+    "src/extension.ts": "40a1e78e8aefa79d26a852dc27559adbf463e3fc866eaa613857c15a7259e66b",
+    "src/run-cli.ts": "27198fd213352330ee7542ef92a1051c47098d44511520e0f1dbfba3ccbb6cc5",
+    "src/schemas.ts": "5abafbc32513250fd39aafea538591971622e389f9a42268a7889a224577364d",
+    "src/tools.ts": "075360391ce66cb065ed20f547f4ed8e0bafde4fa4673f33c5408b4f66b383c8",
+    "tsdown.config.mjs": "d577a284374cef24db9381fe1a541874f2866d093ec334001140f032894fbec8"
   },
   "outputs": {
-    "dist/extension.mjs": "72b080f6299d509edebd374628200d6be07e21d428e17aa044af8eab5c87b62f"
+    "dist/cli.mjs": "9cd829cb6e3fd8d2bfc65e44ccf14684e122589bc19fbe89dfda2c35a77033fb",
+    "dist/decisions-BLiuCJsn.mjs": "335649c47ff00a135cacfaf16ae76aed3eba885d520ab761e6b8f6202305646d",
+    "dist/extension.mjs": "9456ee210dd99ea0393f89e3b3c3104971f3a19418a5a34a91331c4ad519b3c1"
   }
 }

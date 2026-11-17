@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { Value } from "@sinclair/typebox/value";
-import { DecisionClient, createDecisionTools } from "../src/decisions.ts";
+import { DecisionClient } from "../src/decisions.ts";
+import { createDecisionTools } from "../src/tools.ts";
 import { DecisionInputSchema, DecisionRequestSchema, DecisionResponseSchema, type DecisionInput, type DecisionRequest, type Question } from "../src/schemas.ts";
 
 type ObservedRequest = { path: string; method: string; authorization?: string; body?: unknown };
@@ -507,9 +508,9 @@ for (const interruption of ["cancellation", "timeout"] as const) {
   });
 }
 
-test("model IDs are exact, without implicit tags or aliases", async (t) => {
+test("native model IDs are exact, without implicit tags or advertised aliases", async (t) => {
   const http = await server(t, (req, res) => json(res, req.path === "/v1/models/status"
-    ? { models: [{ ...installed.models[0], id: "installed:latest" }] } : response));
+    ? { models: [{ ...installed.models[0], id: "installed:latest", model_alias: "installed" }] } : response));
 
   const client = new DecisionClient({ environment: { OMLX_BASE_URL: http.url } });
   await assert.rejects(client.decide(request), /not installed/);
@@ -704,6 +705,8 @@ const invalidRequests: [string, unknown][] = [
   ["empty model", { ...request, model: " " }],
   ["null state", { ...request, state: null }],
   ["empty state", { ...request, state: " \n" }],
+  ["empty state with images", { ...request, state: "", images: ["data:image/png;base64,aGVsbG8="] }],
+  ["blank state with images", { ...request, state: " \n", images: ["data:image/png;base64,aGVsbG8="] }],
   ["nonfinite state", { ...request, state: { bad: Infinity } }],
   ["zero questions", { ...request, questions: {} }],
   ["blank question name", { ...request, questions: { " ": request.questions.refund } }],
@@ -738,6 +741,29 @@ const invalidRequests: [string, unknown][] = [
   ["zero score levels", { ...request, questions: { q: { ...request.questions.urgency, criteria: [] } } }],
   ["invalid data URI padding", { ...request, images: ["data:image/png;base64,aGVsbG8"] }],
 ];
+
+test("native empty state with images fails its advertised schema and default client before network access", async () => {
+  let fetches = 0;
+
+  const client = new DecisionClient({
+    fetch: async () => {
+      fetches++;
+      assert.fail("Invalid native state must not fetch");
+    },
+  });
+
+  const tools = createDecisionTools(client);
+
+  for (const state of ["", " \n"]) {
+    const input = { ...request, state, images: ["data:image/png;base64,aGVsbG8="] };
+
+    assert.equal(Value.Check(DecisionRequestSchema, input), false);
+    assert.equal(Value.Check(tools[1].parameters, input), false);
+    await assert.rejects(client.decide(input), /Invalid decision request/);
+  }
+
+  assert.equal(fetches, 0);
+});
 
 for (const [label, input] of invalidRequests) {
   test(`invalid request rejects ${label} without fetching`, async () => {
@@ -857,6 +883,8 @@ test("schema accepts exact limits, JSON arrays, null choice descriptions, and pa
 });
 
 const invalidResponses: [string, unknown][] = [
+  ["top-level extension", { ...response, server_extension: { retained: true } }],
+  ["null error field", { ...response, error: null }],
   ["wrong model", { ...response, model: "other" }],
   ["missing answer", { ...response, answers: { category: response.answers.category } }],
   ["extra answer", { ...response, answers: { ...response.answers, extra: response.answers.refund } }],

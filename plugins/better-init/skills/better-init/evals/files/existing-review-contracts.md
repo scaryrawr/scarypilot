@@ -1,0 +1,9 @@
+---
+name: review-contracts
+description: Review pull requests for greeting output compatibility.
+---
+
+# Review contracts
+
+When reviewing changes to `src/index.js`, preserve the exact `Hello, <name>!`
+greeting output format relied on by clients.

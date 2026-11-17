@@ -1,11 +1,12 @@
 {
   "name": "omlx-decisions",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Native Copilot tools for installed oMLX decision models.",
   "type": "module",
   "scripts": {
-    "build": "tsdown && node ../../../../tools/check-extension-bundles.mjs write plugins/omlx-decisions/extensions/omlx-decisions",
+    "build": "tsdown && node scripts/bundle-manifest.mjs write",
+    "bundle:check": "node scripts/bundle-manifest.mjs check",
     "test": "node --test --experimental-strip-types --experimental-test-module-mocks tests/*.test.ts",
     "typecheck": "tsc --noEmit",
     "smoke:live": "node --experimental-strip-types scripts/live-smoke.mjs"

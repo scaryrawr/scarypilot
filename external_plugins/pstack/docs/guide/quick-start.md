@@ -82,8 +82,8 @@ Use a swarm only for independent coverage that needs separate context, not a
 single call chain. Writing workers need isolated workspaces. More agents do
 not replace a working runtime check.
 
-Task agents, models, image inspection, and scheduling depend on the current
-Copilot host. `auto` and `inherit-parent` omit the Task model argument; neither
+independent workers, models, image inspection, and scheduling depend on the current
+host. `auto` and `inherit-parent` omit explicit model selection; neither
 guarantees a cheaper model. Read-only agent instructions are not a tool sandbox.
 
 When you need a checked behavior diagram, see

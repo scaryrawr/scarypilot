@@ -1,18 +1,18 @@
 # Screen Record Plugin
 
-Create polished product demos by combining agent-driven computer use with local
+Create product demos in GitHub Copilot CLI or Codex through agent-driven computer use with local
 FFmpeg screen capture and editing. The plugin includes:
 
 | Capability | Purpose |
 | --- | --- |
 | `screen-record` skill | Plan, capture, inspect, trim, caption, narrate, and compose demo videos. |
-| `demo-producer` agent | Drive a rehearsed demo from capture through final review. |
+| Copilot `demo-producer` agent | Drive a rehearsed demo from capture through final review. Codex can follow the same skill without agent registration. |
 | Native recording tools | Check capture dependencies, discover inputs, and start, inspect, or gracefully stop a detached recording. |
 
 ## Prerequisites
 
-- A current GitHub Copilot CLI release with plugin, skill, and native extension support.
-- Node.js 22.18 or newer on `PATH` for the native tools. The standalone CLI supports Node.js 20 or newer.
+- A current GitHub Copilot CLI or Codex release with plugin and skill support.
+- Node.js 22.18 or newer on `PATH`. Codex users need no npm, Bun, or Copilot SDK.
 - `ffmpeg` and `ffprobe` on `PATH`.
 - Windows window capture also requires PowerShell and FFmpeg 7.0 or newer with
   `gdigrab` HWND input support. Full-desktop capture does not require HWND
@@ -44,6 +44,16 @@ copilot plugin marketplace add scaryrawr/scarypilot
 copilot plugin install screen-record@scarypilot
 ```
 
+For Codex, add `scaryrawr/scarypilot` through the native plugin marketplace UI
+and install `screen-record` from `scarypilot`. Its `.codex-plugin/plugin.json`
+discovers the same `skills/` tree. It does not register Copilot extensions or
+agents.
+
+The shared skill discovers native recording capabilities by action description.
+If none is advertised, it resolves the installed skill's
+`scripts/screen-record.mjs`. Both hosts use that one recorder implementation.
+Native validation, consent, and identity failures never authorize a fallback.
+
 ## Usage
 
 - "Record a demo of this flow, drive it with computer use, and trim the setup."
@@ -60,6 +70,15 @@ operation timing and source provenance rather than making clips finish together.
 The skill writes recordings and edits only to paths chosen in the user's
 workspace. Recording state and FFmpeg logs are kept in the operating system's
 temporary directory.
+Each recording has a retained identity and a separate generation-state file.
+Discovery points at that generation. An old controller cannot publish over a
+replacement recording's state. Stop after interruption with the retained
+identity, never a replacement ID obtained from status.
+
+The Codex manifest and generation-state regression fixes derive from
+[scaryrawr/scarydex](https://github.com/scaryrawr/scarydex), copyright 2026
+Mike Wallio under the included MIT license. ScaryPilot's recorder remains the
+shared implementation, including its legacy state and startup rollback behavior.
 
 ## Recording tools
 

@@ -15,9 +15,7 @@ const PLUGIN_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 const RULE_CODE = /^(?:anti-slop(?:-effect)?\(|oxc\(no-accumulating-spread\))/;
 
-function runtimeRoot() {
-  const home = process.env.COPILOT_HOME || path.join(os.homedir(), ".copilot");
-
+function runtimeRoot(home) {
   return path.join(home, "anti-slop", `oxlint-${VERSION}-${process.platform}-${process.arch}`);
 }
 
@@ -60,11 +58,16 @@ async function readyRuntime(directory) {
   }
 }
 
-export async function oxlintExecutable() {
-  const directory = runtimeRoot();
+export async function oxlintExecutable({
+  cacheHome = process.env.COPILOT_HOME || path.join(os.homedir(), ".copilot"),
+  install = true,
+} = {}) {
+  const directory = runtimeRoot(cacheHome);
   const ready = await readyRuntime(directory);
 
   if (ready) return ready;
+
+  if (!install) throw new Error(`Oxlint is not set up at ${directory}; run the bundled hooks/codex-setup.mjs helper with user approval and the same PLUGIN_DATA or CODEX_HOME environment as this hook.`);
 
   await mkdir(path.dirname(directory), { recursive: true });
   const staging = await mkdtemp(path.join(path.dirname(directory), "oxlint-install-"));

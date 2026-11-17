@@ -1,7 +1,7 @@
 {
   "name": "pstack",
-  "description": "Copilot-compatible adaptation of pstack's rigorous planning, review, delegation, and verification workflows.",
-  "version": "3.0.0-copilot.1",
+  "description": "Rigorous planning, review, delegation, and verification workflows shared with Codex.",
+  "version": "3.1.0-copilot.1",
   "author": {
     "name": "Lauren Tan"
   },
@@ -14,7 +14,8 @@
     "workflow",
     "review",
     "planning",
-    "copilot"
+    "copilot",
+    "codex"
   ],
   "skills": [
     "skills/"

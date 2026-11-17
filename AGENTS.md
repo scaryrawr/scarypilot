@@ -2,7 +2,9 @@
 
 ## Project Structure & Module Organization
 
-ScaryPilot is a GitHub Copilot plugin marketplace. Treat `.github/plugin/marketplace.json` as the published inventory when it differs from README tables. First-party plugins live in `plugins/<name>/`; adapted or external integrations live in `external_plugins/<name>/`.
+ScaryPilot publishes Copilot and Codex plugin marketplaces. Treat `.github/plugin/marketplace.json` as the Copilot inventory and `.agents/plugins/marketplace.json` as the Codex inventory when README tables differ. First-party plugins live in `plugins/<name>/`; adapted or external integrations live in `external_plugins/<name>/`. Matching publications share one plugin root and skill tree. Codex uses `.codex-plugin/plugin.json`; never register Copilot SDK extensions or Copilot agent manifests there. Shared skills describe actions and require advertised capability/schema discovery rather than hard-coded host tool protocols.
+
+Native publication names may differ for the same root (`decide`/`omlx-decisions`, `autoresearch`/`copilot-autoresearch`). Keep portable operations in shared execution code with thin native-tool and bundled CLI adapters, not duplicate implementations. Host hooks, UI, scheduling and confirmation stay in native adapters; CLI inputs cannot claim native approval.
 
 Prefer the repository's declarative plugin patterns: skills in `skills/*/SKILL.md`, MCP configuration in `.mcp.json`, agents in `agents/*.md`, native extensions in `extensions/<name>/extension.mjs`, and optional `lsp.json`. MCP files use top-level server names, not an `mcpServers` envelope. A plugin exposing native extensions must list `extensions/` in `plugin.json`; each immediate child is a separate extension.
 
@@ -15,7 +17,8 @@ Plugin hook `matcher` values are regular expressions, not exact tool names. Anch
 There is no root build or broad test suite.
 
 - `npm run lint` runs the repository-wide Oxlint configuration, including the vendored anti-slop rules.
-- `node --test tools/plugin-manifests.test.mjs` checks every published plugin's manifest format and component paths, including MCP-only plugins.
+- `node --test tools/plugin-manifests.test.mjs` checks both native catalogs, manifests, shared roots, and component paths, including MCP-only Copilot plugins.
+- `node tools/smoke-codex-plugins.mjs` checks Codex installation and skill discovery in an isolated temporary home without model calls. Do not smoke-test against the user's installed plugin home.
 - `python3 -m json.tool .github/plugin/marketplace.json >/dev/null` validates marketplace edits.
 - After editing `external_plugins/pstack/` skills, metadata, provenance, or sync policy, run `node external_plugins/pstack/tools/pstack-sync.mjs check` and `node --test external_plugins/pstack/tools/pstack-sync.test.mjs`.
 - In a changed extension package, run its `npm test` and typecheck scripts. For `ado-codespaces`, also run `npm run lint` and `npm run format:check`.
@@ -30,7 +33,7 @@ There is no root build or broad test suite.
 
 Each plugin needs a `README.md` covering purpose, prerequisites, installation, usage, and resources. Adding or removing a plugin requires matching updates to the marketplace manifest and root README. External or adapted plugins require attribution and license details.
 
-Bump the affected plugin's `plugin.json` version for any change to shipped plugin behavior or bundled content so installed users can detect an update. Use SemVer: patch for fixes, minor for backward-compatible features, and major for breaking changes. Do not bump for repository-only docs, tests, or development tooling. When an extension package mirrors the plugin version, keep its `package.json` version synchronized; independent extension package versions need not match. Preserve upstream-derived version suffixes such as pstack's `-copilot.N`.
+Bump the affected plugin's native manifest versions for any change to shipped plugin behavior or bundled content so installed users can detect an update. Shared content changes affect both `plugin.json` and `.codex-plugin/plugin.json` when both are published. Use SemVer: patch for fixes, minor for backward-compatible features, and major for breaking changes. Do not bump for repository-only docs, tests, or development tooling. When an extension package mirrors the plugin version, keep its `package.json` version synchronized; independent extension package versions need not match. Preserve upstream-derived version suffixes such as pstack's `-copilot.N`.
 
 Bundled Node scripts must use explicit `.mjs` or `.cjs` extensions even though the root package declares ESM, so their module mode remains explicit when copied or invoked outside the root package. Prefer `.mjs`. Use `os.tmpdir()` instead of `/tmp`.
 

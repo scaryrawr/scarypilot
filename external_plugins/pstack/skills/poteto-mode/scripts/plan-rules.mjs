@@ -1,7 +1,10 @@
 const RULE =
   "Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.";
 
-const LANES = "Parallel Copilot Task workers at the PR head";
+const LANES = [
+  "Parallel independent workers at the PR head",
+  "Parallel Copilot Task workers at the PR head",
+];
 
 const SUB_BLOCKS = [
   "Depends on.",
@@ -222,7 +225,10 @@ function strictFindings(lines) {
     const live = block("Verify, live.");
 
     if (live) {
-      if (!live.rest.includes(LANES)) fail(live.n, "live-lanes", `${pr.title}: Verify, live lacks "${LANES}"`);
+      if (!LANES.some((description) => live.rest.includes(description))) {
+        fail(live.n, "live-lanes", `${pr.title}: Verify, live lacks "${LANES[0]}"`);
+      }
+
       const lanes = boxes(live.lines).map((box) => ({ ...box, match: box.text.match(/^Lane (\d+)\. /) }));
 
       const numbers = lanes

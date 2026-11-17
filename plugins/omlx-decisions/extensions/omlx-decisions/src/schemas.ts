@@ -54,6 +54,8 @@ export const QuestionSchema = Type.Union([
 
 export type Question = Static<typeof QuestionSchema>;
 
+export type DecisionBoundary = "native" | "cli";
+
 export const DecisionRequestSchema = Type.Object({
   model: nonblank,
   state: Type.Union([nonblank, Type.Boolean(), Type.Number(), Type.Record(Type.String(), json), Type.Array(json)]),
@@ -84,6 +86,23 @@ export const DecisionInputSchema = Type.Object({
 }, strict);
 
 export type DecisionInput = Static<typeof DecisionInputSchema>;
+
+const cliState = Type.Union([Type.String(), Type.Record(Type.String(), json), Type.Array(json)]);
+
+export const CliInputSchema = Type.Object({
+  state: Type.Optional(cliState),
+  images: Type.Optional(Type.Array(Type.Union([image, dataImage]), { minItems: 1, maxItems: 10 })),
+  questions: DecisionRequestSchema.properties.questions,
+  truncate: Type.Optional(Type.Boolean()),
+}, strict);
+
+export type CliInput = Static<typeof CliInputSchema>;
+
+export const CliDecisionInputSchema = Type.Object({
+  ...CliInputSchema.properties,
+  model: nonblank,
+  state: cliState,
+}, strict);
 
 const probabilities = Type.Record(Type.String(), probability);
 
@@ -116,6 +135,11 @@ export const DecisionResponseSchema = Type.Object({
 
 export type DecisionResponse = Static<typeof DecisionResponseSchema>;
 
+export const CliDecisionResponseSchema = Type.Object({
+  ...DecisionResponseSchema.properties,
+  error: Type.Optional(Type.Null()),
+}, { additionalProperties: true });
+
 export const ModelStatusSchema = Type.Object({
   models: Type.Array(Type.Object({
     id: nonblank,
@@ -125,8 +149,33 @@ export const ModelStatusSchema = Type.Object({
   })),
 });
 
-export type InstalledModel = Static<typeof ModelStatusSchema>["models"][number];
+export const CliModelStatusSchema = Type.Object({
+  models: Type.Array(Type.Object({
+    ...ModelStatusSchema.properties.models.items.properties,
+    engine_type: Type.Optional(nonblank),
+    loaded: Type.Optional(Type.Boolean()),
+    model_alias: Type.Optional(nonblank),
+    unavailable_reason: Type.Optional(Type.Union([nonblank, Type.Null()])),
+  })),
+});
+
+export type InstalledModel = Static<typeof CliModelStatusSchema>["models"][number];
 
 export type DecisionModel = Pick<InstalledModel, "id" | "loaded">;
 
 export const EmptySchema = Type.Object({}, strict);
+
+export const ServerErrorSchema = Type.Object({
+  error: Type.Optional(Type.Union([
+    Type.String(),
+    Type.Object({ message: Type.Optional(Type.String()) }),
+    Type.Null(),
+  ])),
+  detail: Type.Optional(Type.Union([
+    Type.String(),
+    Type.Array(Type.Union([
+      Type.Object({ msg: Type.Optional(Type.Union([Type.String(), Type.Number()])) }),
+      Type.Null(),
+    ])),
+  ])),
+});

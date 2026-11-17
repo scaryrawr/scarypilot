@@ -35,7 +35,7 @@ EVENT_TYPES = {
     "assistant.message", "assistant.message_delta", "assistant.reasoning",
     "assistant.reasoning_delta", "assistant.turn_start", "assistant.turn_end",
     "assistant.usage", "assistant.intent", "assistant.intent_delta",
-    "user.message", "system.message",
+    "user.message", "system.message", "instruction.update",
     "tool.execution_start", "tool.execution_complete",
     "tool.execution_progress", "tool.execution_partial_result",
     "result", "error",

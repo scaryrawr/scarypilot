@@ -1,0 +1,54 @@
+[
+  {
+    "query": "Use decide to route this ticket to billing, technical, or other.",
+    "should_trigger": true
+  },
+  {
+    "query": "Use OMLX decision models to score report urgency.",
+    "should_trigger": true
+  },
+  {
+    "query": "What decision models do I have available via OMLX?",
+    "should_trigger": true
+  },
+  {
+    "query": "Use decide to choose Postgres or DynamoDB given these explicit constraints.",
+    "should_trigger": true
+  },
+  {
+    "query": "Classify these moderation examples with the Jev-style SystemOne API.",
+    "should_trigger": true
+  },
+  {
+    "query": "Show me how OMLX's decision model API works.",
+    "should_trigger": true
+  },
+  {
+    "query": "List all the models I have installed in OMLX.",
+    "should_trigger": true
+  },
+  {
+    "query": "Help me think through ECS versus EKS.",
+    "should_trigger": false
+  },
+  {
+    "query": "What's the capital of France?",
+    "should_trigger": false
+  },
+  {
+    "query": "Write a unit test for this function.",
+    "should_trigger": false
+  },
+  {
+    "query": "I need a second opinion on my design, but no local model calls.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain the Judgment-Evaluation-Decision framework.",
+    "should_trigger": false
+  },
+  {
+    "query": "Use the vision decision model to classify this image as a hotdog or taco.",
+    "should_trigger": true
+  }
+]

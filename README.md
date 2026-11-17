@@ -1,16 +1,17 @@
-# ScaryPilot Plugin Marketplace
+# ScaryPilot plugin marketplace
 
-A curated collection of plugins for GitHub Copilot, including custom plugins and integrations with external MCP servers. This marketplace enhances Copilot's capabilities with specialized tools for development, debugging, automation, and more.
+Plugins for GitHub Copilot and Codex, including shared workflow skills,
+native integrations, and local media helpers. Each client reads its own
+marketplace entrypoint. Shared plugins use one skill tree and separate native
+manifests, not two maintained copies.
 
 ## Quick Start
 
-### Add the Marketplace
+### Copilot
 
 ```sh
 copilot plugin marketplace add scaryrawr/scarypilot
 ```
-
-### Install a Plugin
 
 Use the `/plugin` command in copilot or install from the terminal:
 
@@ -18,7 +19,31 @@ Use the `/plugin` command in copilot or install from the terminal:
 copilot plugin install chrome-devtools@scarypilot
 ```
 
-## Available Plugins
+### Codex
+
+```sh
+codex plugin marketplace add scaryrawr/scarypilot
+codex plugin add pstack@scarypilot
+```
+
+Codex publishes `pstack`, `anti-slop`, `better-init`, `digivolution`,
+`omlx-media`, `screen-record`, `decide`, and `autoresearch`. All share their
+plugin roots and skill content with Copilot.
+Codex's `decide` is Copilot's `omlx-decisions`; Codex's `autoresearch` is
+Copilot's `copilot-autoresearch`. Native names remain compatible while each
+pair has one maintained implementation.
+
+Scarydex users can add this repository and reinstall their selected plugins
+with `@scarypilot`. Existing `@scarydex` installations do not change automatically.
+Keep the old installation until the replacement is verified. Do not enable
+duplicate hook plugins in the same session.
+
+Trust native hook definitions separately where the client requires it.
+Installation does not authorize capture, inference, external posts, or new
+tool access. See [the consolidation notes](docs/scarydex-consolidation.md)
+for provenance, runtime differences, and validation.
+
+## Copilot plugins
 
 | Plugin              | Category           | Description                                                                                                                                                            | Docs                                                   |
 | ------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
@@ -38,7 +63,7 @@ copilot plugin install chrome-devtools@scarypilot
 | **smahties**        | Code Search        | Local semantic code-search MCP server from smahtutils with indexing, embeddings, and keyword/hybrid query support. Requires the `smahties` CLI first.                  | [📖 Docs](./plugins/smahties/README.md)                 |
 | **uv**              | Python             | Guide Copilot to run Python and manage Python dependencies with uv.                                                                                                   | [📖 Docs](./plugins/uv/README.md)                       |
 
-**Install any plugin:**
+**Install a Copilot plugin:**
 
 ```sh
 copilot plugin install <plugin-name>@scarypilot
@@ -62,6 +87,18 @@ This marketplace supports multiple plugin patterns:
 Native extensions target `@github/copilot-sdk` 1.0.16 for development.
 Copilot supplies its own SDK at runtime. Pstack is skill-based and does not
 require native extension support.
+
+Copilot reads `.github/plugin/marketplace.json` and each root `plugin.json`.
+Codex reads `.agents/plugins/marketplace.json` and `.codex-plugin/plugin.json`.
+Codex manifests do not register Copilot extensions or agent files. Shared
+workflow instructions describe actions and require discovery of available
+capabilities before invocation. Native hook wire formats remain separate.
+
+For portable operations, native tools and bundled CLIs call the same execution
+code. Media, recording, decision models, and experiment commands use this
+pattern. Session hooks, dashboards, and auto-resume remain native adapters.
+Decision CLI inputs can contain text and supplied base64 images, not local
+image paths; native file-image uploads retain per-call host approval.
 
 These plugins use Copilot's legacy component layout, without an Agent Plugins
 `$schema` declaration. The Agent Plugins format has different discovery rules:
@@ -99,3 +136,4 @@ Interested in adding plugins to this marketplace? Check out the plugin developme
 
 - [Plugin Architecture Guide](./AGENTS.md)
 - [Marketplace Configuration](./.github/plugin/marketplace.json)
+- [Codex marketplace configuration](./.agents/plugins/marketplace.json)

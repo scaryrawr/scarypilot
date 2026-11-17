@@ -1,0 +1,29 @@
+{
+  "scarypilot": {
+    "repository": "https://github.com/scaryrawr/scarypilot",
+    "commit": "cf3e9b7e20592a85b098608bb9637d474c127073"
+  },
+  "pstack": {
+    "repository": "https://github.com/cursor/plugins",
+    "integratedCommit": "b0b9c7a0baf8b6aa1d00bf77d4101e577d4ba411",
+    "version": "0.15.4",
+    "comparisonCommit": "c47b12849e43f18d5c374c7069c744cc55b0ea00",
+    "comparisonVersion": "0.15.5"
+  },
+  "decide": {
+    "upstream": {
+      "name": "Ollama",
+      "description": "Ollama support for TypeSafe's Jev-style structured decision API",
+      "source": "https://ollama.com/blog/ollama-now-supports-jev-style-decision-models",
+      "api": "POST /v1/systemone with state, typed questions, and structured answers; GET /api/tags for discovery"
+    },
+    "port_notes": "Original Codex skill and dependency-free Node helper based on the September 29, 2026 Ollama announcement. Preserves choice, noul, and score semantics. Version 0.2.0 adds vision image input (top-level `images`, base64) for the `clef` family such as `clef-flash`, matching Ollama's decision/types.go and decision/clef.go; videos remain unsupported. No generative-chat fallback or host extensions."
+  },
+  "riverkids": {
+    "upstream": {
+      "name": "None",
+      "description": "Original ScaryDex skill; no upstream plugin was ported."
+    },
+    "port_notes": "Original skill authored in this repository. Coordinates the RiverKids team via the Slack and Planning Center MCPs; read-only against Planning Center and confirmation-gated before posting to Slack."
+  }
+}

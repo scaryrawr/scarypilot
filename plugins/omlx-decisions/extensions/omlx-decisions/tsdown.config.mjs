@@ -1,5 +1,5 @@
 export default {
-  entry: ["src/extension.ts"],
+  entry: { extension: "src/extension.ts", cli: "src/run-cli.ts" },
   clean: true,
   deps: {
     alwaysBundle: [/^@sinclair\/typebox(?:\/|$)/],

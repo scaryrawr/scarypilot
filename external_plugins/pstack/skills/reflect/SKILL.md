@@ -5,29 +5,31 @@ description: Spawn three parallel review subagents over the active transcript, s
 
 # Reflect
 
+For host-dependent actions and paths, read [runtime actions](../../docs/runtime-actions.md) first.
+
 Mine the current conversation for durable learnings, then route them into skill edits.
 
 Invoke when the user says "reflect" or "/reflect". Skip when the conversation is trivial, off-topic, or already covered by an existing skill the parent followed correctly. One-offs are not learnings.
 
 ## 1. Gather the active conversation
 
-Use the active conversation already in context. When `session_store_sql` is available, query only the current session ID and the time range needed for this task. Do not search unrelated sessions. If the current session cannot be queried, write a tight digest from the visible conversation and pass that instead.
+Use the active conversation already in context. When the supported scoped-history search action is available, query only the current session ID and the time range needed for this task. Do not search unrelated sessions. If the current session cannot be queried, write a tight digest from the visible conversation and pass that instead.
 
 ## 2. Spawn three reviewers in parallel
 
-One message, three `Task` calls with `agent_type: "general-purpose"`. Set `model` from the role line in `instructions/pstack-models.instructions.md` in Copilot home. If the configuration or the line is missing, or the value is `auto` or `inherit-parent`, omit `model`. If the Task tool rejects a slug, omit `model` and say so. Each prompt forbids file writes; the parent applies edits.
+One message, three worker launches with an implementation-capable worker role. Set explicit model selection from the role line in the pstack model configuration available to this session. If the configuration or the line is missing, or the value is `auto` or `inherit-parent`, omit explicit model selection. If the worker-launch action rejects a slug, omit explicit model selection and say so. Each prompt forbids file writes; the parent applies edits.
 
-| Lens | `model` | Prompt template |
+| Lens | explicit model selection | Prompt template |
 |---|---|---|
-| Judgment | configured reflect-judgment model or Task default | `references/judgment-reviewer.md` |
-| Tooling | configured reflect-tooling model or Task default | `references/tooling-reviewer.md` |
-| Divergent | configured reflect-judgment model or Task default | `references/divergent-reviewer.md` |
+| Judgment | configured reflect-judgment model or host default | `references/judgment-reviewer.md` |
+| Tooling | configured reflect-tooling model or host default | `references/tooling-reviewer.md` |
+| Divergent | configured reflect-judgment model or host default | `references/divergent-reviewer.md` |
 
-Pass each template verbatim, substituting the scoped conversation digest where marked. Use a transcript reference only when the current Copilot host explicitly provides one. Reviewers return findings in the `Task` response body.
+Pass each template verbatim, substituting the scoped conversation digest where marked. Use a transcript reference only when the current host explicitly provides one. Reviewers return findings in the worker result body.
 
 ## 3. Synthesize
 
-One `Task` call with `agent_type: "general-purpose"` and the configured reflect-judgment model. Omit `model` when the configuration or role line is missing, or the value is `auto` or `inherit-parent`, and let Copilot choose the agent's default. If the Task tool rejects that configured slug before starting the synthesizer, retry the same read-only brief once without `model` and report the fallback. Keep the completed reviewer outputs; do not repeat their reviews or guess a substitute model. Surface any other error rather than treating it as a model rejection. The prompt forbids file writes but allows available integrations for citation checks. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
+One worker launch with an implementation-capable worker role and the configured reflect-judgment model. Omit explicit model selection when the configuration or role line is missing, or the value is `auto` or `inherit-parent`, and let the host choose the agent's default. If the worker-launch action rejects that configured slug before starting the synthesizer, retry the same read-only brief once without explicit model selection and report the fallback. Keep the completed reviewer outputs; do not repeat their reviews or guess a substitute model. Surface any other error rather than treating it as a model rejection. The prompt forbids file writes but allows available integrations for citation checks. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
 
 ## 4. Structural enforcement check
 
@@ -39,7 +41,7 @@ Present the synthesizer's full Accepted / Rejected / Backlog output and wait for
 
 File Backlog items to the team's devex tracker only within existing external-write authorization; otherwise leave them as proposals. Include `- Generated with AI 🤖` once at the end of agent-authored text submitted to an external system.
 
-Never edit an installed plugin cache. Before approval, show the proposed writable destination under the project's `.github/skills/<skill>/` or the user's Copilot home `skills/<skill>/`. After approval, copy the skill folder there and edit the copy, preserving its license and attribution. Do not open a PR or push as part of this reflection.
+Never edit an installed plugin cache. Before approval, show the proposed writable destination under the current host's discovered project or personal skills directory. After approval, copy the skill folder there and edit the copy, preserving its license and attribution. Do not open a PR or push as part of this reflection.
 
 Follow each approved row's Routing exactly:
 

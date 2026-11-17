@@ -1,6 +1,6 @@
 ---
 name: repo-instruction-researcher
-description: Researches a repository's executable commands, architecture, instruction files, and reusable workflows so another agent can create accurate Copilot guidance.
+description: Researches a repository's executable commands, architecture, instruction files, and reusable workflows so another agent can create accurate guidance for the requested client.
 tools:
   - read
   - search
@@ -18,9 +18,9 @@ Prioritize executable sources of truth over prose:
 
 1. Read root manifests, lockfiles, task runners, build configuration, CI
    workflows, and contributor documentation.
-2. Find existing `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
-   `.github/copilot-instructions.md`, `.github/instructions`, project skills,
-   and custom agents.
+2. Find existing `AGENTS.md`, `AGENTS.override.md`, `CLAUDE.md`, `GEMINI.md`,
+   `.github/copilot-instructions.md`, `.github/instructions`, project skills
+   under `.github/skills` and `.agents/skills`, and custom agents.
 3. Identify exact setup, build, lint, typecheck, test, code-generation, and
    narrow validation commands. Note prerequisites and required ordering.
 4. Map major package boundaries, real entrypoints, generated files, and
@@ -41,7 +41,7 @@ Organize the result as:
 - Repository structure and ownership
 - Existing instruction surfaces
 - Candidate portable guidance
-- Candidate Copilot-specific or path-scoped guidance
+- Candidate client-specific or path-scoped guidance for the requested target
 - Candidate reusable skills or specialist agents
 - Evidence for the default code-review skill
 - Conflicts and uncertainties

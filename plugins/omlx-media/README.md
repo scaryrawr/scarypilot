@@ -1,7 +1,8 @@
 # OMLX Media Plugin
 
-Local media generation and processing workflows for GitHub Copilot CLI. The
-plugin includes native image and audio tools plus three skills:
+Local media generation and processing for GitHub Copilot CLI and Codex. Both
+native manifests discover the same four skills. Copilot retains its native
+extension. Codex uses a bundled Node CLI built from the same execution source.
 
 | Capability | Purpose |
 | --- | --- |
@@ -9,6 +10,7 @@ plugin includes native image and audio tools plus three skills:
 | `omlx_speech` and `omlx_transcribe` tools + `audio` skill | Generate speech with a local TTS model or transcribe a local audio file with an STT model through OpenAI-compatible audio REST endpoints. |
 | `omlx_transcribe` recording mode and `omlx_prepare_frames` tool + `blogify` skill | Prepare timestamped transcripts and candidate frames locally. Keep takeaways, final screenshot selection, and grounded writing in the skill. |
 | Optional `blogify-grounded-note` dynamic workflow | Return a bounded claim note with an independent factual check. Hosted Copilot workers require separate transcript-transmission consent. |
+| `highlight-reel` skill | Mine timestamped clips, compare frame changes, and check quotes against transcripts before cutting a reel. |
 
 ## Prerequisites
 
@@ -17,7 +19,9 @@ on Windows or Linux against an explicitly configured remote oMLX server.
 Recording transcription requires explicit remote-endpoint consent; the grounded
 writing workflow has separate transcript-transmission consent.
 
-- A current GitHub Copilot CLI release with plugin and skill support.
+- A current GitHub Copilot CLI or Codex release with plugin and skill support.
+- Node 22.18 or newer for the bundled CLI. Codex users need no npm, Bun,
+  Copilot SDK, or dependency installation.
 - [`uv`](https://docs.astral.sh/uv/) and Python for optional `blogify`
   classification, direct-installed `blogify`, and the image skill's legacy fallback.
 - A running OMLX OpenAI-compatible media endpoint. Set `OMLX_BASE_URL` when it
@@ -35,6 +39,17 @@ Install the skills and native tools as a plugin from the ScaryPilot marketplace:
 copilot plugin marketplace add scaryrawr/scarypilot
 copilot plugin install omlx-media@scarypilot
 ```
+
+For Codex, add `scaryrawr/scarypilot` in the native plugin marketplace UI and
+install `omlx-media` from `scarypilot`. Its `.codex-plugin/plugin.json` points
+at the same `skills/` directory as Copilot's manifest.
+
+Skills select native capabilities by advertised action description. When the
+host does not advertise one, they resolve this installed plugin's
+`scripts/media.mjs`. It supports `image`, `speech`, `transcribe`, and
+`prepare-frames` operations with JSON arguments. Run
+`node "<installed-plugin>/scripts/media.mjs" --help` for the argument contract.
+Do not use a CLI fallback to bypass a native validation or consent failure.
 
 Install a skill directly with GitHub CLI. Direct installation of
 `image-gen` uses its legacy Python fallback because native extension tools are
@@ -59,6 +74,7 @@ Recording-to-document workflows:
 
 - "Turn this demo recording into a tutorial with a transcript and selected screenshots."
 - "Create release notes from this meeting recording and keep the supporting artifacts."
+- "Cut highlights from this podcast and keep a timestamped clip manifest with verified quotes."
 
 Standalone audio workflows:
 
@@ -70,6 +86,8 @@ generation uses the native `omlx_image` tool, which discovers a capable model,
 authenticates with `OMLX_API_KEY` when set, and saves fresh results without
 returning image bytes to the model. `blogify` uses local models by default;
 sending frames to a cloud model requires explicit user consent.
+Check the configured endpoint before sending any image, audio, transcript,
+or narration text. A configured remote endpoint is not consent.
 
 `omlx_speech` calls `POST /v1/audio/speech` and saves binary audio (WAV by
 default; MP3, Opus, FLAC, and PCM are also supported by current OMLX releases).
@@ -87,6 +105,12 @@ For recording preparation, `omlx_transcribe` accepts `output_dir` instead of
 original recording. They are not word timestamps or speaker labels. Native
 preparation uses fixed chunks, not silence detection. The optional bundled
 Python transcription script retains its silence-aware pipeline.
+
+`highlight-reel` reuses recording and frame preparation. Its Python helpers
+verify transcript quotes and clip windows, rank frame changes, and export
+duration-checked clips into a fresh directory. Optional model probing performs
+inference with synthetic fixtures only when authorized. Historical routing
+notes do not establish which models are currently installed.
 
 `omlx_prepare_frames` requires no model or network service. It extracts a
 bounded set of candidate frames, or frames at explicit `seconds`, with a

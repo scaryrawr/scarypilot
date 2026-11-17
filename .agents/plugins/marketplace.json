@@ -1,0 +1,16 @@
+{
+  "name": "scarypilot",
+  "interface": {
+    "displayName": "ScaryPilot"
+  },
+  "plugins": [
+    { "name": "pstack", "source": { "source": "local", "path": "./external_plugins/pstack" } },
+    { "name": "anti-slop", "source": { "source": "local", "path": "./plugins/anti-slop" } },
+    { "name": "better-init", "source": { "source": "local", "path": "./plugins/better-init" } },
+    { "name": "digivolution", "source": { "source": "local", "path": "./plugins/digivolution" } },
+    { "name": "omlx-media", "source": { "source": "local", "path": "./plugins/omlx-media" } },
+    { "name": "screen-record", "source": { "source": "local", "path": "./plugins/screen-record" } },
+    { "name": "decide", "source": { "source": "local", "path": "./plugins/omlx-decisions" } },
+    { "name": "autoresearch", "source": { "source": "local", "path": "./plugins/copilot-autoresearch" } }
+  ]
+}

@@ -29,6 +29,13 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: "22.18.0"
+      - name: Install pinned portable helper build dependencies
+        working-directory: external_plugins/pstack
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Check shared helper bundles and installed execution
+        run: >-
+          node external_plugins/pstack/build.mjs --check &&
+          node --test external_plugins/pstack/tools/bundled-helpers.test.mjs
       - name: Check portable artifact validation and confinement
         run: >-
           node --test

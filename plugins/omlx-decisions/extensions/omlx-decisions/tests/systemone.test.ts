@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DecisionClient, createDecisionTools } from "../src/decisions.ts";
+import { DecisionClient } from "../src/decisions.ts";
+import { createDecisionTools } from "../src/tools.ts";
 import type { DecisionInput, DecisionResponse } from "../src/schemas.ts";
 
 const model = "Clef-Flash";

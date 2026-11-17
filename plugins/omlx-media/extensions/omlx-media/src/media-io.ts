@@ -1,10 +1,11 @@
 import { spawn } from "node:child_process";
-import { link, lstat, mkdir, realpath, stat, unlink, writeFile } from "node:fs/promises";
+import { link, lstat, mkdir, readdir, realpath, stat, unlink, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Type, type Static } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import { OmlxToolError, type FetchImplementation } from "./domain.ts";
+import { type AudioChunk, type PreparedFrame } from "./media-domain.ts";
 
 export interface MediaDependencies {
   environment?: NodeJS.ProcessEnv;
@@ -192,6 +193,29 @@ export function retainedArtifacts(error: OmlxToolError, directory: string): Omlx
     error.code,
     `${error.message}. Incomplete artifacts retained at ${directory}. Retry with a new output_dir.`,
   );
+}
+
+export async function retainFailure(
+  error: OmlxToolError,
+  directory: string,
+  preparation: { kind: "recording"; source: string; chunks: AudioChunk[] } |
+    { kind: "frames"; source: string; frames: PreparedFrame[] },
+): Promise<OmlxToolError> {
+  try {
+    const artifacts = (await readdir(directory)).sort().map((file) => path.join(directory, file));
+    await writeArtifact(path.join(directory, "failure.json"), JSON.stringify({
+      status: "incomplete", ...preparation, artifacts,
+      error: { code: error.code, message: error.message },
+      retry: "Use a new output_dir; retained files are not a complete preparation.",
+    }, null, 2));
+  } catch (failure) {
+    return retainedArtifacts(new OmlxToolError(
+      "FAILURE_ARTIFACT_WRITE_FAILED",
+      `${error.code}: ${error.message}. Could not record failure details: ${failure instanceof Error ? failure.message : String(failure)}`,
+    ), directory);
+  }
+
+  return retainedArtifacts(error, directory);
 }
 
 export async function writeArtifact(file: string, content: string): Promise<void> {

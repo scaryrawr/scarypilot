@@ -183,6 +183,7 @@ test("selection widens shared inputs and reports missing coverage", () => {
 
   assert.equal(selectSkills(skills, ["README.md"], policy).length, 0);
   assert.equal(selectSkills(skills, ["AGENTS.md"], policy).length, 3);
+  assert.equal(selectSkills(skills, [".agents/plugins/marketplace.json"], policy).length, 3);
   assert.equal(selectSkills(skills, ["external_plugins/pstack/plugin.json"], policy).length, 2);
 
   const selected = selectSkills(skills, ["external_plugins/pstack/skills/first/playbooks/shared.md"], policy);

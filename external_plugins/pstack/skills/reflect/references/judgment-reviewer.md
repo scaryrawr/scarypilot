@@ -17,7 +17,7 @@ Scan for:
 
 ## Scope to skills and tools the session actually used
 
-Route findings only to skills, tools, or integrations this transcript used, or to a missed-trigger candidate below. A skill counts as used when the transcript shows a skill-tool invocation, a read of its `SKILL.md` (project `.github/skills/`, advertised user-skill or installed-plugin paths), a Task prompt naming its path, or a tool call matching its documented commands. Do not search global installations to infer use.
+Route findings only to skills, tools, or integrations this transcript used, or to a missed-trigger candidate below. A skill counts as used when the transcript shows a skill-tool invocation, a read of its `SKILL.md` (project `<project-skills>/`, advertised user-skill or installed-plugin paths), a worker brief naming its path, or a tool call matching its documented commands. Do not search global installations to infer use.
 
 Two valid finding shapes:
 

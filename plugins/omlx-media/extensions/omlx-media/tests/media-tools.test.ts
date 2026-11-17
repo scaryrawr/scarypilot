@@ -569,6 +569,13 @@ describe("registered recording preparation", () => {
       assert.match(result, /INVALID_RESPONSE/);
       assert.match(result, /Incomplete artifacts retained at/);
       assert.ok((await stat(path.join(output_dir, "chunk-001.wav"))).size > 0);
+      const failure = JSON.parse(await readFile(path.join(output_dir, "failure.json"), "utf8"));
+      assert.equal(failure.status, "incomplete");
+      assert.equal(failure.kind, "recording");
+      assert.equal(failure.source, video);
+      assert.deepEqual(failure.chunks, []);
+      assert.equal(failure.error.code, "INVALID_RESPONSE");
+      assert.ok(failure.artifacts.includes(path.join(output_dir, "chunk-001.wav")));
       await noManifest(output_dir);
     }
   });
@@ -1022,6 +1029,13 @@ describe("registered frame preparation", () => {
     const result = await invoke(createOmlxPrepareFramesTool({ processRunner }), { input: video, output_dir, max_frames: 2 });
     assert.match(result, /MEDIA_PROCESS_FAILED.*Incomplete artifacts retained at/);
     assert.ok((await stat(path.join(output_dir, "t_000m00s_f0000.png"))).size > 0);
+    const failure = JSON.parse(await readFile(path.join(output_dir, "failure.json"), "utf8"));
+    assert.equal(failure.status, "incomplete");
+    assert.equal(failure.kind, "frames");
+    assert.equal(failure.source, video);
+    assert.equal(failure.error.code, "MEDIA_PROCESS_FAILED");
+    assert.equal(failure.frames.length, 1);
+    assert.equal(failure.frames[0].file, path.join(output_dir, "t_000m00s_f0000.png"));
     await noManifest(output_dir);
   });
 });

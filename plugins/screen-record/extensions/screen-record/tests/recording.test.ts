@@ -197,7 +197,7 @@ test("recording survives command return and a new tool instance; stop is gracefu
   try {
     recording = await start(fixture.runtime);
     assert.ok("statePath" in recording && "recordingId" in recording);
-    const lockPath = recording.statePath.replace(/\.json$/, ".lock");
+    const lockPath = recording.logPath.replace(/\.log$/, ".lock");
 
     assert.equal(await readFile(lockPath, "utf8"), recording.recordingId);
     const current = await call({ ...fixture.runtime }, "screen_record_status", { output: "raw.mp4" });
@@ -246,8 +246,8 @@ test("standalone stop requires the retained ID before requesting stop or returni
       assert.ifError(result.error);
       assert.notEqual(result.status, 0, "a delayed caller must not stop the replacement");
       assert.match(result.stderr, /recording identity does not match/);
-      await assert.rejects(readFile(recording.statePath.replace(/\.json$/, ".stop")), { code: "ENOENT" });
-      assert.equal(await readFile(recording.statePath.replace(/\.json$/, ".lock"), "utf8"), recording.recordingId);
+      await assert.rejects(readFile(recording.logPath.replace(/\.log$/, ".stop")), { code: "ENOENT" });
+      assert.equal(await readFile(recording.logPath.replace(/\.log$/, ".lock"), "utf8"), recording.recordingId);
       const current = await call(fixture.runtime, "screen_record_status", { output: recording.output });
 
       assert.equal(state(current.textResultForLlm).status, "recording");
@@ -946,9 +946,10 @@ test("legacy resolve-based symlink identities remain discoverable and stoppable"
     const recording = state(cli.stdout);
 
     assert.ok("statePath" in recording);
+    assert.ok("recordingId" in recording);
     assert.equal(recording.statePath, process.getuid
-      ? join(legacy, `${oldId}.json`)
-      : join(fixture.runtime.env.TMPDIR!, stateDirectoryName(), `${stateId(await realpath(output))}.json`));
+      ? join(legacy, `${oldId}.json.${recording.recordingId}.json`)
+      : join(fixture.runtime.env.TMPDIR!, stateDirectoryName(), `${stateId(await realpath(output))}.json.${recording.recordingId}.json`));
 
     if (!process.getuid) {
       assert.equal(await readFile(join(legacy, `${oldId}.log`), "utf8"), "");

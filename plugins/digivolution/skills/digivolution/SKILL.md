@@ -1,6 +1,6 @@
 ---
 name: digivolution
-description: Use for "digivolve", "use digivolution", adaptive end-of-turn reflection prompts, or requests that ask whether durable repo-specific guidance, AGENTS.md/Copilot instructions, or in-repo SKILL.md instructions are stale, missing, or should be updated.
+description: Use for "digivolve", "use digivolution", adaptive end-of-turn reflection prompts, or requests that ask whether durable repo-specific guidance, AGENTS.md, client instructions, or in-repo SKILL.md instructions are stale, missing, or should be updated.
 ---
 
 # Digivolution Skill
@@ -18,10 +18,11 @@ Update instructions or skills only when at least one is true:
 ## Where to put changes
 
 - Shared durable guidance -> the narrowest relevant `AGENTS.md`. Use the root file for truly repo-wide rules, but prefer a nested `AGENTS.md` when guidance applies only to a subtree and would clutter higher-level instructions.
-- Copilot-specific behavior -> `.github/copilot-instructions.md`.
+- Copilot-specific behavior -> `.github/copilot-instructions.md`, only when Copilot is the target client.
 - Path-scoped Copilot guidance -> `.github/instructions/*.instructions.md` with `applyTo` frontmatter.
+- Codex guidance -> the relevant `AGENTS.md`. Inspect `AGENTS.override.md` before editing a guide it would shadow. Do not generate Copilot-only instruction files for a Codex-only request.
 - Root `CLAUDE.md`, when used, should remain exactly a one-line `@AGENTS.md` shim.
-- Misleading or stale in-repo skills -> correct the relevant `.github/skills/**/SKILL.md` or repo plugin `plugins/*/skills/**/SKILL.md`.
+- Misleading or stale in-repo skills -> correct the existing owner under `.github/skills`, `.agents/skills`, or the repository's plugin skills. Prefer `.agents/skills` for new Codex project skills. Do not create a second copy for another client.
 - Deeper docs -> link to them when helpful instead of dumping large documentation into immediate context.
 
 ## Non-goals and safety

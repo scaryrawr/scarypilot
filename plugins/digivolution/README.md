@@ -30,6 +30,15 @@ copilot plugin marketplace add scaryrawr/scarypilot
 copilot plugin install digivolution@scarypilot
 ```
 
+For Codex, use `codex plugin marketplace add scaryrawr/scarypilot` and
+`codex plugin add digivolution@scarypilot`. The shared skill chooses the
+requested client's instruction destinations. Codex loads command hooks,
+not the Copilot extension. Review hook trust separately. Its command hooks
+store minimized operation fingerprints and reflection flags in `PLUGIN_DATA`
+or `$CODEX_HOME/cache/scarypilot/digivolution`, not prompt text. Session-end
+cleanup removes the corresponding session state. The extension behavior below
+applies to Copilot.
+
 ## Usage
 
 Digivolution is most useful near the end of a task, after the agent has learned something durable about a repository.

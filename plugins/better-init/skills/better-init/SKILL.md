@@ -1,13 +1,17 @@
 ---
 name: better-init
-description: Create or modify repository guidance through GitHub Copilot CLI, including guidance consumed by Copilot code review. Use when asked to initialize, bootstrap, refresh, reorganize, or generate AGENTS.md, Copilot instructions, path-specific instructions, project skills, code-review guidance, or custom agents. Do not use for requests that only read or explain existing guidance.
+description: Create or modify repository guidance for Copilot or Codex, including repository instructions, project skills, review guidance, and custom agents. Use when asked to initialize, bootstrap, refresh, reorganize, or generate AGENTS.md or client-specific guidance. Do not use for requests that only read or explain existing guidance.
 ---
 
 # Better Init
 
-Create the smallest durable set of repository guidance that helps Copilot work
-correctly. Every line should answer: "Would an agent likely miss this without
-help?" If not, leave it out.
+Create the smallest durable set of repository guidance that helps the target
+client work correctly. Every line should answer: "Would an agent likely miss
+this without help?" If not, leave it out.
+
+Use the client named by the user. Otherwise follow the repository's existing
+guidance and the current client. Preserve other clients' files. Read the
+client-specific sections below before choosing destinations.
 
 ## 1. Honor the requested scope
 
@@ -15,8 +19,10 @@ Apply any user-provided focus or constraints first. If the user names a package,
 workflow, instruction type, or path, prioritize it.
 
 For initialization or a general guidance refresh, create or update
-`.github/skills/code-review/SKILL.md` by default alongside repository
-instructions. A focus is not an opt-out; omit the review skill only when the
+the target client's project review skill by default alongside repository
+instructions. Copilot uses `.github/skills/code-review/SKILL.md`. Codex preserves
+an existing project review owner or uses `.agents/skills/code-review/SKILL.md`.
+A focus is not an opt-out; omit the review skill only when the
 user explicitly excludes it or limits edits to other files or surfaces.
 
 Do not ask questions before inspecting the repository unless the request is
@@ -34,7 +40,7 @@ Read the highest-value sources first:
 - CI workflows, pre-commit configuration, and contributor documentation.
 - Pull request templates, ownership rules, review checklists, and configured MCP
   integrations that provide issue, incident, or service context.
-- Existing `AGENTS.md`, nested instruction files, `CLAUDE.md`, `GEMINI.md`,
+- Existing `AGENTS.md`, `AGENTS.override.md`, nested instruction files, `CLAUDE.md`, `GEMINI.md`,
   `.github/copilot-instructions.md`, and `.github/instructions`.
 - Existing project skills under `.github/skills`, `.agents/skills`, or
   `.claude/skills`, and custom agents under `.github/agents`.
@@ -45,9 +51,12 @@ Prefer executable configuration over prose. When sources conflict, keep only
 facts that can be verified and correct stale guidance rather than duplicating
 it.
 
-For a large monorepo or an unclear architecture, delegate repository-wide
-discovery to the `repo-instruction-researcher` custom agent. Give it the user's
-focus and ask for source paths. Continue directly for small repositories where
+For a large monorepo or an unclear architecture, delegate read-only repository
+discovery with the user's focus and a source-path report contract. Use the
+registered repository instruction researcher when advertised. Otherwise pass
+the body of the [research prompt](../../agents/repo-instruction-researcher.agent.md)
+to a supported general-purpose worker, not its client-specific registration
+frontmatter. Continue directly for small repositories where
 delegation would add overhead.
 
 ## 3. Extract only high-signal facts
@@ -90,22 +99,22 @@ Keep the root guide concise, usually 200-400 words. Larger repositories may
 need slightly more, but should link to deeper documentation rather than copying
 it.
 
-### `.github/copilot-instructions.md`
+### Copilot instructions
 
-Put only Copilot-specific operating behavior here, such as tool-use policy,
+Put only Copilot-specific operating behavior in `.github/copilot-instructions.md`, such as tool-use policy,
 Copilot workflow requirements, or instructions relying on Copilot features.
 
 Do not copy `AGENTS.md` into this file or add `@AGENTS.md`; Copilot discovers
 `AGENTS.md` independently. Omit this file when there is no meaningful
 Copilot-only guidance.
 
-### `.github/instructions/*.instructions.md`
+### Copilot path instructions
 
-Use path-specific instructions when guidance applies only to matching files.
+Use `.github/instructions/*.instructions.md` when guidance applies only to matching files.
 Include `applyTo` frontmatter with the narrowest useful glob. Do not use these
 files for repository-wide rules or create them merely to mirror directories.
 
-### `.github/skills/<name>/SKILL.md`
+### Project skills
 
 Create a project skill for a repeatable multi-step workflow that is useful only
 for certain tasks, such as repository setup verification, release preparation,
@@ -120,7 +129,8 @@ Each skill must:
   templates in `assets/`.
 - Avoid duplicating an existing skill or normal agent behavior.
 
-Prefer `.github/skills` for new Copilot-focused project skills. Preserve
+Prefer `.github/skills` for new Copilot-focused project skills and `.agents/skills`
+for Codex. Preserve
 existing `.agents/skills` or `.claude/skills` layouts unless migration is
 explicitly requested.
 
@@ -159,15 +169,31 @@ Remember that GitHub Copilot code review reads instructions and skills from the
 pull request's head branch. The generated skill must therefore be self-contained
 and must not depend on an uncommitted local file or a plugin-only resource.
 
-### `.github/agents/<name>.agent.md`
+### Copilot custom agents
 
-Create a custom agent only when a specialist role benefits from an independent
-context window, distinct tools, or repeatable delegation. Examples include a
+For a Copilot target, create `.github/agents/<name>.agent.md` only when a specialist
+role benefits from an independent context window, distinct tools, or repeatable delegation. Examples include a
 framework-specific reviewer or a repository-specific release investigator.
 
 Do not create an agent when a skill or concise instruction is sufficient.
 Restrict its tools to the minimum needed and disable automatic model invocation
 when it should only run deliberately.
+
+### Codex guidance and agents
+
+Inspect `AGENTS.override.md` before editing an `AGENTS.md` it would shadow.
+Codex applies guidance toward the working directory. Do not create an override
+as another copy of the same instructions.
+
+Use `.agents/skills/<name>/SKILL.md` for Codex project skills. Refresh an existing
+review skill instead of creating a second review owner. The default name is
+`code-review`, but Codex review ownership need not use that name. Keep the
+repository-grounded review contract described above. Do not claim that GitHub
+Copilot code review consumes Codex-only project skills.
+
+Prefer a reusable prompt when it is enough for a specialist. Before creating a
+Codex custom agent, verify the installed client's supported format. Do not copy
+Copilot agent registration fields or change user-wide Codex configuration.
 
 ### Compatibility files
 
@@ -187,7 +213,7 @@ Write direct, imperative guidance. Use headings for scanability, exact paths and
 commands, and short explanations only where the reason changes behavior.
 
 Do not create all supported file types as a showcase. A typical initialization
-needs only `AGENTS.md` and `.github/skills/code-review/SKILL.md`; an explicitly
+needs only `AGENTS.md` and the target client's project review skill; an explicitly
 narrower request may need only the requested surface.
 
 ## 6. Validate the result
@@ -199,8 +225,9 @@ narrower request may need only the requested surface.
 - Ensure path-specific globs match their intended files.
 - Ensure new skills and agents have unique, matching names and clear triggers.
 - Unless explicitly excluded by scope, confirm initialization and general
-  refreshes include `.github/skills/code-review/SKILL.md` with matching
-  `name: code-review` and a pull-request-review description.
+  refreshes include the target client's project review skill with a matching
+  name and a pull-request-review description. For Copilot, use
+  `.github/skills/code-review/SKILL.md` with `name: code-review`.
 - Confirm the review skill contains repository-grounded checks, preserves
   useful existing checks, and does not claim unverified MCP access.
 - Check that no guidance is duplicated across surfaces without a specific

@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, it } from "node:test";
 import { guard } from "./guard.mjs";
-import hooks from "./hooks.json" with { type: "json" };
+import hooks from "./copilot.json" with { type: "json" };
 
 const temporaryDirectories = [];
 

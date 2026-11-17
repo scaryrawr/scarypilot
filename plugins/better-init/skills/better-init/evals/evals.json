@@ -126,6 +126,118 @@
         "The review skill does not invent unusual requirements or claim hosted access to the local incident MCP configuration.",
         "No unnecessary Copilot instructions, additional skills, or custom agents are created."
       ]
+    },
+    {
+      "id": 101,
+      "name": "codex-minimal-codex-guidance",
+      "prompt": "Target Codex repository guidance. Initialize this small repository for Codex. Inspect the build and test scripts and write only useful guidance.",
+      "expected_output": "A concise AGENTS.md plus a grounded project review skill, with no unnecessary configuration.",
+      "files": [],
+      "expectations": [
+        "Commands are verified from executable sources.",
+        "No Copilot-specific files or Codex user configuration are generated.",
+        ".agents/skills/code-review/SKILL.md maps changed paths to verified behavior, tests, and applicable validation without duplicating AGENTS.md."
+      ]
+    },
+    {
+      "id": 102,
+      "name": "codex-preserve-existing-clients",
+      "prompt": "Target Codex repository guidance. Refresh AGENTS.md for Codex. Keep the existing Copilot instructions useful for teammates; do not migrate those files.",
+      "expected_output": "Focused AGENTS.md updates that preserve other clients’ instructions.",
+      "files": [],
+      "expectations": [
+        "Existing user constraints remain intact.",
+        "No duplicate guidance or unrelated migration is introduced."
+      ]
+    },
+    {
+      "id": 103,
+      "name": "codex-nested-monorepo-guidance",
+      "prompt": "Target Codex repository guidance. Initialize shared root guidance. services/payments requires its own emulator and integration checks; generated files must not be edited.",
+      "expected_output": "Shared commands at the root and meaningful nested AGENTS.md boundaries.",
+      "files": [],
+      "expectations": [
+        "services/payments/AGENTS.md owns package-specific requirements.",
+        "Generated-code restrictions are placed at the narrowest useful scope.",
+        "No .github/instructions showcase files are created.",
+        "A project review skill references the scoped payments and generated-code guidance without duplicating it."
+      ]
+    },
+    {
+      "id": 104,
+      "name": "codex-repeatable-workflow-skill",
+      "prompt": "Target Codex repository guidance. Initialize this workspace and add an on-demand workflow for creating an app package from a template, registering it, and checking it.",
+      "expected_output": "Root facts plus .agents/skills/new-app-package/SKILL.md.",
+      "files": [],
+      "expectations": [
+        "The skill’s name matches its directory and its description identifies the task.",
+        "Template paths and validation commands are verified.",
+        "The default project review skill is included alongside the requested package workflow."
+      ]
+    },
+    {
+      "id": 105,
+      "name": "codex-codex-review-guidance",
+      "prompt": "Target Codex repository guidance. Add Codex review guidance for db/migrations changes requiring a schema snapshot, public API compatibility checks, and incident context from the configured MCP service.",
+      "expected_output": "A project review skill with concrete checks and verified available context.",
+      "files": [],
+      "expectations": [
+        "Checks are repository-specific, not a generic review checklist.",
+        "No special GitHub Copilot code-review skill name is assumed.",
+        "Unavailable MCP access is not invented."
+      ]
+    },
+    {
+      "id": 106,
+      "name": "codex-override-precedence",
+      "prompt": "Target Codex repository guidance. AGENTS.override.md already exists beside AGENTS.md. Refresh guidance without creating a shadowed duplicate.",
+      "expected_output": "The active override is inspected and existing ownership is respected.",
+      "files": [],
+      "expectations": [
+        "The result accounts for same-directory override precedence.",
+        "No redundant instruction surface is created."
+      ]
+    },
+    {
+      "id": 107,
+      "name": "codex-explicit-instructions-only-scope",
+      "prompt": "Target Codex repository guidance. Use better-init to create only AGENTS.md. Verified facts: src/index.js is the entrypoint, test/ holds tests, and npm test runs node --test. Do not edit any other instruction, skill, agent, or configuration file.",
+      "expected_output": "Only AGENTS.md is generated because explicit scope overrides the default review skill.",
+      "files": [],
+      "expectations": [
+        "AGENTS.md describes the supplied entrypoint, test directory, and command.",
+        "No review skill or other instruction surface is created."
+      ]
+    },
+    {
+      "id": 108,
+      "name": "codex-preserve-existing-review-owner",
+      "prompt": "Target Codex repository guidance. Use better-init for a general guidance refresh of the supplied simple-repository fixture. The supplied existing-review-contracts.md represents its existing .agents/skills/review-contracts/SKILL.md, which owns review guidance. Preserve its compatibility check. The target hosted reviewer has no confirmed access to the local incident MCP service. Read both fixtures and write refreshed guidance to the output directory using repository-relative paths. Do not modify the fixtures.",
+      "expected_output": "AGENTS.md and the existing owning review skill are refreshed without adding a duplicate code-review skill.",
+      "files": [
+        "evals/files/simple-repository",
+        "evals/files/existing-review-contracts.md"
+      ],
+      "expectations": [
+        "The existing exact greeting output check is preserved.",
+        "The owning review skill maps src/index.js to test/index.test.js and applicable validation.",
+        "No duplicate .agents/skills/code-review/SKILL.md is created.",
+        "No hosted MCP access is inferred from local configuration."
+      ]
+    },
+    {
+      "id": 109,
+      "name": "codex-contributor-focus-keeps-default-review",
+      "prompt": "Target Codex repository guidance. Initialize Codex guidance for the supplied simple-repository fixture, prioritizing contributor workflow and fast validation. No instructions exist. Read the fixture and write resulting guidance to the output directory using repository-relative paths. Do not modify the fixture.",
+      "expected_output": "AGENTS.md and a concise project review skill are created despite the contributor-workflow focus.",
+      "files": [
+        "evals/files/simple-repository"
+      ],
+      "expectations": [
+        ".agents/skills/code-review/SKILL.md exists with name: code-review and a pull-request-review description.",
+        "The review skill maps greeting changes to the existing test and verified validation.",
+        "No specialized requirements, extra agents, or unverified tool access are invented."
+      ]
     }
   ]
 }

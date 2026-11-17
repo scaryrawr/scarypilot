@@ -3,6 +3,7 @@
 `trigger-evals.json` uses the skill-creator discovery format. Run serially with
 `run_eval.py --num-workers 1`, repeating both positives and near misses.
 The prompts use ordinary task language, not slash names or requests for proof.
+This existing runner is Copilot-specific; the shared skill is not.
 Use only disposable synthetic projects. The harness invokes Copilot with
 `--allow-all`; never point `--project-root` at a real checkout.
 

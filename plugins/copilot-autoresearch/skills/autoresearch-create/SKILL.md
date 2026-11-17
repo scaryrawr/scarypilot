@@ -7,6 +7,32 @@ description: Set up and run an autonomous experiment loop for any optimization t
 
 Build a durable experiment loop that can survive context resets and restarts.
 
+## Choose an execution interface
+
+Discover the host's advertised capabilities by action description. Look for
+experiment initialization, benchmark execution, result logging, and status.
+Read the matching schemas before calling them. Do not invent tool names or
+copy a protocol from another host.
+
+If these actions are unavailable, use the bundled CLI. Resolve
+`../../scripts/autoresearch.mjs` relative to this skill directory and invoke
+it with Node. Run `node <resolved-script> --help` and
+`node <resolved-script> schema` before constructing arguments.
+Pass an explicit absolute `--workspace` on every experiment command.
+Read the [CLI guide](../../docs/cli.md) for setup, Git policy, and recovery.
+Do not install dependencies or load the Copilot SDK to run the CLI.
+
+The CLI executes one requested action and exits. It does not wake agents,
+schedule iterations, provide native UI, or supply session hooks. Continue only
+within the current user's execution authority and iteration budget. Native
+Copilot auto-resume and dashboard commands are not portable CLI capabilities.
+Model confidence never grants permission to run a command or change Git state.
+
+Use one interface at a time for an experiment directory. Native session mode
+does not activate the CLI, and CLI initialization does not activate a host session.
+
+## Set up the experiment
+
 1. Infer or gather the goal, benchmark command, primary metric and direction,
    files in scope, and correctness constraints.
 2. Create a branch named `autoresearch/<goal>-<date>`.
@@ -16,7 +42,8 @@ Build a durable experiment loop that can survive context resets and restarts.
    when correctness constraints need a separate gate.
 6. Make scripts executable and commit the initial session files before the
    baseline so discard can safely restore the tree.
-7. Call `init_experiment`, run and log the baseline, then iterate immediately.
+7. Initialize through the selected interface, run and log the baseline, then
+   iterate within the approved budget.
 
 ## `.auto/prompt.md`
 
@@ -34,12 +61,12 @@ history. Include:
 
 Use `set -euo pipefail`. Run fast pre-checks, then the benchmark, and print one
 or more `METRIC name=value` lines. The primary name must exactly match
-`init_experiment.metric_name`. For fast noisy workloads, take multiple samples
+the initialization schema's primary metric name. For fast noisy workloads, take multiple samples
 and report the median.
 
 ## Loop rules
 
-- Always call `log_experiment` after `run_experiment`.
+- Always log the result after running a benchmark.
 - Keep primary-metric improvements; discard regressions or equal results.
 - Include useful `asi` on every run. On discard or crash, preserve the failed
   hypothesis, rollback reason, and next action because the code will disappear.

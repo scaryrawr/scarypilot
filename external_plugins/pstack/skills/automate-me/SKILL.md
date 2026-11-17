@@ -5,6 +5,8 @@ description: "Use for \"automate me\", \"create/update/refresh my -mode skill\",
 
 # Automate me
 
+For host-dependent actions and paths, read [runtime actions](../../docs/runtime-actions.md) first.
+
 A guided flow for turning the user's working conventions into a skill agents will follow. The output is one `-mode` skill tailored to them (e.g. `jay-mode`, `priya-mode`).
 
 This skill combines an inline mining pass, Agent Skills authoring rules, and the **unslop** skill.
@@ -13,7 +15,7 @@ This skill combines an inline mining pass, Agent Skills authoring rules, and the
 
 ### 0. Check for an existing skill
 
-Look recursively for `.github/skills/**/*-mode/SKILL.md` and `~/.agents/skills/*-mode/SKILL.md` matching the user's handle. Mode skills can live in a personal category directory (`.github/skills/<handle>/`), not only at the top level. If one exists, confirm intent with `ask_user` (unless they already said "update my skill" or similar):
+Look recursively for `<project-skills>/**/*-mode/SKILL.md` and `<personal-skills>/*-mode/SKILL.md` matching the user's handle. Mode skills can live in a personal category directory (`<project-skills>/<handle>/`), not only at the top level. If one exists, confirm intent with the supported user-question action (unless they already said "update my skill" or similar):
 
 - Update the existing skill (default for repeat runs)
 - Start fresh (rare, ask why before doing it)
@@ -25,7 +27,7 @@ Update mode changes the rest of the flow:
 
 ### 1. Mine their history
 
-Use `session_store_sql` when available. Query recent sessions for the active repository, with a two-to-four-week time window, and inspect only matching session IDs. Never scan unrelated projects. If history tools are unavailable, use the visible conversation and ask the user for missing preferences.
+Use the supported scoped-history search action when available. Query recent sessions for the active repository, with a two-to-four-week time window, and inspect only matching session IDs. Never scan unrelated projects. If history tools are unavailable, use the visible conversation and ask the user for missing preferences.
 
 Survey those conversations for recurring patterns. Run parallel subagents only when the result set is large enough to split into distinct time slices. Each returns a short structured list with session IDs as evidence pointers. Default signals worth hunting:
 
@@ -40,7 +42,7 @@ Cross-check across slices before elevating a signal. Patterns seen in 2+ slices 
 
 ### 2. Ask the user directly
 
-Mining misses intent that hasn't come up yet. Use the `ask_user` tool (structured multi-choice) rather than asking the user to type from scratch. Lower cognitive load, higher hit rate.
+Mining misses intent that hasn't come up yet. Use the supported user-question action with structured choices when available. Ask one focused question rather than making the user write a preference list from scratch.
 
 Ask one focused question at a time with 4-6 choices. Start broad ("Which area matters most?"), then follow up with specific options. Use one final free-form question only when the choices could not capture the preference.
 
@@ -65,7 +67,7 @@ The **poteto-mode** skill shows the shape. Read it for granularity. Don't copy i
 
 Author or update the skill directly. Placement:
 
-- Path: preserve an existing mode skill's category. For a new project skill, use `.github/skills/<handle>-mode/SKILL.md`. Use `~/.agents/skills/<handle>-mode/` only when the user explicitly wants a personal skill.
+- Path: preserve an existing mode skill's category. For a new project skill, use `<project-skills>/<handle>-mode/SKILL.md`. Use `<personal-skills>/<handle>-mode/` only when the user explicitly wants a personal skill.
 - Handle: the user's first name or chosen identifier.
 - Frontmatter `description`: trigger on their name + `/<handle>-mode` + "work in their style", not on generic keywords like "write code" or "review PR".
 - Frontmatter: require lowercase kebab-case `name` matching the folder and a specific `description`. Keep `description` as one YAML scalar; quote it or use `description: >-` with indented continuation lines when punctuation or wrapping requires it.

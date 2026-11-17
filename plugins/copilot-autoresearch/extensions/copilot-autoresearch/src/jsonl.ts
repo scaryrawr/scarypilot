@@ -5,6 +5,7 @@
 
 import { Type, type Static } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
+import * as fs from "node:fs";
 
 const JsonValueSchema = Type.Recursive((self) =>
   Type.Union([
@@ -17,7 +18,7 @@ const JsonValueSchema = Type.Recursive((self) =>
   ]),
 );
 
-const JsonlEntrySchema = Type.Record(Type.String(), JsonValueSchema);
+export const JsonlEntrySchema = Type.Record(Type.String(), JsonValueSchema);
 
 const StringSchema = Type.String();
 
@@ -48,6 +49,22 @@ const AutoresearchRunEntrySchema = Type.Object({
 type JsonValue = Static<typeof JsonValueSchema>;
 
 export type JsonlEntry = Static<typeof JsonlEntrySchema>;
+
+export function appendJsonlEntry(file: string, entry: JsonlEntry): void {
+  const fd = fs.openSync(file, "a+", 0o600);
+
+  try {
+    const size = fs.fstatSync(fd).size;
+    const last = Buffer.alloc(1);
+
+    if (size > 0) fs.readSync(fd, last, 0, 1, size - 1);
+    const separator = size > 0 && last[0] !== 0x0a ? "\n" : "";
+    fs.writeFileSync(fd, `${separator}${JSON.stringify(entry)}\n`);
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
 
 export type RunStatus = "keep" | "discard" | "crash" | "checks_failed";
 

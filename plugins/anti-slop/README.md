@@ -1,6 +1,6 @@
 # Anti-Slop Plugin
 
-Anti-Slop gives Copilot durable guidance for writing precise TypeScript and
+Anti-Slop gives Copilot and Codex shared guidance for writing precise TypeScript and
 JavaScript without requiring each repository to install a linter, add a build
 step, or adopt a new dependency.
 
@@ -25,6 +25,15 @@ Neither hook modifies repository configuration.
 copilot plugin marketplace add scaryrawr/scarypilot
 copilot plugin install anti-slop@scarypilot
 ```
+
+For Codex, use `codex plugin marketplace add scaryrawr/scarypilot` and
+`codex plugin add anti-slop@scarypilot`. Trust its hook definitions separately.
+Codex uses a native payload adapter around the same guard and lint logic.
+Its hooks never download dependencies. With user approval, run
+`node <installed-plugin>/hooks/codex-setup.mjs` once with the same `PLUGIN_DATA`
+and `CODEX_HOME` as the plugin. The default cache is under
+`$CODEX_HOME/cache/scarypilot/anti-slop`, or `~/.codex/cache/scarypilot/anti-slop`.
+Copilot retains the bootstrap and cache behavior described below.
 
 ## Usage
 

@@ -1,0 +1,10 @@
+{
+  "name": "digivolution",
+  "version": "0.4.0",
+  "description": "Evidence-triggered post-task reflection that keeps repository guidance accurate.",
+  "author": { "name": "Mike Wallio" },
+  "repository": "https://github.com/scaryrawr/scarypilot",
+  "skills": "./skills/",
+  "hooks": "./hooks/codex.json",
+  "license": "MIT"
+}

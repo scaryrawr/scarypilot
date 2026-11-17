@@ -10,7 +10,7 @@ Start smaller than you think. You don't need many skills on day one, or even thi
 /automate-me
 ```
 
-You don't describe your style, because [`/automate-me`](../../skills/automate-me/SKILL.md) reads it out of your history. It mines your recent sessions in the active workspace for repeated preferences in replies, delegation, verification, code, prose, and process, then asks which patterns are really yours. It drafts `.github/skills/<your-name>-mode/SKILL.md` through the Authoring or modifying a skill playbook, runs the draft through [`/unslop`](../../skills/unslop/SKILL.md), and opens a PR from a worktree so you review it like any other change.
+You don't describe your style, because [`/automate-me`](../../skills/automate-me/SKILL.md) reads it out of your history. It mines your recent sessions in the active workspace for repeated preferences in replies, delegation, verification, code, prose, and process, then asks which patterns are really yours. It drafts `<project-skills>/<your-name>-mode/SKILL.md` through the Authoring or modifying a skill playbook, runs the draft through [`/unslop`](../../skills/unslop/SKILL.md), and opens a PR from a worktree so you review it like any other change.
 
 Run it again whenever your habits drift:
 
