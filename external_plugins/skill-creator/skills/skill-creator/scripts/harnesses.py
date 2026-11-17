@@ -5,6 +5,8 @@ Modified from Anthropic's skill-creator distribution to support GitHub
 Copilot CLI as the primary eval harness. Legacy helpers for pi, Claude Code,
 and Codex remain available for explicit historical comparisons. Original
 project copyright and Apache-2.0 license are retained in ../LICENSE.txt.
+
+ScaryPilot modification: give each eval invocation a fresh working copy.
 """
 
 from __future__ import annotations
@@ -196,14 +198,19 @@ def _init_sandbox_dir(root: Path) -> Path:
 
 @contextmanager
 def resolve_eval_root(explicit: str | Path | None) -> Iterator[Path]:
-    """Resolve the project root for an eval run.
+    """Yield a disposable working directory, optionally seeded from a project.
 
-    When ``explicit`` is provided it is used as-is (caller opts into a specific,
-    possibly real, directory). Otherwise a disposable sandbox is created so the
-    ``--allow-all`` agent subprocess cannot damage a real repo.
+    Copy project context without its Git metadata so agent mutations and staged
+    skills do not leak into later invocations. This is not a security sandbox.
     """
     if explicit:
-        yield Path(explicit).resolve()
+        with tempfile.TemporaryDirectory(prefix="skill-eval-copy-") as tmp:
+            root = Path(tmp).resolve() / "project"
+            shutil.copytree(
+                Path(explicit).resolve(), root,
+                ignore=shutil.ignore_patterns(".git"),
+            )
+            yield _init_sandbox_dir(root)
     else:
         with sandbox_project_root() as root:
             yield root

@@ -28,5 +28,22 @@ Imported from `scaryrawr/agentic`, revision
 ScaryPilot adds plugin packaging and provenance; modifies `SKILL.md` and
 `references/workflows.md` for uv, installed-path resolution, and explicit
 evaluation approval and external isolation; and updates `evals/evals.json`
-with runnable fixtures and adds trigger cases. The Python helpers and HTML
-assets remain unchanged from that revision.
+with runnable fixtures and adds trigger cases.
+
+Local helper corrections:
+
+- `eval-viewer/generate_review.py`: escape embedded JSON, display nested output
+  paths, and choose a free port without terminating existing listeners.
+- `eval-viewer/viewer.html`: preserve completed feedback on dialog dismissal
+  and cancel pending autosaves on submission.
+- `scripts/generate_report.py`: accept null test results with holdout disabled.
+- `scripts/package_skill.py`: exclude the destination archive.
+- `scripts/quick_validate.py` and `scripts/utils.py`: reject empty required
+  values and invalid or unsupported frontmatter syntax.
+- `scripts/harnesses.py`, `scripts/run_eval.py`, and
+  `scripts/run_harness_eval.py`: isolate invocation working copies, count only
+  the staged candidate as trigger evidence, and abort trigger scoring on
+  execution failures.
+
+Model-free regression tests are added under the plugin's `tests/` directory.
+All other imported helpers and assets remain unchanged from that revision.

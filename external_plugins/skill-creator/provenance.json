@@ -8,12 +8,25 @@
     "skills/skill-creator/SKILL.md",
     "skills/skill-creator/NOTICE.md",
     "skills/skill-creator/references/workflows.md",
-    "skills/skill-creator/evals/evals.json"
+    "skills/skill-creator/evals/evals.json",
+    "skills/skill-creator/eval-viewer/generate_review.py",
+    "skills/skill-creator/eval-viewer/viewer.html",
+    "skills/skill-creator/scripts/generate_report.py",
+    "skills/skill-creator/scripts/harnesses.py",
+    "skills/skill-creator/scripts/package_skill.py",
+    "skills/skill-creator/scripts/quick_validate.py",
+    "skills/skill-creator/scripts/run_eval.py",
+    "skills/skill-creator/scripts/run_harness_eval.py",
+    "skills/skill-creator/scripts/utils.py"
   ],
   "changes": [
     "Added Copilot marketplace packaging and provenance.",
     "Documented uv-based, installed-path helper execution without automatic tool approvals.",
     "Required explicit model spending and broad-permission approval; corrected temporary-directory containment claims.",
-    "Added task fixtures and trigger-description cases."
+    "Added task fixtures and trigger-description cases.",
+    "Fixed viewer script-data escaping, nested artifact discovery, listener preservation, and feedback completion.",
+    "Fixed null holdout reports, self-including archives, and invalid or empty frontmatter.",
+    "Isolated each eval invocation's working copy, required exact staged trigger evidence, and aborted trigger batches on execution errors.",
+    "Added model-free unittest regression coverage using fake agent processes."
   ]
 }

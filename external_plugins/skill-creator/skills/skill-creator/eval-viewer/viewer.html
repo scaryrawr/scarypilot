@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- ScaryPilot modification: preserve submitted feedback when dismissing completion. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -652,6 +653,7 @@
     let feedbackMap = {};  // run_id -> feedback text
     let currentIndex = 0;
     let visitedRuns = new Set();
+    let saveTimeout = null;
 
     // ---- Init ----
     async function init() {
@@ -676,7 +678,6 @@
 
       // Wire up feedback auto-save
       const textarea = document.getElementById("feedback");
-      let saveTimeout = null;
       textarea.addEventListener("input", () => {
         clearTimeout(saveTimeout);
         document.getElementById("feedback-status").textContent = "";
@@ -1024,6 +1025,7 @@
 
     // ---- Done ----
     function showDoneDialog() {
+      clearTimeout(saveTimeout);
       // Save current textarea to feedbackMap (but don't POST yet)
       const run = EMBEDDED_DATA.runs[currentIndex];
       const text = document.getElementById("feedback").value;
@@ -1061,8 +1063,6 @@
     }
 
     function closeDoneDialog() {
-      // Reset status back to in_progress
-      saveCurrentFeedback();
       document.getElementById("done-overlay").classList.remove("visible");
     }
 

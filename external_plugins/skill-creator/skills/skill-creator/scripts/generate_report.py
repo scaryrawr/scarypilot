@@ -4,6 +4,8 @@
 Takes the JSON output from run_loop.py and generates a visual HTML report
 showing each description attempt with check/x for each test case.
 Distinguishes between train and test queries.
+
+ScaryPilot modification: accept null test results when holdout is disabled.
 """
 
 import argparse
@@ -217,7 +219,7 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
         test_total = h.get("test_total")
         description = h.get("description", "")
         train_results = h.get("train_results", h.get("results", []))
-        test_results = h.get("test_results", [])
+        test_results = h.get("test_results") or []
 
         # Create lookups for results by query
         train_by_query = {r["query"]: r for r in train_results}

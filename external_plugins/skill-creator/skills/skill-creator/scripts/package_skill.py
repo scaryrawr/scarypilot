@@ -2,6 +2,8 @@
 """
 Skill Packager - Creates a distributable .skill file of a skill folder
 
+ScaryPilot modification: exclude the destination archive from the source walk.
+
 Usage:
     python3 utils/package_skill.py <path/to/skill-folder> [output-directory]
 
@@ -95,7 +97,7 @@ def package_skill(skill_path, output_dir=None):
         with zipfile.ZipFile(skill_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
             # Walk through the skill directory, excluding build artifacts
             for file_path in skill_path.rglob('*'):
-                if not file_path.is_file():
+                if not file_path.is_file() or file_path.resolve() == skill_filename:
                     continue
                 arcname = file_path.relative_to(skill_path.parent)
                 if should_exclude(arcname):

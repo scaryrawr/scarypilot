@@ -3,10 +3,13 @@
 Modified from Anthropic's skill-creator distribution with stdlib-only YAML
 frontmatter parsing helpers and slug utilities. Original project copyright and
 Apache-2.0 license are retained in ../LICENSE.txt.
+
+ScaryPilot modification: reject invalid or unsupported frontmatter syntax.
 """
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -26,15 +29,16 @@ def parse_frontmatter_text(frontmatter_text: str) -> dict:
             i += 1
             continue
         if line.startswith((" ", "\t")) or ":" not in line:
-            i += 1
-            continue
+            raise ValueError(f"Expected a top-level key: {line!r}")
         key, value = line.split(":", 1)
         key = key.strip()
+        if not re.fullmatch(r"[a-zA-Z][a-zA-Z0-9_-]*", key) or key in result:
+            raise ValueError(f"Invalid or duplicate key: {key!r}")
         value = value.strip()
         if value in {"|", ">", "|-", ">-"}:
             block: list[str] = []
             i += 1
-            while i < len(lines) and (lines[i].startswith("  ") or lines[i].startswith("\t") or not lines[i].strip()):
+            while i < len(lines) and (lines[i].startswith("  ") or not lines[i].strip()):
                 if not lines[i].strip():
                     block.append("")
                 else:
@@ -42,8 +46,15 @@ def parse_frontmatter_text(frontmatter_text: str) -> dict:
                 i += 1
             result[key] = "\n".join(block) if value.startswith("|") else " ".join(x for x in block if x)
             continue
-        if (value.startswith("'") and value.endswith("'")) or (value.startswith('"') and value.endswith('"')):
-            value = value[1:-1]
+        if value.startswith('"'):
+            value = json.loads(value)
+        elif value.startswith("'"):
+            if not re.fullmatch(r"'(?:[^']|'')*'", value):
+                raise ValueError("Invalid single-quoted scalar")
+            value = value[1:-1].replace("''", "'")
+        elif value:
+            if value[0] in "-?:,[]{}#&*!|>'\"%@`" or re.search(r":(?:\s|$)|\s#", value):
+                raise ValueError(f"Quote this scalar or use a block scalar: {value!r}")
         result[key] = value
         i += 1
     return result

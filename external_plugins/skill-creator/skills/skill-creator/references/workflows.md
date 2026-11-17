@@ -30,6 +30,15 @@ Focus new eval work on Copilot CLI. The scripts still have legacy `--harness pi`
 > Personal skills and configuration can contaminate results. Treat failures,
 > unrun cases, and missing grades explicitly, never as passing evidence.
 
+Trigger invocations and task runs each get a fresh Git working copy.
+An explicit `--project-root` is seed context copied without `.git`;
+dependencies are retained and symlink targets are copied rather than shared.
+Changes and candidate staging are discarded
+after each invocation. This separation prevents cross-run contamination but
+does not restrict broad-permission agents' access outside that copy. Trigger
+execution failures abort the batch, and only the uniquely staged skill counts
+as evidence for the candidate description.
+
 ## Task evals
 
 Use task evals when you need actual outputs from Copilot:
@@ -50,7 +59,7 @@ Useful options:
 - `--model <model-id>`
 - `--runs-per-config 3`
 - `--no-baseline`
-- `--project-root <dir>` — override the disposable working directory. Use only a disposable directory inside the approved externally isolated environment, never a real checkout.
+- `--project-root <dir>` — seed fresh working copies from this directory. Use only disposable context inside the approved externally isolated environment.
 
 The default includes a with-skill and a baseline run for each case. With one
 repetition and one harness, budget `2 * case count` CLI invocations, or

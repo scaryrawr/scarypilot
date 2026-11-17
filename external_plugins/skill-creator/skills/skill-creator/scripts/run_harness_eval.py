@@ -6,6 +6,8 @@ with a skill and baseline runs, then writes the workspace layout expected by
 the bundled viewer and aggregation scripts. Legacy non-Copilot harnesses remain
 available only when explicitly selected. Original project copyright and
 Apache-2.0 license are retained in ../LICENSE.txt.
+
+ScaryPilot modification: isolate candidate staging and mutations per task run.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ import shutil
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import ExitStack
 from pathlib import Path
 
 if __package__ in {None, ""}:
@@ -90,12 +93,10 @@ def run_one(
     )
 
     start_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    stage_context = None
-    try:
+    with resolve_eval_root(project_root) as project_root, ExitStack() as staging:
         if harness == "copilot":
             if use_skill:
-                stage_context = staged_copilot_skill(skill_path, project_root)
-                stage_context.__enter__()
+                staging.enter_context(staged_copilot_skill(skill_path, project_root))
             args = copilot_command(prompt, model=model)
             code, stdout, stderr, elapsed = run_command(args, cwd=project_root, timeout=timeout)
         elif harness == "pi":
@@ -114,9 +115,6 @@ def run_one(
             code, stdout, stderr, elapsed = run_command(args, cwd=project_root, timeout=timeout)
         else:
             raise RuntimeError(f"Unsupported harness: {harness}")
-    finally:
-        if stage_context is not None:
-            stage_context.__exit__(None, None, None)
 
     final_text = extract_final_text(harness, stdout)
     if not any(outputs_dir.iterdir()) and final_text:
@@ -197,7 +195,7 @@ def main() -> None:
     parser.add_argument("--num-workers", type=int, default=2, help="Parallel runs")
     parser.add_argument("--runs-per-config", type=int, default=1, help="Repetitions per eval/config/harness")
     parser.add_argument("--no-baseline", action="store_true", help="Only run with_skill")
-    parser.add_argument("--project-root", default=None, help="Project root to run harness CLI from. Default: an isolated throwaway git sandbox (safe for --allow-all agent runs). Pass an explicit path only if you intend the eval to act on that directory.")
+    parser.add_argument("--project-root", default=None, help="Seed project context copied into fresh per-run working directories. Not a security sandbox; broad-permission agents require external isolation.")
     args = parser.parse_args()
 
     skill_path = Path(args.skill_path).resolve()

@@ -5,6 +5,9 @@ Modified from Anthropic's skill-creator distribution to support GitHub
 Copilot CLI as the primary trigger-eval harness. Legacy non-Copilot harnesses
 remain available when explicitly selected. Original project copyright and
 Apache-2.0 license are retained in ../LICENSE.txt.
+
+ScaryPilot modifications: isolate invocation roots, require the staged candidate,
+and abort on execution failures instead of scoring them as negative results.
 """
 
 from __future__ import annotations
@@ -46,37 +49,34 @@ def run_single_query(
     model: str | None = None,
 ) -> bool:
     """Run one trigger query and return whether the skill triggered."""
-    if harness == "copilot":
-        unique_name = f"{skill_name}-skill-{uuid.uuid4().hex[:8]}"
-        with staged_copilot_skill(skill_path, project_root, unique_name=unique_name, description=skill_description) as (staged_name, _):
-            code, stdout, stderr, _ = run_command(
-                copilot_command(query, model=model),
-                cwd=project_root,
-                timeout=timeout,
-            )
-            if code not in (0, 124) and stderr:
-                print(f"Warning: copilot exited {code}: {stderr[:300]}", file=sys.stderr)
-            return triggered_from_output("copilot", stdout, staged_name) or triggered_from_output("copilot", stdout, skill_name)
+    with resolve_eval_root(project_root) as root:
+        if harness == "copilot":
+            unique_name = f"{skill_name}-skill-{uuid.uuid4().hex[:8]}"
+            with staged_copilot_skill(skill_path, root, unique_name=unique_name, description=skill_description) as (staged_name, _):
+                code, stdout, stderr, _ = run_command(
+                    copilot_command(query, model=model), cwd=root, timeout=timeout,
+                )
+                if code != 0:
+                    raise RuntimeError(f"copilot exited {code}: {stderr}")
+                return triggered_from_output("copilot", stdout, staged_name)
 
-    if harness == "pi":
-        unique_name = f"{skill_name}-skill-{uuid.uuid4().hex[:8]}"
-        with temporary_skill_dir(unique_name, skill_description) as staged_skill:
-            code, stdout, stderr, _ = run_command(
-                pi_command(query, skill_path=staged_skill, model=model),
-                cwd=project_root,
-                timeout=timeout,
-            )
-            if code not in (0, 124) and stderr:
-                print(f"Warning: pi exited {code}: {stderr[:300]}", file=sys.stderr)
-            return triggered_from_output("pi", stdout, unique_name, staged_skill)
+        if harness == "pi":
+            unique_name = f"{skill_name}-skill-{uuid.uuid4().hex[:8]}"
+            with temporary_skill_dir(unique_name, skill_description) as staged_skill:
+                code, stdout, stderr, _ = run_command(
+                    pi_command(query, skill_path=staged_skill, model=model), cwd=root, timeout=timeout,
+                )
+                if code != 0:
+                    raise RuntimeError(f"pi exited {code}: {stderr}")
+                return triggered_from_output("pi", stdout, unique_name, staged_skill)
 
-    if harness == "claude":
-        with staged_claude_command(skill_name, skill_description, project_root) as unique_name:
-            args, env = claude_command(query, model=model)
-            code, stdout, stderr, _ = run_command(args, cwd=project_root, timeout=timeout, env=env)
-            if code not in (0, 124) and stderr:
-                print(f"Warning: claude exited {code}: {stderr[:300]}", file=sys.stderr)
-            return triggered_from_output("claude", stdout, unique_name)
+        if harness == "claude":
+            with staged_claude_command(skill_name, skill_description, root) as unique_name:
+                args, env = claude_command(query, model=model)
+                code, stdout, stderr, _ = run_command(args, cwd=root, timeout=timeout, env=env)
+                if code != 0:
+                    raise RuntimeError(f"claude exited {code}: {stderr}")
+                return triggered_from_output("claude", stdout, unique_name)
 
     raise RuntimeError(f"Harness '{harness}' does not support trigger evals: {HARNESS_INFO[harness].notes}")
 
@@ -128,11 +128,7 @@ def run_eval(
                 query = item["query"]
                 query_items[query] = item
                 query_triggers.setdefault(query, [])
-                try:
-                    query_triggers[query].append(future.result())
-                except Exception as e:
-                    print(f"Warning: query failed for harness={selected_harness}: {e}", file=sys.stderr)
-                    query_triggers[query].append(False)
+                query_triggers[query].append(future.result())
 
         for query, triggers in query_triggers.items():
             item = query_items[query]
@@ -182,10 +178,8 @@ def main() -> None:
     parser.add_argument("--model", default=None, help="Model to use for the selected harness")
     parser.add_argument("--harness", default="copilot", help="Harness: copilot (default), or legacy: auto, all, pi, claude")
     parser.add_argument("--project-root", default=None,
-                        help="Project root to run harness CLI from. If omitted, an isolated "
-                             "throwaway git repo is created so the --allow-all agent cannot "
-                             "mutate a real repository. Only pass this to intentionally target "
-                             "a specific (ideally disposable) directory.")
+                        help="Seed project context copied into fresh per-invocation working directories. "
+                             "Not a security sandbox; broad-permission agents require external isolation.")
     parser.add_argument("--verbose", action="store_true", help="Print progress to stderr")
     args = parser.parse_args()
 
@@ -201,7 +195,7 @@ def main() -> None:
 
     with resolve_eval_root(args.project_root) as project_root:
         if args.verbose:
-            root_note = project_root if args.project_root else f"{project_root} (isolated sandbox)"
+            root_note = f"{project_root} (disposable working copy, not a security sandbox)"
             print(f"Evaluating ({args.harness}) from {root_note}: {description}", file=sys.stderr)
 
         output = run_eval(

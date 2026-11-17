@@ -39,7 +39,10 @@ uv run --no-project python "<skill-creator-dir>/scripts/package_skill.py" /path/
 ```
 
 Packaging excludes root `evals/`, `__pycache__`, `node_modules`, `.DS_Store`,
-and `*.pyc`.
+and `*.pyc`, and never includes the archive currently being written.
+Validation supports top-level scalar frontmatter, including quoted strings
+and `|`/`>` blocks; unsupported YAML structures are rejected rather than
+silently accepted.
 
 ## Evaluation safety
 
@@ -48,6 +51,13 @@ Model-backed helpers launch real agents with broad permissions (Copilot uses
 or the network, and change files outside their working directory. Their default
 temporary Git working directory is **not a security sandbox**. Personal skills,
 plugins, and configuration may also affect results.
+
+Each trigger invocation and task configuration uses a fresh Git working
+directory. `--project-root` supplies seed context copied without `.git`;
+it is not the directory the agent modifies. Dependencies are retained and
+symlinks are copied as their target contents rather than shared writable links.
+Failed trigger executions abort the batch instead of counting as non-triggers.
+Only the uniquely staged candidate counts as trigger evidence.
 
 Obtain explicit approval for prompts, fixtures, model/provider, calls,
 repetitions, baselines, timeouts, spending, and broad tool access before
@@ -76,5 +86,16 @@ The complete [license](skills/skill-creator/LICENSE.txt) and
 - [Import provenance](provenance.json)
 
 ScaryPilot adds plugin registration, uv invocation guidance, explicit evaluation
-approval and isolation requirements, and runnable evaluation fixtures. The
-imported Python helpers and HTML assets are unchanged.
+approval and isolation requirements, and runnable evaluation fixtures. Local
+helper fixes cover invocation isolation, trigger scoring, validation,
+packaging, and viewer data safety and feedback preservation; see the notice
+and provenance manifest for modified files.
+
+Model-free regression checks use the repository's unittest flow:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 uv run --no-project python -m unittest discover -s external_plugins/skill-creator/tests -v
+```
+
+Run this command from the marketplace root with Node.js available for the
+viewer feedback lifecycle check. It uses a fake agent CLI, not inference.
