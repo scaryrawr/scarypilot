@@ -281,26 +281,19 @@ export class DecisionClient {
       try {
         const chunks: Uint8Array[] = [];
         let bytes = 0;
-        const reader = response.body?.getReader();
 
-        if (reader) {
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-
-              if (done) break;
+        if (response.body) {
+          await response.body.pipeTo(new WritableStream<Uint8Array>({
+            write(value) {
               bytes += value.byteLength;
 
               if (bytes > maxResponseBytes) {
-                await reader.cancel();
                 throw new DecisionError(`${endpoint} response exceeds the 4 MiB limit.`);
               }
 
               chunks.push(value);
-            }
-          } finally {
-            reader.releaseLock();
-          }
+            },
+          }), { signal });
         }
 
         signal.throwIfAborted();

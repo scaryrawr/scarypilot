@@ -224,7 +224,7 @@ describe("installed experiment CLI", () => {
       writeFileSync(path.join(f.workspace, ".auto", stage === "checks" ? "checks.sh" : "measure.sh"),
         "printf started > started\nsleep 30\nprintf bad > late\n");
       f.init();
-      const result = f.run(["--baseline"], { timeout_seconds: 0.1, checks_timeout_seconds: 0.1 });
+      const result = f.run(["--baseline"], { timeout_seconds: stage === "benchmark" ? 0.1 : 10, checks_timeout_seconds: 0.1 });
       expect(result.status, result.stderr).toBe(2);
       expect(result.stdout).toContain("TIMEOUT");
       expect(existsSync(path.join(f.workspace, "late"))).toBe(false);

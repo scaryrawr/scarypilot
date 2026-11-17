@@ -1,6 +1,6 @@
 {
   "name": "decide",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Run typed choices over text or images, yes-or-no probabilities, and scores with OMLX's SystemOne decision models.",
   "author": {
     "name": "Mike Wallio"

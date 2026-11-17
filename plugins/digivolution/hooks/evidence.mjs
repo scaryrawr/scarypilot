@@ -19,7 +19,7 @@ const REPO_SURFACE_PATTERN =
   /\b(?:repo(?:sitory)?|agents?\.md|claude\.md|(?:codex|copilot) instructions?|skill\.md|readme(?:\.md)?|package(?:-lock)?\.json|pnpm-lock\.yaml|yarn\.lock|pyproject\.toml|cargo\.toml|go\.mod|manifest|config(?:uration)? file|setup instructions?|install(?:ation)? instructions?|workflow file|project convention|npm|pnpm|yarn|bun|gradle|maven|cargo|pytest|rspec)\b/i;
 
 const USAGE_ERROR_PATTERN =
-  /\b(?:unknown|unrecognized|invalid|unsupported|unexpected)\s+(?:option|argument|flag|command)|\busage:\b|\bno such (?:script|command)\b|\bmissing required (?:argument|option)\b/i;
+  /\b(?:unknown|unrecognized|invalid|unsupported|unexpected)\s+(?:option|argument|flag|command)|\busage:|\bno such (?:script|command)\b|\bmissing required (?:argument|option)\b/i;
 
 
 export function isRepositoryCorrection(prompt) {

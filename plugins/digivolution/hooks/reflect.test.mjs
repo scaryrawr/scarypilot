@@ -41,6 +41,16 @@ test("a recovered validation usage mistake triggers reflection", async () => {
   assert.equal((await run("Stop")).decision, "block");
 });
 
+for (const diagnostic of ["Usage: check [options]", "usage:\n  check [options]"]) {
+  test(`a recovered usage-only diagnostic triggers reflection: ${JSON.stringify(diagnostic)}`, async () => {
+    const { run } = await session();
+    await run("UserPromptSubmit", { prompt: "Test the package" });
+    await run("PostToolUse", { tool_name: "Bash", tool_input: { command: "npm test --wrong" }, tool_response: { exit_code: 1, stderr: diagnostic } });
+    await run("PostToolUse", { tool_name: "Bash", tool_input: { command: "npm test" }, tool_response: { exit_code: 0 } });
+    assert.equal((await run("Stop")).decision, "block");
+  });
+}
+
 test("two recovered validation failures trigger reflection but unrelated commands do not", async () => {
   const { run } = await session();
   await run("UserPromptSubmit", { prompt: "Run tests" });

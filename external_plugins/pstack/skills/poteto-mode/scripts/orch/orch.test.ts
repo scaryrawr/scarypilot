@@ -10,7 +10,7 @@ import {
 } from "node:fs/promises";
 import { realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import {
   NotFoundError,
   UserError,
@@ -188,7 +188,7 @@ async function withFakeForge<T>({
   hostname?: string;
 }): Promise<T> {
   const bin = join(directory, "bin");
-  const outputPath = join(directory, "forge-output.txt");
+  const outputPath = join(directory, "forge-output.txt").replaceAll("\\", "/");
   await mkdir(bin, { recursive: true });
   await writeFile(
     outputPath,
@@ -215,7 +215,7 @@ async function withFakeForge<T>({
 
   if (sshConfig && !nativeSsh) throw new Error("SSH alias regression requires OpenSSH");
   await writeFile(ssh, sshConfig ? `#!/usr/bin/env bash
-exec "${nativeSsh}" -F "${sshConfig}" "$@"
+exec "${nativeSsh.replaceAll("\\", "/")}" -F "${sshConfig.replaceAll("\\", "/")}" "$@"
 ` : `#!/usr/bin/env bash
 set -euo pipefail
 case "$*" in
@@ -233,7 +233,7 @@ esac
     fake,
     `#!/usr/bin/env bash
 set -euo pipefail
-if [ "$(pwd -P)" != "${realpathSync(join(directory, "repo"))}" ]; then
+if [ ! "." -ef "${realpathSync(join(directory, "repo")).replaceAll("\\", "/")}" ]; then
   printf '${forge} ran outside the fixture repo: %s\\n' "$(pwd -P)" >&2
   exit 2
 fi
@@ -286,9 +286,15 @@ esac
   await chmod(fake, 0o755);
 
   const originalPath = process.env.PATH;
-  process.env.PATH = `${bin}:${originalPath ?? ""}`;
+  process.env.PATH = `${bin}${delimiter}${originalPath ?? ""}`;
 
   try {
+    const resolvedForge = Bun.which(forge, { PATH: process.env.PATH });
+
+    if (!resolvedForge || realpathSync(resolvedForge) !== realpathSync(fake)) {
+      throw new Error("Forge fixture must shadow the installed CLI before running tests");
+    }
+
     return await operation();
   } finally {
     if (originalPath === undefined) {
