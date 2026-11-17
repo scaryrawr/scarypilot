@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -191,6 +192,64 @@ class HelperTests(unittest.TestCase):
             self.root, timeout=5, stdin="Input: ", env={**os.environ, "HELPER_CASE": "value"},
         )
         self.assertEqual((code, stdout, stderr), (3, "Input: value\n", "Failure detail\n"))
+
+    @unittest.skipUnless(os.name == "posix", "Requires POSIX SIGINT semantics")
+    def test_interruption_stops_the_agent_and_its_spawned_tools(self):
+        ready = self.root / "agent-pid.txt"
+        marker = self.root / "interrupted-late-write.txt"
+        gate = self.root / "allow-tool-write.txt"
+        tool = f"""
+import time
+from pathlib import Path
+for _ in range(500):
+    if Path({str(gate)!r}).exists():
+        Path({str(marker)!r}).write_text("late")
+        break
+    time.sleep(0.01)
+"""
+        agent = f"""
+import os, subprocess, sys, time
+from pathlib import Path
+subprocess.Popen([sys.executable, "-c", {tool!r}, {str(marker)!r}])
+Path({str(ready)!r}).write_text(str(os.getpid()))
+time.sleep(30)
+"""
+        helper = f"""
+import sys
+from pathlib import Path
+sys.path.insert(0, {str(SKILL)!r})
+from scripts.harnesses import run_command
+try:
+    run_command([sys.executable, "-c", {agent!r}], Path({str(self.root)!r}), timeout=10)
+except KeyboardInterrupt:
+    print("Original interruption propagated", flush=True)
+    sys.exit(130)
+"""
+        process = subprocess.Popen(
+            [sys.executable, "-c", helper], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        try:
+            deadline = time.monotonic() + 5
+            while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertTrue(ready.exists(), "The agent did not start")
+            process.send_signal(signal.SIGINT)
+            stdout, stderr = process.communicate(timeout=5)
+            self.assertEqual(process.returncode, 130, stderr)
+            self.assertIn("Original interruption propagated", stdout)
+            with self.assertRaises(ProcessLookupError):
+                os.kill(int(ready.read_text()), 0)
+            gate.write_text("Proceed")
+            time.sleep(0.2)
+            self.assertFalse(marker.exists(), "A spawned tool survived interruption")
+        finally:
+            if ready.exists():
+                try:
+                    os.killpg(int(ready.read_text()), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            process.kill()
+            process.communicate(timeout=5)
 
     def test_viewer_occupied_port_does_not_terminate_processes(self):
         (self.root / "outputs").mkdir()

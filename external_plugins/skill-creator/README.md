@@ -59,8 +59,9 @@ it is not the directory the agent modifies. Dependencies are retained and
 symlinks are copied as their target contents rather than shared writable links.
 Failed trigger executions abort the batch instead of counting as non-triggers.
 Queued queries are cancelled after a worker failure; active queries finish
-before the error is returned. Timeout cleanup targets the agent's POSIX process
-group or Windows task tree, not processes that escape that managed tree.
+before the error is returned. Timeout and interruption cleanup target the
+agent's POSIX process group or Windows task tree, not processes that escape
+that managed tree. Interruption is re-raised after cleanup.
 Only the uniquely staged candidate counts as trigger evidence.
 Task outputs require a new iteration directory: reruns must increment
 `--iteration` or choose a new workspace rather than reuse old outputs or grades.

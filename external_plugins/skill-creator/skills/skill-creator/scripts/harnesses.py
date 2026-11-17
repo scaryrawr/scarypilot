@@ -7,7 +7,8 @@ and Codex remain available for explicit historical comparisons. Original
 project copyright and Apache-2.0 license are retained in ../LICENSE.txt.
 
 ScaryPilot modifications: give each eval invocation a fresh working copy and
-stop spawned tools on timeout using a POSIX process group or Windows task tree.
+stop spawned tools on timeout or interruption using a POSIX process group or
+Windows task tree.
 """
 
 from __future__ import annotations
@@ -287,6 +288,23 @@ def staged_claude_command(skill_name: str, description: str, project_root: Path)
             pass
 
 
+def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
+    if os.name == "nt":
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                check=True, capture_output=True, timeout=10,
+            )
+        finally:
+            process.kill()
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    process.wait(timeout=10)
+
+
 def run_command(args: list[str], cwd: Path, timeout: float, stdin: str | None = None, env: dict[str, str] | None = None) -> tuple[int, str, str, float]:
     start = time.time()
     with subprocess.Popen(
@@ -300,24 +318,19 @@ def run_command(args: list[str], cwd: Path, timeout: float, stdin: str | None = 
         start_new_session=os.name != "nt",
     ) as process:
         try:
-            stdout, stderr = process.communicate(input=stdin, timeout=timeout)
+            try:
+                stdout, stderr = process.communicate(input=stdin, timeout=timeout)
+            except subprocess.TimeoutExpired:
+                _terminate_process_tree(process)
+                stdout, stderr = process.communicate(timeout=10)
+                return 124, stdout, stderr + f"\nTimed out after {timeout}s", time.time() - start
             return process.returncode, stdout, stderr, time.time() - start
-        except subprocess.TimeoutExpired:
-            if os.name == "nt":
-                try:
-                    subprocess.run(
-                        ["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                        check=True, capture_output=True, timeout=10,
-                    )
-                finally:
-                    process.kill()
-            else:
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-            stdout, stderr = process.communicate(timeout=10)
-            return 124, stdout, stderr + f"\nTimed out after {timeout}s", time.time() - start
+        except BaseException as error:
+            try:
+                _terminate_process_tree(process)
+            except Exception as cleanup_error:
+                raise error from cleanup_error
+            raise
 
 
 def copilot_command(prompt: str, model: str | None = None) -> list[str]:

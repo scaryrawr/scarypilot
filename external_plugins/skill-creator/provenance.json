@@ -31,6 +31,7 @@
     "Isolated each eval invocation's working copy, required exact staged trigger evidence, and aborted trigger batches on execution errors.",
     "Added model-free unittest regression coverage using fake agent processes.",
     "Escaped grading-evidence attribute quotes, handled failed feedback HTTP writes, preserved available token counts, rejected stale task outputs and empty training splits, and corrected the optimizer retry budget.",
-    "Escaped benchmark configuration labels, restored current feedback with prior-iteration context, found eval-directory metadata, terminated managed subprocess trees on timeout, cancelled pending queries on failure, preserved same-name fixtures, accepted snake-case usage events, and rejected non-string required scalars and incomplete frontmatter delimiters."
+    "Escaped benchmark configuration labels, restored current feedback with prior-iteration context, found eval-directory metadata, terminated managed subprocess trees on timeout, cancelled pending queries on failure, preserved same-name fixtures, accepted snake-case usage events, and rejected non-string required scalars and incomplete frontmatter delimiters.",
+    "Reused managed process-tree cleanup for interruption and abnormal completion, preserving the original exception and verifying Ctrl+C with real helper/agent/tool processes."
   ]
 }

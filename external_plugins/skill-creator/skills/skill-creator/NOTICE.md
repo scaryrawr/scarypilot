@@ -51,8 +51,9 @@ Local helper corrections:
   the staged candidate as trigger evidence, and abort trigger scoring on
   execution failures. Refuse existing task iteration/run directories so stale
   outputs and grades cannot be reused. Terminate managed subprocess trees on
-  timeout, cancel pending trigger queries after failure, preserve same-name
-  fixtures, and recognize both usage token key spellings.
+  timeout or interruption, re-raise interruption after cleanup, cancel pending
+  trigger queries after failure, preserve same-name fixtures, and recognize
+  both usage token key spellings.
 - `references/workflows.md`: include shortening retries in optimization budgets.
 
 Model-free regression tests are added under the plugin's `tests/` directory.
