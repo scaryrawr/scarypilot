@@ -1,0 +1,14 @@
+{
+  "name": "skill-creator",
+  "description": "Create, revise, validate, package, and evaluate reusable Copilot skills.",
+  "version": "0.1.4",
+  "author": {
+    "name": "Mike Wallio",
+    "url": "https://github.com/scaryrawr"
+  },
+  "homepage": "https://github.com/scaryrawr/agentic/tree/main/skills/skill-creator",
+  "repository": "https://github.com/scaryrawr/scarypilot",
+  "license": "Apache-2.0",
+  "keywords": ["copilot", "skills", "evals", "packaging"],
+  "skills": ["skills/"]
+}

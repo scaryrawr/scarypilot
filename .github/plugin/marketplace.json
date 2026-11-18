@@ -117,6 +117,14 @@
       "source": "./external_plugins/pstack"
     },
     {
+      "name": "skill-creator",
+      "description": "Create, revise, validate, package, and evaluate reusable Copilot skills.",
+      "author": {
+        "name": "Mike Wallio"
+      },
+      "source": "./external_plugins/skill-creator"
+    },
+    {
       "name": "smahties",
       "description": "Local semantic code-search MCP server powered by smahtutils. Requires the smahties CLI to be installed first.",
       "author": {

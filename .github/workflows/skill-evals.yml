@@ -34,6 +34,9 @@ jobs:
         run: node --test tools/skill-evals.test.mjs
       - name: Check runner contracts without inference
         run: python3 -m unittest discover -s tools/skill-evals/skill-creator/tests -v
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
+      - name: Check published skill-creator helpers without inference
+        run: uv run --no-project python -m unittest discover -s external_plugins/skill-creator/tests -v
       - name: Validate inventory and report affected coverage
         env:
           BASE_REF: ${{ github.event.pull_request.base.sha || inputs.base }}
