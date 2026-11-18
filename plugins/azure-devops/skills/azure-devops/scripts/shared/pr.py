@@ -274,7 +274,16 @@ class PrClient:
                         isinstance(status, str) and status in
                         {"unknown", "active", "fixed", "wontFix", "closed", "byDesign", "pending"}
                     )
-                    if not valid_status or not isinstance(thread.get("comments"), list):
+                    comments = thread.get("comments")
+                    properties = thread.get("properties")
+                    system_event = (
+                        "status" not in thread and thread.get("threadContext") is None
+                        and isinstance(properties, dict) and "CodeReviewThreadType" in properties
+                        and isinstance(comments, list) and bool(comments)
+                        and all(isinstance(comment, dict) and comment.get("commentType") == "system"
+                                for comment in comments)
+                    )
+                    if not isinstance(comments, list) or not (valid_status or system_event):
                         raise AdoError("snapshot thread data is incomplete")
             payload["policies"] = self.policies(scope)
             payload["builds"] = self.builds(scope, details)
