@@ -886,6 +886,44 @@ class BackendTests(unittest.TestCase):
                 with self.assertRaisesRegex(AdoError, "incomplete"):
                     self.client(http).snapshot(42)
 
+    def test_snapshot_keeps_statusless_vote_event_out_of_active_feedback(self):
+        vote_event = {
+            "id": 5,
+            "comments": [{"id": 1, "parentCommentId": 0, "commentType": "system",
+                          "content": "Reviewer voted 10"}],
+            "properties": {"CodeReviewThreadType": {"$type": "System.String", "$value": "VoteUpdate"}},
+            "isDeleted": False,
+        }
+        review = {"id": 4, "status": "active", "comments": [{"id": 1, "commentType": "text"}]}
+        http = self.snapshot_http()
+        http.outcomes[1] = response({"value": [vote_event, review]})
+
+        threads = self.client(http).snapshot(42)["threads"]
+
+        self.assertEqual(threads, [vote_event, review])
+        self.assertEqual([thread["id"] for thread in threads if thread.get("status") == "active"], [4])
+
+    def test_snapshot_rejects_incomplete_review_threads_and_ambiguous_events(self):
+        system = {"commentType": "system"}
+        reviewer = {"commentType": "text"}
+        properties = {"CodeReviewThreadType": {"$type": "System.String", "$value": "RefUpdate"}}
+        event = {"comments": [system], "properties": properties}
+        for label, fields in (
+            ("missing review status", {"comments": [reviewer]}),
+            ("missing review comments", {"status": "active"}),
+            ("empty event comments", {**event, "comments": []}),
+            ("mixed comments", {**event, "comments": [system, reviewer]}),
+            ("malformed comment", {**event, "comments": [system, None]}),
+            ("missing event marker", {"comments": [system]}),
+            ("malformed event properties", {**event, "properties": ["CodeReviewThreadType"]}),
+            ("review anchor", {**event, "threadContext": {"filePath": "/src/file.py"}}),
+            ("explicit invalid status", {**event, "status": None}),
+        ):
+            with self.subTest(label=label):
+                http = Http(response(DETAILS), response({"value": [{"id": 1, **fields}]}))
+                with self.assertRaisesRegex(AdoError, "thread data is incomplete"):
+                    self.client(http).snapshot(42)
+
     def test_snapshot_thread_status_is_a_documented_enum(self):
         for value in (None, True, {}, [], 7, -1, "unexpected"):
             with self.subTest(value=value):
